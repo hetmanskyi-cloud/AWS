@@ -1,0 +1,25 @@
+# Terraform specific files
+*.tfstate
+*.tfstate.*
+*.log
+crash.log
+*.tfvars
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+**/.terraform/*
+.terraform.lock.hcl
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Sensitive files
+*.pem
+*.key
+
+# AWS credentials
+/.aws/*
