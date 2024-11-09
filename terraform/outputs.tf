@@ -50,3 +50,39 @@ output "kms_key_arn" {
   description = "KMS key ARN created for encrypting resources"
   value       = module.kms.kms_key_arn
 }
+
+# --- EC2 Outputs ---
+output "ec2_asg_id" {
+  description = "The ID of the EC2 Auto Scaling Group"
+  value       = module.ec2.ec2_asg_id
+}
+
+output "launch_template_latest_version" {
+  description = "The latest version of the EC2 Launch Template"
+  value       = module.ec2.launch_template_latest_version
+}
+
+output "launch_template_id" {
+  description = "The ID of the EC2 Launch Template"
+  value       = module.ec2.launch_template_id
+}
+
+output "instance_public_ips" {
+  description = "Public IPs of instances in the Auto Scaling Group (if assigned)"
+  value       = module.ec2.instance_public_ips
+}
+
+output "instance_private_ips" {
+  description = "Private IPs of instances in the Auto Scaling Group"
+  value       = module.ec2.instance_private_ips
+}
+
+output "instance_ids" {
+  description = "Instance IDs of instances in the Auto Scaling Group"
+  value       = module.ec2.instance_ids
+}
+
+output "ec2_security_group_id" {
+  description = "ID of the Security Group created for EC2 instances"
+  value       = module.ec2.ec2_security_group_id
+}
