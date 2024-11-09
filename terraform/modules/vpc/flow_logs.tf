@@ -51,7 +51,7 @@ resource "aws_iam_role_policy_attachment" "vpc_flow_logs_cloudwatch_policy" {
 # Attach custom KMS policy to IAM Role for VPC Flow Logs
 resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   name   = "${var.name_prefix}-vpc-flow-logs-policy"
-  role   = aws_iam_role.vpc_flow_logs_role.id
+  role   = aws_iam_role.vpc_flow_logs_role.name
   policy = data.aws_iam_policy_document.vpc_flow_logs_kms_policy.json
 }
 

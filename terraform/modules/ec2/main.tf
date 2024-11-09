@@ -91,3 +91,16 @@ resource "aws_autoscaling_policy" "scale_in_policy" {
   cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.ec2_asg.name
 }
+
+# --- Data Source for EC2 Instances in Auto Scaling Group --- #
+# This data source retrieves all instances launched by the Auto Scaling Group.
+# It filters instances based on the "Name" tag assigned in the ASG configuration,
+# allowing us to dynamically capture public and private IP addresses of instances.
+# This is useful for monitoring or additional configurations that require instance IPs.
+
+data "aws_instances" "asg_instances" {
+  filter {
+    name   = "tag:Name"
+    values = ["${var.name_prefix}-ec2-instance"] # Matches the tag assigned in the ASG configuration
+  }
+}

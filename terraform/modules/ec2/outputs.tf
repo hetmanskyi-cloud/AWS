@@ -55,3 +55,17 @@ output "ec2_security_group_id" {
   description = "ID of the Security Group created for EC2 instances"
   value       = aws_security_group.ec2_security_group.id
 }
+
+# --- Outputs for EC2 Instances --- #
+
+# Output the public IP addresses of instances in the Auto Scaling Group
+output "ec2_instance_public_ips" {
+  description = "Public IP addresses of EC2 instances in the Auto Scaling Group"
+  value       = data.aws_instances.asg_instances.public_ips
+}
+
+# Output the private IP addresses of instances in the Auto Scaling Group
+output "ec2_instance_private_ips" {
+  description = "Private IP addresses of EC2 instances in the Auto Scaling Group"
+  value       = data.aws_instances.asg_instances.private_ips
+}
