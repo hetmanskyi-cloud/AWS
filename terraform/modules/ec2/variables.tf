@@ -115,10 +115,3 @@ variable "vpc_id" {
   description = "ID of the VPC for Security Group association"
   type        = string
 }
-
-# Allowed CIDR blocks for SSH access
-variable "ssh_allowed_cidrs" {
-  description = "List of CIDR blocks allowed to SSH into EC2 instances"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Modify for production (e.g., ["192.168.1.0/24"])
-}

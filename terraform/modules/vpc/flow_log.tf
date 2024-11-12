@@ -23,7 +23,12 @@ data "aws_iam_policy_document" "vpc_flow_logs_kms_policy" {
       "kms:ReEncryptFrom",
       "kms:GenerateDataKey",
       "kms:GenerateDataKeyWithoutPlaintext",
-      "kms:DescribeKey"
+      "kms:DescribeKey",
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
     ]
     resources = [var.kms_key_arn]
   }
@@ -85,6 +90,8 @@ resource "aws_flow_log" "vpc_flow_log" {
   log_destination_type = "cloud-watch-logs" # Set destination to CloudWatch Logs
   iam_role_arn         = aws_iam_role.vpc_flow_logs_role.arn
 
+  # Prevents Terraform from blocking the destroy action on this resource
+  # This allows deletion of the Flow Log resource without restrictions if necessary
   lifecycle {
     prevent_destroy = false
   }

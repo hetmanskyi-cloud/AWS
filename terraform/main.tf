@@ -73,7 +73,6 @@ module "ec2" {
   public_subnet_id_3 = module.vpc.public_subnet_3_id
   security_group_id  = [module.ec2.ec2_security_group_id]
   vpc_id             = module.vpc.vpc_id
-  ssh_allowed_cidrs  = var.ssh_allowed_cidrs
 
   # User data for initial setup (e.g., WordPress configuration)
   user_data = filebase64(var.user_data)

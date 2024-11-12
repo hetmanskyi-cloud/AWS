@@ -1,63 +1,65 @@
 # --- EC2 Launch Template Configuration --- #
-# This configuration sets up a detailed EC2 Launch Template for use with an Auto Scaling Group.
-# The template includes specifications for instance type, block storage, security settings, and metadata options.
+# This configuration sets up an EC2 Launch Template for use with an Auto Scaling Group.
+# It defines instance specifications, storage, security settings, metadata options, and monitoring.
 
 resource "aws_launch_template" "ec2_launch_template" {
+  # Template name prefix
   name_prefix = "${var.name_prefix}-ec2-launch-template"
   description = "Launch template for EC2 instances with auto-scaling configuration"
 
   # --- Instance Specifications --- #
-  # Define the AMI and instance type. In this example, we use Ubuntu with t2.micro for development purposes.
+  # Define the AMI ID and instance type. Variables are used for flexible configuration.
   image_id      = var.ami_id        # Dynamic AMI ID for Ubuntu in specified region
   instance_type = var.instance_type # Instance type for AWS Free Tier
-  key_name      = var.ssh_key_name  # Name of the SSH key for accessing instances
+  key_name      = var.ssh_key_name  # SSH key name for accessing instances
 
   # --- Block Device Mappings --- #
-  # Configure the root EBS volume with a size of 8 GiB and encryption enabled.
+  # Configure the root EBS volume: 8 GiB, encryption enabled.
   block_device_mappings {
     device_name = "/dev/xvda" # Default root device for Ubuntu AMIs
     ebs {
-      volume_size           = var.volume_size # Set volume size in GiB
-      volume_type           = var.volume_type # General Purpose SSD
-      encrypted             = true            # Enable encryption for the root EBS volume
-      delete_on_termination = true            # Automatically delete the volume upon instance termination
+      volume_size           = var.volume_size # Volume size in GiB
+      volume_type           = var.volume_type # General Purpose SSD (gp2 or gp3)
+      encrypted             = true            # Enable encryption for root EBS volume
+      delete_on_termination = true            # Delete the volume when instance terminates
     }
   }
 
   # --- Security and Metadata Settings --- #
-  # Disable termination protection, enable instance metadata access, and restrict metadata access tokens.
+  # Disable termination protection and enable instance metadata access.
   disable_api_termination              = false
-  instance_initiated_shutdown_behavior = "terminate" # Instance terminates on shutdown
+  instance_initiated_shutdown_behavior = "terminate" # Terminate instance on shutdown
   metadata_options {
     http_endpoint               = "enabled"  # Enable metadata endpoint
-    http_tokens                 = "required" # Enforce IMDSv2 (metadata token required)
-    http_put_response_hop_limit = 2          # Restrict metadata response to within 2 hops
+    http_tokens                 = "required" # Require tokens (IMDSv2)
+    http_put_response_hop_limit = 2          # Limit metadata access to 2 hops
     instance_metadata_tags      = "enabled"  # Enable instance metadata tags
   }
 
   # --- Monitoring and EBS Optimization --- #
   # Enable detailed monitoring and EBS optimization for improved performance.
   monitoring {
-    enabled = true
+    enabled = true # Enable detailed monitoring
   }
-  ebs_optimized = true # EBS-optimized instance for increased I/O
+  ebs_optimized = true # EBS-optimized instance for higher I/O
 
   # --- IAM Instance Profile --- #
-  # Associate the EC2 instance with an IAM role if needed.
+  # Attach an IAM instance profile for access management.
   iam_instance_profile {
-    name = aws_iam_instance_profile.ec2_instance_profile.name # Use the IAM instance profile defined in ec2/iam.tf
+    name = aws_iam_instance_profile.ec2_instance_profile.name # Use IAM instance profile defined in ec2/iam.tf
   }
 
   # --- Network Interface Configuration --- #
-  # Associate a public IP address and specify Security Group IDs for network interfaces.
+  # Automatically assign a public IP and delete the network interface on termination.
+  # Security groups are now set via vpc_security_group_ids for compatibility.
   network_interfaces {
-    associate_public_ip_address = true
-    delete_on_termination       = true
-    security_groups             = var.security_group_id # Define Security Group ID for access control
+    associate_public_ip_address = true                  # Associate public IP
+    delete_on_termination       = true                  # Delete interface upon instance termination
+    security_groups             = var.security_group_id # Security groups for access control
   }
 
   # --- Tag Specifications --- #
-  # Apply tags to all instances created using this launch template.
+  # Apply tags to all instances created with this launch template.
   tag_specifications {
     resource_type = "instance"
     tags = {
@@ -67,6 +69,6 @@ resource "aws_launch_template" "ec2_launch_template" {
   }
 
   # --- User Data --- #
-  # Specify a user_data script for initial instance configuration (e.g., install software).
-  user_data = var.user_data # User data script
+  # Specify a user_data script for initial instance configuration.
+  user_data = var.user_data # Initial setup script for the instance
 }
