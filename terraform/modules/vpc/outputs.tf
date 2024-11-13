@@ -56,3 +56,57 @@ output "vpc_flow_logs_role_arn" {
   value       = aws_iam_role.vpc_flow_logs_role.arn
 }
 
+# --- Additional Outputs for CIDR Blocks --- #
+
+# Output the CIDR block for the first public subnet
+output "public_subnet_cidr_block_1" {
+  description = "CIDR block for the first public subnet"
+  value       = aws_subnet.public_subnet_1.cidr_block
+}
+
+# Output the CIDR block for the second public subnet
+output "public_subnet_cidr_block_2" {
+  description = "CIDR block for the second public subnet"
+  value       = aws_subnet.public_subnet_2.cidr_block
+}
+
+# Output the CIDR block for the third public subnet
+output "public_subnet_cidr_block_3" {
+  description = "CIDR block for the third public subnet"
+  value       = aws_subnet.public_subnet_3.cidr_block
+}
+
+# Output the CIDR block for the first private subnet
+output "private_subnet_cidr_block_1" {
+  description = "CIDR block for the first private subnet"
+  value       = aws_subnet.private_subnet_1.cidr_block
+}
+
+# Output the CIDR block for the second private subnet
+output "private_subnet_cidr_block_2" {
+  description = "CIDR block for the second private subnet"
+  value       = aws_subnet.private_subnet_2.cidr_block
+}
+
+# Output the CIDR block for the third private subnet
+output "private_subnet_cidr_block_3" {
+  description = "CIDR block for the third private subnet"
+  value       = aws_subnet.private_subnet_3.cidr_block
+}
+
+# --- Private Route Table Output ---
+# Output for the private route table ID, used for routing traffic within private subnets.
+# This route table does not connect to the Internet Gateway and routes traffic only within VPC resources.
+
+output "private_route_table_id" {
+  description = "ID of the private route table"
+  value       = aws_route_table.private_route_table.id
+}
+
+# --- Public Route Table Output ---
+# Output for the public route table ID, used for routing Internet traffic in public subnets through the Internet Gateway.
+
+output "public_route_table_id" {
+  description = "ID of the public route table"
+  value       = aws_route_table.public_route_table.id
+}

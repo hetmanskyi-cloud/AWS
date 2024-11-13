@@ -115,3 +115,11 @@ variable "vpc_id" {
   description = "ID of the VPC for Security Group association"
   type        = string
 }
+
+# --- SSH Access Configuration ---
+# Enable or disable SSH access to EC2 instances (recommended to disable in production)
+variable "enable_ssh_access" {
+  description = "Enable or disable SSH access to EC2 instances"
+  type        = bool
+  default     = false
+}

@@ -21,13 +21,16 @@ resource "aws_security_group" "ec2_security_group" {
 # --- Ingress Rules (Inbound Traffic) --- #
 # Define inbound rules to allow specific types of traffic to the EC2 instances.
 
-# Allow SSH access (port 22) from specified IPs or ranges (recommended to limit this in production)
-resource "aws_vpc_security_group_ingress_rule" "ssh" {
+# Allow SSH access (port 22) if SSH access is enabled
+resource "aws_security_group_rule" "ssh" {
+  count = var.enable_ssh_access ? 1 : 0
+
   security_group_id = aws_security_group.ec2_security_group.id
+  type              = "ingress"
   from_port         = 22
   to_port           = 22
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "0.0.0.0/0"
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"] # Replace with a more limited range in a production environment
   description       = "Allow SSH access"
 }
 

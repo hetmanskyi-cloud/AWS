@@ -112,3 +112,10 @@ variable "log_retention_in_days" {
   type        = number
 }
 
+# --- SSH Access Configuration ---
+# Enable or disable SSH access to EC2 instances (recommended to disable in production)
+variable "enable_ssh_access" {
+  description = "Enable or disable SSH access to EC2 instances"
+  type        = bool
+  default     = false
+}

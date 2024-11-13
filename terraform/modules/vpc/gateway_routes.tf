@@ -51,3 +51,36 @@ resource "aws_route_table_association" "public_route_table_association_3" {
   subnet_id      = aws_subnet.public_subnet_3.id
   route_table_id = aws_route_table.public_route_table.id
 }
+
+# --- Private Route Table Configuration ---
+# This route table is for private subnets and routes traffic to VPC Endpoints (without Internet Gateway).
+
+resource "aws_route_table" "private_route_table" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name        = "${var.name_prefix}-private-route-table"
+    Environment = var.environment
+  }
+}
+
+# --- Private Subnet Route Table Association ---
+# Associate the private route table with each private subnet.
+
+# Association for Private Subnet 1
+resource "aws_route_table_association" "private_route_table_association_1" {
+  subnet_id      = aws_subnet.private_subnet_1.id
+  route_table_id = aws_route_table.private_route_table.id
+}
+
+# Association for Private Subnet 2
+resource "aws_route_table_association" "private_route_table_association_2" {
+  subnet_id      = aws_subnet.private_subnet_2.id
+  route_table_id = aws_route_table.private_route_table.id
+}
+
+# Association for Private Subnet 3
+resource "aws_route_table_association" "private_route_table_association_3" {
+  subnet_id      = aws_subnet.private_subnet_3.id
+  route_table_id = aws_route_table.private_route_table.id
+}

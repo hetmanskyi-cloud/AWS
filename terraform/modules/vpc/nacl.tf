@@ -45,6 +45,7 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 
 # Rule for inbound SSH traffic on port 22
 resource "aws_network_acl_rule" "public_inbound_ssh" {
+  count          = var.enable_ssh_access ? 1 : 0
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
   egress         = false

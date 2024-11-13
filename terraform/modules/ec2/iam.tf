@@ -2,6 +2,8 @@
 # This file defines the IAM role and policies associated with EC2 instances.
 # Policies include temporary permissions for S3 access, CloudWatch, and SSM permissions.
 
+# IAM Role for EC2 instances
+# This role allows EC2 instances to assume specific permissions for accessing AWS services.
 resource "aws_iam_role" "ec2_role" {
   name = "${var.name_prefix}-ec2-role"
   assume_role_policy = jsonencode({

@@ -170,3 +170,99 @@ variable "user_data" {
   description = "Base64-encoded user data script for initial configuration (e.g., installing applications)"
   type        = string
 }
+
+# --- SSH Access Configuration ---
+# Enable or disable SSH access to EC2 instances (recommended to disable in production)
+variable "enable_ssh_access" {
+  description = "Enable or disable SSH access to EC2 instances"
+  type        = bool
+}
+
+# --- RDS Configuration --- #
+
+# Storage size in GB for the RDS instance
+variable "allocated_storage" {
+  description = "Storage size in GB for the RDS instance"
+  type        = number
+}
+
+# Instance class for RDS
+variable "instance_class" {
+  description = "Instance class for RDS"
+  type        = string
+}
+
+# Database engine for the RDS instance (e.g., 'mysql', 'postgres')
+variable "engine" {
+  description = "Database engine for the RDS instance (e.g., 'mysql', 'postgres')"
+  type        = string
+}
+
+# Database engine version
+variable "engine_version" {
+  description = "Database engine version"
+  type        = string
+}
+
+# Master username for RDS
+variable "db_username" {
+  description = "Master username for RDS"
+  type        = string
+}
+
+# Master password for RDS
+variable "db_password" {
+  description = "Master password for RDS"
+  type        = string
+  sensitive   = true
+}
+
+# Initial database name
+variable "db_name" {
+  description = "Initial database name"
+  type        = string
+}
+
+# Database port for RDS (e.g., 3306 for MySQL)
+variable "db_port" {
+  description = "Database port for RDS (e.g., 3306 for MySQL)"
+  type        = number
+}
+
+# Number of days to retain RDS backups
+variable "backup_retention_period" {
+  description = "Number of days to retain RDS backups"
+  type        = number
+}
+
+# Preferred window for automated RDS backups
+variable "backup_window" {
+  description = "Preferred window for automated RDS backups"
+  type        = string
+}
+
+# Enable Multi-AZ deployment for RDS high availability
+variable "multi_az" {
+  description = "Enable Multi-AZ deployment for RDS high availability"
+  type        = bool
+}
+
+# Enable or disable deletion protection for RDS instance
+variable "enable_deletion_protection" {
+  description = "Enable or disable deletion protection for RDS instance"
+  type        = bool
+}
+
+# Skip final snapshot when deleting the RDS instance
+variable "skip_final_snapshot" {
+  description = "Skip final snapshot when deleting the RDS instance"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable enhanced monitoring for RDS instances
+variable "enable_monitoring" {
+  description = "Enable or disable enhanced monitoring for RDS instances"
+  type        = bool
+  default     = false
+}

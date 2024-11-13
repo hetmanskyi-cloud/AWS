@@ -1,5 +1,49 @@
-# --- VPC Module Configuration ---
-# Configures VPC, subnets, route tables, NACLs, and flow logs.
+locals {
+  # CIDR blocks for public subnets
+  public_subnet_cidr_blocks = [
+    module.vpc.public_subnet_cidr_block_1,
+    module.vpc.public_subnet_cidr_block_2,
+    module.vpc.public_subnet_cidr_block_3
+  ]
+
+  # CIDR blocks for private subnets
+  private_subnet_cidr_blocks = [
+    module.vpc.private_subnet_cidr_block_1,
+    module.vpc.private_subnet_cidr_block_2,
+    module.vpc.private_subnet_cidr_block_3
+  ]
+
+  # Individual public subnet IDs
+  public_subnet_id_1 = module.vpc.public_subnet_1_id
+  public_subnet_id_2 = module.vpc.public_subnet_2_id
+  public_subnet_id_3 = module.vpc.public_subnet_3_id
+
+  # List of all public subnet IDs
+  public_subnet_ids = [
+    local.public_subnet_id_1,
+    local.public_subnet_id_2,
+    local.public_subnet_id_3
+  ]
+
+  # Individual private subnet IDs
+  private_subnet_id_1 = module.vpc.private_subnet_1_id
+  private_subnet_id_2 = module.vpc.private_subnet_2_id
+  private_subnet_id_3 = module.vpc.private_subnet_3_id
+
+  # List of all private subnet IDs
+  private_subnet_ids = [
+    local.private_subnet_id_1,
+    local.private_subnet_id_2,
+    local.private_subnet_id_3
+  ]
+
+  # General configurations
+  name_prefix = var.name_prefix
+  environment = var.environment
+  aws_region  = var.aws_region
+}
+
+# --- VPC Module Configuration --- #
 module "vpc" {
   source = "./modules/vpc"
 
@@ -21,37 +65,35 @@ module "vpc" {
   availability_zone_private_3 = var.availability_zone_private_3
 
   # AWS region and account settings
-  aws_region     = var.aws_region
+  aws_region     = local.aws_region
   aws_account_id = var.aws_account_id
 
   # Security and logging configurations
-  kms_key_arn           = module.kms.kms_key_arn # Dynamic encryption key
+  kms_key_arn           = module.kms.kms_key_arn
   log_retention_in_days = var.log_retention_in_days
 
   # General environment and naming configurations
-  environment = var.environment
-  name_prefix = var.name_prefix
+  environment = local.environment
+  name_prefix = local.name_prefix
 }
 
-# --- KMS Module Configuration ---
-# Creates and manages a KMS key for encryption needs (CloudWatch Logs, S3, etc.)
+# --- KMS Module Configuration --- #
 module "kms" {
   source              = "./modules/kms"
-  aws_region          = var.aws_region
+  aws_region          = local.aws_region
   aws_account_id      = var.aws_account_id
-  environment         = var.environment
-  name_prefix         = var.name_prefix
+  environment         = local.environment
+  name_prefix         = local.name_prefix
   enable_key_rotation = var.enable_key_rotation
 }
 
-# --- EC2 Module Configuration ---
-# Configures EC2 instances with auto-scaling and security settings, deployed across public subnets.
+# --- EC2 Module Configuration --- #
 module "ec2" {
   source = "./modules/ec2"
 
   # General naming and environment configuration
-  name_prefix = var.name_prefix
-  environment = var.environment
+  name_prefix = local.name_prefix
+  environment = local.environment
 
   # EC2 instance configuration
   ami_id                  = var.ami_id
@@ -68,12 +110,74 @@ module "ec2" {
   volume_type = var.volume_type
 
   # Networking and security configurations
-  public_subnet_id_1 = module.vpc.public_subnet_1_id
-  public_subnet_id_2 = module.vpc.public_subnet_2_id
-  public_subnet_id_3 = module.vpc.public_subnet_3_id
-  security_group_id  = [module.ec2.ec2_security_group_id]
+  public_subnet_id_1 = local.public_subnet_id_1
+  public_subnet_id_2 = local.public_subnet_id_2
+  public_subnet_id_3 = local.public_subnet_id_3
+  enable_ssh_access  = var.enable_ssh_access
+  security_group_id  = [module.ec2.ec2_security_group_id, module.rds.rds_security_group_id]
   vpc_id             = module.vpc.vpc_id
 
   # User data for initial setup (e.g., WordPress configuration)
   user_data = filebase64(var.user_data)
+}
+
+# --- RDS Module Configuration --- #
+module "rds" {
+  source      = "./modules/rds"
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  # Database configuration
+  allocated_storage = var.allocated_storage
+  instance_class    = var.instance_class
+  engine            = var.engine
+  engine_version    = var.engine_version
+  username          = var.db_username
+  password          = var.db_password
+  db_name           = var.db_name
+  db_port           = var.db_port
+
+  # Network configuration for private subnets
+  vpc_id                     = module.vpc.vpc_id
+  private_subnet_ids         = local.private_subnet_ids
+  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+
+  # Security group for RDS access (if needed in other modules)
+  rds_security_group_id = [module.rds.rds_security_group_id]
+
+  # Backup and replication settings
+  backup_retention_period = var.backup_retention_period
+  backup_window           = var.backup_window
+  multi_az                = var.multi_az
+  deletion_protection     = var.enable_deletion_protection
+  skip_final_snapshot     = var.skip_final_snapshot
+  enable_monitoring       = var.enable_monitoring
+
+  # KMS key for encryption
+  kms_key_arn = module.kms.kms_key_arn
+}
+
+# --- Endpoints Module Configuration ---
+module "endpoints" {
+  source = "./modules/endpoints"
+
+  # VPC configuration for endpoints
+  vpc_id     = module.vpc.vpc_id
+  aws_region = local.aws_region
+
+  # Subnet configuration for interface endpoints
+  private_subnet_ids = local.private_subnet_ids
+
+  # Route table configuration for gateway endpoints (e.g., S3)
+  route_table_ids = [module.vpc.private_route_table_id]
+
+  # Security group for interface endpoints created in the endpoints module
+  endpoint_sg_id = module.endpoints.endpoint_security_group_id
+
+  # CIDR blocks of private subnets for security group rules
+  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+
+  # Tagging and naming
+  name_prefix = local.name_prefix
+  environment = local.environment
 }
