@@ -1,11 +1,5 @@
 # --- RDS Module Outputs --- #
 
-# Output the endpoint of the RDS database
-output "db_endpoint" {
-  description = "The endpoint of the RDS database"
-  value       = aws_db_instance.db.endpoint
-}
-
 # Output the database name
 output "db_name" {
   description = "The name of the RDS database"
@@ -28,6 +22,18 @@ output "rds_security_group_id" {
 output "db_port" {
   description = "The port number of the RDS database"
   value       = var.db_port
+}
+
+# Outputs the RDS instance address (host) to be used for application database connection.
+output "db_host" {
+  description = "The address of the RDS instance to be used as DB_HOST in WordPress configuration."
+  value       = aws_db_instance.db.address
+}
+
+# Outputs the RDS endpoint (host and port) to simplify database connection settings in applications.
+output "db_endpoint" {
+  description = "The endpoint of the RDS instance, including host and port."
+  value       = aws_db_instance.db.endpoint
 }
 
 # Output for Monitoring Role ARN, used when enabling monitoring

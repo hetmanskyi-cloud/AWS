@@ -86,3 +86,16 @@ output "ec2_security_group_id" {
   description = "ID of the Security Group created for EC2 instances"
   value       = module.ec2.ec2_security_group_id
 }
+
+# Exports the RDS database host to be used by the EC2 instance running WordPress
+# Outputs the RDS database host address (hostname only) for application configurations
+output "db_host" {
+  value       = module.rds.db_host
+  description = "The host address of the RDS instance, used for database connection."
+}
+
+# Outputs the full RDS database endpoint (including host and port) for application configurations
+output "db_endpoint" {
+  value       = module.rds.db_endpoint
+  description = "The full endpoint of the RDS instance, including both host and port, for comprehensive database connection settings."
+}

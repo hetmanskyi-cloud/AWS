@@ -171,7 +171,7 @@ variable "user_data" {
   type        = string
 }
 
-# --- SSH Access Configuration ---
+# --- SSH Access Configuration --- #
 # Enable or disable SSH access to EC2 instances (recommended to disable in production)
 variable "enable_ssh_access" {
   description = "Enable or disable SSH access to EC2 instances"

@@ -75,6 +75,9 @@ module "vpc" {
   # General environment and naming configurations
   environment = local.environment
   name_prefix = local.name_prefix
+
+  # SSH Access configuration
+  enable_ssh_access = var.enable_ssh_access
 }
 
 # --- KMS Module Configuration --- #
@@ -116,6 +119,10 @@ module "ec2" {
   enable_ssh_access  = var.enable_ssh_access
   security_group_id  = [module.ec2.ec2_security_group_id, module.rds.rds_security_group_id]
   vpc_id             = module.vpc.vpc_id
+
+  # Pass RDS host and endpoint for WordPress configuration
+  db_host     = module.rds.db_host
+  db_endpoint = module.rds.db_endpoint
 
   # User data for initial setup (e.g., WordPress configuration)
   user_data = filebase64(var.user_data)

@@ -117,5 +117,4 @@ variable "log_retention_in_days" {
 variable "enable_ssh_access" {
   description = "Enable or disable SSH access to EC2 instances"
   type        = bool
-  default     = false
 }

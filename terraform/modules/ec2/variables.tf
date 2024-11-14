@@ -121,5 +121,16 @@ variable "vpc_id" {
 variable "enable_ssh_access" {
   description = "Enable or disable SSH access to EC2 instances"
   type        = bool
-  default     = false
+}
+
+# Database host for WordPress configuration
+variable "db_host" {
+  description = "The RDS database host for WordPress configuration"
+  type        = string
+}
+
+# Full database endpoint for potential other configurations
+variable "db_endpoint" {
+  description = "The RDS database endpoint for other configurations"
+  type        = string
 }
