@@ -11,10 +11,23 @@ echo "Starting WordPress installation..."
 # --- System update and required packages installation --- #
 echo "Updating system and installing required packages..."
 sudo apt-get update && sudo apt-get upgrade -y && sleep 2
-sudo apt-get install -y nginx mysql-client php-fpm php-mysql php-xml php-mbstring php-curl unzip || {
+sudo apt-get install -y nginx mysql-client php php-fpm php-mysql php-xml php-mbstring php-curl unzip || {
   echo "Package installation failed. Please check the connection and package availability."
   exit 1
 }
+
+# Detect installed PHP version
+PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
+
+# Ensure PHP-FPM is installed and enabled
+if ! systemctl list-units --full -all | grep -q "${PHP_FPM_SERVICE}"; then
+  echo "Installing PHP-FPM for detected PHP version (${PHP_VERSION})..."
+  sudo apt-get install -y "php${PHP_VERSION}-fpm" || { echo "Failed to install PHP-FPM."; exit 1; }
+fi
+
+# Enable and start PHP-FPM
+sudo systemctl enable --now "$PHP_FPM_SERVICE"
 
 # Clean up unneeded packages and cache
 echo "Cleaning up unused packages and cache..."
@@ -79,7 +92,7 @@ server {
 
     location ~ \.php\$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
     }
 
     location ~ /\.ht {
@@ -101,11 +114,7 @@ fi
 # --- Enable Nginx and PHP-FPM to start on boot --- #
 echo "Enabling Nginx and PHP-FPM to start on boot..."
 sudo systemctl enable --now nginx
-if systemctl list-units --full -all | grep -q 'php8.1-fpm.service'; then
-  sudo systemctl enable --now php8.1-fpm
-else
-  echo "php8.1-fpm service not found. Please verify PHP version."
-fi
+sudo systemctl enable --now "$PHP_FPM_SERVICE"
 
 # --- Configure UFW Firewall (if enabled) --- #
 if sudo ufw status | grep -qw "active"; then

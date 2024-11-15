@@ -1,7 +1,8 @@
 # --- EC2 Auto Scaling Group Configuration --- #
 
-# Define the Auto Scaling Group with desired number of instances and subnet allocation
+# Define the Auto Scaling Group with desired number of instances and subnet allocation.
 resource "aws_autoscaling_group" "ec2_asg" {
+  # Desired, minimum, and maximum instance counts
   desired_capacity    = var.autoscaling_desired                                                  # Desired number of instances
   min_size            = var.autoscaling_min                                                      # Minimum number of instances
   max_size            = var.autoscaling_max                                                      # Maximum number of instances
@@ -22,6 +23,16 @@ resource "aws_autoscaling_group" "ec2_asg" {
 
   # Termination policy for balanced scaling
   termination_policies = ["OldestInstance"]
+
+  # --- Lifecycle Configuration --- #
+  # Ensure new instances are created before destroying old ones
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  # --- Dependencies --- #
+  # Ensure ASG depends on the latest Launch Template
+  depends_on = [aws_launch_template.ec2_launch_template]
 
   # Tags applied to all instances launched in the Auto Scaling Group
   tag {
