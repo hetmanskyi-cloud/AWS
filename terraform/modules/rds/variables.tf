@@ -32,12 +32,12 @@ variable "engine_version" {
   type        = string
 }
 
-variable "username" {
+variable "db_username" {
   description = "Master username for RDS"
   type        = string
 }
 
-variable "password" {
+variable "db_password" {
   description = "Master password for RDS"
   type        = string
   sensitive   = true
@@ -105,6 +105,11 @@ variable "private_subnet_ids" {
 
 variable "private_subnet_cidr_blocks" {
   description = "List of CIDR blocks for private subnets"
+  type        = list(string)
+}
+
+variable "public_subnet_cidr_blocks" {
+  description = "List of CIDR blocks for public subnets"
   type        = list(string)
 }
 

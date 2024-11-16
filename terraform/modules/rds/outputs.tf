@@ -9,7 +9,7 @@ output "db_name" {
 # Output the master username for the database
 output "db_username" {
   description = "The master username for the RDS database"
-  value       = var.username
+  value       = var.db_username
 }
 
 # Output the security group ID for RDS

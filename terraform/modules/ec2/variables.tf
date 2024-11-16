@@ -116,21 +116,59 @@ variable "vpc_id" {
   type        = string
 }
 
-# --- SSH Access Configuration ---
+# --- SSH Access Configuration --- #
+
 # Enable or disable SSH access to EC2 instances (recommended to disable in production)
 variable "enable_ssh_access" {
   description = "Enable or disable SSH access to EC2 instances"
   type        = bool
 }
 
+# --- Variables for Database Configuration --- #
+
 # Database host for WordPress configuration
+# This is the primary RDS host used for establishing connections from the WordPress application.
 variable "db_host" {
   description = "The RDS database host for WordPress configuration"
   type        = string
 }
 
 # Full database endpoint for potential other configurations
+# This variable holds the full endpoint of the RDS database. Use it for any scenarios where the endpoint is required instead of just the host.
 variable "db_endpoint" {
   description = "The RDS database endpoint for other configurations"
   type        = string
+}
+
+# Name of the RDS database
+# This variable specifies the name of the initial database created during RDS setup.
+variable "db_name" {
+  description = "Name of the RDS database"
+  type        = string
+}
+
+# Master username for RDS
+# The username used for administrative access to the RDS database.
+variable "db_username" {
+  description = "Master username for RDS"
+  type        = string
+}
+
+# Master password for RDS
+# A sensitive variable that stores the master password for accessing the RDS database.
+variable "db_password" {
+  description = "Master password for RDS"
+  type        = string
+  sensitive   = true
+}
+
+# PHP version for WordPress installation
+variable "php_version" {
+  description = "PHP version used for WordPress installation"
+  type        = string
+}
+
+# PHP-FPM service name for WordPress configuration
+variable "php_fpm_service" {
+  type = string
 }

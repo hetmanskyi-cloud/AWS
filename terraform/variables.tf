@@ -29,6 +29,16 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
+variable "public_subnet_cidr_blocks" {
+  description = "CIDR blocks for public subnets"
+  type        = list(string)
+}
+
+variable "private_subnet_cidr_blocks" {
+  description = "CIDR blocks for private subnets"
+  type        = list(string)
+}
+
 variable "public_subnet_cidr_block_1" {
   description = "CIDR block for the first public subnet"
   type        = string
@@ -169,6 +179,7 @@ variable "ssh_allowed_cidrs" {
 variable "user_data" {
   description = "Base64-encoded user data script for initial configuration (e.g., installing applications)"
   type        = string
+  default     = ""
 }
 
 # --- SSH Access Configuration --- #
@@ -266,3 +277,10 @@ variable "enable_monitoring" {
   type        = bool
   default     = false
 }
+
+# PHP version for WordPress installation
+variable "php_version" {
+  description = "PHP version used for WordPress installation"
+  type        = string
+}
+

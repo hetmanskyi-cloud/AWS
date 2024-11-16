@@ -7,8 +7,8 @@ resource "aws_db_instance" "db" {
   instance_class    = var.instance_class                         # RDS instance class
   engine            = var.engine                                 # Database engine (e.g., "mysql")
   engine_version    = var.engine_version                         # Database engine version
-  username          = var.username                               # Master username
-  password          = var.password                               # Master password (sensitive)
+  username          = var.db_username                            # Master username
+  password          = var.db_password                            # Master password (sensitive)
   db_name           = var.db_name                                # Initial database name
   port              = var.db_port                                # Database port (e.g., 3306 for MySQL)
   multi_az          = var.multi_az                               # Enable Multi-AZ deployment

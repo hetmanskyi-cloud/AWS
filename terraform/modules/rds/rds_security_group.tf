@@ -1,6 +1,5 @@
 # --- RDS Security Group Configuration --- #
 
-# Define a Security Group for RDS to control inbound and outbound traffic
 resource "aws_security_group" "rds_sg" {
   name        = "${var.name_prefix}-rds-sg-${var.environment}" # Dynamic name for RDS security group
   description = "Security group for RDS access"                # Description of the security group
@@ -13,66 +12,51 @@ resource "aws_security_group" "rds_sg" {
 }
 
 # --- Ingress Rules (Inbound Traffic) --- #
-# Allow inbound traffic on the database port from each private subnet
+# Allow inbound traffic on the database port from private and public subnets
 
-# Allow access from the first private subnet
-resource "aws_vpc_security_group_ingress_rule" "rds_ingress_1" {
+# Private subnets
+resource "aws_vpc_security_group_ingress_rule" "rds_ingress_private" {
+  count             = length(var.private_subnet_cidr_blocks)
   security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow inbound DB traffic from the first private subnet"
+  description       = "Allow inbound DB traffic from private subnet ${count.index + 1}"
   from_port         = var.db_port
   to_port           = var.db_port
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[0]
+  cidr_ipv4         = var.private_subnet_cidr_blocks[count.index]
 }
 
-# Allow access from the second private subnet
-resource "aws_vpc_security_group_ingress_rule" "rds_ingress_2" {
+# Public subnets
+resource "aws_vpc_security_group_ingress_rule" "rds_ingress_public" {
+  count             = length(var.public_subnet_cidr_blocks)
   security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow inbound DB traffic from the second private subnet"
+  description       = "Allow inbound DB traffic from public subnet ${count.index + 1}"
   from_port         = var.db_port
   to_port           = var.db_port
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[1]
+  cidr_ipv4         = var.public_subnet_cidr_blocks[count.index]
 }
 
-# Allow access from the third private subnet
-resource "aws_vpc_security_group_ingress_rule" "rds_ingress_3" {
+# --- Egress Rules (Outbound Traffic) --- #
+# Allow outbound traffic to private and public subnets
+
+# Private subnets
+resource "aws_vpc_security_group_egress_rule" "rds_egress_private" {
+  count             = length(var.private_subnet_cidr_blocks)
   security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow inbound DB traffic from the third private subnet"
+  description       = "Allow outbound DB traffic to private subnet ${count.index + 1}"
   from_port         = var.db_port
   to_port           = var.db_port
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[2]
+  cidr_ipv4         = var.private_subnet_cidr_blocks[count.index]
 }
 
-# --- Egress Rule (Outbound Traffic) --- #
-
-# Allow outbound traffic to the first private subnet
-resource "aws_vpc_security_group_egress_rule" "rds_egress_1" {
+# Public subnets
+resource "aws_vpc_security_group_egress_rule" "rds_egress_public" {
+  count             = length(var.public_subnet_cidr_blocks)
   security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow outbound DB traffic to the first private subnet"
+  description       = "Allow outbound DB traffic to public subnet ${count.index + 1}"
   from_port         = var.db_port
   to_port           = var.db_port
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[0]
-}
-
-# Allow outbound traffic to the second private subnet
-resource "aws_vpc_security_group_egress_rule" "rds_egress_2" {
-  security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow outbound DB traffic to the second private subnet"
-  from_port         = var.db_port
-  to_port           = var.db_port
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[1]
-}
-
-# Allow outbound traffic to the third private subnet
-resource "aws_vpc_security_group_egress_rule" "rds_egress_3" {
-  security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow outbound DB traffic to the third private subnet"
-  from_port         = var.db_port
-  to_port           = var.db_port
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[2]
+  cidr_ipv4         = var.public_subnet_cidr_blocks[count.index]
 }

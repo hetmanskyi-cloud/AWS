@@ -121,11 +121,24 @@ module "ec2" {
   vpc_id             = module.vpc.vpc_id
 
   # Pass RDS host and endpoint for WordPress configuration
-  db_host     = module.rds.db_host
-  db_endpoint = module.rds.db_endpoint
+  db_name         = var.db_name
+  db_username     = var.db_username
+  db_password     = var.db_password
+  db_host         = module.rds.db_host
+  db_endpoint     = module.rds.db_endpoint
+  php_version     = var.php_version
+  php_fpm_service = "php${var.php_version}-fpm"
 
-  # User data for initial setup (e.g., WordPress configuration)
-  user_data = filebase64(var.user_data)
+  # User data for initial setup
+  user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", {
+    DB_NAME         = var.db_name,
+    DB_USERNAME     = var.db_username,
+    DB_USER         = var.db_username,
+    DB_PASSWORD     = var.db_password,
+    DB_HOST         = module.rds.db_host,
+    PHP_VERSION     = var.php_version,
+    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
+  }))
 }
 
 # --- RDS Module Configuration --- #
@@ -139,8 +152,8 @@ module "rds" {
   instance_class    = var.instance_class
   engine            = var.engine
   engine_version    = var.engine_version
-  username          = var.db_username
-  password          = var.db_password
+  db_username       = var.db_username
+  db_password       = var.db_password
   db_name           = var.db_name
   db_port           = var.db_port
 
@@ -148,6 +161,7 @@ module "rds" {
   vpc_id                     = module.vpc.vpc_id
   private_subnet_ids         = local.private_subnet_ids
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+  public_subnet_cidr_blocks  = local.public_subnet_cidr_blocks
 
   # Security group for RDS access (if needed in other modules)
   rds_security_group_id = [module.rds.rds_security_group_id]
