@@ -44,6 +44,18 @@ variable "autoscaling_max" {
   type        = number
 }
 
+# Threshold for high incoming network traffic. Triggers an alarm when exceeded. 
+variable "network_in_threshold" {
+  description = "Threshold for high incoming network traffic"
+  type        = number
+}
+
+# Threshold for high outgoing network traffic. Triggers an alarm when exceeded. 
+variable "network_out_threshold" {
+  description = "Threshold for high outgoing network traffic"
+  type        = number
+}
+
 # Threshold for scaling out (increasing instance count) when CPU utilization exceeds this value.
 variable "scale_out_cpu_threshold" {
   description = "CPU utilization threshold for scaling out"
@@ -171,4 +183,24 @@ variable "php_version" {
 # PHP-FPM service name for WordPress configuration
 variable "php_fpm_service" {
   type = string
+}
+
+# --- S3 Variables --- #
+
+variable "wordpress_media_bucket_arn" {
+  description = "The ARN of the S3 bucket for WordPress media"
+  type        = string
+}
+
+variable "wordpress_scripts_bucket_arn" {
+  description = "The ARN of the S3 bucket for WordPress scripts"
+  type        = string
+}
+
+# --- SNS Variables --- #
+
+# ARN of the SNS Topic for CloudWatch alarms
+variable "sns_topic_arn" {
+  description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
+  type        = string
 }

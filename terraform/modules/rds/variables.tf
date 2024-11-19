@@ -132,3 +132,31 @@ variable "enable_monitoring" {
   description = "Enable RDS enhanced monitoring if set to true"
   type        = bool
 }
+
+# --- RDS Monitoring Variables --- #
+
+# Threshold for CPU utilization alarm
+variable "rds_cpu_threshold" {
+  description = "Threshold for high CPU utilization on RDS"
+  type        = number
+}
+
+# Threshold for free storage space alarm
+variable "rds_storage_threshold" {
+  description = "Threshold for low free storage space on RDS (in bytes)"
+  type        = number
+}
+
+# Threshold for high database connections alarm
+variable "rds_connections_threshold" {
+  description = "Threshold for high number of database connections on RDS"
+  type        = number
+}
+
+# --- SNS Variables --- #
+
+# ARN of the SNS Topic for CloudWatch alarms
+variable "sns_topic_arn" {
+  description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
+  type        = string
+}

@@ -107,6 +107,11 @@ module "ec2" {
   autoscaling_max         = var.autoscaling_max
   scale_out_cpu_threshold = var.scale_out_cpu_threshold
   scale_in_cpu_threshold  = var.scale_in_cpu_threshold
+  network_in_threshold    = var.network_in_threshold
+  network_out_threshold   = var.network_out_threshold
+
+  # SNS Topic for CloudWatch Alarms
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
   # EBS volume configuration
   volume_size = var.volume_size
@@ -119,6 +124,10 @@ module "ec2" {
   enable_ssh_access  = var.enable_ssh_access
   security_group_id  = [module.ec2.ec2_security_group_id, module.rds.rds_security_group_id]
   vpc_id             = module.vpc.vpc_id
+
+  # S3 bucket configurations
+  wordpress_media_bucket_arn   = module.s3.wordpress_media_bucket_arn
+  wordpress_scripts_bucket_arn = module.s3.wordpress_scripts_bucket_arn
 
   # Pass RDS host and endpoint for WordPress configuration
   db_name         = var.db_name
@@ -174,6 +183,14 @@ module "rds" {
   skip_final_snapshot     = var.skip_final_snapshot
   enable_monitoring       = var.enable_monitoring
 
+  # RDS Alarm Thresholds
+  rds_cpu_threshold         = var.rds_cpu_threshold
+  rds_storage_threshold     = var.rds_storage_threshold
+  rds_connections_threshold = var.rds_connections_threshold
+
+  # SNS Topic for CloudWatch Alarms
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+
   # KMS key for encryption
   kms_key_arn = module.kms.kms_key_arn
 }
@@ -201,4 +218,15 @@ module "endpoints" {
   # Tagging and naming
   name_prefix = local.name_prefix
   environment = local.environment
+}
+
+# --- S3 Module --- #
+module "s3" {
+  source = "./modules/s3" # Путь к модулю S3
+
+  environment                       = var.environment
+  name_prefix                       = var.name_prefix
+  aws_account_id                    = var.aws_account_id
+  kms_key_arn                       = module.kms.kms_key_arn
+  noncurrent_version_retention_days = var.noncurrent_version_retention_days
 }

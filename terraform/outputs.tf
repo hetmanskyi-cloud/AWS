@@ -99,3 +99,17 @@ output "db_endpoint" {
   value       = module.rds.db_endpoint
   description = "The full endpoint of the RDS instance, including both host and port, for comprehensive database connection settings."
 }
+
+# --- S3 Outputs --- #
+
+# Output the ARN of the WordPress media bucket
+output "wordpress_media_bucket_arn" {
+  description = "The ARN of the S3 bucket used for WordPress media storage"
+  value       = module.s3.wordpress_media_bucket_arn
+}
+
+# Output the ARN of the WordPress scripts bucket
+output "wordpress_scripts_bucket_arn" {
+  description = "The ARN of the S3 bucket used for WordPress setup scripts"
+  value       = module.s3.wordpress_scripts_bucket_arn
+}

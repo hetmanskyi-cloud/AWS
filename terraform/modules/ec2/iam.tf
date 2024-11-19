@@ -1,6 +1,6 @@
 # --- IAM Configuration for EC2 Instances --- #
 # This file defines the IAM role and policies associated with EC2 instances.
-# Policies include temporary permissions for S3 access, CloudWatch, and SSM permissions.
+# Policies include permissions for S3 access, CloudWatch, and SSM permissions.
 
 # IAM Role for EC2 instances
 # This role allows EC2 instances to assume specific permissions for accessing AWS services.
@@ -25,8 +25,9 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
-# --- Temporary S3 Access Policy for EC2 --- #
-# Full access to all S3 buckets for testing; adjust as needed for specific resources after testing.
+# --- S3 Access Policy for EC2 --- #
+
+# Access to S3 buckets
 resource "aws_iam_policy" "s3_access_policy" {
   name        = "${var.name_prefix}-s3-access-policy"
   description = "Temporary S3 access policy for EC2 instances in the project"
@@ -42,8 +43,10 @@ resource "aws_iam_policy" "s3_access_policy" {
           "s3:ListBucket"
         ],
         Resource = [
-          "arn:aws:s3:::*",
-          "arn:aws:s3:::*/*"
+          "${var.wordpress_media_bucket_arn}",
+          "${var.wordpress_media_bucket_arn}/*",
+          "${var.wordpress_scripts_bucket_arn}",
+          "${var.wordpress_scripts_bucket_arn}/*"
         ]
       }
     ]

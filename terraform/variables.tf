@@ -147,6 +147,25 @@ variable "autoscaling_max" {
   type        = number
 }
 
+# Threshold for high incoming network traffic. Triggers an alarm when exceeded. 
+variable "network_in_threshold" {
+  description = "Threshold for high incoming network traffic"
+  type        = number
+}
+
+# Threshold for high outgoing network traffic. Triggers an alarm when exceeded. 
+variable "network_out_threshold" {
+  description = "Threshold for high outgoing network traffic"
+  type        = number
+}
+
+# Actions to perform when an alarm is triggered.
+variable "alarm_actions" {
+  description = "Actions to perform when an alarm is triggered"
+  type        = list(string)
+  default     = []
+}
+
 variable "scale_out_cpu_threshold" {
   description = "CPU utilization threshold for scaling out"
   type        = number
@@ -282,5 +301,53 @@ variable "enable_monitoring" {
 variable "php_version" {
   description = "PHP version used for WordPress installation"
   type        = string
+}
+
+# --- RDS Monitoring Variables --- #
+
+# Threshold for CPU utilization alarm
+variable "rds_cpu_threshold" {
+  description = "Threshold for high CPU utilization on RDS"
+  type        = number
+}
+
+# Threshold for free storage space alarm
+variable "rds_storage_threshold" {
+  description = "Threshold for low free storage space on RDS (in bytes)"
+  type        = number
+}
+
+# Threshold for high database connections alarm
+variable "rds_connections_threshold" {
+  description = "Threshold for high number of database connections on RDS"
+  type        = number
+}
+
+# --- S3 Variables --- #
+
+# Lifecycle Configuration
+# Number of days to retain noncurrent object versions
+variable "noncurrent_version_retention_days" {
+  description = "Number of days to retain noncurrent versions of objects in S3 buckets"
+  type        = number
+}
+
+# --- SNS Variables --- #
+
+# List of email addresses for SNS subscriptions
+variable "sns_email_subscribers" {
+  description = "List of email addresses to receive SNS notifications"
+  type        = list(string)
+  default     = []
+}
+
+# List of additional SNS subscriptions (e.g., SMS, Slack)
+variable "sns_subscriptions" {
+  description = "List of additional SNS subscriptions (e.g., SMS, Slack)"
+  type = list(object({
+    protocol = string
+    endpoint = string
+  }))
+  default = []
 }
 
