@@ -184,15 +184,19 @@ module "rds" {
   enable_monitoring       = var.enable_monitoring
 
   # RDS Alarm Thresholds
-  rds_cpu_threshold         = var.rds_cpu_threshold
+  rds_cpu_threshold_high    = var.rds_cpu_threshold_high
+  rds_cpu_threshold_low     = var.rds_cpu_threshold_low
   rds_storage_threshold     = var.rds_storage_threshold
   rds_connections_threshold = var.rds_connections_threshold
 
-  # SNS Topic for CloudWatch Alarms
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  # Read Replica Configuration
+  read_replicas_count = var.read_replicas_count
 
   # KMS key for encryption
   kms_key_arn = module.kms.kms_key_arn
+
+  # SNS Topic for CloudWatch Alarms
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 }
 
 # --- Endpoints Module Configuration ---

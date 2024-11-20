@@ -65,3 +65,22 @@ resource "aws_db_subnet_group" "db_subnet_group" {
     Environment = var.environment                                         # Environment tag
   }
 }
+
+resource "aws_db_instance" "read_replica" {
+  count = var.read_replicas_count
+
+  identifier             = "${var.name_prefix}-replica-${count.index + 1}-${var.environment}"
+  instance_class         = var.instance_class
+  engine                 = var.engine
+  engine_version         = var.engine_version
+  publicly_accessible    = false
+  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+
+  tags = {
+    Name        = "${var.name_prefix}-db-replica-${count.index + 1}"
+    Environment = var.environment
+  }
+
+  depends_on = [aws_db_instance.db]
+}

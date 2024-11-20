@@ -41,3 +41,13 @@ output "rds_monitoring_role_arn" {
   description = "The ARN of the IAM role for RDS Enhanced Monitoring"
   value       = aws_iam_role.rds_monitoring_role.arn
 }
+
+output "lambda_create_replica_arn" {
+  description = "ARN of the Lambda function to create a read replica"
+  value       = aws_lambda_function.create_read_replica.arn
+}
+
+output "lambda_delete_replica_arn" {
+  description = "ARN of the Lambda function to delete a read replica"
+  value       = aws_lambda_function.delete_read_replica.arn
+}

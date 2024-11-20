@@ -136,8 +136,13 @@ variable "enable_monitoring" {
 # --- RDS Monitoring Variables --- #
 
 # Threshold for CPU utilization alarm
-variable "rds_cpu_threshold" {
+variable "rds_cpu_threshold_high" {
   description = "Threshold for high CPU utilization on RDS"
+  type        = number
+}
+
+variable "rds_cpu_threshold_low" {
+  description = "Low CPU threshold for deleting read replicas"
   type        = number
 }
 
@@ -159,4 +164,26 @@ variable "rds_connections_threshold" {
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
+}
+
+# --- Lambda Variables --- #
+
+# Number of read replicas
+variable "read_replicas_count" {
+  description = "Number of read replicas for the RDS instance"
+  type        = number
+}
+
+# ARN of the Lambda function to create a read replica
+variable "lambda_create_replica_arn" {
+  description = "ARN of the Lambda function to create a read replica"
+  type        = string
+  default     = "null"
+}
+
+# ARN of the Lambda function to delete a read replica
+variable "lambda_delete_replica_arn" {
+  description = "ARN of the Lambda function to delete a read replica"
+  type        = string
+  default     = "null"
 }

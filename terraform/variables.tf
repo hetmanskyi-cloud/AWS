@@ -306,8 +306,13 @@ variable "php_version" {
 # --- RDS Monitoring Variables --- #
 
 # Threshold for CPU utilization alarm
-variable "rds_cpu_threshold" {
+variable "rds_cpu_threshold_high" {
   description = "Threshold for high CPU utilization on RDS"
+  type        = number
+}
+
+variable "rds_cpu_threshold_low" {
+  description = "Low CPU threshold for deleting read replicas"
   type        = number
 }
 
@@ -320,6 +325,12 @@ variable "rds_storage_threshold" {
 # Threshold for high database connections alarm
 variable "rds_connections_threshold" {
   description = "Threshold for high number of database connections on RDS"
+  type        = number
+}
+
+# Number of read replicas to create for the RDS instance
+variable "read_replicas_count" {
+  description = "Number of read replicas to create for the RDS instance"
   type        = number
 }
 
