@@ -33,7 +33,12 @@ resource "aws_iam_policy" "lambda_rds_policy" {
           "rds:DeleteDBInstance",
           "rds:DescribeDBInstances"
         ],
-        Resource = "*"
+        Resource = [
+          # Main RDS instance
+          "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${aws_db_instance.db.id}",
+          # Pattern to match any replicas based on the main instance identifier
+          "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${aws_db_instance.db.id}-replica-*"
+        ]
       }
     ]
   })
@@ -59,6 +64,7 @@ resource "aws_lambda_function" "create_read_replica" {
   environment {
     variables = {
       DB_INSTANCE_IDENTIFIER = aws_db_instance.db.id
+      SNS_TOPIC_ARN          = var.sns_topic_arn
     }
   }
 

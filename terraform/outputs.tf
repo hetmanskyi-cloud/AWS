@@ -113,3 +113,17 @@ output "wordpress_scripts_bucket_arn" {
   description = "The ARN of the S3 bucket used for WordPress setup scripts"
   value       = module.s3.wordpress_scripts_bucket_arn
 }
+
+# --- RDS Outputs --- #
+
+# Output the ARN of the Lambda function to create a read replica
+output "lambda_create_replica_arn" {
+  description = "ARN of the Lambda function to create a read replica"
+  value       = module.rds.lambda_create_replica_arn
+}
+
+# Output the ARN of the Lambda function to delete a read replica
+output "lambda_delete_replica_arn" {
+  description = "ARN of the Lambda function to delete a read replica"
+  value       = module.rds.lambda_delete_replica_arn
+}

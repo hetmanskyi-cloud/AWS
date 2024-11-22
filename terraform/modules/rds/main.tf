@@ -84,3 +84,26 @@ resource "aws_db_instance" "read_replica" {
 
   depends_on = [aws_db_instance.db]
 }
+
+# DynamoDB Table for Replica Tracking
+resource "aws_dynamodb_table" "replica_tracking" {
+  name         = "${var.name_prefix}-replica-tracking"
+  billing_mode = "PAY_PER_REQUEST"        # Minimal cost: pay only for actual usage
+  hash_key     = "db_instance_identifier" # Partition key
+  range_key    = "replica_index"          # Sort key
+
+  attribute {
+    name = "db_instance_identifier"
+    type = "S" # String
+  }
+
+  attribute {
+    name = "replica_index"
+    type = "N" # Number
+  }
+
+  tags = {
+    Name        = "${var.name_prefix}-replica-tracking"
+    Environment = var.environment
+  }
+}

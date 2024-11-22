@@ -45,7 +45,7 @@ locals {
 
 # --- VPC Module Configuration --- #
 module "vpc" {
-  source = "./modules/vpc"
+  source = "./modules/vpc" # Path to module VPC
 
   # CIDR and subnet configurations
   vpc_cidr_block              = var.vpc_cidr_block
@@ -82,7 +82,8 @@ module "vpc" {
 
 # --- KMS Module Configuration --- #
 module "kms" {
-  source              = "./modules/kms"
+  source = "./modules/kms" # Path to module KMS
+
   aws_region          = local.aws_region
   aws_account_id      = var.aws_account_id
   environment         = local.environment
@@ -92,7 +93,7 @@ module "kms" {
 
 # --- EC2 Module Configuration --- #
 module "ec2" {
-  source = "./modules/ec2"
+  source = "./modules/ec2" # Path to module EC2
 
   # General naming and environment configuration
   name_prefix = local.name_prefix
@@ -152,9 +153,15 @@ module "ec2" {
 
 # --- RDS Module Configuration --- #
 module "rds" {
-  source      = "./modules/rds"
+  source = "./modules/rds" # Path to module RDS
+
+  # General naming and environment configuration
   name_prefix = local.name_prefix
   environment = local.environment
+
+  # AWS region and account settings
+  aws_region     = local.aws_region
+  aws_account_id = var.aws_account_id
 
   # Database configuration
   allocated_storage = var.allocated_storage
@@ -201,7 +208,7 @@ module "rds" {
 
 # --- Endpoints Module Configuration ---
 module "endpoints" {
-  source = "./modules/endpoints"
+  source = "./modules/endpoints" # Path to module Endpoints
 
   # VPC configuration for endpoints
   vpc_id     = module.vpc.vpc_id
@@ -226,11 +233,41 @@ module "endpoints" {
 
 # --- S3 Module --- #
 module "s3" {
-  source = "./modules/s3" # Путь к модулю S3
+  source = "./modules/s3" # Path to module S3
 
   environment                       = var.environment
   name_prefix                       = var.name_prefix
   aws_account_id                    = var.aws_account_id
   kms_key_arn                       = module.kms.kms_key_arn
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
+}
+
+module "elasticache" {
+  source = "./modules/elasticache" # Path to module Elasticache
+
+  name_prefix = local.name_prefix
+  environment = local.environment
+
+  # ElastiCache configuration
+  redis_version            = var.redis_version
+  node_type                = var.node_type
+  replicas_per_node_group  = var.replicas_per_node_group
+  num_node_groups          = var.num_node_groups
+  redis_port               = var.redis_port
+  snapshot_retention_limit = var.snapshot_retention_limit
+  snapshot_window          = var.snapshot_window
+
+  # Networking (from VPC module)
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = local.private_subnet_ids
+
+  # Security Group (from EC2 module)
+  ec2_security_group_id = module.ec2.ec2_security_group_id
+
+  # Monitoring
+  redis_cpu_threshold    = var.redis_cpu_threshold
+  redis_memory_threshold = var.redis_memory_threshold
+
+  # SNS Topic for CloudWatch Alarms
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 }

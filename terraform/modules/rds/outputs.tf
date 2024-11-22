@@ -51,3 +51,15 @@ output "lambda_delete_replica_arn" {
   description = "ARN of the Lambda function to delete a read replica"
   value       = aws_lambda_function.delete_read_replica.arn
 }
+
+# Output for the primary RDS instance identifier
+output "rds_db_instance_id" {
+  description = "Identifier of the primary RDS database instance"
+  value       = aws_db_instance.db.id
+}
+
+# Output for the RDS replicas identifiers
+output "rds_read_replicas_ids" {
+  description = "Identifiers of the RDS read replicas"
+  value       = [for replica in aws_db_instance.read_replica : replica.id]
+}

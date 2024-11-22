@@ -1,3 +1,15 @@
+# --- AWS Region Configuration --- #
+variable "aws_region" {
+  description = "The AWS region where resources will be created"
+  type        = string
+}
+
+# --- AWS Account ID --- #
+variable "aws_account_id" {
+  description = "AWS account ID for permissions and policies"
+  type        = string
+}
+
 # --- Naming and Environment Variables --- #
 
 variable "name_prefix" {

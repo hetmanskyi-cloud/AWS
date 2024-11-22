@@ -50,10 +50,21 @@ rm latest.zip
 sudo cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php || { echo "Failed to copy WordPress config file."; exit 1; }
 
 # --- Database configuration passed from Terraform --- #
+# RDS credentials are passed via environment variables for simplicity.
+# Consider using AWS Secrets Manager or another secure method for production environments.
 DB_NAME="$${DB_NAME}"
 DB_USERNAME="$${DB_USERNAME}"
 DB_PASSWORD="$${DB_PASSWORD}"
 DB_HOST="$${DB_HOST}"
+
+# --- Check RDS availability --- #
+echo "Checking RDS availability at host $DB_HOST..."
+mysqladmin -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" ping > /dev/null 2>&1 || {
+  echo "RDS is not reachable. Please check the network configuration or RDS status."
+  exit 1
+}
+
+echo "Successfully connected to RDS at $DB_HOST" >> "$LOG_FILE"
 
 # --- Configure wp-config.php --- #
 echo "Configuring wp-config.php..."
@@ -82,22 +93,22 @@ fi
 
 sudo tee /etc/nginx/sites-available/wordpress > /dev/null <<EOL
 server {
-    listen 80 default_server;
-    server_name _;
+    listen 80 default_server;         # Listen on port 80 for HTTP traffic
+    server_name _;                    # Use default server name (any hostname)
 
-    root /var/www/html/wordpress;
-    index index.php index.html index.htm;
+    root /var/www/html/wordpress;     # Set WordPress as the root directory
+    index index.php index.html index.htm; # Default files to serve
 
     location / {
-        try_files \$uri \$uri/ /index.php?\$args;
+        try_files \$uri \$uri/ /index.php?\$args; # Redirect all requests to WordPress
     }
 
     location ~ \.php\$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        include snippets/fastcgi-php.conf;    # Include FastCGI configuration
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock; # Pass PHP requests to PHP-FPM
     }
 
-    location ~ /\.ht {
+    location ~ /\.ht {               # Deny access to .ht* files for security
         deny all;
     }
 }
@@ -115,11 +126,15 @@ if sudo ufw status | grep -qw "active"; then
 fi
 
 # --- Upgrade system and apply final updates --- #
+# Perform a system upgrade to ensure all packages are up-to-date and secure.
+# This step is placed at the end to avoid breaking dependencies during installation.
 echo "Upgrading system and applying final updates..."
 sudo apt-get upgrade -y
 sudo apt-get autoremove -y
 sudo apt-get clean
 
 # --- Optional reboot for updates to take effect --- #
+# Optional: Reboot the server to apply all updates.
+# This step may not be necessary depending on the updates installed.
 echo "Rebooting the server to apply updates..."
 sudo reboot

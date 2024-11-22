@@ -362,3 +362,52 @@ variable "sns_subscriptions" {
   default = []
 }
 
+# --- ElastiCache Configuration Variables --- #
+
+variable "redis_version" {
+  description = "Redis version for the ElastiCache cluster"
+  type        = string
+}
+
+variable "node_type" {
+  description = "Node type for the ElastiCache cluster"
+  type        = string
+}
+
+variable "replicas_per_node_group" {
+  description = "Number of replicas per shard"
+  type        = number
+}
+
+variable "num_node_groups" {
+  description = "Number of shards (node groups)"
+  type        = number
+}
+
+variable "redis_port" {
+  description = "Port for the Redis cluster"
+  type        = number
+  default     = 6379
+}
+
+variable "snapshot_retention_limit" {
+  description = "Number of backups to retain for the Redis cluster"
+  type        = number
+}
+
+variable "snapshot_window" {
+  description = "Time window for Redis backups (e.g., '03:00-04:00')"
+  type        = string
+}
+
+# --- Redis Monitoring Variables --- #
+
+variable "redis_cpu_threshold" {
+  description = "CPU utilization threshold for CloudWatch Alarm (in percent)"
+  type        = number
+}
+
+variable "redis_memory_threshold" {
+  description = "Memory utilization threshold for CloudWatch Alarm (in bytes)"
+  type        = number
+}
