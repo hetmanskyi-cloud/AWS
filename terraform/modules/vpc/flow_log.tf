@@ -76,7 +76,7 @@ resource "aws_cloudwatch_log_group" "vpc_log_group" {
   # Lifecycle configuration to allow forced deletion
   lifecycle {
     prevent_destroy = false
-    ignore_changes  = [retention_in_days, kms_key_id]
+    ignore_changes  = [kms_key_id]
   }
 }
 
@@ -95,6 +95,8 @@ resource "aws_flow_log" "vpc_flow_log" {
   lifecycle {
     prevent_destroy = false
   }
+
+  depends_on = [aws_cloudwatch_log_group.vpc_log_group]
 
   tags = {
     Name        = "${var.name_prefix}-vpc-flow-log"

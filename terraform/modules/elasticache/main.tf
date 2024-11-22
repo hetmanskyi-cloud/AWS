@@ -43,44 +43,10 @@ resource "aws_elasticache_replication_group" "redis" {
 resource "aws_elasticache_parameter_group" "redis_params" {
   name        = "${var.name_prefix}-redis-params"
   family      = "redis7"
-  description = "Custom parameter group for Redis 7.1 with enhanced settings"
+  description = "Default parameter group for Redis 7.x"
 
-  # Memory management settings
-  parameter {
-    name  = "maxmemory-policy"
-    value = "allkeys-lru" # Eviction policy for memory management
-  }
-
-  parameter {
-    name  = "maxmemory"
-    value = "858993459" # 80% of 1 GB (approximately 859 MB) in bytes
-  }
-
-  # Hash table settings
-  parameter {
-    name  = "hash-max-ziplist-entries"
-    value = "512" # Maximum number of entries in a hash for optimized storage
-  }
-
-  parameter {
-    name  = "hash-max-listpack-value"
-    value = "64" # Maximum value size in a hash for optimized storage
-  }
-
-  # Security settings
-  parameter {
-    name  = "rename-command"
-    value = "CONFIG \"\"" # Disable the CONFIG command for security
-  }
-
-  # Network settings
-  parameter {
-    name  = "tcp-keepalive"
-    value = "300" # Keep-alive interval (300 seconds)
-  }
-
-  parameter {
-    name  = "timeout"
-    value = "60" # Idle client timeout (60 seconds)
+  tags = {
+    Name        = "${var.name_prefix}-redis-params"
+    Environment = var.environment
   }
 }
