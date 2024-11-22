@@ -58,7 +58,7 @@ resource "aws_lambda_function" "create_read_replica" {
   role          = aws_iam_role.lambda_rds_role.arn
 
   # Use local Python script; Terraform will zip it automatically
-  filename = "${path.module}/lambda_scripts/create_read_replica.py"
+  filename = "${path.module}/lambda_scripts/create_read_replica.zip"
 
   # Environment variables passed to the function
   environment {
@@ -84,7 +84,7 @@ resource "aws_lambda_function" "delete_read_replica" {
   role          = aws_iam_role.lambda_rds_role.arn
 
   # Use local Python script; Terraform will zip it automatically
-  filename = "${path.module}/lambda_scripts/delete_read_replica.py"
+  filename = "${path.module}/lambda_scripts/delete_read_replica.zip"
 
   # Environment variables passed to the function
   environment {

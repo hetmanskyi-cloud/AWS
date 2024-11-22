@@ -56,14 +56,14 @@ resource "aws_elasticache_parameter_group" "redis_params" {
     value = "858993459" # 80% of 1 GB (approximately 859 MB) in bytes
   }
 
-  # Storage optimization for hashes
+  # Hash table settings
   parameter {
     name  = "hash-max-ziplist-entries"
     value = "512" # Maximum number of entries in a hash for optimized storage
   }
 
   parameter {
-    name  = "hash-max-ziplist-value"
+    name  = "hash-max-listpack-value"
     value = "64" # Maximum value size in a hash for optimized storage
   }
 
@@ -82,16 +82,5 @@ resource "aws_elasticache_parameter_group" "redis_params" {
   parameter {
     name  = "timeout"
     value = "60" # Idle client timeout (60 seconds)
-  }
-
-  # Data consistency settings
-  parameter {
-    name  = "appendonly"
-    value = "yes" # Enable append-only mode for operation logging
-  }
-
-  parameter {
-    name  = "appendfsync"
-    value = "everysec" # Synchronize data to disk every second
   }
 }
