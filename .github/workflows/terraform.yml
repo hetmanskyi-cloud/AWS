@@ -45,9 +45,17 @@ jobs:
 
     # Step 7: Setup TFLint
     - name: Setup TFLint
-      uses: terraform-linters/setup-tflint@v1
+      uses: terraform-linters/setup-tflint@v4
 
     # Step 8: Run TFLint to lint the Terraform configuration
     - name: TFLint
       run: tflint
       working-directory: ./terraform
+
+    # Step 9: Run Checkov for security scanning
+    - name: Install Checkov
+      run: |
+        pip install checkov
+
+    - name: Run Checkov
+      run: checkov -d ./terraform
