@@ -57,6 +57,9 @@ resource "aws_launch_template" "ec2_launch_template" {
     instance_metadata_tags      = "enabled"  # Enable instance metadata tags
   }
 
+  # Attach security groups for the instance.
+  vpc_security_group_ids = [aws_security_group.ec2_security_group.id]
+
   # --- Monitoring and EBS Optimization --- #
   # Enable monitoring and optimization for higher performance.
   monitoring {
@@ -73,9 +76,8 @@ resource "aws_launch_template" "ec2_launch_template" {
   # --- Network Interface Configuration --- #
   # Assign a public IP and set security groups for instance networking.
   network_interfaces {
-    associate_public_ip_address = true                  # Automatically assign public IP
-    delete_on_termination       = true                  # Delete interface on termination
-    security_groups             = var.security_group_id # Attach security groups for the instance
+    associate_public_ip_address = true # Automatically assign public IP
+    delete_on_termination       = true # Delete interface on termination
   }
 
   # --- Tag Specifications --- #

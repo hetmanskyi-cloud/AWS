@@ -34,7 +34,7 @@ resource "aws_elasticache_replication_group" "redis" {
 
   # Tags for resource identification
   tags = {
-    Name        = "${var.name_prefix}-redis-cluster"
+    Name        = "${var.name_prefix}-redis-replication-group"
     Environment = var.environment
   }
 }

@@ -49,6 +49,35 @@ resource "aws_iam_role_policy_attachment" "lambda_rds_policy_attachment" {
   policy_arn = aws_iam_policy.lambda_rds_policy.arn
 }
 
+# --- Security Group for Lambda --- #
+# Security group allowing Lambda functions to interact with RDS
+resource "aws_security_group" "lambda_sg" {
+  name        = "${var.name_prefix}-lambda-sg"
+  description = "Security group for Lambda functions interacting with RDS"
+  vpc_id      = var.vpc_id
+
+  # Allow inbound traffic from RDS security group
+  ingress {
+    from_port       = 3306 # MySQL port for RDS
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.rds_sg.id] # Allow traffic only from RDS Security Group
+  }
+
+  # Allow outbound traffic to RDS and necessary services
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1" # Allow all outbound traffic
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.name_prefix}-lambda-sg"
+    Environment = var.environment
+  }
+}
+
 # --- Lambda Function for Creating Read Replicas --- #
 # Define Lambda function to create read replicas for RDS
 resource "aws_lambda_function" "create_read_replica" {
@@ -59,6 +88,12 @@ resource "aws_lambda_function" "create_read_replica" {
 
   # Use local Python script; Terraform will zip it automatically
   filename = "${path.module}/lambda_scripts/create_read_replica.zip"
+
+  # Security group for Lambda
+  vpc_config {
+    security_group_ids = [aws_security_group.lambda_sg.id]
+    subnet_ids         = var.private_subnet_ids
+  }
 
   # Environment variables passed to the function
   environment {
@@ -85,6 +120,12 @@ resource "aws_lambda_function" "delete_read_replica" {
 
   # Use local Python script; Terraform will zip it automatically
   filename = "${path.module}/lambda_scripts/delete_read_replica.zip"
+
+  # Security group for Lambda
+  vpc_config {
+    security_group_ids = [aws_security_group.lambda_sg.id]
+    subnet_ids         = var.private_subnet_ids
+  }
 
   # Environment variables passed to the function
   environment {
