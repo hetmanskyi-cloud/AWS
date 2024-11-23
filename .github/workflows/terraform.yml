@@ -1,0 +1,64 @@
+name: 'Terraform GitHub Actions'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code from the repository
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Setup Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.8
+
+    # Step 3: Initialize Terraform
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ./terraform
+
+    # Step 4: Check Terraform formatting
+    - name: Terraform Format
+      run: terraform fmt -check
+      working-directory: ./terraform
+
+    # Step 5: Validate Terraform configuration
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: ./terraform
+
+    # Step 6: ShellCheck for bash scripts
+    - name: ShellCheck
+      run: |
+        find ./terraform -name '*.sh' -exec shellcheck {} +
+
+    # Step 7: Install TFLint for linting the Terraform code
+    - name: Install TFLint
+      run: |
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+    # Step 8: Run TFLint to lint the Terraform configuration
+    - name: TFLint
+      run: tflint
+      working-directory: ./terraform
+
+    # Step 9: Install terraform-security-scan (tfsec via triat)
+    - name: Install terraform-security-scan
+      uses: triat/terraform-security-scan@v3
+
+    # Step 10: Run terraform-security-scan
+    - name: Run terraform-security-scan
+      run: |
+        cd ./terraform
+        terraform-security-scan
