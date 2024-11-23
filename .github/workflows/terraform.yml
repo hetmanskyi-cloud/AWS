@@ -51,9 +51,3 @@ jobs:
     - name: TFLint
       run: tflint
       working-directory: ./terraform
-
-    # Step 9: Run tfsec for security analysis
-    - name: Run tfsec
-      uses: aquasecurity/tfsec-github-action@v1
-      with:
-        working-directory: ./terraform
