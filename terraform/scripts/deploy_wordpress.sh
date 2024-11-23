@@ -70,14 +70,16 @@ sudo chmod 640 /var/www/html/wordpress/wp-config.php
 
 # --- Install Redis CLI with TLS support --- #
 echo "Installing Redis CLI with TLS support..."
-cd /tmp || exit
-wget http://download.redis.io/releases/redis-7.1.0.tar.gz || { echo "Failed to download Redis source."; exit 1; }
-tar xzf redis-7.1.0.tar.gz
-cd redis-7.1.0
-make BUILD_TLS=yes || { echo "Failed to compile Redis CLI with TLS support."; exit 1; }
-sudo cp src/redis-cli /usr/local/bin/
-cd ..
-rm -rf redis-7.1.0 redis-7.1.0.tar.gz
+(
+  cd /tmp || exit
+  wget http://download.redis.io/releases/redis-7.1.0.tar.gz || { echo "Failed to download Redis source."; exit 1; }
+  tar xzf redis-7.1.0.tar.gz
+  cd redis-7.1.0 || exit
+  make BUILD_TLS=yes || { echo "Failed to compile Redis CLI with TLS support."; exit 1; }
+  sudo cp src/redis-cli /usr/local/bin/
+) || exit
+
+rm -rf /tmp/redis-7.1.0 /tmp/redis-7.1.0.tar.gz
 
 # --- Install WP-CLI --- #
 echo "Installing WP-CLI..."
