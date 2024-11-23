@@ -132,6 +132,12 @@ variable "rds_security_group_id" {
   type        = list(string)
 }
 
+# Variable to pass EC2 Security Group ID
+variable "ec2_security_group_id" {
+  description = "Security Group ID for EC2 instances"
+  type        = string
+}
+
 # --- KMS Key ARN for Encryption --- #
 
 variable "kms_key_arn" {

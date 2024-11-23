@@ -204,3 +204,15 @@ variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
 }
+
+# --- Redis Variables --- #
+
+variable "redis_port" {
+  description = "Redis port (default: 6379)"
+  type        = number
+}
+
+variable "redis_endpoint" {
+  description = "Redis endpoint (default: localhost)"
+  type        = string
+}

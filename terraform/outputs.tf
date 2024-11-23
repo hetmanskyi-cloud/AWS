@@ -127,3 +127,17 @@ output "lambda_delete_replica_arn" {
   description = "ARN of the Lambda function to delete a read replica"
   value       = module.rds.lambda_delete_replica_arn
 }
+
+# --- Elasticache Outputs --- #
+
+# Output Redis endpoint from the elasticache module
+output "redis_endpoint" {
+  description = "The primary endpoint of the Redis replication group"
+  value       = module.elasticache.redis_endpoint
+}
+
+# Output Redis port from the elasticache module (если нужен порт)
+output "redis_port" {
+  description = "The port of the Redis replication group"
+  value       = module.elasticache.redis_port
+}

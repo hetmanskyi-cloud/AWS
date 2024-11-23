@@ -18,13 +18,6 @@ locals {
   public_subnet_id_2 = module.vpc.public_subnet_2_id
   public_subnet_id_3 = module.vpc.public_subnet_3_id
 
-  # List of all public subnet IDs
-  public_subnet_ids = [
-    local.public_subnet_id_1,
-    local.public_subnet_id_2,
-    local.public_subnet_id_3
-  ]
-
   # Individual private subnet IDs
   private_subnet_id_1 = module.vpc.private_subnet_1_id
   private_subnet_id_2 = module.vpc.private_subnet_2_id
@@ -36,11 +29,6 @@ locals {
     local.private_subnet_id_2,
     local.private_subnet_id_3
   ]
-
-  # General configurations
-  name_prefix = var.name_prefix
-  environment = var.environment
-  aws_region  = var.aws_region
 }
 
 # --- VPC Module Configuration --- #
@@ -48,24 +36,26 @@ module "vpc" {
   source = "./modules/vpc" # Path to module VPC
 
   # CIDR and subnet configurations
-  vpc_cidr_block              = var.vpc_cidr_block
-  public_subnet_cidr_block_1  = var.public_subnet_cidr_block_1
-  public_subnet_cidr_block_2  = var.public_subnet_cidr_block_2
-  public_subnet_cidr_block_3  = var.public_subnet_cidr_block_3
+  vpc_cidr_block             = var.vpc_cidr_block
+  public_subnet_cidr_block_1 = var.public_subnet_cidr_block_1
+  public_subnet_cidr_block_2 = var.public_subnet_cidr_block_2
+  public_subnet_cidr_block_3 = var.public_subnet_cidr_block_3
+
   private_subnet_cidr_block_1 = var.private_subnet_cidr_block_1
   private_subnet_cidr_block_2 = var.private_subnet_cidr_block_2
   private_subnet_cidr_block_3 = var.private_subnet_cidr_block_3
 
   # Availability Zones for subnets
-  availability_zone_public_1  = var.availability_zone_public_1
-  availability_zone_public_2  = var.availability_zone_public_2
-  availability_zone_public_3  = var.availability_zone_public_3
+  availability_zone_public_1 = var.availability_zone_public_1
+  availability_zone_public_2 = var.availability_zone_public_2
+  availability_zone_public_3 = var.availability_zone_public_3
+
   availability_zone_private_1 = var.availability_zone_private_1
   availability_zone_private_2 = var.availability_zone_private_2
   availability_zone_private_3 = var.availability_zone_private_3
 
   # AWS region and account settings
-  aws_region     = local.aws_region
+  aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
 
   # Security and logging configurations
@@ -73,8 +63,8 @@ module "vpc" {
   log_retention_in_days = var.log_retention_in_days
 
   # General environment and naming configurations
-  environment = local.environment
-  name_prefix = local.name_prefix
+  environment = var.environment
+  name_prefix = var.name_prefix
 
   # SSH Access configuration
   enable_ssh_access = var.enable_ssh_access
@@ -84,10 +74,10 @@ module "vpc" {
 module "kms" {
   source = "./modules/kms" # Path to module KMS
 
-  aws_region          = local.aws_region
+  aws_region          = var.aws_region
   aws_account_id      = var.aws_account_id
-  environment         = local.environment
-  name_prefix         = local.name_prefix
+  environment         = var.environment
+  name_prefix         = var.name_prefix
   enable_key_rotation = var.enable_key_rotation
 }
 
@@ -96,8 +86,8 @@ module "ec2" {
   source = "./modules/ec2" # Path to module EC2
 
   # General naming and environment configuration
-  name_prefix = local.name_prefix
-  environment = local.environment
+  name_prefix = var.name_prefix
+  environment = var.environment
 
   # EC2 instance configuration
   ami_id                  = var.ami_id
@@ -123,8 +113,12 @@ module "ec2" {
   public_subnet_id_2 = local.public_subnet_id_2
   public_subnet_id_3 = local.public_subnet_id_3
   enable_ssh_access  = var.enable_ssh_access
-  security_group_id  = [module.ec2.ec2_security_group_id, module.rds.rds_security_group_id]
-  vpc_id             = module.vpc.vpc_id
+  security_group_id = [
+    module.ec2.ec2_security_group_id,
+    module.rds.rds_security_group_id,
+    module.elasticache.redis_security_group_id
+  ]
+  vpc_id = module.vpc.vpc_id
 
   # S3 bucket configurations
   wordpress_media_bucket_arn   = module.s3.wordpress_media_bucket_arn
@@ -139,6 +133,10 @@ module "ec2" {
   php_version     = var.php_version
   php_fpm_service = "php${var.php_version}-fpm"
 
+  # Pass Redis host and endpoint for WordPress configuration
+  redis_endpoint = module.elasticache.redis_endpoint
+  redis_port     = module.elasticache.redis_port
+
   # User data for initial setup
   user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", {
     DB_NAME         = var.db_name,
@@ -147,7 +145,9 @@ module "ec2" {
     DB_PASSWORD     = var.db_password,
     DB_HOST         = module.rds.db_host,
     PHP_VERSION     = var.php_version,
-    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
+    PHP_FPM_SERVICE = "php${var.php_version}-fpm",
+    REDIS_HOST      = module.elasticache.redis_endpoint,
+    REDIS_PORT      = var.redis_port
   }))
 }
 
@@ -156,11 +156,11 @@ module "rds" {
   source = "./modules/rds" # Path to module RDS
 
   # General naming and environment configuration
-  name_prefix = local.name_prefix
-  environment = local.environment
+  name_prefix = var.name_prefix
+  environment = var.environment
 
   # AWS region and account settings
-  aws_region     = local.aws_region
+  aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
 
   # Database configuration
@@ -181,6 +181,7 @@ module "rds" {
 
   # Security group for RDS access (if needed in other modules)
   rds_security_group_id = [module.rds.rds_security_group_id]
+  ec2_security_group_id = module.ec2.ec2_security_group_id
 
   # Backup and replication settings
   backup_retention_period = var.backup_retention_period
@@ -212,7 +213,7 @@ module "endpoints" {
 
   # VPC configuration for endpoints
   vpc_id     = module.vpc.vpc_id
-  aws_region = local.aws_region
+  aws_region = var.aws_region
 
   # Subnet configuration for interface endpoints
   private_subnet_ids = local.private_subnet_ids
@@ -227,8 +228,8 @@ module "endpoints" {
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
 
   # Tagging and naming
-  name_prefix = local.name_prefix
-  environment = local.environment
+  name_prefix = var.name_prefix
+  environment = var.environment
 }
 
 # --- S3 Module --- #
@@ -245,8 +246,8 @@ module "s3" {
 module "elasticache" {
   source = "./modules/elasticache" # Path to module Elasticache
 
-  name_prefix = local.name_prefix
-  environment = local.environment
+  name_prefix = var.name_prefix
+  environment = var.environment
 
   # ElastiCache configuration
   redis_version            = var.redis_version

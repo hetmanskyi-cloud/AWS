@@ -387,7 +387,6 @@ variable "num_node_groups" {
 variable "redis_port" {
   description = "Port for the Redis cluster"
   type        = number
-  default     = 6379
 }
 
 variable "snapshot_retention_limit" {

@@ -14,7 +14,7 @@ sudo apt-get update && sleep 2
 
 # --- Install required packages --- #
 echo "Installing required packages..."
-sudo apt-get install -y nginx mysql-client php-fpm php-mysql php-xml php-mbstring php-curl unzip || {
+sudo apt-get install -y nginx mysql-client php-fpm php-mysql php-xml php-mbstring php-curl unzip build-essential tcl libssl-dev || {
   echo "Package installation failed. Please check the connection and package availability."
   exit 1
 }
@@ -40,7 +40,7 @@ sudo apt-get clean
 # --- Download and install WordPress --- #
 echo "Downloading and installing WordPress..."
 cd /tmp || exit
-curl -O https://wordpress.org/latest.zip
+curl -O https://wordpress.org/latest.zip || { echo "Failed to download WordPress package."; exit 1; }
 unzip -o latest.zip || { echo "Failed to unzip WordPress package."; exit 1; }
 
 sudo rm -rf /var/www/html/wordpress
@@ -50,21 +50,10 @@ rm latest.zip
 sudo cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php || { echo "Failed to copy WordPress config file."; exit 1; }
 
 # --- Database configuration passed from Terraform --- #
-# RDS credentials are passed via environment variables for simplicity.
-# Consider using AWS Secrets Manager or another secure method for production environments.
 DB_NAME="$${DB_NAME}"
 DB_USERNAME="$${DB_USERNAME}"
 DB_PASSWORD="$${DB_PASSWORD}"
 DB_HOST="$${DB_HOST}"
-
-# --- Check RDS availability --- #
-echo "Checking RDS availability at host $DB_HOST..."
-mysqladmin -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" ping > /dev/null 2>&1 || {
-  echo "RDS is not reachable. Please check the network configuration or RDS status."
-  exit 1
-}
-
-echo "Successfully connected to RDS at $DB_HOST" >> "$LOG_FILE"
 
 # --- Configure wp-config.php --- #
 echo "Configuring wp-config.php..."
@@ -78,6 +67,50 @@ echo "Setting permissions for WordPress files..."
 sudo chown -R www-data:www-data /var/www/html/wordpress
 sudo chmod -R 750 /var/www/html/wordpress
 sudo chmod 640 /var/www/html/wordpress/wp-config.php
+
+# --- Install Redis CLI with TLS support --- #
+echo "Installing Redis CLI with TLS support..."
+cd /tmp || exit
+wget http://download.redis.io/releases/redis-7.1.0.tar.gz || { echo "Failed to download Redis source."; exit 1; }
+tar xzf redis-7.1.0.tar.gz
+cd redis-7.1.0
+make BUILD_TLS=yes || { echo "Failed to compile Redis CLI with TLS support."; exit 1; }
+sudo cp src/redis-cli /usr/local/bin/
+cd ..
+rm -rf redis-7.1.0 redis-7.1.0.tar.gz
+
+# --- Install WP-CLI --- #
+echo "Installing WP-CLI..."
+curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar || { echo "Failed to download WP-CLI."; exit 1; }
+chmod +x wp-cli.phar
+sudo mv wp-cli.phar /usr/local/bin/wp
+
+# --- Configure WordPress to use Redis with TLS --- #
+echo "Configuring WordPress to use Redis with TLS..."
+cd /var/www/html/wordpress || exit
+# Ensure wp-cli runs as www-data
+sudo -u www-data wp plugin install redis-cache --activate || { echo "Failed to install Redis Cache plugin."; exit 1; }
+
+# Redis configuration passed from Terraform
+REDIS_HOST="$${REDIS_HOST}"
+REDIS_PORT="$${REDIS_PORT}"
+
+# Update wp-config.php for Redis
+echo "Adding Redis configuration to wp-config.php..."
+sudo tee -a /var/www/html/wordpress/wp-config.php > /dev/null <<EOL
+
+// Redis configuration
+define( 'WP_REDIS_HOST', '${REDIS_HOST}' );
+define( 'WP_REDIS_PORT', ${REDIS_PORT} );
+define( 'WP_REDIS_SCHEME', 'tls' );
+EOL
+
+# Add WP_CACHE constant to enable caching
+echo "Enabling WordPress caching..."
+sudo sed -i "/^<?php/a define('WP_CACHE', true);" /var/www/html/wordpress/wp-config.php || { echo "Failed to enable WP_CACHE."; exit 1; }
+
+# Enable Redis object cache
+sudo -u www-data wp redis enable || { echo "Failed to enable Redis cache."; exit 1; }
 
 # --- Restart services to apply changes --- #
 echo "Restarting PHP and Nginx services..."
@@ -93,22 +126,22 @@ fi
 
 sudo tee /etc/nginx/sites-available/wordpress > /dev/null <<EOL
 server {
-    listen 80 default_server;         # Listen on port 80 for HTTP traffic
-    server_name _;                    # Use default server name (any hostname)
+    listen 80 default_server;
+    server_name _;
 
-    root /var/www/html/wordpress;     # Set WordPress as the root directory
-    index index.php index.html index.htm; # Default files to serve
+    root /var/www/html/wordpress;
+    index index.php index.html index.htm;
 
     location / {
-        try_files \$uri \$uri/ /index.php?\$args; # Redirect all requests to WordPress
+        try_files \$uri \$uri/ /index.php?\$args;
     }
 
     location ~ \.php\$ {
-        include snippets/fastcgi-php.conf;    # Include FastCGI configuration
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock; # Pass PHP requests to PHP-FPM
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
     }
 
-    location ~ /\.ht {               # Deny access to .ht* files for security
+    location ~ /\.ht {
         deny all;
     }
 }
@@ -126,15 +159,9 @@ if sudo ufw status | grep -qw "active"; then
 fi
 
 # --- Upgrade system and apply final updates --- #
-# Perform a system upgrade to ensure all packages are up-to-date and secure.
-# This step is placed at the end to avoid breaking dependencies during installation.
 echo "Upgrading system and applying final updates..."
 sudo apt-get upgrade -y
 sudo apt-get autoremove -y
 sudo apt-get clean
 
-# --- Optional reboot for updates to take effect --- #
-# Optional: Reboot the server to apply all updates.
-# This step may not be necessary depending on the updates installed.
-echo "Rebooting the server to apply updates..."
-sudo reboot
+echo "WordPress installation and configuration completed successfully."

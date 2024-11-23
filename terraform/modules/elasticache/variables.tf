@@ -52,7 +52,6 @@ variable "num_node_groups" {
 variable "redis_port" {
   description = "Redis port (default: 6379)"
   type        = number
-  default     = 6379
 }
 
 variable "snapshot_retention_limit" {
@@ -79,4 +78,10 @@ variable "redis_memory_threshold" {
 variable "sns_topic_arn" {
   description = "ARN of the SNS topic for CloudWatch alarms"
   type        = string
+}
+
+variable "redis_security_group_id" {
+  description = "Security Group ID for ElastiCache Redis, if needed in other modules"
+  type        = string
+  default     = null
 }

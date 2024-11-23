@@ -1,3 +1,17 @@
+locals {
+  db_config = {
+    DB_NAME         = var.db_name
+    DB_USERNAME     = var.db_username
+    DB_USER         = var.db_username
+    DB_PASSWORD     = var.db_password
+    DB_HOST         = var.db_host
+    PHP_VERSION     = var.php_version
+    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
+    REDIS_HOST      = var.redis_endpoint
+    REDIS_PORT      = var.redis_port
+  }
+}
+
 # --- EC2 Launch Template Configuration --- #
 # This configuration sets up an EC2 Launch Template for use with an Auto Scaling Group.
 # It defines instance specifications, storage, security settings, metadata options, monitoring, and tags.
@@ -77,13 +91,5 @@ resource "aws_launch_template" "ec2_launch_template" {
 
   # --- User Data --- #
   # Specify a user_data script for initial instance configuration.
-  user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", {
-    DB_NAME         = var.db_name
-    DB_USERNAME     = var.db_username
-    DB_USER         = var.db_username
-    DB_PASSWORD     = var.db_password
-    DB_HOST         = var.db_host
-    PHP_VERSION     = var.php_version
-    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
-  }))
+  user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", local.db_config))
 }
