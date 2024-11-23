@@ -29,16 +29,6 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
-variable "public_subnet_cidr_blocks" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-}
-
-variable "private_subnet_cidr_blocks" {
-  description = "CIDR blocks for private subnets"
-  type        = list(string)
-}
-
 variable "public_subnet_cidr_block_1" {
   description = "CIDR block for the first public subnet"
   type        = string
@@ -159,13 +149,6 @@ variable "network_out_threshold" {
   type        = number
 }
 
-# Actions to perform when an alarm is triggered.
-variable "alarm_actions" {
-  description = "Actions to perform when an alarm is triggered"
-  type        = list(string)
-  default     = []
-}
-
 variable "scale_out_cpu_threshold" {
   description = "CPU utilization threshold for scaling out"
   type        = number
@@ -185,20 +168,6 @@ variable "volume_size" {
 variable "volume_type" {
   description = "Type of the EBS volume for the root device"
   type        = string
-}
-
-# --- SSM and SSH Access --- #
-variable "ssh_allowed_cidrs" {
-  description = "List of CIDR blocks allowed to SSH into EC2 instances"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Modify for production (e.g., ["192.168.1.0/24"])
-}
-
-# --- User Data Script --- #
-variable "user_data" {
-  description = "Base64-encoded user data script for initial configuration (e.g., installing applications)"
-  type        = string
-  default     = ""
 }
 
 # --- SSH Access Configuration --- #
@@ -344,13 +313,6 @@ variable "noncurrent_version_retention_days" {
 }
 
 # --- SNS Variables --- #
-
-# List of email addresses for SNS subscriptions
-variable "sns_email_subscribers" {
-  description = "List of email addresses to receive SNS notifications"
-  type        = list(string)
-  default     = []
-}
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
 variable "sns_subscriptions" {
