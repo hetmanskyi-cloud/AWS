@@ -26,12 +26,6 @@ variable "user_data" {
 
 # --- Auto Scaling Configuration Variables --- #
 
-# Desired number of instances for the Auto Scaling Group.
-variable "autoscaling_desired" {
-  description = "Desired number of instances in the Auto Scaling Group"
-  type        = number
-}
-
 # Minimum number of instances for the Auto Scaling Group.
 variable "autoscaling_min" {
   description = "Minimum number of instances in the Auto Scaling Group"

@@ -93,7 +93,6 @@ module "ec2" {
   ami_id                  = var.ami_id
   instance_type           = var.instance_type
   ssh_key_name            = var.ssh_key_name
-  autoscaling_desired     = var.autoscaling_desired
   autoscaling_min         = var.autoscaling_min
   autoscaling_max         = var.autoscaling_max
   scale_out_cpu_threshold = var.scale_out_cpu_threshold

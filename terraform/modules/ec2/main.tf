@@ -3,7 +3,6 @@
 # Define the Auto Scaling Group with desired number of instances and subnet allocation.
 resource "aws_autoscaling_group" "ec2_asg" {
   # Desired, minimum, and maximum instance counts
-  desired_capacity    = var.autoscaling_desired                                                  # Desired number of instances
   min_size            = var.autoscaling_min                                                      # Minimum number of instances
   max_size            = var.autoscaling_max                                                      # Maximum number of instances
   vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2, var.public_subnet_id_3] # Subnets for EC2 instances
@@ -67,6 +66,22 @@ resource "aws_autoscaling_policy" "scale_in_policy" {
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.ec2_asg.name
+}
+
+# --- Target Tracking Scaling Policy --- #
+
+# Define a target tracking scaling policy for the Auto Scaling Group.
+resource "aws_autoscaling_policy" "target_tracking_scaling_policy" {
+  name                   = "${var.name_prefix}-target-tracking-scaling-policy"
+  policy_type            = "TargetTrackingScaling"
+  autoscaling_group_name = aws_autoscaling_group.ec2_asg.name
+
+  target_tracking_configuration {
+    target_value = 50 # Target CPU utilization percentage
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+  }
 }
 
 # --- Data Source to Fetch EC2 Instance IDs --- #

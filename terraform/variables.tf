@@ -121,12 +121,6 @@ variable "ssh_key_name" {
   type        = string
 }
 
-# --- Auto Scaling Configuration --- #
-variable "autoscaling_desired" {
-  description = "Desired number of instances in the Auto Scaling Group"
-  type        = number
-}
-
 variable "autoscaling_min" {
   description = "Minimum number of instances in the Auto Scaling Group"
   type        = number

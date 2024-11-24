@@ -76,6 +76,6 @@ resource "aws_cloudwatch_metric_alarm" "status_check_failed" {
   threshold           = 1
   alarm_actions       = [var.sns_topic_arn] # SNS topic for notifications
   dimensions = {
-    InstanceId = aws_autoscaling_group.ec2_asg.id
+    AutoScalingGroupName = aws_autoscaling_group.ec2_asg.name
   }
 }
