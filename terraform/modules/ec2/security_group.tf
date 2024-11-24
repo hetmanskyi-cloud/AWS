@@ -61,4 +61,5 @@ resource "aws_vpc_security_group_egress_rule" "all_outbound" {
   security_group_id = aws_security_group.ec2_security_group.id
   ip_protocol       = "-1"        # All protocols
   cidr_ipv4         = "0.0.0.0/0" # Allow to all destinations
+  description       = "Allow all outbound traffic for EC2 instances"
 }

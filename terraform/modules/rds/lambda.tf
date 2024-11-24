@@ -26,24 +26,38 @@ resource "aws_iam_policy" "lambda_rds_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # Permissions for interacting with RDS
       {
         Effect = "Allow",
         Action = [
-          "rds:CreateDBInstanceReadReplica",
-          "rds:DeleteDBInstance",
-          "rds:DescribeDBInstances"
+          "rds:CreateDBInstanceReadReplica", # Create a read replica
+          "rds:DeleteDBInstance",            # Delete an RDS instance
+          "rds:DescribeDBInstances"          # View details of RDS instances
         ],
         Resource = [
           # Main RDS instance
           "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${aws_db_instance.db.id}",
-          # Pattern to match any replicas based on the main instance identifier
+          # Any replicas of the main RDS instance
           "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${aws_db_instance.db.id}-replica-*"
         ]
+      },
+      # Permissions for managing network interfaces (ENIs) in the VPC
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:CreateNetworkInterface",    # Create a network interface
+          "ec2:DescribeNetworkInterfaces", # View details of network interfaces
+          "ec2:DeleteNetworkInterface",    # Delete a network interface
+          "ec2:AssignPrivateIpAddresses",  # Assign private IPs to the ENI
+          "ec2:UnassignPrivateIpAddresses" # Unassign private IPs from the ENI
+        ],
+        Resource = "*" # Allow across all network interfaces
       }
     ]
   })
 }
 
+# Attach the policy to the role
 resource "aws_iam_role_policy_attachment" "lambda_rds_policy_attachment" {
   role       = aws_iam_role.lambda_rds_role.name
   policy_arn = aws_iam_policy.lambda_rds_policy.arn
@@ -62,6 +76,7 @@ resource "aws_security_group" "lambda_sg" {
     to_port         = 3306
     protocol        = "tcp"
     security_groups = [aws_security_group.rds_sg.id] # Allow traffic only from RDS Security Group
+    description     = "Allow MySQL traffic from RDS Security Group"
   }
 
   # Allow outbound traffic to RDS and necessary services
@@ -70,6 +85,7 @@ resource "aws_security_group" "lambda_sg" {
     to_port     = 0
     protocol    = "-1" # Allow all outbound traffic
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic for Lambda"
   }
 
   tags = {
