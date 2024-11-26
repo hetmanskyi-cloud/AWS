@@ -205,3 +205,8 @@ variable "lambda_delete_replica_arn" {
   type        = string
   default     = "null"
 }
+
+variable "db_instance_identifier" {
+  description = "The identifier of the primary RDS database instance."
+  type        = string
+}

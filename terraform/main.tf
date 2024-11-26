@@ -199,6 +199,9 @@ module "rds" {
   # Read Replica Configuration
   read_replicas_count = var.read_replicas_count
 
+  # RDS Instance Identifier
+  db_instance_identifier = module.rds.db_instance_identifier
+
   # KMS key for encryption
   kms_key_arn = module.kms.kms_key_arn
 

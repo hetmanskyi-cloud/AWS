@@ -63,3 +63,8 @@ output "rds_read_replicas_ids" {
   description = "Identifiers of the RDS read replicas"
   value       = [for replica in aws_db_instance.read_replica : replica.id]
 }
+
+output "db_instance_identifier" {
+  value       = aws_db_instance.db.id
+  description = "The identifier of the RDS instance"
+}
