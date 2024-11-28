@@ -11,8 +11,8 @@ logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 # Add retry configuration
 config = Config(
     retries={
-        'max_attempts': 5,  # Maximum retry attempts
-        'mode': 'standard'  # Retry mode: standard/exponential
+        'max_attempts': 5,
+        'mode': 'standard'
     }
 )
 
@@ -22,12 +22,6 @@ sns_client = boto3.client("sns")
 dynamodb_client = boto3.client("dynamodb")
 
 def send_sns_notification(message: str, subject: str):
-    """
-    Send a notification to an SNS topic.
-    Args:
-        message (str): The message to send.
-        subject (str): The subject of the notification.
-    """
     sns_topic_arn = os.getenv("SNS_TOPIC_ARN")
     if not sns_topic_arn:
         logger.error("SNS_TOPIC_ARN environment variable is not set.")
@@ -43,12 +37,6 @@ def send_sns_notification(message: str, subject: str):
         logger.error(f"Failed to send SNS notification: {e}")
 
 def update_replica_status_in_dynamodb(read_replica_identifier: str, status: str):
-    """
-    Update the status of a replica in DynamoDB.
-    Args:
-        read_replica_identifier (str): The identifier of the replica.
-        status (str): The status of the replica (e.g., "deleted").
-    """
     try:
         dynamodb_client.update_item(
             TableName=os.getenv("DYNAMODB_TABLE_NAME"),
@@ -62,17 +50,12 @@ def update_replica_status_in_dynamodb(read_replica_identifier: str, status: str)
         logger.error(f"Error updating DynamoDB: {e}")
 
 def lambda_handler(event, context):
-    """
-    AWS Lambda function to delete an RDS read replica.
+    # Validate environment variables
+    dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")
+    if not dynamodb_table_name:
+        logger.error("DYNAMODB_TABLE_NAME is not provided. Exiting.")
+        raise ValueError("DYNAMODB_TABLE_NAME is a required parameter.")
 
-    Args:
-        event (dict): Event data containing input parameters.
-        context (object): AWS Lambda context object.
-
-    Returns:
-        dict: Status and details of the operation.
-    """
-    # Get parameters from environment variables or event data
     read_replica_identifier = os.getenv("READ_REPLICA_IDENTIFIER", event.get("read_replica_identifier"))
     if not read_replica_identifier:
         logger.error("READ_REPLICA_IDENTIFIER environment variable is not provided. Exiting.")
@@ -94,14 +77,14 @@ def lambda_handler(event, context):
         )
         return {"status": "error", "details": error_message}
 
-    # If replica exists, proceed to delete
+    # Delete the replica
     try:
         logger.info(f"Deleting read replica: {read_replica_identifier}")
         response = rds_client.delete_db_instance(
             DBInstanceIdentifier=read_replica_identifier,
-            SkipFinalSnapshot=True  # Skip creating a final snapshot
+            SkipFinalSnapshot=True
         )
-        logger.info(f"Read replica {read_replica_identifier} successfully deleted. It is no longer accessible.")
+        logger.info(f"Read replica {read_replica_identifier} successfully deleted.")
         update_replica_status_in_dynamodb(read_replica_identifier, "deleted")
         send_sns_notification(
             message=f"Read replica {read_replica_identifier} successfully deleted.",

@@ -102,7 +102,13 @@ def create_read_replica(db_instance_identifier: str, replica_index: int, environ
         return {"status": "error", "details": error_message}
 
 def lambda_handler(event: dict, context: object) -> dict:
+    logger.info(f"Environment variables: DB_INSTANCE_IDENTIFIER={os.getenv('DB_INSTANCE_IDENTIFIER')}, DYNAMODB_TABLE_NAME={os.getenv('DYNAMODB_TABLE_NAME')}, SNS_TOPIC_ARN={os.getenv('SNS_TOPIC_ARN')}")
     db_instance_identifier = os.getenv("DB_INSTANCE_IDENTIFIER")
+    dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")  # Новая проверка
+    if not dynamodb_table_name:
+        logger.error("DYNAMODB_TABLE_NAME is not provided. Exiting.")
+        raise ValueError("DYNAMODB_TABLE_NAME is a required parameter.")
+
     environment = os.getenv("ENVIRONMENT", "dev")
     name_prefix = os.getenv("NAME_PREFIX", "mydb")
 

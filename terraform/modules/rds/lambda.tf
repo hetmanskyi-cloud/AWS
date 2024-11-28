@@ -40,6 +40,7 @@ resource "aws_security_group" "lambda_sg" {
 
 # Lambda Function for Creating Read Replicas
 resource "aws_lambda_function" "create_read_replica" {
+  timeout       = 10
   function_name = "${var.name_prefix}-create-replica"
   runtime       = "python3.12"
   handler       = "create_read_replica.lambda_handler"
@@ -56,14 +57,16 @@ resource "aws_lambda_function" "create_read_replica" {
 
   environment {
     variables = {
-      DB_INSTANCE_IDENTIFIER = aws_db_instance.db.id
-      SNS_TOPIC_ARN          = var.sns_topic_arn
+      DB_INSTANCE_IDENTIFIER = aws_db_instance.db.id                    # Main RDS instance identifier
+      SNS_TOPIC_ARN          = var.sns_topic_arn                        # SNS topic for notifications
+      DYNAMODB_TABLE_NAME    = aws_dynamodb_table.replica_tracking.name # DynamoDB table for replica tracking
     }
   }
 
   depends_on = [
     aws_cloudwatch_log_group.lambda_logs,
-    aws_db_instance.db
+    aws_db_instance.db,
+    aws_dynamodb_table.replica_tracking
   ]
 
   tags = {
@@ -76,6 +79,7 @@ resource "aws_lambda_function" "create_read_replica" {
 # Lambda Function for Deleting Read Replicas
 resource "aws_lambda_function" "delete_read_replica" {
   function_name = "${var.name_prefix}-delete-replica"
+  timeout       = 10
   runtime       = "python3.12"
   handler       = "delete_read_replica.lambda_handler"
   role          = aws_iam_role.lambda_rds_role.arn
@@ -88,13 +92,16 @@ resource "aws_lambda_function" "delete_read_replica" {
 
   environment {
     variables = {
-      SNS_TOPIC_ARN = var.sns_topic_arn
+      REPLICA_IDENTIFIER  = "${var.db_instance_identifier}-replica-1" # Replica identifier
+      SNS_TOPIC_ARN       = var.sns_topic_arn                         # SNS topic for notifications
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.replica_tracking.name  # DynamoDB table for replica tracking
     }
   }
 
   depends_on = [
     aws_cloudwatch_log_group.lambda_logs,
-    aws_db_instance.db
+    aws_db_instance.db,
+    aws_dynamodb_table.replica_tracking
   ]
 
   tags = {

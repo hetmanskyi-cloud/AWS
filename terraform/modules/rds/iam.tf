@@ -65,6 +65,7 @@ resource "aws_iam_policy" "lambda_rds_policy" {
           "rds:DescribeDBInstances"
         ],
         Resource = [
+          # Main RDS instance and its replicas
           "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${var.db_instance_identifier}",
           "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${var.db_instance_identifier}-replica-*"
         ]
@@ -90,11 +91,23 @@ resource "aws_iam_policy" "lambda_rds_policy" {
           "logs:PutLogEvents"
         ],
         Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/${var.name_prefix}-*"
+      },
+      # Permissions for interacting with DynamoDB
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:PutItem",   # Add items to the table
+          "dynamodb:GetItem",   # Retrieve items by key
+          "dynamodb:Query",     # Query items in the table
+          "dynamodb:UpdateItem" # Update existing items
+        ],
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/${aws_dynamodb_table.replica_tracking.name}"
       }
     ]
   })
 }
 
+# Attach the policy to the Lambda role
 resource "aws_iam_role_policy_attachment" "lambda_rds_policy_attachment" {
   role       = aws_iam_role.lambda_rds_role.name
   policy_arn = aws_iam_policy.lambda_rds_policy.arn

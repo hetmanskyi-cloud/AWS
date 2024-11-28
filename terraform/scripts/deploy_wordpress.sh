@@ -19,9 +19,6 @@ sudo apt-get install -y nginx mysql-client php-fpm php-mysql php-xml php-mbstrin
   exit 1
 }
 
-# --- PHP Version passed from Terraform --- #
-PHP_VERSION="${PHP_VERSION}"
-
 # Ensure PHP-FPM is installed and enabled
 PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
 
@@ -48,12 +45,6 @@ sudo mv wordpress /var/www/html/wordpress
 rm latest.zip
 
 sudo cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php || { echo "Failed to copy WordPress config file."; exit 1; }
-
-# --- Database configuration passed from Terraform --- #
-DB_NAME="${DB_NAME}"
-DB_USERNAME="${DB_USERNAME}"
-DB_PASSWORD="${DB_PASSWORD}"
-DB_HOST="${DB_HOST}"
 
 # --- Configure wp-config.php --- #
 echo "Configuring wp-config.php..."
