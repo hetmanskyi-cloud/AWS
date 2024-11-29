@@ -53,7 +53,7 @@ resource "aws_launch_template" "ec2_launch_template" {
   metadata_options {
     http_endpoint               = "enabled"  # Enable instance metadata endpoint
     http_tokens                 = "required" # Require IMDSv2 tokens
-    http_put_response_hop_limit = 2          # Restrict metadata access to 2 hops
+    http_put_response_hop_limit = 1          # Restrict metadata access to 1 hops
     instance_metadata_tags      = "enabled"  # Enable instance metadata tags
   }
 
