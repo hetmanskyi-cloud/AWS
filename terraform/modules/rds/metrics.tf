@@ -11,10 +11,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
   period              = 300                        # Evaluation period in seconds
   statistic           = "Average"                  # Use average metric for alarm
   threshold           = var.rds_cpu_threshold_high # High CPU utilization threshold from variables
-  alarm_actions = [
-    var.sns_topic_arn,                          # Notify via SNS topic
-    aws_lambda_function.create_read_replica.arn # Trigger Lambda to create a read replica
-  ]
+  alarm_actions = concat(
+    [var.sns_topic_arn],                              # Notify via SNS topic
+    [for idx in range(var.read_replicas_count) :      # Include all Lambda functions
+    aws_lambda_function.create_read_replica[idx].arn] # Trigger Lambda to create a read replica
+  )
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }
@@ -32,10 +33,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_cpu_utilization" {
   period              = 300
   statistic           = "Average"
   threshold           = var.rds_cpu_threshold_low # Low CPU utilization threshold from variables
-  alarm_actions = [
-    var.sns_topic_arn,                          # Notify via SNS topic
-    aws_lambda_function.delete_read_replica.arn # Trigger Lambda to delete a read replica
-  ]
+  alarm_actions = concat(
+    [var.sns_topic_arn],                              # Notify via SNS topic
+    [for idx in range(var.read_replicas_count) :      # Include all Lambda functions
+    aws_lambda_function.delete_read_replica[idx].arn] # Trigger Lambda to delete a read replica
+  )
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier
   }

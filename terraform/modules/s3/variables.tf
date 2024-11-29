@@ -13,6 +13,7 @@ variable "name_prefix" {
 }
 
 # --- AWS Account ID Variable --- #
+
 variable "aws_account_id" {
   description = "AWS Account ID for configuring S3 bucket policies and other resources"
   type        = string

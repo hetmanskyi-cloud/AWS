@@ -73,7 +73,8 @@ resource "aws_iam_policy" "lambda_rds_policy" {
         "Action" : [
           "rds:CreateDBInstanceReadReplica",
           "rds:DeleteDBInstance",
-          "rds:DescribeDBInstances"
+          "rds:DescribeDBInstances",
+          "rds:ModifyDBInstance"
         ],
         "Resource" : [
           "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db/${var.db_instance_identifier}",
@@ -85,6 +86,8 @@ resource "aws_iam_policy" "lambda_rds_policy" {
         "Effect" : "Allow",
         "Action" : [
           "ec2:CreateNetworkInterface",
+          "ec2:AttachNetworkInterface",
+          "ec2:DescribeInstances",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface"
         ],

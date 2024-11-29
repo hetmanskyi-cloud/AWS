@@ -42,16 +42,6 @@ output "rds_monitoring_role_arn" {
   value       = aws_iam_role.rds_monitoring_role.arn
 }
 
-output "lambda_create_replica_arn" {
-  description = "ARN of the Lambda function to create a read replica"
-  value       = aws_lambda_function.create_read_replica.arn
-}
-
-output "lambda_delete_replica_arn" {
-  description = "ARN of the Lambda function to delete a read replica"
-  value       = aws_lambda_function.delete_read_replica.arn
-}
-
 # Output for the primary RDS instance identifier
 output "rds_db_instance_id" {
   description = "Identifier of the primary RDS database instance"
@@ -67,4 +57,14 @@ output "rds_read_replicas_ids" {
 output "db_instance_identifier" {
   value       = aws_db_instance.db.id
   description = "The identifier of the RDS instance"
+}
+
+output "lambda_create_replica_arn" {
+  description = "ARNs of Lambda functions for creating RDS replicas"
+  value       = [for idx in range(var.read_replicas_count) : aws_lambda_function.create_read_replica[idx].arn]
+}
+
+output "lambda_delete_replica_arn" {
+  description = "ARNs of Lambda functions for deleting RDS replicas"
+  value       = [for idx in range(var.read_replicas_count) : aws_lambda_function.delete_read_replica[idx].arn]
 }

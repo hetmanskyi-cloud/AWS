@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
-# Add retry configuration
+# Add retry configuration for AWS clients
 config = Config(
     retries={
         'max_attempts': 5,
@@ -18,9 +18,10 @@ config = Config(
 
 # Initialize AWS clients
 rds_client = boto3.client("rds", config=config)
-sns_client = boto3.client("sns")
-dynamodb_client = boto3.client("dynamodb")
+sns_client = boto3.client("sns", config=config)
+dynamodb_client = boto3.client("dynamodb", config=config)
 
+# Helper function to send SNS notifications
 def send_sns_notification(message: str, subject: str):
     sns_topic_arn = os.getenv("SNS_TOPIC_ARN")
     if not sns_topic_arn:
@@ -36,8 +37,10 @@ def send_sns_notification(message: str, subject: str):
     except Exception as e:
         logger.error(f"Failed to send SNS notification: {e}")
 
+# Helper function to update replica status in DynamoDB
 def track_replica_status(db_instance_identifier: str, replica_index: int, status: str):
     try:
+        logger.info(f"Updating DynamoDB: {db_instance_identifier}-{replica_index} status -> {status}")
         dynamodb_client.put_item(
             TableName=os.getenv("DYNAMODB_TABLE_NAME"),
             Item={
@@ -50,26 +53,7 @@ def track_replica_status(db_instance_identifier: str, replica_index: int, status
     except Exception as e:
         logger.error(f"Error updating DynamoDB: {e}")
 
-def get_next_replica_index(db_instance_identifier: str) -> int:
-    try:
-        logger.info(f"Querying DynamoDB for next replica index for {db_instance_identifier}.")
-        response = dynamodb_client.query(
-            TableName=os.getenv("DYNAMODB_TABLE_NAME"),
-            KeyConditionExpression="db_instance_identifier = :db_id",
-            ExpressionAttributeValues={":db_id": {"S": db_instance_identifier}}
-        )
-        items = response.get("Items", [])
-        if not items:
-            logger.info(f"No replicas found for {db_instance_identifier}. Starting with index 1.")
-            return 1
-        existing_indices = [int(item["replica_index"]["N"]) for item in items]
-        next_index = max(existing_indices) + 1
-        logger.info(f"Next replica index for {db_instance_identifier} is {next_index}.")
-        return next_index
-    except Exception as e:
-        logger.error(f"Error querying DynamoDB: {e}")
-        return 1
-
+# Main function to create a read replica
 def create_read_replica(db_instance_identifier: str, replica_index: int, environment: str, name_prefix: str):
     read_replica_identifier = f"{name_prefix}-replica-{replica_index}-{environment}"
     try:
@@ -105,16 +89,13 @@ def create_read_replica(db_instance_identifier: str, replica_index: int, environ
         )
         return {"status": "error", "details": error_message}
 
+# Lambda handler entry point
 def lambda_handler(event: dict, context: object) -> dict:
-    # Logging environment variables for debugging
-    logger.info(f"Environment variables: DB_INSTANCE_IDENTIFIER={os.getenv('DB_INSTANCE_IDENTIFIER')}, DYNAMODB_TABLE_NAME={os.getenv('DYNAMODB_TABLE_NAME')}, SNS_TOPIC_ARN={os.getenv('SNS_TOPIC_ARN')}")
-    
-    db_instance_identifier = os.getenv("DB_INSTANCE_IDENTIFIER")
-    dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")
-    if not dynamodb_table_name:
-        logger.error("DYNAMODB_TABLE_NAME is not provided. Exiting.")
-        raise ValueError("DYNAMODB_TABLE_NAME is a required parameter.")
+    logger.info("Starting Lambda function for creating a read replica.")
 
+    # Fetching environment variables
+    db_instance_identifier = os.getenv("DB_INSTANCE_IDENTIFIER")
+    replica_index = int(os.getenv("REPLICA_INDEX", 1))
     environment = os.getenv("ENVIRONMENT", "dev")
     name_prefix = os.getenv("NAME_PREFIX", "mydb")
 
@@ -122,5 +103,8 @@ def lambda_handler(event: dict, context: object) -> dict:
         logger.error("DB_INSTANCE_IDENTIFIER is not provided. Exiting.")
         raise ValueError("DB_INSTANCE_IDENTIFIER is a required parameter.")
 
-    next_replica_index = get_next_replica_index(db_instance_identifier)
-    return create_read_replica(db_instance_identifier, next_replica_index, environment, name_prefix)
+    # Logging parameters
+    logger.info(f"DB_INSTANCE_IDENTIFIER={db_instance_identifier}, REPLICA_INDEX={replica_index}")
+
+    # Creating a replica
+    return create_read_replica(db_instance_identifier, replica_index, environment, name_prefix)
