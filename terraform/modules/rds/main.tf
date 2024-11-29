@@ -94,6 +94,11 @@ resource "aws_dynamodb_table" "replica_tracking" {
   hash_key     = "db_instance_identifier" # Partition key
   range_key    = "replica_index"          # Sort key
 
+  # Enable point-in-time recovery
+  point_in_time_recovery {
+    enabled = true
+  }
+
   attribute {
     name = "db_instance_identifier"
     type = "S" # String
