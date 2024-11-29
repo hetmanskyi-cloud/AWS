@@ -22,6 +22,9 @@ sns_client = boto3.client("sns")
 dynamodb_client = boto3.client("dynamodb")
 
 def send_sns_notification(message: str, subject: str):
+    """
+    Sends an SNS notification.
+    """
     sns_topic_arn = os.getenv("SNS_TOPIC_ARN")
     if not sns_topic_arn:
         logger.error("SNS_TOPIC_ARN environment variable is not set.")
@@ -37,7 +40,11 @@ def send_sns_notification(message: str, subject: str):
         logger.error(f"Failed to send SNS notification: {e}")
 
 def update_replica_status_in_dynamodb(read_replica_identifier: str, status: str):
+    """
+    Updates the status of the replica in the DynamoDB table.
+    """
     try:
+        logger.info(f"Updating DynamoDB: {read_replica_identifier} status -> {status}")
         dynamodb_client.update_item(
             TableName=os.getenv("DYNAMODB_TABLE_NAME"),
             Key={"db_instance_identifier": {"S": read_replica_identifier}},
@@ -50,6 +57,13 @@ def update_replica_status_in_dynamodb(read_replica_identifier: str, status: str)
         logger.error(f"Error updating DynamoDB: {e}")
 
 def lambda_handler(event, context):
+    """
+    Main Lambda handler function.
+    Handles the deletion of an RDS read replica and updates DynamoDB.
+    """
+    # Log environment variables for debugging
+    logger.info(f"Environment variables: DYNAMODB_TABLE_NAME={os.getenv('DYNAMODB_TABLE_NAME')}, READ_REPLICA_IDENTIFIER={os.getenv('READ_REPLICA_IDENTIFIER')}")
+
     # Validate environment variables
     dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")
     if not dynamodb_table_name:
@@ -58,7 +72,7 @@ def lambda_handler(event, context):
 
     read_replica_identifier = os.getenv("READ_REPLICA_IDENTIFIER", event.get("read_replica_identifier"))
     if not read_replica_identifier:
-        logger.error("READ_REPLICA_IDENTIFIER environment variable is not provided. Exiting.")
+        logger.error("READ_REPLICA_IDENTIFIER is not provided. Exiting.")
         raise ValueError("READ_REPLICA_IDENTIFIER is a required parameter.")
 
     # Check if the replica exists
@@ -94,6 +108,7 @@ def lambda_handler(event, context):
     except ClientError as e:
         error_message = f"Error deleting read replica: {e.response['Error']['Message']}"
         logger.error(error_message)
+        update_replica_status_in_dynamodb(read_replica_identifier, "error")
         send_sns_notification(
             message=error_message,
             subject="RDS Replica Deletion Error"
@@ -102,6 +117,7 @@ def lambda_handler(event, context):
     except Exception as e:
         error_message = f"Unexpected error during replica deletion: {str(e)}"
         logger.error(error_message)
+        update_replica_status_in_dynamodb(read_replica_identifier, "error")
         send_sns_notification(
             message=error_message,
             subject="RDS Replica Deletion Unexpected Error"

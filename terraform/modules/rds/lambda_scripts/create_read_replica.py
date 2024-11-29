@@ -52,6 +52,7 @@ def track_replica_status(db_instance_identifier: str, replica_index: int, status
 
 def get_next_replica_index(db_instance_identifier: str) -> int:
     try:
+        logger.info(f"Querying DynamoDB for next replica index for {db_instance_identifier}.")
         response = dynamodb_client.query(
             TableName=os.getenv("DYNAMODB_TABLE_NAME"),
             KeyConditionExpression="db_instance_identifier = :db_id",
@@ -59,9 +60,12 @@ def get_next_replica_index(db_instance_identifier: str) -> int:
         )
         items = response.get("Items", [])
         if not items:
+            logger.info(f"No replicas found for {db_instance_identifier}. Starting with index 1.")
             return 1
         existing_indices = [int(item["replica_index"]["N"]) for item in items]
-        return max(existing_indices) + 1
+        next_index = max(existing_indices) + 1
+        logger.info(f"Next replica index for {db_instance_identifier} is {next_index}.")
+        return next_index
     except Exception as e:
         logger.error(f"Error querying DynamoDB: {e}")
         return 1
@@ -69,7 +73,7 @@ def get_next_replica_index(db_instance_identifier: str) -> int:
 def create_read_replica(db_instance_identifier: str, replica_index: int, environment: str, name_prefix: str):
     read_replica_identifier = f"{name_prefix}-replica-{replica_index}-{environment}"
     try:
-        logger.info(f"Creating read replica: {read_replica_identifier}")
+        logger.info(f"Creating read replica with identifier: {read_replica_identifier}")
         track_replica_status(db_instance_identifier, replica_index, "creating")
         response = rds_client.create_db_instance_read_replica(
             DBInstanceIdentifier=read_replica_identifier,
@@ -102,9 +106,11 @@ def create_read_replica(db_instance_identifier: str, replica_index: int, environ
         return {"status": "error", "details": error_message}
 
 def lambda_handler(event: dict, context: object) -> dict:
+    # Logging environment variables for debugging
     logger.info(f"Environment variables: DB_INSTANCE_IDENTIFIER={os.getenv('DB_INSTANCE_IDENTIFIER')}, DYNAMODB_TABLE_NAME={os.getenv('DYNAMODB_TABLE_NAME')}, SNS_TOPIC_ARN={os.getenv('SNS_TOPIC_ARN')}")
+    
     db_instance_identifier = os.getenv("DB_INSTANCE_IDENTIFIER")
-    dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")  # Новая проверка
+    dynamodb_table_name = os.getenv("DYNAMODB_TABLE_NAME")
     if not dynamodb_table_name:
         logger.error("DYNAMODB_TABLE_NAME is not provided. Exiting.")
         raise ValueError("DYNAMODB_TABLE_NAME is a required parameter.")

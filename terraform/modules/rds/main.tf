@@ -37,7 +37,6 @@ resource "aws_db_instance" "db" {
   performance_insights_enabled    = false # Disable Performance Insights
   performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null
 
-
   # Monitoring
   monitoring_interval = var.enable_monitoring ? 60 : 0
   monitoring_role_arn = var.enable_monitoring ? aws_iam_role.rds_monitoring_role.arn : null
@@ -66,10 +65,12 @@ resource "aws_db_subnet_group" "db_subnet_group" {
   }
 }
 
+# --- Read Replica Configuration --- #
+
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count
 
-  identifier             = "${var.name_prefix}-replica-${count.index + 1}-${var.environment}"
+  identifier             = "${var.name_prefix}-replica${count.index}-${var.environment}" # Optimized name format
   instance_class         = var.instance_class
   engine                 = var.engine
   engine_version         = var.engine_version
@@ -78,14 +79,15 @@ resource "aws_db_instance" "read_replica" {
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 
   tags = {
-    Name        = "${var.name_prefix}-db-replica-${count.index + 1}"
+    Name        = "${var.name_prefix}-replica-${count.index}" # Improved tag format
     Environment = var.environment
   }
 
   depends_on = [aws_db_instance.db]
 }
 
-# DynamoDB Table for Replica Tracking
+# --- DynamoDB Table for Replica Tracking --- #
+
 resource "aws_dynamodb_table" "replica_tracking" {
   name         = "${var.name_prefix}-replica-tracking"
   billing_mode = "PAY_PER_REQUEST"        # Minimal cost: pay only for actual usage

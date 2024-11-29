@@ -209,7 +209,7 @@ module "rds" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 }
 
-# --- Endpoints Module Configuration ---
+# --- Endpoints Module Configuration --- #
 module "endpoints" {
   source = "./modules/endpoints" # Path to module Endpoints
 
@@ -245,6 +245,7 @@ module "s3" {
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
 }
 
+# --- Elasticache Module --- #
 module "elasticache" {
   source = "./modules/elasticache" # Path to module Elasticache
 
@@ -274,4 +275,3 @@ module "elasticache" {
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 }
-#
