@@ -11,35 +11,9 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
   period              = 300                        # Evaluation period in seconds
   statistic           = "Average"                  # Use average metric for alarm
   threshold           = var.rds_cpu_threshold_high # High CPU utilization threshold from variables
-  alarm_actions = concat(
-    [var.sns_topic_arn],                              # Notify via SNS topic
-    [for idx in range(var.read_replicas_count) :      # Include all Lambda functions
-    aws_lambda_function.create_read_replica[idx].arn] # Trigger Lambda to create a read replica
-  )
+  alarm_actions       = [var.sns_topic_arn]        # Notify via SNS topic
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
-  }
-}
-
-# Alarm for low CPU utilization
-# Triggers an alarm when the average CPU utilization drops below the defined threshold
-# Used for deleting replicas when CPU usage is low
-resource "aws_cloudwatch_metric_alarm" "rds_low_cpu_utilization" {
-  alarm_name          = "${var.name_prefix}-rds-low-cpu"
-  comparison_operator = "LessThanThreshold" # Alarm triggers when value is below the threshold
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/RDS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = var.rds_cpu_threshold_low # Low CPU utilization threshold from variables
-  alarm_actions = concat(
-    [var.sns_topic_arn],                              # Notify via SNS topic
-    [for idx in range(var.read_replicas_count) :      # Include all Lambda functions
-    aws_lambda_function.delete_read_replica[idx].arn] # Trigger Lambda to delete a read replica
-  )
-  dimensions = {
-    DBInstanceIdentifier = aws_db_instance.db.identifier
   }
 }
 
@@ -61,7 +35,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
 }
 
 # Alarm for high number of database connections
-# Optional alarm to monitor the number of active database connections
+# Monitors the number of active database connections
 resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
   alarm_name          = "${var.name_prefix}-rds-high-connections"
   comparison_operator = "GreaterThanThreshold" # Alarm triggers when value exceeds the threshold
@@ -71,7 +45,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
   period              = 300
   statistic           = "Average"
   threshold           = var.rds_connections_threshold # High connection threshold from variables
-  alarm_actions       = []                            # No action defined; only logs the alarm
+  alarm_actions       = [var.sns_topic_arn]           # Notify via SNS topic
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier
   }

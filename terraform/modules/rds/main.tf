@@ -1,6 +1,6 @@
 # --- RDS Database Instance Configuration --- #
 
-# Define the RDS database instance with engine configurations and security settings
+# Define the primary RDS database instance
 resource "aws_db_instance" "db" {
   identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
   allocated_storage = var.allocated_storage                      # Storage size in GB
@@ -29,12 +29,12 @@ resource "aws_db_instance" "db" {
   deletion_protection = var.deletion_protection # Enable or disable deletion protection
 
   # Final Snapshot Configuration
-  skip_final_snapshot       = var.skip_final_snapshot                                # Skip final snapshot on deletion
+  skip_final_snapshot       = true                                                   # Skip final snapshot on deletion
   final_snapshot_identifier = "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name
   delete_automated_backups  = true                                                   # Delete automated backups when the instance is deleted
 
   # Performance Insights
-  performance_insights_enabled    = false # Disable Performance Insights
+  performance_insights_enabled    = var.performance_insights_enabled
   performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null
 
   # Monitoring
@@ -47,7 +47,7 @@ resource "aws_db_instance" "db" {
     Environment = var.environment                            # Environment tag
   }
 
-  # Depends on the creation of the security group
+  # Ensure the security group is created first
   depends_on = [aws_security_group.rds_sg]
 }
 
@@ -67,50 +67,40 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 
 # --- Read Replica Configuration --- #
 
+# Define RDS read replicas
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count
 
-  identifier             = "${var.name_prefix}-replica${count.index}-${var.environment}" # Optimized name format
-  instance_class         = var.instance_class
-  engine                 = var.engine
-  engine_version         = var.engine_version
-  publicly_accessible    = false
-  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  identifier = "${var.name_prefix}-replica${count.index}-${var.environment}"
 
-  tags = {
-    Name        = "${var.name_prefix}-replica-${count.index}" # Improved tag format
-    Environment = var.environment
-  }
+  # Inherit configuration from the primary DB instance
+  instance_class          = aws_db_instance.db.instance_class
+  engine                  = aws_db_instance.db.engine
+  engine_version          = aws_db_instance.db.engine_version
+  allocated_storage       = aws_db_instance.db.allocated_storage
+  db_subnet_group_name    = aws_db_instance.db.db_subnet_group_name
+  vpc_security_group_ids  = aws_db_instance.db.vpc_security_group_ids
+  storage_encrypted       = aws_db_instance.db.storage_encrypted
+  kms_key_id              = aws_db_instance.db.kms_key_id
+  backup_retention_period = aws_db_instance.db.backup_retention_period
+  backup_window           = aws_db_instance.db.backup_window
+  deletion_protection     = aws_db_instance.db.deletion_protection
+  monitoring_interval     = aws_db_instance.db.monitoring_interval
+  monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
 
+  # Performance Insights for replicas
+  performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
+  performance_insights_kms_key_id = aws_db_instance.db.performance_insights_kms_key_id
+
+  publicly_accessible = false # Read replicas should not be publicly accessible
+
+  skip_final_snapshot = true # Do not create a final snapshot during deletion
+
+  tags = merge(
+    aws_db_instance.db.tags,
+    { Name = "${var.name_prefix}-replica-${count.index}" }
+  )
+
+  # Ensure replicas depend on the primary DB instance
   depends_on = [aws_db_instance.db]
-}
-
-# --- DynamoDB Table for Replica Tracking --- #
-
-resource "aws_dynamodb_table" "replica_tracking" {
-  name         = "${var.name_prefix}-replica-tracking"
-  billing_mode = "PAY_PER_REQUEST"        # Minimal cost: pay only for actual usage
-  hash_key     = "db_instance_identifier" # Partition key
-  range_key    = "replica_index"          # Sort key
-
-  # Enable point-in-time recovery
-  point_in_time_recovery {
-    enabled = true
-  }
-
-  attribute {
-    name = "db_instance_identifier"
-    type = "S" # String
-  }
-
-  attribute {
-    name = "replica_index"
-    type = "N" # Number
-  }
-
-  tags = {
-    Name        = "${var.name_prefix}-replica-tracking"
-    Environment = var.environment
-  }
 }

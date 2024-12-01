@@ -250,7 +250,6 @@ variable "enable_deletion_protection" {
 variable "skip_final_snapshot" {
   description = "Skip final snapshot when deleting the RDS instance"
   type        = bool
-  default     = false
 }
 
 # Enable or disable enhanced monitoring for RDS instances
@@ -271,11 +270,6 @@ variable "php_version" {
 # Threshold for CPU utilization alarm
 variable "rds_cpu_threshold_high" {
   description = "Threshold for high CPU utilization on RDS"
-  type        = number
-}
-
-variable "rds_cpu_threshold_low" {
-  description = "Low CPU threshold for deleting read replicas"
   type        = number
 }
 

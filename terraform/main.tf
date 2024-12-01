@@ -192,7 +192,6 @@ module "rds" {
 
   # RDS Alarm Thresholds
   rds_cpu_threshold_high    = var.rds_cpu_threshold_high
-  rds_cpu_threshold_low     = var.rds_cpu_threshold_low
   rds_storage_threshold     = var.rds_storage_threshold
   rds_connections_threshold = var.rds_connections_threshold
 

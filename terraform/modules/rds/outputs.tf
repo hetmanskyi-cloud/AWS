@@ -58,13 +58,3 @@ output "db_instance_identifier" {
   value       = aws_db_instance.db.id
   description = "The identifier of the RDS instance"
 }
-
-output "lambda_create_replica_arn" {
-  description = "ARNs of Lambda functions for creating RDS replicas"
-  value       = [for idx in range(var.read_replicas_count) : aws_lambda_function.create_read_replica[idx].arn]
-}
-
-output "lambda_delete_replica_arn" {
-  description = "ARNs of Lambda functions for deleting RDS replicas"
-  value       = [for idx in range(var.read_replicas_count) : aws_lambda_function.delete_read_replica[idx].arn]
-}

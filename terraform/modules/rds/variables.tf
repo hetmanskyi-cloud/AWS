@@ -159,11 +159,6 @@ variable "rds_cpu_threshold_high" {
   type        = number
 }
 
-variable "rds_cpu_threshold_low" {
-  description = "Low CPU threshold for deleting read replicas"
-  type        = number
-}
-
 # Threshold for free storage space alarm
 variable "rds_storage_threshold" {
   description = "Threshold for low free storage space on RDS (in bytes)"
@@ -190,20 +185,6 @@ variable "sns_topic_arn" {
 variable "read_replicas_count" {
   description = "Number of read replicas for the RDS instance"
   type        = number
-}
-
-# ARN of the Lambda function to create a read replica
-variable "lambda_create_replica_arn" {
-  description = "ARN of the Lambda function to create a read replica"
-  type        = string
-  default     = "null"
-}
-
-# ARN of the Lambda function to delete a read replica
-variable "lambda_delete_replica_arn" {
-  description = "ARN of the Lambda function to delete a read replica"
-  type        = string
-  default     = "null"
 }
 
 variable "db_instance_identifier" {
