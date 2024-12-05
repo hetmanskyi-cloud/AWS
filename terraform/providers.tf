@@ -2,7 +2,7 @@
 
 # Configure the minimum required Terraform version and the AWS and Random providers
 terraform {
-  required_version = "~> 1.10" # Specifies the minimum Terraform version
+  required_version = "~> 1.0" # Specifies the minimum Terraform version
   required_providers {
     aws = {
       source  = "hashicorp/aws" # Source for the AWS provider
