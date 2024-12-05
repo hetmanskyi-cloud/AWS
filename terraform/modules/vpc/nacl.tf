@@ -20,28 +20,28 @@ resource "aws_network_acl" "public_nacl" {
 ## Ingress Rules: Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
 
 # Rule for inbound HTTP traffic on port 80
-resource "aws_network_acl_rule" "public_inbound_http" {
-  network_acl_id = aws_network_acl.public_nacl.id # NACL ID
-  rule_number    = 100                            # Rule number
-  egress         = false                          # false for ingress traffic
-  protocol       = "tcp"                          # TCP protocol
-  from_port      = 80                             # Start port
-  to_port        = 80                             # End port
-  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs
-  rule_action    = "allow"                        # Allow traffic
-}
+# resource "aws_network_acl_rule" "public_inbound_http" {
+#  network_acl_id = aws_network_acl.public_nacl.id # NACL ID
+#  rule_number    = 100                            # Rule number
+#  egress         = false                          # false for ingress traffic
+#  protocol       = "tcp"                          # TCP protocol
+#  from_port      = 80                             # Start port
+#  to_port        = 80                             # End port
+#  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs
+#  rule_action    = "allow"                        # Allow traffic
+# }
 
 # Rule for inbound HTTPS traffic on port 443
-resource "aws_network_acl_rule" "public_inbound_https" {
-  network_acl_id = aws_network_acl.public_nacl.id
-  rule_number    = 110
-  egress         = false
-  protocol       = "tcp"
-  from_port      = 443
-  to_port        = 443
-  cidr_block     = "0.0.0.0/0"
-  rule_action    = "allow"
-}
+# resource "aws_network_acl_rule" "public_inbound_https" {
+#  network_acl_id = aws_network_acl.public_nacl.id
+#  rule_number    = 110
+#  egress         = false
+#  protocol       = "tcp"
+#  from_port      = 443
+#  to_port        = 443
+#  cidr_block     = "0.0.0.0/0"
+#  rule_action    = "allow"
+# }
 
 # Rule for inbound SSH traffic on port 22
 resource "aws_network_acl_rule" "public_inbound_ssh" {

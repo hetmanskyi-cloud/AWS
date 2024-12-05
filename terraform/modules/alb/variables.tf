@@ -35,3 +35,43 @@ variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
 }
+
+# --- Variables for the ALB Module --- #
+
+variable "public_subnets" {
+  description = "List of public subnet IDs for ALB placement"
+  type        = list(string)
+}
+
+variable "logging_bucket" {
+  description = "S3 bucket name for storing ALB access logs"
+  type        = string
+}
+
+variable "enable_deletion_protection" {
+  description = "Enable deletion protection for the ALB"
+  type        = bool
+  default     = false
+}
+
+variable "vpc_id" {
+  description = "VPC ID for the ALB and target group"
+  type        = string
+}
+
+variable "certificate_arn" {
+  description = "ARN of the SSL certificate for HTTPS listener"
+  type        = string
+  default     = "null"
+}
+
+variable "target_group_port" {
+  description = "Port for the target group"
+  type        = number
+  default     = 80
+}
+
+variable "alb_sg_id" {
+  description = "Security Group ID for the ALB"
+  type        = string
+}

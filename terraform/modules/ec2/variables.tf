@@ -210,3 +210,15 @@ variable "redis_endpoint" {
   description = "Redis endpoint (default: localhost)"
   type        = string
 }
+
+# --- ALB Variables --- #
+
+variable "alb_sg_id" {
+  description = "Security Group ID for the ALB to allow traffic"
+  type        = string
+}
+
+variable "target_group_arn" {
+  description = "The ARN of the target group for ALB"
+  type        = string
+}

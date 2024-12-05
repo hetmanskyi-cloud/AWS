@@ -14,8 +14,10 @@ resource "aws_autoscaling_group" "ec2_asg" {
   }
 
   # Health check configuration
-  health_check_type         = "EC2" # Health check based on EC2 instance status
+  health_check_type         = "ELB" # Health check based on ALB health checks
   health_check_grace_period = 300   # Grace period for new instances to warm up
+
+  target_group_arns = [var.target_group_arn]
 
   # Scaling policies for ASG
   wait_for_capacity_timeout = "0" # Disable waiting for instances to become healthy

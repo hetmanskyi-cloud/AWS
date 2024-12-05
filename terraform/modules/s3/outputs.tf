@@ -46,3 +46,9 @@ output "all_bucket_arns" {
     aws_s3_bucket.logging.arn
   ]
 }
+
+# Output the ID of the logging bucket
+output "logging_bucket_id" {
+  description = "The ID of the S3 bucket used for logging"
+  value       = aws_s3_bucket.logging.id
+}

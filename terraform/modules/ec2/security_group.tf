@@ -35,23 +35,47 @@ resource "aws_security_group_rule" "ssh" {
 }
 
 # Ingress rule for HTTP
-resource "aws_vpc_security_group_ingress_rule" "http" {
-  security_group_id = aws_security_group.ec2_security_group.id
-  from_port         = 80
-  to_port           = 80
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "0.0.0.0/0"
-  description       = "Allow HTTP access"
-}
+# resource "aws_vpc_security_group_ingress_rule" "http" {
+#  security_group_id = aws_security_group.ec2_security_group.id
+#  from_port         = 80
+#  to_port           = 80
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = "0.0.0.0/0"
+#  description       = "Allow HTTP access"
+# }
 
 # Ingress rule for HTTPS
-resource "aws_vpc_security_group_ingress_rule" "https" {
-  security_group_id = aws_security_group.ec2_security_group.id
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "0.0.0.0/0"
-  description       = "Allow HTTPS access"
+#resource "aws_vpc_security_group_ingress_rule" "https" {
+#  security_group_id = aws_security_group.ec2_security_group.id
+#  from_port         = 443
+#  to_port           = 443
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = "0.0.0.0/0"
+#  description       = "Allow HTTPS access"
+# }
+
+# --- Allow Traffic from ALB to EC2 Instances --- #
+
+# Rule to allow HTTP traffic from the ALB Security Group to EC2 instances
+resource "aws_security_group_rule" "alb_http" {
+  security_group_id        = aws_security_group.ec2_security_group.id # EC2 Security Group ID
+  type                     = "ingress"                                # Ingress (inbound) rule
+  from_port                = 80                                       # Allow HTTP traffic (port 80)
+  to_port                  = 80                                       # End of port range (same as from_port)
+  protocol                 = "tcp"                                    # Protocol: TCP
+  source_security_group_id = var.alb_sg_id                            # Traffic allowed only from ALB Security Group
+  description              = "Allow HTTP traffic from ALB"            # Description for easy identification
+}
+
+# Rule to allow HTTPS traffic from the ALB Security Group to EC2 instances
+resource "aws_security_group_rule" "alb_https" {
+  security_group_id        = aws_security_group.ec2_security_group.id # EC2 Security Group ID
+  type                     = "ingress"                                # Ingress (inbound) rule
+  from_port                = 443                                      # Allow HTTPS traffic (port 443)
+  to_port                  = 443                                      # End of port range (same as from_port)
+  protocol                 = "tcp"                                    # Protocol: TCP
+  source_security_group_id = var.alb_sg_id                            # Traffic allowed only from ALB Security Group
+  description              = "Allow HTTPS traffic from ALB"           # Description for easy identification
 }
 
 # --- Egress Rules (Outbound Traffic) --- #

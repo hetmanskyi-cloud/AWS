@@ -24,6 +24,16 @@ output "public_subnet_3_id" {
   value       = aws_subnet.public_subnet_3.id
 }
 
+# Output list of all public subnet IDs
+output "public_subnets" {
+  description = "List of public subnet IDs"
+  value = [
+    aws_subnet.public_subnet_1.id,
+    aws_subnet.public_subnet_2.id,
+    aws_subnet.public_subnet_3.id
+  ]
+}
+
 # --- Private Subnet Outputs --- #
 
 # Output IDs for private subnets
@@ -40,6 +50,16 @@ output "private_subnet_2_id" {
 output "private_subnet_3_id" {
   description = "ID of the third private subnet"
   value       = aws_subnet.private_subnet_3.id
+}
+
+# Output list of all private subnet IDs
+output "private_subnets" {
+  description = "List of private subnet IDs"
+  value = [
+    aws_subnet.private_subnet_1.id,
+    aws_subnet.private_subnet_2.id,
+    aws_subnet.private_subnet_3.id
+  ]
 }
 
 # --- Flow Logs Outputs --- #

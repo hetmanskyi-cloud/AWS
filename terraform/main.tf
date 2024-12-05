@@ -112,12 +112,16 @@ module "ec2" {
   public_subnet_id_2 = local.public_subnet_id_2
   public_subnet_id_3 = local.public_subnet_id_3
   enable_ssh_access  = var.enable_ssh_access
+  alb_sg_id          = module.alb.alb_sg_id
   security_group_id = [
     module.ec2.ec2_security_group_id,
     module.rds.rds_security_group_id,
-    module.elasticache.redis_security_group_id
+    module.elasticache.redis_security_group_id,
+    module.alb.alb_sg_id
   ]
   vpc_id = module.vpc.vpc_id
+
+  target_group_arn = module.alb.wordpress_tg_arn
 
   # S3 bucket configurations
   wordpress_media_bucket_arn   = module.s3.wordpress_media_bucket_arn
@@ -148,6 +152,8 @@ module "ec2" {
     REDIS_HOST      = module.elasticache.redis_endpoint,
     REDIS_PORT      = var.redis_port
   }))
+
+  depends_on = [module.vpc]
 }
 
 # --- RDS Module Configuration --- #
@@ -273,4 +279,20 @@ module "elasticache" {
 
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+}
+
+# --- ALB Module --- #
+module "alb" {
+  source                     = "./modules/alb"
+  name_prefix                = var.name_prefix
+  environment                = var.environment
+  alb_name                   = module.alb.alb_name
+  public_subnets             = module.vpc.public_subnets
+  logging_bucket             = module.s3.logging_bucket_id
+  alb_sg_id                  = module.alb.alb_sg_id
+  enable_deletion_protection = false
+  vpc_id                     = module.vpc.vpc_id
+  sns_topic_arn              = aws_sns_topic.cloudwatch_alarms.arn
+
+  depends_on = [module.vpc, module.s3]
 }
