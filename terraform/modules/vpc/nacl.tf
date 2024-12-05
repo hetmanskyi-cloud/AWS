@@ -71,6 +71,7 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
 ## Egress Rules: Allow all outbound traffic.
 
 # Rule allowing all outbound traffic
+# All egress traffic is allowed for simplicity.
 resource "aws_network_acl_rule" "public_outbound_allow_all" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 100

@@ -73,4 +73,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
       noncurrent_days = var.noncurrent_version_retention_days
     }
   }
+
+  # Rule to abort incomplete uploads
+  rule {
+    id     = "abort-incomplete-uploads" # Rule ID
+    status = "Enabled"                  # Enable this rule
+
+    # Abort incomplete multipart uploads after 7 days
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }

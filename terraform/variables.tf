@@ -291,6 +291,12 @@ variable "read_replicas_count" {
   type        = number
 }
 
+# Toggle for enabling or disabling Performance Insights
+variable "performance_insights_enabled" {
+  description = "Enable or disable Performance Insights for RDS instance"
+  type        = bool
+}
+
 # --- S3 Variables --- #
 
 # Lifecycle Configuration

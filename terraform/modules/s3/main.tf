@@ -1,4 +1,5 @@
 # --- S3 Buckets for the Project --- #
+# Cross-Region Replication is unnecessary for the current project scope.
 
 # S3 Bucket for Terraform State
 resource "aws_s3_bucket" "terraform_state" {

@@ -75,7 +75,6 @@ variable "multi_az" {
 variable "performance_insights_enabled" {
   description = "Enable or disable Performance Insights for RDS instance"
   type        = bool
-  default     = false
 }
 
 # --- Backup and Retention Configuration --- #

@@ -57,6 +57,7 @@ resource "aws_security_group_rule" "ssh" {
 # --- Allow Traffic from ALB to EC2 Instances --- #
 
 # Rule to allow HTTP traffic from the ALB Security Group to EC2 instances
+# Note: Open to the world for WordPress setup. Restrict in production!
 resource "aws_security_group_rule" "alb_http" {
   security_group_id        = aws_security_group.ec2_security_group.id # EC2 Security Group ID
   type                     = "ingress"                                # Ingress (inbound) rule
@@ -81,6 +82,7 @@ resource "aws_security_group_rule" "alb_https" {
 # --- Egress Rules (Outbound Traffic) --- #
 
 # Egress rule to allow all outbound traffic
+# All egress traffic is allowed for simplicity.
 resource "aws_vpc_security_group_egress_rule" "all_outbound" {
   security_group_id = aws_security_group.ec2_security_group.id
   ip_protocol       = "-1"        # All protocols

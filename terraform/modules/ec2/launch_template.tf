@@ -73,7 +73,7 @@ resource "aws_launch_template" "ec2_launch_template" {
   # --- Network Interface Configuration --- #
   # Assign a public IP and set security groups for instance networking.
   network_interfaces {
-    associate_public_ip_address = true                                       # Automatically assign public IP
+    associate_public_ip_address = true                                       # Public IP is required for WordPress setup. Consider NAT Gateway in production.
     delete_on_termination       = true                                       # Delete interface on termination
     security_groups             = [aws_security_group.ec2_security_group.id] # Security groups for networking
   }

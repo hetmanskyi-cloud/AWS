@@ -8,9 +8,11 @@ resource "aws_lb" "application" {
   subnets            = var.public_subnets             # ALB spans public subnets
 
   # Deletion protection to prevent accidental deletion
-  enable_deletion_protection = var.enable_deletion_protection
+  enable_deletion_protection = false
   # Enable cross-zone load balancing for improved distribution
   enable_cross_zone_load_balancing = true
+  # To enhance security, enable header dropping for ALB
+  drop_invalid_header_fields = true
 
   # Access logging configuration for ALB logs
   access_logs {

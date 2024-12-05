@@ -48,12 +48,6 @@ variable "logging_bucket" {
   type        = string
 }
 
-variable "enable_deletion_protection" {
-  description = "Enable deletion protection for the ALB"
-  type        = bool
-  default     = false
-}
-
 variable "vpc_id" {
   description = "VPC ID for the ALB and target group"
   type        = string
