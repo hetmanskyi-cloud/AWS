@@ -47,6 +47,9 @@ resource "aws_db_instance" "db" {
   monitoring_interval = var.enable_monitoring ? 60 : 0
   monitoring_role_arn = var.enable_monitoring ? aws_iam_role.rds_monitoring_role.arn : null
 
+  # Cloudwatch Logs Configuration
+  enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"] # Enable CloudWatch logs export
+
   # Tags for resource identification
   tags = {
     Name        = "${var.name_prefix}-db-${var.environment}" # Resource name tag
@@ -102,6 +105,9 @@ resource "aws_db_instance" "read_replica" {
 
   skip_final_snapshot = true # Do not create a final snapshot during deletion
 
+  enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
+
+  # Tags for read replica identification
   tags = merge(
     aws_db_instance.db.tags,
     { Name = "${var.name_prefix}-replica-${count.index}" }

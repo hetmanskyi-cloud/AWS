@@ -1,6 +1,6 @@
 # WAF Configuration for ALB
 # This file defines a Web ACL (Access Control List) and its association with the Application Load Balancer (ALB).
-# WAF protects ALB from common web vulnerabilities, such as SQL injection or bad bots.
+# WAF protects ALB from common web vulnerabilities, such as SQL injection, bad bots, and Log4j exploits.
 
 resource "aws_wafv2_web_acl" "alb_waf" {
   # Name of the WAF ACL
@@ -33,6 +33,30 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     visibility_config {
       cloudwatch_metrics_enabled = true           # Enable CloudWatch metrics for this rule
       metric_name                = "BlockBadBots" # Name for the metric
+      sampled_requests_enabled   = true           # Enable sampling of requests for analysis
+    }
+  }
+
+  # Managed rule: Prevent Log4j exploits
+  rule {
+    name     = "PreventLog4j" # Name of the rule
+    priority = 2              # Priority of this rule (executed after BlockBadBots)
+
+    action {
+      block {} # Block requests matching this rule
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet" # Managed rule group for blocking malicious inputs
+        vendor_name = "AWS"                                  # AWS is the vendor for this rule group
+      }
+    }
+
+    # Visibility settings for monitoring
+    visibility_config {
+      cloudwatch_metrics_enabled = true           # Enable CloudWatch metrics for this rule
+      metric_name                = "PreventLog4j" # Name for the metric
       sampled_requests_enabled   = true           # Enable sampling of requests for analysis
     }
   }
