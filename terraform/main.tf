@@ -285,15 +285,16 @@ module "elasticache" {
 
 # --- ALB Module --- #
 module "alb" {
-  source         = "./modules/alb"
-  name_prefix    = var.name_prefix
-  environment    = var.environment
-  alb_name       = module.alb.alb_name
-  public_subnets = module.vpc.public_subnets
-  logging_bucket = module.s3.logging_bucket_id
-  alb_sg_id      = module.alb.alb_sg_id
-  vpc_id         = module.vpc.vpc_id
-  sns_topic_arn  = aws_sns_topic.cloudwatch_alarms.arn
+  source             = "./modules/alb"
+  name_prefix        = var.name_prefix
+  environment        = var.environment
+  alb_name           = module.alb.alb_name
+  public_subnets     = module.vpc.public_subnets
+  logging_bucket     = module.s3.logging_bucket_id
+  logging_bucket_arn = module.s3.logging_bucket_arn
+  alb_sg_id          = module.alb.alb_sg_id
+  vpc_id             = module.vpc.vpc_id
+  sns_topic_arn      = aws_sns_topic.cloudwatch_alarms.arn
 
   depends_on = [module.vpc, module.s3]
 }

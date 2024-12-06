@@ -25,6 +25,12 @@ resource "aws_db_instance" "db" {
   backup_retention_period = var.backup_retention_period # Number of days to retain backups
   backup_window           = var.backup_window           # Preferred backup window
 
+  # Auto Minor Version Upgrade
+  auto_minor_version_upgrade = true # Enable automatic minor version upgrade
+
+  # Copy Tags to Snapshots
+  copy_tags_to_snapshot = true # Enable copying tags to snapshots
+
   # Deletion Protection
   deletion_protection = var.deletion_protection # Enable or disable deletion protection
 

@@ -58,3 +58,9 @@ resource "aws_wafv2_web_acl_association" "alb_waf_association" {
   # The ARN of the WAF ACL
   web_acl_arn = aws_wafv2_web_acl.alb_waf.arn
 }
+
+# Enable logging for WAF
+resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
+  log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs.arn]
+  resource_arn            = aws_wafv2_web_acl.alb_waf.arn
+}

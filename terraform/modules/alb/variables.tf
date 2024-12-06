@@ -48,6 +48,11 @@ variable "logging_bucket" {
   type        = string
 }
 
+variable "logging_bucket_arn" {
+  description = "ARN of the S3 bucket for Firehose logging"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "VPC ID for the ALB and target group"
   type        = string
