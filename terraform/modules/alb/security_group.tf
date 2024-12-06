@@ -4,6 +4,7 @@ resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.name_prefix}-alb-sg"
   vpc_id      = var.vpc_id
 
+  # HTTP (80) - temporarily open to the world
   ingress {
     from_port   = 80
     to_port     = 80
@@ -12,6 +13,7 @@ resource "aws_security_group" "alb_sg" {
     description = "Allow HTTP traffic from anywhere"
   }
 
+  # HTTPS (443) - open for future use
   ingress {
     from_port   = 443
     to_port     = 443

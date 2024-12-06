@@ -21,7 +21,7 @@ resource "aws_security_group" "ec2_security_group" {
 # --- Ingress Rules (Inbound Traffic) --- #
 # Define inbound rules to allow specific types of traffic to the EC2 instances.
 
-# Allow SSH access (port 22) if SSH access is enabled
+# Allow temporary SSH access (port 22) if SSH access is enabled
 resource "aws_security_group_rule" "ssh" {
   count = var.enable_ssh_access ? 1 : 0
 
