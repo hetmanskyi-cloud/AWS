@@ -28,6 +28,8 @@ This module creates and manages S3 buckets for various use cases within a projec
   - Configures CORS rules for the WordPress media bucket to allow cross-origin access.
 - **DynamoDB Integration**:
   - DynamoDB table for Terraform state locking with KMS encryption and point-in-time recovery.
+- **S3 Bucket Notifications**:
+  - Sends notifications to an SNS topic for object creation and deletion events in all buckets.
 
 ---
 
@@ -35,7 +37,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 | **File**          | **Description**                                                                        |
 |-------------------|----------------------------------------------------------------------------------------|
-| `main.tf`         | Creates S3 buckets and a DynamoDB table for Terraform locking.                         |
+| `main.tf`         | Creates S3 buckets, DynamoDB table, and bucket notifications for SNS integration.      |
 | `access.tf`       | Configures public access block settings for all buckets.                               |
 | `dynamodb.tf`     | Sets up the DynamoDB table for Terraform state locking.                                |
 | `encryption.tf`   | Configures encryption policies for S3 buckets and DynamoDB table.                      |
@@ -49,13 +51,14 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ## Input Variables
 
-| **Name**                           | **Type**     | **Description**                                                                            | **Default/Required** |
-|------------------------------------|--------------|-------------------------------------------------------------------------------------------|-----------------------|
-| `environment`                      | `string`     | Environment for the resources (e.g., dev, stage, prod). Used for tagging and naming.      | Required              |
-| `name_prefix`                      | `string`     | Name prefix for S3 resources to ensure unique and identifiable names.                     | Required              |
-| `aws_account_id`                   | `string`     | AWS Account ID for bucket policies and resource security.                                 | Required              |
-| `kms_key_arn`                      | `string`     | ARN of the KMS key used for S3 bucket encryption.                                         | Required              |
-| `noncurrent_version_retention_days`| `number`     | Days to retain noncurrent object versions for versioned buckets.                         | `90`                  |
+| **Name**                            | **Type**     | **Description**                                                                        | **Default/Required**  |
+|-------------------------------------|--------------|----------------------------------------------------------------------------------------|-----------------------|
+| `environment`                       | `string`     | Environment for the resources (e.g., dev, stage, prod). Used for tagging and naming.   | Required              |
+| `name_prefix`                       | `string`     | Name prefix for S3 resources to ensure unique and identifiable names.                  | Required              |
+| `aws_account_id`                    | `string`     | AWS Account ID for bucket policies and resource security.                              | Required              |
+| `kms_key_arn`                       | `string`     | ARN of the KMS key used for S3 bucket encryption.                                      | Required              |
+| `sns_topic_arn`                     | `string`     | ARN of the SNS topic to send S3 bucket notifications.                                  | Required              |
+| `noncurrent_version_retention_days` | `number`     | Days to retain noncurrent object versions for versioned buckets.                       | `90`                  |
 
 ---
 
@@ -83,6 +86,7 @@ module "s3" {
   name_prefix                       = "dev"
   aws_account_id                    = "123456789012"
   kms_key_arn                       = "arn:aws:kms:region:123456789012:key/example-key-id"
+  sns_topic_arn                     = "arn:aws:sns:region:123456789012:cloudwatch-alarms"
   noncurrent_version_retention_days = 90
 }
 
@@ -90,52 +94,67 @@ output "terraform_state_bucket" {
   value = module.s3.terraform_state_bucket_arn
 }
 
-
-Security Best Practices
+## Security Best Practices
 
 Public Access:
 
-Public access is disabled by default for all buckets.
+Public access is disabled by default for all buckets.  
 Bucket policies enforce HTTPS-only access.
 
 Encryption:
 
-Server-side encryption (SSE) with KMS ensures all data is encrypted at rest.
+Server-side encryption (SSE) with KMS ensures all data is encrypted at rest.  
 Policies enforce encryption for uploads, rejecting unencrypted objects.
 
 Logging:
 
-Logging is enabled for all buckets.
-Logs are stored in a dedicated logging bucket for centralized monitoring.
+Logging is enabled for all buckets.  
+Logs are stored in a dedicated logging bucket for centralized monitoring.  
 Ensure the logging bucket is monitored for unusual activity.
+
+Notifications:
+
+Sends notifications to an SNS topic when objects are created or deleted.  
+Notifications are integrated with CloudWatch for monitoring.
 
 Versioning:
 
-Versioning is enabled for all buckets.
+Versioning is enabled for all buckets.  
 Helps recover overwritten or deleted objects.
 
 DynamoDB:
 
-The DynamoDB table for Terraform locking is encrypted with a KMS key.
+The DynamoDB table for Terraform locking is encrypted with a KMS key.  
 Point-in-time recovery is enabled for disaster recovery.
 
-Notes
+---
 
-Cross-Region Replication: Not implemented, as it is outside the current project scope.
-CORS Rules: Configured only for the WordPress media bucket to allow cross-origin access when needed.
-Logging: The logging bucket itself does not have logging enabled to avoid circular dependencies.
+### Notes
 
-Future Improvements
+Cross-Region Replication:
+Not implemented, as it is outside the current project scope.  
+CORS Rules:
+Configured only for the WordPress media bucket to allow cross-origin access when needed.  
+Logging:
+The logging bucket itself does not have logging enabled to avoid circular dependencies.
 
-Add monitoring and alerting for bucket activity using CloudWatch Events and SNS.
+---
+
+### Future Improvements
+
 Expand lifecycle policies to include archival storage with Glacier.
 Integrate bucket logging analysis for better security auditing.
 
-Authors
+---
+
+### Authors
 
 This module was crafted following Terraform best practices, prioritizing security, scalability, and maintainability. Contributions are welcome to enhance its functionality further.
 
+---
+
 ### Documentation Features:
+
 1. **Complete**: Includes all aspects of the module: functionality, structure, variables, output parameters, examples.
 2. **Professional**: Complies with Terraform standards and includes sections for future improvements.
 3. **Understandable**: Simple wording with an emphasis on security and modularity.

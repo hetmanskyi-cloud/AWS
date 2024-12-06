@@ -35,3 +35,8 @@ variable "noncurrent_version_retention_days" {
   description = "Number of days to retain noncurrent object versions in S3 buckets for versioning."
   type        = number
 }
+
+variable "sns_topic_arn" {
+  description = "ARN of the SNS Topic for bucket notifications"
+  type        = string
+}

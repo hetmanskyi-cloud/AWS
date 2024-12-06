@@ -2,15 +2,6 @@
 # This file ensures that all S3 buckets in the project have server-side encryption enabled with AWS KMS.
 # Additionally, a bucket policy is applied to enforce encryption during uploads.
 
-# Map bucket names to resources for simplified referencing
-locals {
-  bucket_map = {
-    wordpress_media   = aws_s3_bucket.wordpress_media
-    wordpress_scripts = aws_s3_bucket.wordpress_scripts
-    terraform_state   = aws_s3_bucket.terraform_state
-  }
-}
-
 # --- Server-Side Encryption Configuration --- #
 resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   # Loop through each S3 bucket that requires encryption

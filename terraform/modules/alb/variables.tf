@@ -53,6 +53,11 @@ variable "logging_bucket_arn" {
   type        = string
 }
 
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for encrypting Firehose data in the S3 bucket"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "VPC ID for the ALB and target group"
   type        = string

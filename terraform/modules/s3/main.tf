@@ -6,6 +6,25 @@
 # 3. wordpress_scripts: To store scripts related to WordPress setup.
 # 4. logging: To store logs for all buckets.
 
+# --- Local variable: Map of S3 bucket names to their IDs --- #
+# This map is used to dynamically create notifications for each bucket.
+locals {
+  bucket_map = {
+    "terraform_state" = {
+      id  = aws_s3_bucket.terraform_state.id
+      arn = aws_s3_bucket.terraform_state.arn
+    }
+    "wordpress_media" = {
+      id  = aws_s3_bucket.wordpress_media.id
+      arn = aws_s3_bucket.wordpress_media.arn
+    }
+    "wordpress_scripts" = {
+      id  = aws_s3_bucket.wordpress_scripts.id
+      arn = aws_s3_bucket.wordpress_scripts.arn
+    }
+  }
+}
+
 # --- Terraform State S3 Bucket --- #
 # This bucket is used to store the Terraform state file.
 resource "aws_s3_bucket" "terraform_state" {
@@ -75,6 +94,22 @@ resource "random_string" "suffix" {
   upper   = false # Exclude uppercase letters
   lower   = true  # Include lowercase letters
   numeric = true  # Include numeric digits
+}
+
+# --- S3 Bucket Notifications --- #
+# Configure notifications for all S3 buckets in the bucket_map.
+# Notifications are sent to the specified SNS topic whenever objects are created or deleted in the buckets.
+resource "aws_s3_bucket_notification" "bucket_notifications" {
+  for_each = local.bucket_map # Iterate over all buckets in the bucket_map
+
+  # S3 bucket to which the notification applies
+  bucket = each.value.id
+
+  # Notification configuration for the bucket
+  topic {
+    topic_arn = var.sns_topic_arn                            # ARN of the SNS topic for notifications
+    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Notify on object creation and deletion
+  }
 }
 
 # --- Notes --- #

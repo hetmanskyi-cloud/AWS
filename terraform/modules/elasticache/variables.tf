@@ -85,3 +85,8 @@ variable "redis_security_group_id" {
   type        = string
   default     = null
 }
+
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for encrypting Firehose data in the S3 bucket"
+  type        = string
+}

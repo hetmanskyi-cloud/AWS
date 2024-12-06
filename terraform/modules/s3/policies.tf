@@ -1,15 +1,6 @@
 # --- Bucket Policies, CORS, and Lifecycle Policies for S3 Buckets --- #
 # This file defines key configurations for bucket policies, CORS, and lifecycle rules to ensure security, compliance, and functionality.
 
-# Map bucket names to resources for simplified referencing
-locals {
-  policies_bucket_map = {
-    wordpress_media   = aws_s3_bucket.wordpress_media
-    wordpress_scripts = aws_s3_bucket.wordpress_scripts
-    terraform_state   = aws_s3_bucket.terraform_state
-  }
-}
-
 # --- CORS Configuration for WordPress Media Bucket --- #
 # Configures Cross-Origin Resource Sharing (CORS) rules for the WordPress media bucket.
 # These rules specify the headers, methods, and origins that are allowed for cross-origin requests.
@@ -72,7 +63,7 @@ resource "aws_s3_bucket_policy" "deny_public_access" {
 
 ## Enforce HTTPS for specific buckets
 resource "aws_s3_bucket_policy" "force_https" {
-  for_each = local.policies_bucket_map # Target buckets
+  for_each = local.bucket_map # Target buckets
   bucket   = each.value.id
 
   policy = jsonencode({

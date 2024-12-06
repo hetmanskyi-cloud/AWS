@@ -28,13 +28,6 @@ variable "environment" {
   type        = string
 }
 
-# Enable or disable automatic key rotation for the KMS key
-# Controls key rotation setting, enhancing security by rotating the key at regular intervals.
-variable "enable_key_rotation" {
-  description = "Enable or disable automatic key rotation"
-  type        = bool
-}
-
 # List of additional AWS principals that require access to the KMS key
 # Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
 variable "additional_principals" {

@@ -3,7 +3,7 @@
 # Define a KMS key resource to encrypt CloudWatch logs, S3 buckets, and other resources
 resource "aws_kms_key" "general_encryption_key" {
   description         = "General KMS key for encrypting CloudWatch logs, S3 buckets, and other resources"
-  enable_key_rotation = var.enable_key_rotation # Enable automatic key rotation for added security
+  enable_key_rotation = true # Enable automatic key rotation for added security
 
   # KMS key policy with base permissions and additional principals if specified
   policy = jsonencode({

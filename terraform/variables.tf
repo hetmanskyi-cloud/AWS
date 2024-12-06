@@ -96,13 +96,6 @@ variable "log_retention_in_days" {
   type        = number
 }
 
-# --- Enable Key Rotation --- #
-variable "enable_key_rotation" {
-  description = "Enable or disable automatic key rotation for the KMS key"
-  type        = bool
-  default     = false
-}
-
 # --- EC2 Instance Configuration --- #
 
 # Settings for instance, AMI, and key

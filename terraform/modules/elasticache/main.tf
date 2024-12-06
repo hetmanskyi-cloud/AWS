@@ -23,6 +23,7 @@ resource "aws_elasticache_replication_group" "redis" {
   port                       = var.redis_port                                       # Port for Redis connections
   subnet_group_name          = aws_elasticache_subnet_group.redis_subnet_group.name # Subnet group for deployment
   security_group_ids         = [aws_security_group.redis_sg.id]                     # Security group IDs for network access
+  kms_key_id                 = var.kms_key_arn
 
   # Backup configuration
   snapshot_retention_limit = var.snapshot_retention_limit # Number of days to retain backups

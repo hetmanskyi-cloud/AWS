@@ -74,11 +74,10 @@ module "vpc" {
 module "kms" {
   source = "./modules/kms" # Path to module KMS
 
-  aws_region          = var.aws_region
-  aws_account_id      = var.aws_account_id
-  environment         = var.environment
-  name_prefix         = var.name_prefix
-  enable_key_rotation = var.enable_key_rotation
+  aws_region     = var.aws_region
+  aws_account_id = var.aws_account_id
+  environment    = var.environment
+  name_prefix    = var.name_prefix
 }
 
 # --- EC2 Module Configuration --- #
@@ -250,6 +249,7 @@ module "s3" {
   aws_account_id                    = var.aws_account_id
   kms_key_arn                       = module.kms.kms_key_arn
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
+  sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
 }
 
 # --- Elasticache Module --- #
@@ -267,6 +267,7 @@ module "elasticache" {
   redis_port               = var.redis_port
   snapshot_retention_limit = var.snapshot_retention_limit
   snapshot_window          = var.snapshot_window
+  kms_key_arn              = module.kms.kms_key_arn
 
   # Networking (from VPC module)
   vpc_id             = module.vpc.vpc_id
@@ -292,6 +293,7 @@ module "alb" {
   public_subnets     = module.vpc.public_subnets
   logging_bucket     = module.s3.logging_bucket_id
   logging_bucket_arn = module.s3.logging_bucket_arn
+  kms_key_arn        = module.kms.kms_key_arn
   alb_sg_id          = module.alb.alb_sg_id
   vpc_id             = module.vpc.vpc_id
   sns_topic_arn      = aws_sns_topic.cloudwatch_alarms.arn

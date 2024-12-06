@@ -9,6 +9,7 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
     buffering_interval = 300
     buffering_size     = 5
     compression_format = "GZIP"
+    kms_key_arn        = var.kms_key_arn
   }
 
   tags = {
