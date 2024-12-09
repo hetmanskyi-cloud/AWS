@@ -101,6 +101,12 @@ resource "aws_db_instance" "read_replica" {
   performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
   performance_insights_kms_key_id = aws_db_instance.db.performance_insights_kms_key_id
 
+  # Auto Minor Version Upgrade
+  auto_minor_version_upgrade = true # Enable automatic minor version upgrade
+
+  # Copy Tags to Snapshots
+  copy_tags_to_snapshot = true # Enable copying tags to snapshots
+
   publicly_accessible = false # Read replicas should not be publicly accessible
 
   skip_final_snapshot = true # Do not create a final snapshot during deletion
