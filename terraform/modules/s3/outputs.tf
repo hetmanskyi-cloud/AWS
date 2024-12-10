@@ -63,3 +63,17 @@ output "all_bucket_arns" {
     aws_s3_bucket.logging.arn            # Logging bucket ARN
   ]
 }
+
+# --- Replication Bucket Outputs --- #
+
+# Output the ARN of the replication bucket
+output "replication_bucket_arn" {
+  description = "The ARN of the S3 bucket used for replication destination"
+  value       = var.enable_s3_replication ? aws_s3_bucket.replication[0].arn : null
+}
+
+# Output the ID of the replication bucket
+output "replication_bucket_id" {
+  description = "The ID of the S3 bucket used for replication destination"
+  value       = var.enable_s3_replication ? aws_s3_bucket.replication[0].id : null
+}

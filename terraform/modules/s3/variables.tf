@@ -1,6 +1,14 @@
 # --- S3 Module Variables --- #
 # This file defines input variables for configuring the S3 module, allowing customization and flexibility.
 
+# --- AWS Region Confuguration ---#
+
+# Replication region for the replication bucket
+variable "replication_region" {
+  description = "Region for the replication bucket"
+  type        = string
+}
+
 # --- Environment Variable --- #
 # Defines the environment in which the resources are deployed (e.g., dev, stage, prod)
 variable "environment" {
@@ -39,4 +47,12 @@ variable "noncurrent_version_retention_days" {
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for bucket notifications"
   type        = string
+}
+
+# --- Enable Replication Variable --- #
+# Determines whether cross-region replication is enabled for the S3 buckets
+variable "enable_s3_replication" {
+  description = "Enable cross-region replication for S3 buckets"
+  type        = bool
+  default     = false
 }

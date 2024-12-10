@@ -5,12 +5,15 @@
 # --- Server-Side Encryption Configuration --- #
 resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   # Loop through each S3 bucket that requires encryption
-  for_each = {
-    terraform_state   = aws_s3_bucket.terraform_state.id   # Bucket for Terraform state
-    wordpress_media   = aws_s3_bucket.wordpress_media.id   # Bucket for WordPress media files
-    wordpress_scripts = aws_s3_bucket.wordpress_scripts.id # Bucket for WordPress scripts
-    logging           = aws_s3_bucket.logging.id           # Bucket for logging
-  }
+  for_each = merge(
+    {
+      terraform_state   = aws_s3_bucket.terraform_state.id   # Bucket for Terraform state
+      wordpress_media   = aws_s3_bucket.wordpress_media.id   # Bucket for WordPress media files
+      wordpress_scripts = aws_s3_bucket.wordpress_scripts.id # Bucket for WordPress scripts
+      logging           = aws_s3_bucket.logging.id           # Bucket for logging
+    },
+    var.enable_s3_replication ? { replication = aws_s3_bucket.replication[0].id } : {} # Include encryption for the replication bucket if enabled
+  )
 
   bucket = each.value # Apply encryption configuration to each bucket
 
@@ -59,6 +62,7 @@ resource "aws_s3_bucket_policy" "enforce_encryption" {
 # 1. **Server-Side Encryption Configuration**:
 #    - Ensures all objects stored in the bucket are encrypted with AWS KMS.
 #    - Uses the KMS key specified by the `var.kms_key_arn` variable.
+#    - If replication is enabled, the replication bucket is also encrypted to ensure data security during cross-region operations.
 #
 # 2. **Bucket Policy to Enforce Encryption**:
 #    - The policy denies uploads of unencrypted objects.

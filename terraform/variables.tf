@@ -4,6 +4,11 @@ variable "aws_region" {
   type        = string
 }
 
+variable "replication_region" {
+  description = "Region for the replication bucket"
+  type        = string
+}
+
 # --- AWS Account ID --- #
 variable "aws_account_id" {
   description = "AWS account ID for permissions and policies"
@@ -297,6 +302,12 @@ variable "performance_insights_enabled" {
 variable "noncurrent_version_retention_days" {
   description = "Number of days to retain noncurrent versions of objects in S3 buckets"
   type        = number
+}
+
+variable "enable_s3_replication" {
+  description = "Enable cross-region replication for S3 buckets"
+  type        = bool
+  default     = false
 }
 
 # --- SNS Variables --- #

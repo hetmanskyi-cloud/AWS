@@ -244,12 +244,21 @@ module "endpoints" {
 module "s3" {
   source = "./modules/s3" # Path to module S3
 
+  # S3 configuration
+  replication_region                = var.replication_region
+  aws_account_id                    = var.aws_account_id
   environment                       = var.environment
   name_prefix                       = var.name_prefix
-  aws_account_id                    = var.aws_account_id
   kms_key_arn                       = module.kms.kms_key_arn
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
+  enable_s3_replication             = var.enable_s3_replication
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
+
+  # Pass providers explicitly
+  providers = {
+    aws             = aws
+    aws.replication = aws.replication
+  }
 }
 
 # --- Elasticache Module --- #

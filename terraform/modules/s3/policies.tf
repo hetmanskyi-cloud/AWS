@@ -28,14 +28,17 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 # --- Bucket Policies --- #
 # Deny public access and enforce HTTPS/TLS for secure communication.
 
-## Deny public access to all buckets
+# Deny public access to all buckets, including the replication bucket
 resource "aws_s3_bucket_policy" "deny_public_access" {
-  for_each = {
-    wordpress_media   = aws_s3_bucket.wordpress_media
-    wordpress_scripts = aws_s3_bucket.wordpress_scripts
-    terraform_state   = aws_s3_bucket.terraform_state
-    logging           = aws_s3_bucket.logging
-  }
+  for_each = merge(
+    {
+      wordpress_media   = aws_s3_bucket.wordpress_media   # WordPress media bucket
+      wordpress_scripts = aws_s3_bucket.wordpress_scripts # WordPress scripts bucket
+      terraform_state   = aws_s3_bucket.terraform_state   # Terraform state bucket
+      logging           = aws_s3_bucket.logging           # Logging bucket
+    },
+    var.enable_s3_replication ? { replication = aws_s3_bucket.replication[0] } : {} # Include replication bucket if enabled
+  )
 
   bucket = each.value.id # Target bucket for the policy
 
@@ -80,7 +83,7 @@ resource "aws_s3_bucket_policy" "force_https" {
         ]
         Condition = {
           Bool = {
-            "aws:SecureTransport" = "false" # Deny non-secure transport
+            "aws:SecureTransport" = "false"
           }
         }
       }
@@ -99,7 +102,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
       {
         Sid       = "AllowLoggingWrite",
         Effect    = "Allow",
-        Principal = { Service = "logging.s3.amazonaws.com" }, # S3 logging service
+        Principal = { Service = "logging.s3.amazonaws.com" },
         Action    = "s3:PutObject",
         Resource  = "arn:aws:s3:::${aws_s3_bucket.logging.id}/*"
       }
@@ -110,7 +113,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
 # --- Lifecycle Policies --- #
 # Manage noncurrent object versions and incomplete uploads for better cost control and compliance.
 
-## Define buckets requiring lifecycle configurations
+# Define buckets requiring lifecycle configurations
 locals {
   buckets_with_lifecycle = {
     wordpress_media   = aws_s3_bucket.wordpress_media.id
@@ -120,7 +123,7 @@ locals {
   }
 }
 
-## Apply lifecycle rules to each bucket
+# Apply lifecycle rules to each bucket
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   for_each = local.buckets_with_lifecycle
 
@@ -147,6 +150,144 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   }
 }
 
+# --- IAM Role for Replication --- #
+# This role allows the S3 service to replicate objects from source buckets in the primary region to the destination bucket in the replication region.
+resource "aws_iam_role" "replication_role" {
+  count = var.enable_s3_replication ? 1 : 0
+
+  name = "${var.name_prefix}-replication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "s3.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.name_prefix}-replication-role"
+    Environment = var.environment
+  }
+}
+
+# --- IAM Policy for Replication --- #
+# Grants permissions required for cross-region replication.
+# This policy allows the S3 service to:
+# - Access source buckets to read objects and their metadata.
+# - Write replicated objects to the destination bucket.
+resource "aws_iam_role_policy" "replication_policy" {
+  count = var.enable_s3_replication ? 1 : 0
+
+  name = "${var.name_prefix}-replication-policy"
+  role = aws_iam_role.replication_role[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket",
+          "s3:GetObjectVersion",
+          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionTagging"
+        ],
+        Resource = [
+          aws_s3_bucket.terraform_state.arn,
+          "${aws_s3_bucket.terraform_state.arn}/*",
+          aws_s3_bucket.wordpress_media.arn,
+          "${aws_s3_bucket.wordpress_media.arn}/*",
+          aws_s3_bucket.wordpress_scripts.arn,
+          "${aws_s3_bucket.wordpress_scripts.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
+        ],
+        Resource = [
+          aws_s3_bucket.replication[0].arn,
+          "${aws_s3_bucket.replication[0].arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# --- Bucket Policy for Replication Destination --- #
+# This policy allows the replication role to write objects into the destination bucket.
+resource "aws_s3_bucket_policy" "replication_bucket_policy" {
+  count = var.enable_s3_replication ? 1 : 0
+
+  bucket = aws_s3_bucket.replication[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowS3Replication",
+        Effect = "Allow",
+        Principal = {
+          AWS = aws_iam_role.replication_role[0].arn
+        },
+        Action = [
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
+        ],
+        Resource = "${aws_s3_bucket.replication[0].arn}/*"
+      }
+    ]
+  })
+}
+
+# --- Bucket Policies to Allow Replication --- #
+# This policy grants the replication role access to:
+# - Read objects and their metadata from source buckets.
+# - List bucket contents.
+resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
+  for_each = var.enable_s3_replication ? {
+    terraform_state   = aws_s3_bucket.terraform_state.id,
+    wordpress_media   = aws_s3_bucket.wordpress_media.id,
+    wordpress_scripts = aws_s3_bucket.wordpress_scripts.id
+  } : {}
+
+  bucket = each.value
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowReplication",
+        Effect = "Allow",
+        Principal = {
+          AWS = aws_iam_role.replication_role[0].arn
+        },
+        Action = [
+          "s3:GetObjectVersion",
+          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionTagging",
+          "s3:ListBucket"
+        ],
+        Resource = [
+          "${each.value}",
+          "${each.value}/*"
+        ]
+      }
+    ]
+  })
+}
+
 # --- Key Highlights and Recommendations --- #
 # 1. **CORS Configuration**:
 #    - Necessary for cross-origin requests (e.g., accessing WordPress media from a different domain).
@@ -163,3 +304,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 # 4. **Logging Policy**:
 #    - Allows the logging service to store access logs in the logging bucket.
 #    - Helps in monitoring and auditing bucket activities.
+# 5. **Replication Policies**:
+#    - IAM Role and Policies: Allow S3 service to replicate objects between buckets.
+#    - Destination Bucket Policy: Grants write permissions to the replication role.
+#    - Source Bucket Policy: Grants read permissions to the replication role.
+#    - These policies ensure secure and efficient cross-region replication.
