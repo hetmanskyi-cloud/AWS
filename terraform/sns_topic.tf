@@ -1,6 +1,7 @@
 # --- SNS Topic for CloudWatch Alarms --- #
 resource "aws_sns_topic" "cloudwatch_alarms" {
-  name = "${var.name_prefix}-cloudwatch-alarms"
+  name              = "${var.name_prefix}-cloudwatch-alarms"
+  kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 }
 
 # Allow CloudWatch to publish messages to the topic

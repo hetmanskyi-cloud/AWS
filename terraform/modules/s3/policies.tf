@@ -120,19 +120,25 @@ locals {
     wordpress_scripts = aws_s3_bucket.wordpress_scripts.id
     terraform_state   = aws_s3_bucket.terraform_state.id
     logging           = aws_s3_bucket.logging.id
+    replication       = var.enable_s3_replication ? aws_s3_bucket.replication[0].id : null
   }
 }
 
 # Apply lifecycle rules to each bucket
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
-  for_each = local.buckets_with_lifecycle
+  for_each = {
+    wordpress_media   = aws_s3_bucket.wordpress_media.id
+    wordpress_scripts = aws_s3_bucket.wordpress_scripts.id
+    terraform_state   = aws_s3_bucket.terraform_state.id
+    logging           = aws_s3_bucket.logging.id
+  }
 
   bucket = each.value # Target bucket
 
   # Rule to expire noncurrent object versions
   rule {
-    id     = "retain-versions" # Rule ID
-    status = "Enabled"         # Enable the rule
+    id     = "${each.key}-retain-versions" # Rule ID
+    status = "Enabled"                     # Enable the rule
 
     noncurrent_version_expiration {
       noncurrent_days = var.noncurrent_version_retention_days # Retain noncurrent versions for this duration
@@ -141,8 +147,34 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 
   # Rule to abort incomplete uploads
   rule {
-    id     = "abort-incomplete-uploads" # Rule ID
-    status = "Enabled"                  # Enable the rule
+    id     = "${each.key}-abort-incomplete-uploads" # Rule ID
+    status = "Enabled"                              # Enable the rule
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7 # Abort uploads after 7 days of inactivity
+    }
+  }
+}
+
+# Additional configuration for replication if enabled
+resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
+  count  = var.enable_s3_replication ? 1 : 0
+  bucket = aws_s3_bucket.replication[0].id
+
+  # Rule to expire noncurrent object versions
+  rule {
+    id     = "replication-retain-versions" # Rule ID
+    status = "Enabled"                     # Enable the rule
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.noncurrent_version_retention_days # Retain noncurrent versions for this duration
+    }
+  }
+
+  # Rule to abort incomplete uploads
+  rule {
+    id     = "replication-abort-incomplete-uploads" # Rule ID
+    status = "Enabled"                              # Enable the rule
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7 # Abort uploads after 7 days of inactivity

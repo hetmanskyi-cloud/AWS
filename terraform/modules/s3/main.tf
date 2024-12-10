@@ -24,6 +24,10 @@ locals {
         id  = aws_s3_bucket.wordpress_scripts.id # WordPress scripts bucket
         arn = aws_s3_bucket.wordpress_scripts.arn
       }
+      "logging" = {
+        id  = aws_s3_bucket.logging.id # Logging bucket
+        arn = aws_s3_bucket.logging.arn
+      }
     },
     var.enable_s3_replication ? {
       "replication" = {
@@ -141,6 +145,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
     terraform_state   = aws_s3_bucket.terraform_state.id,
     wordpress_media   = aws_s3_bucket.wordpress_media.id,
     wordpress_scripts = aws_s3_bucket.wordpress_scripts.id
+    logging           = aws_s3_bucket.logging.id
   } : {}
 
   bucket = each.value
