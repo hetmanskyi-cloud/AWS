@@ -14,9 +14,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
   # --- Key Schema --- #
   # Hash Key: "LockID" is used as the primary key for the table.
-  # Sort Key: "ExpirationTime" is used as the secondary key for TTL purposes.
-  hash_key  = "LockID"
-  range_key = "ExpirationTime" # Sort key for indexing ExpirationTime.
+  hash_key = "LockID"
 
   # --- TTL Configuration --- #
   # Enables automatic deletion of expired items using the Time-to-Live (TTL) feature.
@@ -47,7 +45,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
   # --- Attribute Definitions --- #
   # Defines the attributes for the table schema.
   # "LockID" is a string type attribute used as the hash key.
-  # "ExpirationTime" is a numeric type attribute used for TTL and as a sort key.
+  # "ExpirationTime" is a numeric type attribute used for TTL.
   attribute {
     name = "LockID"
     type = "S" # S: String type.
@@ -56,6 +54,14 @@ resource "aws_dynamodb_table" "terraform_locks" {
   attribute {
     name = "ExpirationTime"
     type = "N" # N: Numeric type (Unix timestamp for TTL).
+  }
+
+  # --- Local Secondary Index (LSI) --- #
+  # Adds ExpirationTime as a secondary index for TTL compatibility and future use.
+  local_secondary_index {
+    name            = "LockID-ExpirationTime-Index" # Name of the index.
+    projection_type = "ALL"                         # Includes all attributes in the index.
+    range_key       = "ExpirationTime"              # ExpirationTime serves as the range key.
   }
 
   # --- Tags --- #
@@ -69,7 +75,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # --- Notes --- #
 # 1. The DynamoDB table is used exclusively for Terraform state locking to prevent concurrent operations.
 # 2. TTL ensures expired lock entries are automatically deleted to avoid "stale" locks.
-# 3. Adding "ExpirationTime" as a sort key ensures compatibility with TTL requirements.
-# 4. KMS encryption ensures that data in the table is secure at rest.
-# 5. Point-in-Time Recovery is a best practice for critical tables to ensure data can be recovered in case of accidental changes.
-# 6. DynamoDB Streams are enabled to allow processing of item changes (e.g., by AWS Lambda).
+# 3. KMS encryption ensures that data in the table is secure at rest.
+# 4. Point-in-Time Recovery is a best practice for critical tables to ensure data can be recovered in case of accidental changes.
+# 5. DynamoDB Streams are enabled to allow processing of item changes (e.g., by AWS Lambda).
+# 6. Local Secondary Index ensures ExpirationTime is indexed for TTL functionality and potential future queries.
