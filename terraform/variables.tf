@@ -17,8 +17,12 @@ variable "aws_account_id" {
 
 # --- Environment Label --- #
 variable "environment" {
-  description = "The environment for organizing resources (e.g., dev, prod)"
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # --- Name Prefix for Resources --- #

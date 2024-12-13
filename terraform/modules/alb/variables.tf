@@ -6,8 +6,12 @@ variable "name_prefix" {
 
 # Environment label (e.g., dev, staging, prod) for tagging and organizing resources.
 variable "environment" {
-  description = "Environment label to organize resources (e.g., dev, staging, prod)"
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # Threshold for high request count alarm

@@ -123,8 +123,9 @@ module "ec2" {
   target_group_arn = module.alb.wordpress_tg_arn
 
   # S3 bucket configurations
-  wordpress_media_bucket_arn   = module.s3.wordpress_media_bucket_arn
-  wordpress_scripts_bucket_arn = module.s3.wordpress_scripts_bucket_arn
+  wordpress_media_bucket_arn = module.s3.wordpress_media_bucket_arn
+  scripts_bucket_arn         = module.s3.scripts_bucket_arn
+  ami_bucket_arn             = module.s3.ami_bucket_arn
 
   # Pass RDS host and endpoint for WordPress configuration
   db_name         = var.db_name

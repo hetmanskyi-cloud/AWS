@@ -2,36 +2,114 @@
 # This file defines the S3 buckets required for the project.
 # Buckets include:
 # 1. terraform_state: To store the Terraform state file.
-# 2. wordpress_media: To store media assets for WordPress.
-# 3. wordpress_scripts: To store scripts related to WordPress setup.
+# 2. wordpress_media: To store media assets for WordPress in prod environment.
+# 3. scripts: To store project-related scripts.
 # 4. logging: To store logs for all buckets.
+# 5. ami: To store golden AMI images for the project.
+# 6. replication: Serves as the destination for cross-region replication.
+#    - This bucket is created only in the `prod` environment and when replication is enabled (`enable_s3_replication = true`).
+#    - It stores replicated objects from source buckets, ensuring data redundancy across regions.
 
-# --- Local variable: Map of S3 bucket names to their IDs --- #
-# This map is used to dynamically create notifications for each bucket.
-# Includes replication bucket if replication is enabled.
+# --- Combine all environment and replication logic here --- #
+# We previously defined locals in access.tf and policies.tf. Now we unify them here.
 locals {
+  # Base buckets (resource references) common to both dev and prod
+  global_base_buckets = {
+    terraform_state = aws_s3_bucket.terraform_state
+    scripts         = aws_s3_bucket.scripts
+    logging         = aws_s3_bucket.logging
+    ami             = aws_s3_bucket.ami
+  }
+
+  # Add wordpress_media only in prod
+  global_prod_buckets = var.environment == "prod" ? merge(local.global_base_buckets, {
+    wordpress_media = aws_s3_bucket.wordpress_media[0]
+  }) : local.global_base_buckets
+
+  # Add replication if enabled in prod
+  global_prod_with_replication_buckets = var.environment == "prod" && var.enable_s3_replication ? merge(local.global_prod_buckets, {
+    replication = aws_s3_bucket.replication[0]
+  }) : local.global_prod_buckets
+
+  # For IAM replication policy (arrays of ARNs)
+  # Base ARNs for replication configuration
+  global_base_replication_resources = [
+    aws_s3_bucket.terraform_state.arn,
+    "${aws_s3_bucket.terraform_state.arn}/*",
+    aws_s3_bucket.scripts.arn,
+    "${aws_s3_bucket.scripts.arn}/*"
+  ]
+
+  # Add wordpress_media ARNs if in prod
+  global_prod_replication_resources = var.environment == "prod" ? concat(
+    local.global_base_replication_resources,
+    [
+      aws_s3_bucket.wordpress_media[0].arn,
+      "${aws_s3_bucket.wordpress_media[0].arn}/*"
+    ]
+  ) : local.global_base_replication_resources
+
+  # Lifecycle and versioning require IDs
+  global_base_buckets_ids = {
+    terraform_state = aws_s3_bucket.terraform_state.id
+    scripts         = aws_s3_bucket.scripts.id
+    logging         = aws_s3_bucket.logging.id
+    ami             = aws_s3_bucket.ami.id
+  }
+
+  global_prod_buckets_ids = var.environment == "prod" ? merge(local.global_base_buckets_ids, {
+    wordpress_media = aws_s3_bucket.wordpress_media[0].id
+  }) : local.global_base_buckets_ids
+
+  global_prod_with_replication_buckets_ids = var.environment == "prod" && var.enable_s3_replication ? merge(local.global_prod_buckets_ids, {
+    replication = aws_s3_bucket.replication[0].id
+  }) : local.global_prod_buckets_ids
+
+  # Source bucket replication policy (IDs)
+  global_base_replication_source = {
+    terraform_state = aws_s3_bucket.terraform_state.id
+    scripts         = aws_s3_bucket.scripts.id
+    logging         = aws_s3_bucket.logging.id
+    ami             = aws_s3_bucket.ami.id
+  }
+
+  global_prod_replication_source = var.environment == "prod" ? merge(local.global_base_replication_source, {
+    wordpress_media = aws_s3_bucket.wordpress_media[0].id
+  }) : local.global_base_replication_source
+
+  global_final_replication_source = var.environment == "prod" && var.enable_s3_replication ? merge(local.global_prod_replication_source, {
+    replication = aws_s3_bucket.replication[0].id
+  }) : local.global_prod_replication_source
+
+  # Original bucket_map remains as is, used for notifications and force_https
   bucket_map = merge(
     {
       "terraform_state" = {
-        id  = aws_s3_bucket.terraform_state.id # Terraform state bucket
+        id  = aws_s3_bucket.terraform_state.id
         arn = aws_s3_bucket.terraform_state.arn
       }
-      "wordpress_media" = {
-        id  = aws_s3_bucket.wordpress_media.id # WordPress media bucket
-        arn = aws_s3_bucket.wordpress_media.arn
-      }
-      "wordpress_scripts" = {
-        id  = aws_s3_bucket.wordpress_scripts.id # WordPress scripts bucket
-        arn = aws_s3_bucket.wordpress_scripts.arn
+      "scripts" = {
+        id  = aws_s3_bucket.scripts.id
+        arn = aws_s3_bucket.scripts.arn
       }
       "logging" = {
-        id  = aws_s3_bucket.logging.id # Logging bucket
+        id  = aws_s3_bucket.logging.id
         arn = aws_s3_bucket.logging.arn
       }
+      "ami" = {
+        id  = aws_s3_bucket.ami.id
+        arn = aws_s3_bucket.ami.arn
+      }
     },
-    var.enable_s3_replication ? {
+    var.environment == "prod" ? {
+      "wordpress_media" = {
+        id  = aws_s3_bucket.wordpress_media[0].id
+        arn = aws_s3_bucket.wordpress_media[0].arn
+      }
+    } : {},
+    var.environment == "prod" && var.enable_s3_replication ? {
       "replication" = {
-        id  = aws_s3_bucket.replication[0].id # Replication bucket
+        id  = aws_s3_bucket.replication[0].id
         arn = aws_s3_bucket.replication[0].arn
       }
     } : {}
@@ -72,10 +150,12 @@ resource "aws_s3_bucket" "terraform_state" {
 }
 
 # --- WordPress Media S3 Bucket --- #
-# This bucket stores WordPress media files (e.g., images, videos).
+# This bucket stores WordPress media files (e.g., images, videos) and created only in the prod environment.
 resource "aws_s3_bucket" "wordpress_media" {
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-wordpress-media-${random_string.suffix.result}"
+  # Created only in prod environment
+  count = var.environment == "prod" ? 1 : 0
 
   # Dependency ensures logging bucket is created first
   depends_on = [aws_s3_bucket.logging]
@@ -87,20 +167,35 @@ resource "aws_s3_bucket" "wordpress_media" {
   }
 }
 
-# --- WordPress Scripts S3 Bucket --- #
-# This bucket stores scripts required for WordPress deployment and maintenance.
-resource "aws_s3_bucket" "wordpress_scripts" {
+# --- Scripts S3 Bucket --- #
+# This bucket stores project-related scripts, organized in directories (e.g., wordpress/).
+resource "aws_s3_bucket" "scripts" {
   # Unique bucket name using the name_prefix and a random suffix
-  bucket = "${lower(var.name_prefix)}-wordpress-scripts-${random_string.suffix.result}"
+  bucket = "${lower(var.name_prefix)}-scripts-${random_string.suffix.result}"
 
   # Dependency ensures logging bucket is created first
   depends_on = [aws_s3_bucket.logging]
 
   # Tags for identification and cost tracking
   tags = {
-    Name        = "${var.name_prefix}-wordpress-scripts"
+    Name        = "${var.name_prefix}-scripts"
     Environment = var.environment
   }
+}
+
+# --- WordPress Directory in Scripts Bucket --- #
+# This resource ensures the creation of a "wordpress/" folder
+# in the "scripts" S3 bucket. The folder serves as a dedicated
+# directory for storing WordPress-related setup and maintenance scripts.
+
+resource "aws_s3_object" "wordpress_folder" {
+  bucket = aws_s3_bucket.scripts.bucket # Specify the bucket where the folder will be created
+  key    = "wordpress/"                 # Use a trailing slash to denote a directory
+
+  # --- Notes --- #
+  # 1. The "aws_s3_object" resource replaces the deprecated "aws_s3_bucket_object".
+  # 2. The "key" field denotes the folder path within the bucket.
+  # 3. While S3 has no true folders, the trailing slash creates a logical directory structure.
 }
 
 # --- Logging S3 Bucket --- #
@@ -118,10 +213,11 @@ resource "aws_s3_bucket" "logging" {
 
 # --- Replication S3 Bucket --- #
 # This bucket serves as the destination for cross-region replication.
-# It is created only when replication is enabled (controlled by `enable_s3_replication`).
+# It is created only in the prod environment and when replication is enabled (controlled by `enable_s3_replication`).
 resource "aws_s3_bucket" "replication" {
   provider = aws.replication
-  count    = var.enable_s3_replication ? 1 : 0
+  # Create the bucket only if both conditions are true
+  count = var.environment == "prod" && var.enable_s3_replication ? 1 : 0
 
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-replication-${random_string.suffix.result}"
@@ -136,17 +232,36 @@ resource "aws_s3_bucket" "replication" {
   }
 }
 
+# --- AMI S3 Bucket --- #
+# This bucket stores golden AMI images for the project.
+# AMI images are used as base templates for launching pre-configured EC2 instances.
+resource "aws_s3_bucket" "ami" {
+  # Unique bucket name using the name_prefix and a random suffix
+  bucket = "${lower(var.name_prefix)}-ami-${random_string.suffix.result}"
+
+  # Dependency ensures logging bucket is created first
+  depends_on = [aws_s3_bucket.logging]
+
+  # Tags for identification and cost tracking
+  tags = {
+    Name        = "${var.name_prefix}-ami"
+    Environment = var.environment
+  }
+}
+
 # --- Replication Configuration for Source Buckets --- #
-# Applies replication rules to the source buckets when replication is enabled.
+# Applies replication rules only when the environment is `prod` and replication is enabled.
 # Each source bucket will replicate its objects to the replication bucket.
 resource "aws_s3_bucket_replication_configuration" "replication_config" {
   provider = aws.replication
-  for_each = var.enable_s3_replication ? {
-    terraform_state   = aws_s3_bucket.terraform_state.id,
-    wordpress_media   = aws_s3_bucket.wordpress_media.id,
-    wordpress_scripts = aws_s3_bucket.wordpress_scripts.id
-    logging           = aws_s3_bucket.logging.id
+  for_each = var.environment == "prod" && var.enable_s3_replication ? {
+    terraform_state = aws_s3_bucket.terraform_state.id,
+    wordpress_media = aws_s3_bucket.wordpress_media[0].id,
+    scripts         = aws_s3_bucket.scripts.id,
+    logging         = aws_s3_bucket.logging.id,
+    ami             = aws_s3_bucket.ami.id
   } : {}
+  # Applies replication rules only in prod environment and when replication is enabled
 
   bucket = each.value
   role   = aws_iam_role.replication_role[0].arn
@@ -156,7 +271,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
     status = "Enabled"
 
     filter {
-      prefix = "" # Replicate all objects; adjust as needed
+      prefix = "${each.key}/" # Logical folder structure in the replication bucket for each source bucket
     }
 
     destination {
@@ -177,10 +292,18 @@ resource "random_string" "suffix" {
 }
 
 # --- S3 Bucket Notifications --- #
-# Configure notifications for all S3 buckets in the bucket_map.
 # Notifications are sent to the specified SNS topic whenever objects are created or deleted in the buckets.
+# Notifications are applied only to buckets that exist in the current environment.
+# - In `prod`, includes `wordpress_media` and `replication` (if replication is enabled).
+# - In `dev`, limited to buckets: `terraform_state`, `scripts`, `logging`, and `ami`.
+
 resource "aws_s3_bucket_notification" "bucket_notifications" {
-  for_each = local.bucket_map # Iterate over all buckets in the bucket_map
+  for_each = var.environment == "prod" ? local.bucket_map : {
+    terraform_state = local.bucket_map.terraform_state,
+    scripts         = local.bucket_map.scripts,
+    logging         = local.bucket_map.logging,
+    ami             = local.bucket_map.ami
+  }
 
   # S3 bucket to which the notification applies
   bucket = each.value.id
@@ -194,13 +317,19 @@ resource "aws_s3_bucket_notification" "bucket_notifications" {
 
 # --- Notes --- #
 # 1. Cross-Region Replication:
-#    - Replication is enabled only when `enable_s3_replication` is set to `true`.
-#    - Source buckets replicate their objects to a separate replication bucket.
-#    - The replication bucket is created in a different region (see explanation below).
+#    - Enabled only in `prod` and when `enable_s3_replication` is set to `true`.
+#    - Source buckets replicate their objects to separate folders in the replication bucket.
+#    - The replication bucket is created in a different region to ensure data redundancy.
 #
-# 2. The `depends_on` directive:
+# 2. Dependencies (`depends_on`):
 #    - Ensures that the logging bucket is created before other buckets.
-#    - Avoids configuration errors related to bucket dependencies.
+#    - Prevents configuration errors in replication or notifications.
 #
-# 3. Unique bucket names:
+# 3. Logical structure for replication:
+#    - Each source bucket replicates objects into a dedicated "folder" in the replication bucket using a `prefix` in the filter.
+#
+# 4. Notifications:
+#    - Notifications apply only to buckets that exist in the current environment.
+#
+# 5. Unique bucket names:
 #    - Prevents conflicts in the global namespace of S3.

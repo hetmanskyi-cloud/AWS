@@ -110,8 +110,12 @@ variable "name_prefix" {
 
 # Environment label (e.g., dev, staging, prod) for tagging and organizing resources.
 variable "environment" {
-  description = "Environment label to organize resources (e.g., dev, staging, prod)"
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # --- Security Group Variables --- #
@@ -186,8 +190,13 @@ variable "wordpress_media_bucket_arn" {
   type        = string
 }
 
-variable "wordpress_scripts_bucket_arn" {
+variable "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket for WordPress scripts"
+  type        = string
+}
+
+variable "ami_bucket_arn" {
+  description = "The ARN of the S3 bucket used for storing golden AMI images"
   type        = string
 }
 

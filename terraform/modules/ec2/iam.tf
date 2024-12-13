@@ -27,27 +27,34 @@ resource "aws_iam_role" "ec2_role" {
 
 # --- S3 Access Policy for EC2 --- #
 
+locals {
+  ec2_s3_resources = var.wordpress_media_bucket_arn != null ? [
+    "${var.wordpress_media_bucket_arn}",
+    "${var.wordpress_media_bucket_arn}/*",
+    "${var.scripts_bucket_arn}",
+    "${var.scripts_bucket_arn}/*",
+    "${var.ami_bucket_arn}",
+    "${var.ami_bucket_arn}/*"
+    ] : [
+    "${var.scripts_bucket_arn}",
+    "${var.scripts_bucket_arn}/*",
+    "${var.ami_bucket_arn}",
+    "${var.ami_bucket_arn}/*"
+  ]
+}
+
 # Access to S3 buckets
 resource "aws_iam_policy" "s3_access_policy" {
   name        = "${var.name_prefix}-s3-access-policy"
   description = "Temporary S3 access policy for EC2 instances in the project"
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow",
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket"
-        ],
-        Resource = [
-          "${var.wordpress_media_bucket_arn}",
-          "${var.wordpress_media_bucket_arn}/*",
-          "${var.wordpress_scripts_bucket_arn}",
-          "${var.wordpress_scripts_bucket_arn}/*"
-        ]
+        Effect   = "Allow",
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+        Resource = local.ec2_s3_resources
       }
     ]
   })

@@ -76,7 +76,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `terraform_locks_table_name`      | Name of the DynamoDB table for Terraform state locking.                        |
 | `terraform_locks_table_arn`       | ARN of the DynamoDB table for Terraform state locking.                         |
 | `wordpress_media_bucket_arn`      | ARN of the S3 bucket for WordPress media storage.                              |
-| `wordpress_scripts_bucket_arn`    | ARN of the S3 bucket for WordPress setup scripts.                              |
+| `scripts_bucket_arn`              | ARN of the S3 bucket for WordPress setup scripts.                              |
 | `logging_bucket_arn`              | ARN of the S3 bucket used for logging.                                         |
 | `replication_bucket_arn`          | ARN of the replication bucket, if created.                                     |
 | `all_bucket_arns`                 | List of ARNs for all S3 buckets created by the module.                         |

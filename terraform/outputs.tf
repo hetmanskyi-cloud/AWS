@@ -109,9 +109,9 @@ output "wordpress_media_bucket_arn" {
 }
 
 # Output the ARN of the WordPress scripts bucket
-output "wordpress_scripts_bucket_arn" {
+output "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket used for WordPress setup scripts"
-  value       = module.s3.wordpress_scripts_bucket_arn
+  value       = module.s3.scripts_bucket_arn
 }
 
 # --- Elasticache Outputs --- #

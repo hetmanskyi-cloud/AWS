@@ -26,8 +26,12 @@ variable "name_prefix" {
 
 # Environment label (e.g., dev, prod)
 variable "environment" {
-  description = "Environment label for organizing resources"
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # --- Public Subnet Configuration Variables --- #

@@ -12,8 +12,12 @@ variable "replication_region" {
 # --- Environment Variable --- #
 # Defines the environment in which the resources are deployed (e.g., dev, stage, prod)
 variable "environment" {
-  description = "Environment for the resources (e.g., dev, stage, prod). Used for tagging and naming conventions."
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # --- Name Prefix Variable --- #
@@ -42,6 +46,10 @@ variable "kms_key_arn" {
 variable "noncurrent_version_retention_days" {
   description = "Number of days to retain noncurrent object versions in S3 buckets for versioning."
   type        = number
+  validation {
+    condition     = var.noncurrent_version_retention_days > 0
+    error_message = "Retention days must be greater than 0."
+  }
 }
 
 variable "sns_topic_arn" {

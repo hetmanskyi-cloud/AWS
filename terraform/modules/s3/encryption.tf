@@ -4,16 +4,12 @@
 
 # --- Server-Side Encryption Configuration --- #
 resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
-  # Loop through each S3 bucket that requires encryption
-  for_each = merge(
-    {
-      terraform_state   = aws_s3_bucket.terraform_state.id   # Bucket for Terraform state
-      wordpress_media   = aws_s3_bucket.wordpress_media.id   # Bucket for WordPress media files
-      wordpress_scripts = aws_s3_bucket.wordpress_scripts.id # Bucket for WordPress scripts
-      logging           = aws_s3_bucket.logging.id           # Bucket for logging
-    },
-    var.enable_s3_replication ? { replication = aws_s3_bucket.replication[0].id } : {} # Include encryption for the replication bucket if enabled
-  )
+  # Loop through buckets based on the environment and replication setting.
+  # In `dev`: only base buckets (no wordpress_media, no replication).
+  # In `prod`: base buckets plus wordpress_media, and replication if enabled.
+  # All these mappings are now defined in s3/main.tf as local.global_* variables.
+
+  for_each = var.environment == "prod" ? local.global_prod_with_replication_buckets_ids : local.global_base_buckets_ids
 
   bucket = each.value # Apply encryption configuration to each bucket
 
@@ -35,6 +31,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
 # This policy ensures that only encrypted objects can be uploaded to the selected buckets.
 resource "aws_s3_bucket_policy" "enforce_encryption" {
   # Apply the policy to specific buckets
+  # local.bucket_map ensures proper inclusion of buckets in the current environment,
+  # with correct indexing for resources using `count` (e.g., `wordpress_media`).
   for_each = local.bucket_map # Buckets requiring enforcement
 
   bucket = each.value.id # Target bucket for the policy

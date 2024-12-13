@@ -1,62 +1,71 @@
 # --- Logging Configuration for Buckets --- #
-# This file sets up logging for S3 buckets to enhance observability and security.
-# Logs for each bucket are stored in a dedicated logging bucket, with structured prefixes for clarity.
+# This file configures S3 bucket logging to enhance observability and security.
+# Logs from each bucket are stored in a central logging bucket, organized by prefixes for clarity.
 
-# --- Define Local Variables for Logging --- #
+# --- Prefixes for Buckets --- #
+# This static map associates each bucket key with a logging prefix.
+# These prefixes help categorize logs within the central logging bucket.
 locals {
-  # List of buckets that require logging and their respective prefixes
-  buckets_with_logging = merge(
-    {
-      terraform_state   = { bucket_id = aws_s3_bucket.terraform_state.id, prefix = "terraform_state/" }     # Logs for Terraform state bucket
-      wordpress_media   = { bucket_id = aws_s3_bucket.wordpress_media.id, prefix = "wordpress_media/" }     # Logs for WordPress media bucket
-      wordpress_scripts = { bucket_id = aws_s3_bucket.wordpress_scripts.id, prefix = "wordpress_scripts/" } # Logs for WordPress scripts bucket
-    },
-    var.enable_s3_replication ? { replication = { bucket_id = aws_s3_bucket.replication[0].id, prefix = "replication/" } } : {} # Add replication bucket if enabled
-  )
-
-  # Uncomment the line below if logging is required for the logging bucket itself
-  # logging = { bucket_id = aws_s3_bucket.logging.id, prefix = "logging/" } 
+  bucket_prefixes = {
+    terraform_state = "terraform_state/"
+    wordpress_media = "wordpress_media/"
+    scripts         = "scripts/"
+    ami             = "ami/"
+    replication     = "replication/"
+    logging         = "logging/" # If you decide to enable logging for the logging bucket itself.
+  }
 }
 
+# Uncomment the following resource if you wish to enable logging for the logging bucket itself.
+# Note: To make this functional, ensure the logging bucket is included in the appropriate global locals in main.tf.
+#
+# resource "aws_s3_bucket_logging" "logging_for_logging_bucket" {
+#   bucket        = aws_s3_bucket.logging.id
+#   target_bucket = aws_s3_bucket.logging.id
+#   target_prefix = "${var.name_prefix}/${local.bucket_prefixes["logging"]}"
+# }
+
 # --- Logging Configuration for Each Bucket --- #
+# We rely on global locals defined in main.tf (`global_base_buckets_ids`, `global_prod_with_replication_buckets_ids`)
+# to determine which buckets exist in each environment and whether replication is enabled.
+#
+# In `dev`: only base buckets (terraform_state, scripts, logging, ami)
+# In `prod`: base buckets plus wordpress_media, and replication if enabled
 resource "aws_s3_bucket_logging" "bucket_logging" {
-  # Loop through each bucket that requires logging
-  for_each = local.buckets_with_logging
+  for_each = var.environment == "prod" ? local.global_prod_with_replication_buckets_ids : local.global_base_buckets_ids
 
-  # The bucket to which logging is applied
-  bucket = each.value.bucket_id
+  # Each value is a bucket ID string from main.tf
+  bucket = each.value
 
-  # Specify the logging bucket and prefix for log files
-  target_bucket = aws_s3_bucket.logging.id                  # Central logging bucket
-  target_prefix = "${var.name_prefix}/${each.value.prefix}" # Prefix for log files, categorized by bucket
+  # All logs are stored in the central logging bucket
+  target_bucket = aws_s3_bucket.logging.id
+  # Use the bucket key to determine the prefix for organizing logs
+  target_prefix = "${var.name_prefix}/${lookup(local.bucket_prefixes, each.key, "unknown/")}"
 }
 
 # --- Notes and Best Practices --- #
-# 1. **Purpose of Logging**:
+# 1. Purpose of Logging:
 #    - Enables tracking of access and operations on S3 buckets.
 #    - Useful for debugging, compliance, and security audits.
 #
-# 2. **Logging Bucket**:
-#    - All logs are stored in a central "logging" bucket.
-#    - The `target_prefix` organizes logs by source bucket for easy identification.
+# 2. Central Logging Bucket:
+#    - All logs are aggregated into one bucket.
+#    - The prefix structure (`terraform_state/`, `scripts/`, etc.) helps identify logs easily.
 #
-# 3. **Replication Bucket Logging**:
-#    - If replication is enabled, logs for the replication bucket are stored with a `replication/` prefix.
-#    - This ensures visibility into replication-related activities.
+# 3. Environment-Specific Logic:
+#    - In `dev`, you get only the base set of buckets logged.
+#    - In `prod`, you also get wordpress_media, and replication if enabled.
 #
-# 4. **Customizing Logging**:
-#    - To enable logging for the logging bucket itself, uncomment the corresponding line in `buckets_with_logging`.
-#    - Ensure that the logging bucket has sufficient permissions to store logs.
+# 4. Replication Logging:
+#    - If replication is enabled (in `prod`), logs for that bucket are prefixed with `replication/`.
 #
-# 5. **Security Considerations**:
-#    - Ensure the logging bucket is private and encrypted to protect sensitive log data.
-#    - Use `s3:PutObject` permissions in the logging bucket's policy to allow log delivery from other buckets.
+# 5. Security Considerations:
+#    - Ensure the logging bucket is private and encrypted.
+#    - Grant the necessary permissions (`s3:PutObject`) to allow log delivery.
 #
-# 6. **Performance Impact**:
-#    - Logging adds a minor overhead but is essential for monitoring and troubleshooting.
+# 6. Performance:
+#    - Logging adds minor overhead but is essential for monitoring and troubleshooting.
 #
-# 7. **Prefix Structure**:
-#    - Organized by bucket names (e.g., `terraform_state/`), ensuring clear categorization.
-#
-# 8. **Why Use Locals**:
-#    - The `locals` block simplifies the code by centralizing bucket configurations.
+# 7. Customization:
+#    - Adjust `bucket_prefixes` if you change bucket names or need different prefixes.
+#    - Uncomment the `logging_for_logging_bucket` resource if you need to log the logging bucket itself, and update main.tf accordingly.

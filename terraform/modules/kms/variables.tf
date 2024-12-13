@@ -24,8 +24,12 @@ variable "name_prefix" {
 # Environment label for tracking resources (dev, stage, prod)
 # Adds an environment-specific tag to the KMS key for easier organization and filtering.
 variable "environment" {
-  description = "Environment label for organizing resources"
+  description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+  validation {
+    condition     = can(regex("(dev|stage|prod)", var.environment))
+    error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
+  }
 }
 
 # List of additional AWS principals that require access to the KMS key
