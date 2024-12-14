@@ -36,8 +36,9 @@ resource "aws_dynamodb_table" "terraform_locks" {
   }
 
   # --- Point-in-Time Recovery (PITR) --- #
-  # Allows recovery of data to a specific point in time within the last 35 days.
-  # Recommended for ensuring data durability in case of accidental writes or deletions.
+  # Enables point-in-time recovery to allow restoration of the table
+  # to any point within the past 35 days. This is a best practice
+  # to protect against accidental deletions or modifications.
   point_in_time_recovery {
     enabled = true
   }

@@ -301,6 +301,14 @@ variable "performance_insights_enabled" {
 
 # --- S3 Variables --- #
 
+variable "buckets" {
+  description = "List of buckets and their types."
+  type = list(object({
+    name = string
+    type = string
+  }))
+}
+
 # Lifecycle Configuration
 # Number of days to retain noncurrent object versions
 variable "noncurrent_version_retention_days" {

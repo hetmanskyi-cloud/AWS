@@ -22,34 +22,6 @@ resource "aws_iam_role" "lambda_execution_role" {
     ]
   })
 
-  # Inline policy for DynamoDB access.
-  inline_policy {
-    name = "dynamodb-access"
-    policy = jsonencode({
-      Version = "2012-10-17",
-      Statement = [
-        {
-          Effect = "Allow",
-          Action = [
-            "dynamodb:UpdateItem",
-            "dynamodb:GetItem"
-          ],
-          Resource = aws_dynamodb_table.terraform_locks.arn
-        },
-        {
-          Effect = "Allow",
-          Action = [
-            "dynamodb:DescribeStream",
-            "dynamodb:GetRecords",
-            "dynamodb:GetShardIterator",
-            "dynamodb:ListStreams"
-          ],
-          Resource = aws_dynamodb_table.terraform_locks.stream_arn
-        }
-      ]
-    })
-  }
-
   # Tags for resource identification.
   tags = {
     Name        = "${var.name_prefix}-lambda-execution-role"
@@ -57,8 +29,49 @@ resource "aws_iam_role" "lambda_execution_role" {
   }
 }
 
+# --- Separate IAM Policy for DynamoDB Access --- #
+# Defines a standalone policy with the required DynamoDB permissions.
+resource "aws_iam_policy" "dynamodb_access_policy" {
+  name        = "${var.name_prefix}-dynamodb-access"
+  description = "IAM policy for Lambda to access DynamoDB Streams and update records"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem"
+        ],
+        Resource = aws_dynamodb_table.terraform_locks.arn
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams"
+        ],
+        Resource = aws_dynamodb_table.terraform_locks.stream_arn
+      }
+    ]
+  })
+}
+
+# --- IAM Role Policy Attachment --- #
+# Attaches the DynamoDB access policy to the Lambda execution role.
+resource "aws_iam_role_policy_attachment" "lambda_dynamodb_policy_attachment" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = aws_iam_policy.dynamodb_access_policy.arn
+}
+
 # --- Lambda Function Definition --- #
 # Defines the Lambda function that processes DynamoDB Streams.
+# This Lambda function is used to automate TTL management for the DynamoDB table.
+# It updates the expiration timestamps to avoid stale locks.
+# Note: If TTL automation is not required, this Lambda can be disabled or removed.
 resource "aws_lambda_function" "update_ttl" {
   filename      = "${path.root}/scripts/update_ttl.zip" # Path to the Lambda function code.
   function_name = "${var.name_prefix}-update-ttl"

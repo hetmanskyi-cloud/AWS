@@ -243,7 +243,7 @@ module "endpoints" {
 
 # --- S3 Module --- #
 module "s3" {
-  source = "./modules/s3" # Path to module S3
+  source = "./modules/s3" # Path to S3 module
 
   # S3 configuration
   replication_region                = var.replication_region
@@ -254,6 +254,34 @@ module "s3" {
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_s3_replication             = var.enable_s3_replication
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
+
+  # List of buckets and their types
+  buckets = [
+    {
+      name = "${var.name_prefix}-terraform-state"
+      type = "base"
+    },
+    {
+      name = "${var.name_prefix}-scripts"
+      type = "base"
+    },
+    {
+      name = "${var.name_prefix}-logging"
+      type = "base"
+    },
+    {
+      name = "${var.name_prefix}-ami"
+      type = "base"
+    },
+    {
+      name = "${var.name_prefix}-wordpress-media"
+      type = "special"
+    },
+    {
+      name = "${var.name_prefix}-replication"
+      type = "special"
+    }
+  ]
 
   # Pass providers explicitly
   providers = {

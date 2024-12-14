@@ -1,45 +1,54 @@
 # --- Versioning Configuration for Buckets --- #
-# This file enables versioning for S3 buckets to ensure that object history is retained
+# This file enables versioning for S3 buckets to ensure object history is retained
 # for data recovery, auditing, and compliance purposes.
 
-# Instead of defining locals here, we rely on global locals defined in `main.tf`:
-# - local.global_base_buckets_ids: Base set of buckets (terraform_state, scripts, logging, ami)
-# - local.global_prod_with_replication_buckets_ids: Includes base buckets + wordpress_media in prod,
-#   and replication if enabled.
-#
-# This ensures:
-# - In `dev`: versioning is unenabled for all buckets.
-# - In `stage`: Only base buckets get versioning.
-# - In `prod`: Base buckets + wordpress_media, and replication if enabled, get versioning.
-
 # --- Enable Versioning for Buckets --- #
+# Applies versioning dynamically based on the bucket type and environment:
+# - In `dev`: Versioning is disabled for cost efficiency.
+# - In `stage`: Enabled for base buckets to ensure stability.
+# - In `prod`: Fully enabled for both base and special buckets.
+# The `for_each` loop filters buckets based on their type and environment logic.
+
 resource "aws_s3_bucket_versioning" "versioning" {
-  for_each = var.environment == "prod" ? local.global_prod_with_replication_buckets_ids : (var.environment == "stage" ? local.global_base_buckets_ids : {})
+  # Dynamically enable versioning for buckets based on environment logic.
+  for_each = var.environment == "prod" ? {
+    for bucket in var.buckets : bucket.name => bucket if bucket.type == "base" || bucket.type == "special"
+    } : (
+    var.environment == "stage" ? {
+      for bucket in var.buckets : bucket.name => bucket if bucket.type == "base"
+    } : {}
+  )
 
-  # Each value from the global locals in `main.tf` is a bucket ID string
-  bucket = each.value
+  # Apply versioning to each bucket.
+  bucket = aws_s3_bucket.buckets[each.key].id
 
+  # Enables versioning for buckets to retain object history.
+  # Versioning status is set dynamically based on the environment:
+  # - "Enabled" in `stage` and `prod` for all relevant buckets.
+  # - "Disabled" in `dev` to minimize costs.
   versioning_configuration {
-    status = "Enabled" # Enable versioning to keep a history of object versions.
+    status = "Enabled" # Enable versioning to retain object history.
   }
 
   # --- Comments on Status Options --- #
-  # - "Enabled": Versioning is turned on. Changes to objects create new versions.
+  # - "Enabled": Versioning is active, creating new versions on changes.
   # - "Suspended": Retains existing versions but stops creating new ones.
 }
 
 # --- Notes --- #
 # 1. Purpose of Versioning:
-#    - Ensures historical versions of objects are retained.
-#    - Useful for data recovery, audits, and compliance.
+#    - Enables historical version retention for recovery, audits, and compliance.
+#    - Provides a safeguard against accidental deletions or overwrites.
 #
-# 2. Integration with Environment Logic:
-#    - In `dev`: Only base buckets are versioned (no wordpress_media, no replication).
-#    - In `prod`: wordpress_media is included, and replication is versioned if enabled.
+# 2. Environment Logic:
+#    - In `dev`: Versioning is disabled to reduce costs.
+#    - In `stage`: Versioning is enabled for base buckets to test functionality and ensure stability.
+#    - In `prod`: Full versioning is enabled for base and special buckets for maximum durability.
 #
 # 3. Best Practices:
-#    - Enable versioning on critical buckets.
-#    - Use lifecycle rules to manage storage costs for older versions.
+#    - Always enable versioning on critical buckets, especially in `prod`.
+#    - Pair versioning with lifecycle rules to control costs by managing older versions.
 #
-# By centralizing environment logic in `main.tf`, we avoid duplicating conditions here
-# and ensure consistent handling of all buckets across environments.
+# 4. Centralized Logic:
+#    - The logic dynamically applies versioning based on the `buckets` variable from `terraform.tfvars`.
+#    - This approach ensures consistency across environments and minimizes manual intervention.
