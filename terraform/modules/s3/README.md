@@ -225,7 +225,8 @@ buckets = [
 
 **Logging**:  
 - The logging bucket itself does not have logging enabled to avoid circular dependencies.  
-- Logging paths are dynamically organized with prefixes for each source bucket.
+- The logging bucket centralizes logging for ALB, WAF, other S3 buckets, and various AWS resources in their respective folders.  
+- Logging paths are dynamically organized with prefixes based on the source (e.g., `${var.name_prefix}/alb-logs/`, `${var.name_prefix}/waf-logs/`).
 
 ---
 

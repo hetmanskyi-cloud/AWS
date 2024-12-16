@@ -110,25 +110,43 @@ resource "aws_s3_bucket_policy" "force_https" {
 }
 
 # --- Logging Bucket Policy --- #
-# Allows S3 logging service to write logs to the logging bucket.
+# This resource defines a policy for the S3 logging bucket, allowing specific AWS services 
+# (S3 logging, ALB, and WAF) to write logs into the bucket.
+
 resource "aws_s3_bucket_policy" "logging_bucket_policy" {
-  # Filters the `buckets` variable to target the logging bucket only.
+  # Filters the `buckets` variable to include only the bucket intended for logging.
+  # Ensures the policy is applied specifically to the `logging` bucket.
   for_each = {
     for bucket in var.buckets : bucket.name => bucket if bucket.name == "logging"
   }
 
+  # The target bucket where the policy will be applied.
   bucket = aws_s3_bucket.buckets[each.key].id
 
-  # Policy that grants the S3 logging service permission to write logs to this bucket.
+  # JSON policy granting permissions to write logs into the bucket.
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid       = "AllowLoggingWrite",
+        Sid       = "AllowLoggingWrite", # S3 logging service permissions
         Effect    = "Allow",
         Principal = { Service = "logging.s3.amazonaws.com" },
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*"
+      },
+      {
+        Sid       = "AllowALBLogging", # ALB logging permissions
+        Effect    = "Allow",
+        Principal = { Service = "elasticloadbalancing.amazonaws.com" },
+        Action    = "s3:PutObject",
+        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/alb-logs/*"
+      },
+      {
+        Sid       = "AllowWAFLogging", # WAF logging permissions
+        Effect    = "Allow",
+        Principal = { Service = "waf.amazonaws.com" },
+        Action    = "s3:PutObject",
+        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/waf-logs/*"
       }
     ]
   })
@@ -340,7 +358,7 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 
 # --- Notes --- #
 # 1. **Security Policies**:
-#    - Denies all public access via ACLs и bucket policies (DenyPublicAccess).
+#    - Denies all public access via ACLs and bucket policies (DenyPublicAccess).
 #    - Enforces HTTPS-only access (EnforceTLS) to enhance security.
 #
 # 2. **Lifecycle Management**:
@@ -358,3 +376,8 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 # 5. **Dynamic Bucket Policies**:
 #    - All policies and configurations adapt based on the `buckets` variable in `terraform.tfvars`.
 #    - Simply adding a new bucket to `buckets` automatically includes it in relevant policies and rules.
+#
+# 6. **Logging Configuration**:
+#    - Grants the S3 logging service (`logging.s3.amazonaws.com`) permissions to write logs to the logging bucket.
+#    - Includes additional permissions for ALB logging (`elasticloadbalancing.amazonaws.com`) and WAF logging (`waf.amazonaws.com`).
+#    - Log files are stored in dedicated prefixes (`alb-logs/` and `waf-logs/`) within the logging bucket.

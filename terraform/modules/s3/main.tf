@@ -97,6 +97,7 @@ resource "aws_s3_bucket" "logging" {
   tags = {
     Name        = "${var.name_prefix}-logging"
     Environment = var.environment
+    Purpose     = "Centralized logging for ALB, WAF, other S3 buckets and various AWS resources in their respective folders."
   }
 }
 

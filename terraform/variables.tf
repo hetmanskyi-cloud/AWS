@@ -382,3 +382,15 @@ variable "redis_memory_threshold" {
   description = "Memory utilization threshold for CloudWatch Alarm (in bytes)"
   type        = number
 }
+
+# --- ALB Configuration Variables --- #
+
+# --- Deletion Protection Variable for ALB --- #
+# This variable is specific to the ALB module and controls deletion protection for the ALB.
+# - Default value: false (in `alb/variables.tf`).
+# - Recommended: Set to true for production (prod) in `terraform.tfvars` for enhanced safety.
+variable "alb_enable_deletion_protection" {
+  description = "Enable deletion protection for the ALB (recommended for prod)"
+  type        = bool
+  default     = false
+}
