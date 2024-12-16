@@ -61,3 +61,9 @@ locals {
     }
   ]
 }
+
+# --- Notes --- #
+
+# 1. This KMS key is designed for general encryption purposes, such as CloudWatch Logs and S3 buckets.
+# 2. Automatic key rotation is enabled to enhance security and compliance.
+# 3. Additional permissions can be granted dynamically using the additional_principals variable.

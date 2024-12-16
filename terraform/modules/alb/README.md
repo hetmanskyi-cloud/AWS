@@ -87,7 +87,7 @@ module "alb" {
   public_subnets          = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
   vpc_id                  = "vpc-0123456789abcdef0"
   alb_sg_id               = "sg-0123456789abcdef0"
-  logging_bucket          = "stage-logs-bucket"
+  logging_bucket          = "dev-logs-bucket"
   certificate_arn         = "arn:aws:acm:eu-west-1:123456789012:certificate/example"
   alb_request_count_threshold = 5000
   alb_5xx_threshold        = 100
