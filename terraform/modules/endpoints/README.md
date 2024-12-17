@@ -73,8 +73,8 @@ An example of the configuration can be found in the "Usage Example" section.
 module "endpoints" {
   source                               = "./modules/endpoints"
   aws_region                           = "eu-west-1"
-  name_prefix                          = "prod"
-  environment                          = "prod"
+  name_prefix                          = "dev"
+  environment                          = "dev"
   vpc_id                               = "vpc-0123456789abcdef0"
   private_subnet_ids                   = ["subnet-abcdef1234567890", "subnet-012345abcdef6789"]
   private_subnet_cidr_blocks           = ["10.0.1.0/24", "10.0.2.0/24"]
