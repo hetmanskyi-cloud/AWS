@@ -299,6 +299,14 @@ variable "performance_insights_enabled" {
   type        = bool
 }
 
+# --- Endpoints Variables --- #
+
+variable "enable_cloudwatch_logs_for_endpoints" {
+  description = "Enable CloudWatch Logs for VPC Endpoints in stage and prod environments"
+  type        = bool
+  default     = false
+}
+
 # --- S3 Variables --- #
 
 variable "buckets" {

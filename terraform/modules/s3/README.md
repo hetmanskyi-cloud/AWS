@@ -145,6 +145,8 @@ output "replication_bucket" {
   value = module.s3.replication_bucket_arn
 }
 
+---
+
 ## Environment-Specific Logic
 # dev:
 Only base buckets are created (e.g., terraform_state, logging).

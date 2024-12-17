@@ -84,5 +84,7 @@ resource "aws_iam_role_policy_attachment" "firehose_policy_attachment" {
 # 1. Firehose is disabled in dev to avoid unnecessary overhead and storage costs.
 # 2. Logs are delivered to an S3 bucket with GZIP compression for storage efficiency.
 # 3. S3 is chosen over CloudWatch Logs for its cost-effectiveness and flexibility in long-term storage.
+#    For small projects, this is the optimal solution. If the project scales, consider CloudWatch Logs
+#    for real-time monitoring, but be mindful of the additional costs.
 # 4. KMS encryption ensures logs are securely stored in the target bucket.
-# 5. The logging bucket is dynamically assigned based on the `logging_bucket_arn` variable.
+# 5. The logging bucket is dynamically assigned based on the logging_bucket_arn variable.
