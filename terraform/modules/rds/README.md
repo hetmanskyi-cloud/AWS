@@ -104,30 +104,30 @@ An example of the configuration can be found in the "Usage Example" section.
 ```hcl
 module "rds" {
   source                  = "./modules/rds"
-  name_prefix             = "prod"
-  environment             = "prod"
+  name_prefix             = "dev"
+  environment             = "dev"
   allocated_storage       = 20
   instance_class          = "db.t3.micro"
   engine                  = "mysql"
   engine_version          = "8.0"
-  db_username             = "admin"
-  db_password             = "securepassword"
-  db_name                 = "mydatabase"
-  multi_az                = true
+  db_username             = "****"
+  db_password             = "****"
+  db_name                 = "****"
+  multi_az                = false
   backup_retention_period = 7
-  backup_window           = "02:00-03:00"
-  performance_insights_enabled = true
-  deletion_protection     = true
+  backup_window           = "03:00-04:00"
+  performance_insights_enabled = false
+  deletion_protection     = false
   vpc_id                  = "vpc-0123456789abcdef0"
   private_subnet_ids      = ["subnet-abcdef123", "subnet-123abcdef"]
   ec2_security_group_id   = "sg-0123456789abcdef0"
   kms_key_arn             = "arn:aws:kms:eu-west-1:123456789012:key/example-key"
-  enable_monitoring       = true
+  enable_monitoring       = false
   rds_cpu_threshold_high  = 80
-  rds_storage_threshold   = 5000000000 # 5 GB
+  rds_storage_threshold   = 10000000000 # 10 GB
   rds_connections_threshold = 100
   sns_topic_arn           = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
-  read_replicas_count     = 1
+  read_replicas_count     = 0
 }
 
 output "rds_endpoint" {
