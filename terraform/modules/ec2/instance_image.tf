@@ -21,6 +21,8 @@ resource "random_integer" "subnet_selector" {
 
 # --- EC2 Instance for Golden Image Creation --- #
 # This instance is used only in the dev environment to create golden images for ASG.
+# This instance is managed via AWS Systems Manager (SSM).
+# SSH access (if enabled) is temporary for setup and debugging.
 resource "aws_instance" "instance_image" {
   count = var.environment == "dev" ? 1 : 0 # Created only in dev environment
 
@@ -28,7 +30,7 @@ resource "aws_instance" "instance_image" {
   ami           = var.ami_id                                                            # AMI ID for the instance
   instance_type = var.instance_type                                                     # EC2 instance type (e.g., t2.micro)
   subnet_id     = element(var.public_subnet_ids, random_integer.subnet_selector.result) # Randomly select a public subnet
-  key_name      = var.ssh_key_name                                                      # Optional SSH key name for instance access
+  key_name      = var.enable_ssh_access ? var.ssh_key_name : null                       # Optional SSH key name based on enable_ssh_access
 
   # Root Block Device Configuration
   root_block_device {
@@ -39,6 +41,8 @@ resource "aws_instance" "instance_image" {
   }
 
   # Network Configuration
+  # Security group for instance networking
+  # SSM Access: Instance is managed via AWS Systems Manager (SSM), eliminating the need for SSH in production.
   vpc_security_group_ids = [aws_security_group.ec2_security_group.id] # Security group for instance networking
 
   # Metadata Configuration
@@ -76,7 +80,9 @@ resource "aws_instance" "instance_image" {
 # 1. This instance is created only in the dev environment for generating golden images.
 # 2. A public IP is required for updates, patching, and configuration before creating the AMI.
 # 3. The subnet is selected randomly from the provided list of public subnet IDs.
-# 4. SSH access is controlled by the `enable_ssh_access` variable in terraform.tfvars.
-# 5. The user_data script sets up the instance for WordPress deployment and configuration.
-# 6. IMDSv2 is enforced for enhanced security of instance metadata.
-# 7. Monitoring and EBS optimization are enabled for better performance and visibility.
+# 4. SSH access is temporarily enabled in dev via `enable_ssh_access`, but all operational management should rely on AWS Systems Manager (SSM).
+# 5. For security, `enable_ssh_access` defaults to `false` in all environments except for debugging purposes in dev.
+# 6. The user_data script sets up the instance for WordPress deployment and configuration.
+# 7. IMDSv2 is enforced for enhanced security of instance metadata.
+# 8. Monitoring and EBS optimization are enabled for better performance and visibility.
+# 9. SSH access is conditional and can be enabled or disabled via `enable_ssh_access` variable.

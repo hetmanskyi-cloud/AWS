@@ -1,7 +1,13 @@
 # --- EC2 Launch Template Configuration --- #
-# This configuration sets up an EC2 Launch Template for use with an Auto Scaling Group.
-# It defines instance specifications, storage, security settings, metadata options, monitoring, and tags.
 
+# Parse the AMI ID directly from the S3 object using JSON decoding
+data "aws_s3_object" "latest_ami" {
+  bucket = var.ami_bucket_name # Name of the S3 bucket containing AMI metadata
+  key    = "latest-ami.json"   # Key of the file storing the latest AMI ID
+}
+
+# Launch Template for Auto Scaling Group. Instances are created using the latest AMI stored in S3.
+# Defines instance specifications, storage, security settings, metadata options, monitoring, and tags. 
 resource "aws_launch_template" "ec2_launch_template" {
   # --- Template Settings --- #
   # The name_prefix ensures unique naming for launch templates.
@@ -11,19 +17,18 @@ resource "aws_launch_template" "ec2_launch_template" {
   # --- Lifecycle Management --- #
   # Ensure a new launch template is created before the old one is destroyed during updates.
   lifecycle {
-    create_before_destroy = true
+    create_before_destroy = true # Ensure no downtime during template updates
   }
 
   # --- Instance Specifications --- #
-  # Define the AMI ID, instance type, and optional SSH key for access.
-  image_id      = var.ami_id        # AMI ID for the desired operating system (e.g., Ubuntu)
-  instance_type = var.instance_type # Instance type (e.g., t2.micro for AWS Free Tier)
-  key_name      = var.ssh_key_name  # Optional SSH key name for instance access
+  # Define the AMI ID dynamically fetched from S3 and the instance type.
+  image_id      = jsondecode(data.aws_s3_object.latest_ami.body).ami_id # Parse AMI ID from S3 object
+  instance_type = var.instance_type                                     # Instance type (e.g., t2.micro for AWS Free Tier)
 
   # --- Block Device Mappings --- #
   # Configure the root EBS volume with encryption enabled.
   block_device_mappings {
-    device_name = "/dev/xvda" # Root volume device name for Ubuntu AMIs
+    device_name = "/dev/xvda" # Root volume device name for image AMIs
     ebs {
       volume_size           = var.volume_size # Volume size in GiB
       volume_type           = var.volume_type # Volume type (e.g., gp2, gp3)
@@ -57,9 +62,9 @@ resource "aws_launch_template" "ec2_launch_template" {
   }
 
   # --- Network Interface Configuration --- #
-  # Assign a public IP and set security groups for instance networking.
+  # Deny public IPs and set security groups for instance networking.
   network_interfaces {
-    associate_public_ip_address = true                                       # Public IP is required for WordPress setup. Consider NAT Gateway in production.
+    associate_public_ip_address = false                                      # Disable public IPs
     delete_on_termination       = true                                       # Delete interface on termination
     security_groups             = [aws_security_group.ec2_security_group.id] # Security groups for networking
   }
@@ -76,6 +81,18 @@ resource "aws_launch_template" "ec2_launch_template" {
   }
 
   # --- User Data --- #
-  # Specify a user_data script for initial instance configuration.
-  user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", local.db_config))
+  # In stage/prod, the instances use the AMI prepared in dev. No additional user_data is applied.
+  user_data = null
 }
+
+# --- Notes --- #
+# 1. AMI ID is dynamically fetched from the S3 bucket containing the latest AMI metadata.
+# 2. Public IPs are disabled for all ASG instances in stage/prod environments.
+# 3. Instances in stage/prod use the AMI prepared in dev, stored in S3.
+# 4. User data is not required for stage/prod, as the golden AMI includes all configurations.
+# 5. Security Group rules are strictly controlled for prod to minimize attack surface.
+# 6. Monitoring and EBS optimization are enabled for better performance and visibility.
+# 7. IMDSv2 is enforced for enhanced security of instance metadata.
+# 8. SSH access is disabled; access and management are conducted exclusively through AWS Systems Manager (SSM).
+# 9. Updates to the AMI in the S3 metadata file are automatically reflected in the Auto Scaling Group after the Launch Template is updated.
+# 10. To ensure seamless updates, use an EventBridge rule or manual process to update the S3 metadata file with the latest AMI.

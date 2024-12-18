@@ -3,9 +3,9 @@
 # Define the Auto Scaling Group with desired number of instances and subnet allocation.
 resource "aws_autoscaling_group" "ec2_asg" {
   # Desired, minimum, and maximum instance counts
-  min_size            = var.autoscaling_min                                                      # Minimum number of instances
-  max_size            = var.autoscaling_max                                                      # Maximum number of instances
-  vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2, var.public_subnet_id_3] # Subnets for EC2 instances
+  min_size            = var.autoscaling_min   # Minimum number of instances
+  max_size            = var.autoscaling_max   # Maximum number of instances
+  vpc_zone_identifier = var.public_subnet_ids # Subnets for EC2 instances
 
   # Reference the launch template created in launch_template.tf
   launch_template {

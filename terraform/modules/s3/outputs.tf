@@ -39,6 +39,12 @@ output "ami_bucket_id" {
   value       = aws_s3_bucket.ami.id
 }
 
+# Output the AMI S3 bucket name
+output "ami_bucket_name" {
+  description = "The name of the S3 bucket for storing AMI images"
+  value       = aws_s3_bucket.ami.bucket
+}
+
 # --- Special S3 Bucket Outputs --- #
 
 # WordPress Media Bucket

@@ -99,6 +99,9 @@ module "ec2" {
   network_in_threshold    = var.network_in_threshold
   network_out_threshold   = var.network_out_threshold
 
+  # S3 bucket for storing AMI images
+  ami_bucket_name = module.s3.ami_bucket_name
+
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
@@ -107,12 +110,9 @@ module "ec2" {
   volume_type = var.volume_type
 
   # Networking and security configurations
-  public_subnet_id_1 = local.public_subnet_id_1
-  public_subnet_id_2 = local.public_subnet_id_2
-  public_subnet_id_3 = local.public_subnet_id_3
-  public_subnet_ids  = module.vpc.public_subnets
-  enable_ssh_access  = var.enable_ssh_access
-  alb_sg_id          = module.alb.alb_sg_id
+  public_subnet_ids = module.vpc.public_subnets
+  enable_ssh_access = var.enable_ssh_access
+  alb_sg_id         = module.alb.alb_sg_id
   security_group_id = [
     module.ec2.ec2_security_group_id,
     module.rds.rds_security_group_id,

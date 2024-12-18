@@ -66,3 +66,15 @@ output "scale_in_policy_arn" {
   description = "ARN of the Scale-In Policy"
   value       = aws_autoscaling_policy.scale_in_policy.arn
 }
+
+# --- Additional Outputs --- #
+
+# Output for SSM Managed Instance IDs
+output "ssm_managed_instance_ids" {
+  description = "IDs of EC2 instances managed via SSM"
+  value       = data.aws_instances.asg_instances.ids
+}
+
+# --- Output Notes --- #
+# 1. `ssm_managed_instance_ids` simplifies integration with monitoring tools and operational workflows.
+# 2. Scaling policies (`scale_out_policy_arn` and `scale_in_policy_arn`) provide flexibility for dynamic resource management.
