@@ -48,7 +48,7 @@ variable "target_group_port" {
 }
 
 # ARN of the SSL certificate for HTTPS listener (optional).
-# Note: In dev, SSL certificate is not required.
+# Note: In dev and stage, SSL certificate is not required.
 variable "certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener"
   type        = string
@@ -126,4 +126,4 @@ variable "sns_topic_arn" {
 # 1. Variables `name_prefix`, `environment`, `public_subnets`, and `vpc_id` are mandatory for all environments.
 # 2. Logging-related variables (`logging_bucket`, `logging_bucket_arn`, `kms_key_arn`) are used in stage and prod only.
 # 3. `alb_request_count_threshold` and `alb_5xx_threshold` control alarm sensitivity; these can be adjusted based on the expected traffic.
-# 4. `certificate_arn` is required for HTTPS configuration in stage and prod.
+# 4. `certificate_arn` is required for HTTPS configuration in prod. In dev and stage, it can remain null.

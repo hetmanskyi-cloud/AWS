@@ -94,6 +94,11 @@ variable "public_subnet_id_3" {
   type        = string
 }
 
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for deploying instances"
+  type        = list(string)
+}
+
 # Security group ID(s) for controlling inbound/outbound traffic.
 variable "security_group_id" {
   description = "Security group ID for the EC2 instance to control traffic"

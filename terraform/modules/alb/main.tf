@@ -54,39 +54,38 @@ resource "aws_lb_target_group" "wordpress" {
 }
 
 # --- ALB Listener for HTTP --- #
-# Redirects HTTP traffic to HTTPS in stage and prod. Routes traffic in dev.
+# Handles HTTP traffic for dev and stage. Redirects to HTTPS in prod.
 resource "aws_lb_listener" "http" {
-  count = 1 # Always create an HTTP listener for handling traffic
+  count = 1 # Always create an HTTP listener for handling traffic.
 
   load_balancer_arn = aws_lb.application.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    # Redirect HTTP to HTTPS in stage and prod
-    type = var.environment == "dev" ? "forward" : "redirect"
+    type = var.environment == "prod" ? "redirect" : "forward"
 
-    # Forward traffic to the target group in dev
-    target_group_arn = var.environment == "dev" ? aws_lb_target_group.wordpress.arn : null
-
-    # Redirect HTTP to HTTPS in stage and prod
+    # Redirect HTTP to HTTPS only in prod.
     redirect {
       protocol    = "HTTPS"
       port        = "443"
       status_code = "HTTP_301"
     }
+
+    # Forward traffic to target group in dev and stage.
+    target_group_arn = var.environment != "prod" ? aws_lb_target_group.wordpress.arn : null
   }
 }
 
 # --- HTTPS Listener --- #
-# HTTPS Listener is created only for stage and prod.
+# HTTPS Listener is created only for prod.
 resource "aws_lb_listener" "https" {
-  count             = var.environment != "dev" ? 1 : 0
+  count             = var.environment == "prod" ? 1 : 0
   load_balancer_arn = aws_lb.application.arn
   port              = 443                         # Listener port for HTTPS traffic
   protocol          = "HTTPS"                     # Protocol for the listener
   ssl_policy        = "ELBSecurityPolicy-2016-08" # SSL policy
-  certificate_arn   = var.certificate_arn         # SSL Certificate ARN (expected for stage/prod)
+  certificate_arn   = var.certificate_arn         # SSL Certificate ARN (expected for prod only)
 
   # Default action: Forward traffic to the target group
   default_action {
@@ -100,9 +99,9 @@ resource "aws_lb_listener" "https" {
 # Environment-Specific Logic:
 # - ALB and Target Group are created for all environments (dev, stage, prod).
 # - HTTP Listener:
-#   - In dev: Routes traffic to the target group for testing.
-#   - In stage and prod: Redirects HTTP traffic to HTTPS for secure communication.
-# - HTTPS Listener is enabled in stage and prod to ensure secure and encrypted communication.
+#   - In dev and stage: Routes traffic directly to the target group.
+#   - In prod: Redirects HTTP traffic to HTTPS for secure communication.
+# - HTTPS Listener is enabled only in prod to ensure secure and encrypted communication.
 # - Access logs:
 #   - Enabled only in stage and prod for compliance and analysis.
 #   - Stored in a centralized S3 logging bucket with identifiable prefixes.
@@ -114,7 +113,7 @@ resource "aws_lb_listener" "https" {
 # - Conservative thresholds (e.g., interval, timeout) ensure accurate monitoring.
 
 # Recommendations:
-# - Always ensure the SSL certificate ARN is valid in stage and prod environments.
+# - Always ensure the SSL certificate ARN is valid in prod environments.
 # - Regularly audit health check settings to align with application changes.
 # - Periodically verify access logs for unexpected traffic patterns or anomalies.
 

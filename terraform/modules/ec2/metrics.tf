@@ -65,6 +65,7 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
 }
 
 # Alarm for EC2 instance status check failure
+# Monitors EC2 instance status. Triggers an alarm if any instance fails a status check.
 resource "aws_cloudwatch_metric_alarm" "status_check_failed" {
   alarm_name          = "${var.name_prefix}-status-check-failed"
   comparison_operator = "GreaterThanThreshold"

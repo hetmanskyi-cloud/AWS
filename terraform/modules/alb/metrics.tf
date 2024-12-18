@@ -13,7 +13,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   period              = 300
   statistic           = "Sum"
   threshold           = var.alb_request_count_threshold
-  alarm_actions       = var.environment == "prod" ? [var.sns_topic_arn] : [] # Only notify in prod
+  alarm_actions       = var.environment == "prod" ? [var.sns_topic_arn] : [] # Notify only in prod
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
   }
@@ -58,14 +58,12 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
   }
 }
 
-# --- Notes ---#
+# --- Notes --- #
 
 # Minimizing alerts in test environments (dev, stage):
-
-# In dev, experiments often trigger temporary errors. Alerts in this environment add unnecessary noise and are handled manually during testing.
-# In stage, metrics are used for load testing and analysis, but alerts are unnecessary since monitoring is performed manually during the test phase.
+# - In dev, experiments often trigger temporary errors. Alerts in this environment add unnecessary noise and are handled manually during testing.
+# - In stage, metrics are used for load testing and analysis, but alerts are unnecessary since monitoring is performed manually during the test phase.
 
 # Centralizing critical alerts in prod:
-# In prod, alerts are essential for immediate response to incidents that affect real users.
-
-# Notifications are enabled only in prod to reduce noise in non-critical environments and ensure alerts are focused on critical issues.
+# - In prod, alerts are essential for immediate response to incidents that affect real users.
+# - Notifications are enabled only in prod to reduce noise in non-critical environments and ensure alerts are focused on critical issues.

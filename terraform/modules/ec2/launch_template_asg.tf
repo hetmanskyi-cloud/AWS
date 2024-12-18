@@ -1,17 +1,3 @@
-locals {
-  db_config = {
-    DB_NAME         = var.db_name
-    DB_USERNAME     = var.db_username
-    DB_USER         = var.db_username
-    DB_PASSWORD     = var.db_password
-    DB_HOST         = var.db_host
-    PHP_VERSION     = var.php_version
-    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
-    REDIS_HOST      = var.redis_endpoint
-    REDIS_PORT      = var.redis_port
-  }
-}
-
 # --- EC2 Launch Template Configuration --- #
 # This configuration sets up an EC2 Launch Template for use with an Auto Scaling Group.
 # It defines instance specifications, storage, security settings, metadata options, monitoring, and tags.

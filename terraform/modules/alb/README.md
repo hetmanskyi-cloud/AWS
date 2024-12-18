@@ -21,8 +21,8 @@ An example of the configuration can be found in the "Usage Example" section.
   - Deletion protection to prevent accidental deletion (recommended in prod).
 - **Target Groups and Listeners**:
   - Automatically creates target groups for routing traffic to backend instances.
-  - Configures HTTP listeners for dev environments.
-  - Redirects HTTP to HTTPS in stage and prod environments.
+  - Configures HTTP listeners for dev and stage environments.
+  - Redirects HTTP to HTTPS in prod environments.
 - **Access Logging**:
   - Logs ALB access to a dedicated S3 bucket.
   - Configurable log prefix based on environment.
@@ -68,11 +68,14 @@ An example of the configuration can be found in the "Usage Example" section.
 
 ## Outputs
 
-| **Name**            | **Description**                                  |
-|---------------------|--------------------------------------------------|
-| `alb_arn`           | ARN of the Application Load Balancer.            |
-| `target_group_arn`  | ARN of the target group.                         |
-| `waf_arn`           | ARN of the WAF Web ACL.                          |
+| **Name**                 | **Description**                                  |
+|--------------------------|--------------------------------------------------|
+| `alb_arn`                | ARN of the Application Load Balancer.            |
+| `alb_dns_name`           | DNS name of the Application Load Balancer.       |
+| `wordpress_tg_arn`       | ARN of the Target Group for WordPress.           |
+| `alb_access_logs_bucket` | S3 bucket for ALB access logs.                   |
+| `alb_access_logs_prefix` | Prefix for ALB access logs.                      |
+| `waf_arn`                | ARN of the WAF Web ACL.                          |
 
 ---
 
@@ -111,7 +114,7 @@ output "alb_arn" {
    - Enable versioning on the logging bucket to prevent accidental data loss.
 
 3. **SSL/TLS**:
-   - Use valid SSL certificates for HTTPS listeners in stage and prod.
+   - Use valid SSL certificates for HTTPS listeners in prod only.
    - Regularly rotate SSL certificates to maintain security.
 
 4. **Monitoring**:
@@ -122,16 +125,16 @@ output "alb_arn" {
 
 ### Notes
 
-- In dev environments, HTTPS and WAF are disabled to reduce costs and simplify testing.
-- In stage and prod, all security and monitoring features are enabled to ensure production-grade reliability and compliance.
+- In dev and stage, HTTPS is not required, and HTTP traffic is routed directly to the target group.
+- In prod, HTTPS is enforced with SSL certificates, and HTTP traffic is redirected to HTTPS.
+- WAF is disabled in dev to reduce costs and noise, but enabled in stage and prod for security and compliance.
 
 ---
 
 ### Future Improvements
 
 1. Add support for additional listeners or target groups for complex routing scenarios.
-2. Include optional NAT Gateway integration for backend services.
-3. Enhance monitoring with custom metrics for ALB performance.
+2. Enhance monitoring with custom metrics for ALB performance.
 
 ---
 

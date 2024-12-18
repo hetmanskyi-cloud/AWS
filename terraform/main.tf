@@ -110,6 +110,7 @@ module "ec2" {
   public_subnet_id_1 = local.public_subnet_id_1
   public_subnet_id_2 = local.public_subnet_id_2
   public_subnet_id_3 = local.public_subnet_id_3
+  public_subnet_ids  = module.vpc.public_subnets
   enable_ssh_access  = var.enable_ssh_access
   alb_sg_id          = module.alb.alb_sg_id
   security_group_id = [

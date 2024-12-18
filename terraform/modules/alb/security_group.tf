@@ -6,7 +6,7 @@ resource "aws_security_group" "alb_sg" {
   vpc_id      = var.vpc_id                  # VPC where the ALB resides.
 
   # --- Ingress Rules --- #
-  # Allow HTTP traffic for redirect (stage/prod) or testing (dev)
+  # Allow HTTP traffic for dev and stage.
   ingress {
     from_port   = 80
     to_port     = 80
@@ -15,13 +15,13 @@ resource "aws_security_group" "alb_sg" {
     description = "Allow HTTP traffic for redirect or testing"
   }
 
-  # Allow HTTPS traffic only in stage and prod
+  # Allow HTTPS traffic only in prod.
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Allow traffic from all IP addresses.
-    description = "Allow HTTPS traffic from anywhere (stage/prod)"
+    description = "Allow HTTPS traffic from anywhere (prod only)"
   }
 
   # --- Egress Rules --- #
@@ -44,11 +44,11 @@ resource "aws_security_group" "alb_sg" {
 # --- Notes --- #
 # 1. HTTP (port 80):
 #    - Open in all environments to support redirects or testing.
-#    - In stage/prod, HTTP requests are redirected to HTTPS by ALB.
+#    - In prod, HTTP requests are redirected to HTTPS by ALB.
 #
 # 2. HTTPS (port 443):
-#    - Enabled only in stage and prod for secure traffic.
-#    - Certificates must be valid in these environments.
+#    - Enabled only in prod for secure traffic.
+#    - Certificates must be valid in prod environments.
 #
 # 3. Egress Rules:
 #    - All outbound traffic is allowed to ensure ALB can respond to incoming requests.
