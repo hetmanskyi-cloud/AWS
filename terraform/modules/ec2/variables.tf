@@ -13,12 +13,6 @@ variable "instance_type" {
   type        = string
 }
 
-# Optional SSH key name for accessing the EC2 instances.
-variable "ssh_key_name" {
-  description = "Name of the SSH key for EC2 access (only used if SSH is enabled)"
-  type        = string
-}
-
 # --- Auto Scaling Configuration Variables --- #
 
 # Minimum and maximum number of instances in the Auto Scaling Group.
@@ -89,10 +83,25 @@ variable "vpc_id" {
 
 # --- SSH Access Configuration --- #
 
+# Optional SSH key name for accessing the EC2 instances.
+variable "ssh_key_name" {
+  description = "Name of the SSH key for EC2 access (only used if SSH is enabled)"
+  type        = string
+}
+
 # Flag to enable or disable SSH access to EC2 instances.
 variable "enable_ssh_access" {
   description = "Enable or disable SSH access to EC2 instances"
   type        = bool
+}
+
+# --- SSH Allowed IPs --- #
+# Specifies the list of IP ranges allowed to access SSH in prod.
+# Use this variable to restrict access to trusted IPs in production environments.
+variable "ssh_allowed_ips" {
+  description = "List of IP ranges allowed to access SSH in prod"
+  type        = list(string)
+  default     = [] # Empty by default; must be set in `terraform.tfvars` for prod.
 }
 
 # --- Variables for Database Configuration --- #
@@ -159,6 +168,14 @@ variable "scripts_bucket_arn" {
   type        = string
 }
 
+# --- Scripts Bucket Name --- #
+# Specifies the name of the S3 bucket used for storing deployment scripts (e.g., deploy_wordpress.sh).
+# This bucket is required in stage and prod environments where deployment scripts are not stored locally.
+variable "scripts_bucket_name" {
+  description = "The name of the S3 bucket containing deployment scripts for EC2 instances"
+  type        = string
+}
+
 # --- SNS Variables --- #
 
 # ARN of the SNS Topic for CloudWatch alarms.
@@ -216,3 +233,18 @@ variable "user_data" {
   type        = string
   default     = null
 }
+
+# --- Notes --- #
+# 1. Variables are grouped by functionality (e.g., EC2, S3, Auto Scaling) for clarity.
+# 2. Environment (`environment`):
+#    - `dev`: Used for development and testing with simplified configurations.
+#    - `stage`: Pre-production environment for validation.
+#    - `prod`: Production environment with full scaling and security enabled.
+# 3. Conditional logic ensures the module adapts to different environments (`dev`, `stage`, `prod`).
+# 4. Sensitive variables (e.g., `db_password`) are marked for secure handling in Terraform.
+# 5. `scripts_bucket_name` and `ami_bucket_name`:
+#    - Required in `stage` and `prod` for fetching deployment scripts and AMI metadata from S3.
+#    - Ensure the S3 bucket names are valid and accessible before deployment.
+# 6. Best Practices:
+#    - Regularly review and validate variable inputs, especially for sensitive or critical configurations.
+#    - Use environment-specific `terraform.tfvars` files to manage variable values efficiently.

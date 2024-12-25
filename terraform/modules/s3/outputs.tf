@@ -15,6 +15,11 @@ output "scripts_bucket_arn" {
   value       = aws_s3_bucket.scripts.arn
 }
 
+output "scripts_bucket_name" {
+  description = "The name of the S3 bucket for deployment scripts"
+  value       = aws_s3_bucket.scripts.bucket
+}
+
 # Logging Bucket
 output "logging_bucket_arn" {
   description = "The ARN of the S3 bucket used for logging"

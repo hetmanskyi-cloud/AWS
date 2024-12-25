@@ -270,3 +270,51 @@ For more information on AWS S3 and related services, refer to the following reso
 - [Cross-Region Replication in S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
 
 ---
+
+## Alternative State Locking with S3 Conditional Writes
+
+Starting from Terraform 1.10.0 and newer, you can utilize the new S3 Conditional Writes feature for state locking. This eliminates the need for DynamoDB as a locking mechanism. Instead, Terraform uses an `.tflock` file in the S3 bucket, along with Amazon S3's conditional write functionality, to ensure safe state locking.
+
+### Key Benefits:
+1. **Simpler Configuration**:
+   - No additional DynamoDB table required.
+   - Leverages native S3 functionality.
+
+2. **Cost Efficiency**:
+   - Eliminates DynamoDB costs for state locking.
+
+3. **Backward Compatible**:
+   - Can coexist with the existing DynamoDB-based locking mechanism if needed.
+
+---
+
+### Example Configuration
+
+Below is an example configuration for using S3 Conditional Writes for state locking:
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket = "terraform_state"
+    key    = "terraform.tfstate"
+    region = "eu-west-1"
+  }
+}
+
+provider "aws" {
+  region = "eu-west-1"
+}
+
+---
+
+**Notes**:
+
+Migration: If you are currently using DynamoDB for state locking, this feature allows for a seamless transition to a simpler setup.
+
+Compatibility: Ensure that your AWS provider version and Terraform version meet the requirements for S3 Conditional Writes.
+
+Coexistence: You can enable this feature in one environment (e.g., dev) while maintaining DynamoDB locking in others (e.g., stage, prod).
+
+Best Practices: For sensitive environments, continue using versioning and server-side encryption for added security.
+
+---

@@ -101,6 +101,8 @@ module "ec2" {
 
   # S3 bucket for storing AMI images
   ami_bucket_name = module.s3.ami_bucket_name
+  # S3 bucket for storing scripts
+  scripts_bucket_name = module.s3.scripts_bucket_name
 
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
@@ -121,6 +123,7 @@ module "ec2" {
   ]
   vpc_id = module.vpc.vpc_id
 
+  # ALB Target Group ARN for routing traffic to EC2 instances
   target_group_arn = module.alb.wordpress_tg_arn
 
   # S3 bucket configurations

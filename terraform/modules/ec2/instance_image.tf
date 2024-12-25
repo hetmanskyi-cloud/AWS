@@ -1,3 +1,8 @@
+# --- EC2 Instance for Golden Image Creation --- #
+# This file defines the configuration for an EC2 instance used to prepare a golden image.
+# - Automatically created in the dev environment for testing and debugging.
+# - In stage/prod, created periodically using EventBridge for updates and maintenance.
+
 locals {
   db_config = {
     DB_NAME         = var.db_name
@@ -13,24 +18,21 @@ locals {
 }
 
 # --- Random Integer for Subnet Selection --- #
-# Selects a random subnet from the provided list of public subnet IDs
+# Selects a random subnet from the provided list of public subnet IDs.
 resource "random_integer" "subnet_selector" {
   min = 0
-  max = length(var.public_subnet_ids) - 1 # Index range of the subnet list
+  max = length(var.public_subnet_ids) - 1 # Index range of the subnet list.
 }
 
-# --- EC2 Instance for Golden Image Creation --- #
-# This instance is used only in the dev environment to create golden images for ASG.
-# This instance is managed via AWS Systems Manager (SSM).
-# SSH access (if enabled) is temporary for setup and debugging.
+# --- Golden Image EC2 Instance --- #
 resource "aws_instance" "instance_image" {
-  count = var.environment == "dev" ? 1 : 0 # Created only in dev environment
+  count = var.environment == "dev" || var.environment == "stage" || var.environment == "prod" ? 1 : 0
 
   # General configuration
   ami           = var.ami_id                                                            # AMI ID for the instance
   instance_type = var.instance_type                                                     # EC2 instance type (e.g., t2.micro)
   subnet_id     = element(var.public_subnet_ids, random_integer.subnet_selector.result) # Randomly select a public subnet
-  key_name      = var.enable_ssh_access ? var.ssh_key_name : null                       # Optional SSH key name based on enable_ssh_access
+  key_name      = var.enable_ssh_access ? var.ssh_key_name : null                       # SSH key based on `enable_ssh_access`
 
   # Root Block Device Configuration
   root_block_device {
@@ -40,49 +42,58 @@ resource "aws_instance" "instance_image" {
     encrypted             = true            # Enable encryption for the root volume
   }
 
+  # IAM Instance Profile:
+  # Automatically attaches the EC2 role (`ec2_role`) to the instance.
+  # The role provides temporary credentials for accessing AWS services like S3, CloudWatch, and SSM.
+  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
+
   # Network Configuration
-  # Security group for instance networking
-  # SSM Access: Instance is managed via AWS Systems Manager (SSM), eliminating the need for SSH in production.
-  vpc_security_group_ids = [aws_security_group.ec2_security_group.id] # Security group for instance networking
+  vpc_security_group_ids = [aws_security_group.ec2_security_group.id] # Security group for instance networking.
 
   # Metadata Configuration
   metadata_options {
-    http_endpoint               = "enabled"  # Enable metadata endpoint
-    http_tokens                 = "required" # Enforce IMDSv2
-    http_put_response_hop_limit = 1          # Restrict metadata access
-    instance_metadata_tags      = "enabled"  # Enable instance metadata tags
+    http_endpoint               = "enabled"  # Enable metadata endpoint.
+    http_tokens                 = "required" # Enforce IMDSv2 for metadata security.
+    http_put_response_hop_limit = 1          # Restrict metadata access to one hop.
+    instance_metadata_tags      = "enabled"  # Enable instance metadata tags.
   }
 
   # Monitoring and Optimization
-  monitoring                           = true        # Enable detailed CloudWatch monitoring
-  ebs_optimized                        = true        # Optimize EBS performance
-  disable_api_termination              = false       # Allow termination via API
-  instance_initiated_shutdown_behavior = "terminate" # Terminate instance on shutdown
+  monitoring                           = true        # Enable detailed CloudWatch monitoring.
+  ebs_optimized                        = true        # Optimize EBS performance.
+  disable_api_termination              = false       # Allow termination via API.
+  instance_initiated_shutdown_behavior = "terminate" # Terminate instance on shutdown.
 
   # User Data Script
   # Initializes the instance for WordPress setup.
-  user_data = base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", local.db_config))
+  user_data = var.environment == "dev" ? base64encode(templatefile("${path.root}/scripts/deploy_wordpress.sh", local.db_config)) : base64encode(templatefile("s3://${var.scripts_bucket_name}/deploy_wordpress.sh", local.db_config))
 
   # Tag Specifications
   tags = {
-    Name        = "${var.name_prefix}-instance-image" # Instance name tag
-    Environment = var.environment                     # Environment tag (e.g., dev, stage, prod)
+    Name        = "${var.name_prefix}-instance-image" # Instance name tag.
+    Environment = var.environment                     # Environment tag (e.g., dev, stage, prod).
   }
 
-  # --- Lifecycle Configuration --- #
-  # This ensures the instance is destroyed before a new one is created, avoiding overlap.
+  # Lifecycle Configuration
   lifecycle {
-    create_before_destroy = false # Create new instance only after the old one is destroyed
+    create_before_destroy = false # Avoid overlapping instances.
   }
 }
 
 # --- Notes --- #
-# 1. This instance is created only in the dev environment for generating golden images.
-# 2. A public IP is required for updates, patching, and configuration before creating the AMI.
-# 3. The subnet is selected randomly from the provided list of public subnet IDs.
-# 4. SSH access is temporarily enabled in dev via `enable_ssh_access`, but all operational management should rely on AWS Systems Manager (SSM).
-# 5. For security, `enable_ssh_access` defaults to `false` in all environments except for debugging purposes in dev.
-# 6. The user_data script sets up the instance for WordPress deployment and configuration.
-# 7. IMDSv2 is enforced for enhanced security of instance metadata.
-# 8. Monitoring and EBS optimization are enabled for better performance and visibility.
-# 9. SSH access is conditional and can be enabled or disabled via `enable_ssh_access` variable.
+# 1. This instance is created in dev for generating golden images automatically.
+# 2. In stage/prod, EventBridge triggers the instance creation for periodic updates.
+# 3. Temporary SSH access is allowed in dev for debugging and restricted in prod via `ssh_allowed_ips`.
+# 4. SSM access ensures secure management without requiring persistent SSH access.
+# 5. Random subnet selection balances resources across public subnets.
+# 6. The user_data script initializes the instance for WordPress deployment, including database and Redis configurations.
+# 7. In dev, the `deploy_wordpress.sh` script is loaded locally. In stage/prod, it is sourced from the `scripts` S3 bucket.
+# 8. IMDSv2 is enforced to secure instance metadata.
+# 9. Monitoring and EBS optimization ensure performance and visibility.
+# 10. Automation with EventBridge includes enabling SSH before instance creation and disabling it afterward.
+
+# --- Additional Considerations --- #
+# - Ensure the `deploy_wordpress.sh` script is properly uploaded to the `scripts` S3 bucket for stage/prod.
+# - In stage/prod it is recommended to check the correctness of the IAM role before using it.
+# - Regularly review and update the script to align with infrastructure changes.
+# - Use EventBridge to automate lifecycle actions like enabling SSH before instance creation and disabling it afterward.
