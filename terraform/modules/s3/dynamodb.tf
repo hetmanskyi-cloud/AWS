@@ -74,9 +74,12 @@ resource "aws_dynamodb_table" "terraform_locks" {
 }
 
 # --- Notes --- #
-# 1. The DynamoDB table is used exclusively for Terraform state locking to prevent concurrent operations.
-# 2. TTL ensures expired lock entries are automatically deleted to avoid "stale" locks.
-# 3. KMS encryption ensures that data in the table is secure at rest.
-# 4. Point-in-Time Recovery is a best practice for critical tables to ensure data can be recovered in case of accidental changes.
-# 5. DynamoDB Streams are enabled to allow processing of item changes (e.g., by AWS Lambda).
-# 6. Local Secondary Index ensures ExpirationTime is indexed for TTL functionality and potential future queries.
+# 1. **Purpose**:
+#    - This DynamoDB table is designed exclusively for Terraform state locking to ensure safe and consistent state management.
+# 2. **Best Practices**:
+#    - Enable TTL to automatically clean up expired lock entries.
+#    - Use server-side encryption with a dedicated KMS key for enhanced data security.
+#    - Enable point-in-time recovery to protect against accidental data loss.
+# 3. **Integration**:
+#    - The `aws_dynamodb_table.terraform_locks` resource is referenced in `s3/outputs.tf` for exposing table details.
+#    - The DynamoDB Streams are connected to a Lambda function defined in `s3/lambda.tf` for TTL automation.

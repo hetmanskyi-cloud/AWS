@@ -295,9 +295,10 @@ Below is an example configuration for using S3 Conditional Writes for state lock
 ```hcl
 terraform {
   backend "s3" {
-    bucket = "terraform_state"
-    key    = "terraform.tfstate"
+    bucket = "my-terraform-state-bucket"
+    key    = "path/to/my/state/terraform.tfstate"
     region = "eu-west-1"
+    use_lockfile = true
   }
 }
 

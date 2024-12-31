@@ -119,7 +119,7 @@ output "private_subnet_cidr_block_3" {
 # This route table does not connect to the Internet Gateway and routes traffic only within VPC resources.
 
 output "private_route_table_id" {
-  description = "ID of the private route table"
+  description = "The ID of the private route table used by all private subnets"
   value       = aws_route_table.private_route_table.id
 }
 
@@ -129,4 +129,18 @@ output "private_route_table_id" {
 output "public_route_table_id" {
   description = "ID of the public route table"
   value       = aws_route_table.public_route_table.id
+}
+
+# --- S3 Gateway Endpoint ID --- #
+# Outputs the ID of the S3 Gateway Endpoint, which enables private access to Amazon S3.
+output "s3_endpoint_id" {
+  description = "The ID of the S3 Gateway Endpoint"
+  value       = aws_vpc_endpoint.s3.id
+}
+
+# --- DynamoDB Endpoint ID --- #
+# Outputs the ID of the DynamoDB Endpoint, which enables private access to DynamoDB.
+output "dynamodb_endpoint_id" {
+  description = "The ID of the DynamoDB VPC Endpoint"
+  value       = aws_vpc_endpoint.dynamodb.id
 }

@@ -96,7 +96,14 @@ resource "aws_lambda_event_source_mapping" "dynamodb_to_lambda" {
 }
 
 # --- Notes --- #
-# 1. The IAM role grants the Lambda function permissions to read from DynamoDB Streams and update records.
-# 2. The Lambda function is triggered by DynamoDB Streams for every new or modified record.
-# 3. The `ExpirationTime` attribute is updated with a new timestamp to ensure proper TTL functionality.
-# 4. The Python code for the Lambda function is located in the `scripts/update_ttl.py` file.
+# 1. **Purpose**:
+#    - This Lambda function automates the management of the `ExpirationTime` attribute in the DynamoDB table used for Terraform locks.
+# 2. **Key Features**:
+#    - Automatically updates expiration timestamps to avoid stale locks.
+#    - Processes DynamoDB Streams for real-time updates.
+# 3. **Best Practices**:
+#    - Ensure the `update_ttl.zip` file is deployed and updated whenever the function logic changes.
+#    - Use the least privilege principle when defining IAM policies for the Lambda function.
+# 4. **Integration**:
+#    - The `aws_lambda_event_source_mapping.dynamodb_to_lambda` resource links this Lambda function to the DynamoDB Streams defined in `s3/dynamodb.tf`.
+#    - Outputs from the DynamoDB table can be used for monitoring and debugging lock issues.

@@ -1,16 +1,5 @@
 # --- Main Configuration for VPC Endpoints --- #
 
-# --- S3 Gateway Endpoint --- #
-# Provides access to Amazon S3 through a Gateway Endpoint, allowing private access without internet.
-resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = var.vpc_id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = var.route_table_ids # Required only for Gateway Endpoints (not Interface Endpoints)
-
-  tags = local.tags
-}
-
 # --- SSM Interface Endpoint --- #
 # Provides access to AWS Systems Manager (SSM) for instances in private subnets.
 resource "aws_vpc_endpoint" "ssm" {
@@ -66,8 +55,7 @@ locals {
 }
 
 # --- Notes --- #
-# 1. This module creates both Gateway and Interface Endpoints for S3, SSM, SSM Messages, and EC2 Messages.
+# 1. This module creates Interface Endpoints for SSM, SSM Messages, and EC2 Messages (Gateway Endpoints for S3 and DynamoDB creates in `vpc module`).
 # 2. Security Group for Interface Endpoints allows HTTPS access (port 443) only from private subnets.
 # 3. CloudWatch Logs are optional and can be enabled for monitoring traffic in stage and prod environments.
-# 4. The S3 Gateway Endpoint does not require Security Groups or subnet associations.
-# 5. Tags are applied to all resources for better identification and management across environments.
+# 4. Tags are applied to all resources for better identification and management across environments.

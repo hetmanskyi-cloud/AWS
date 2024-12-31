@@ -48,10 +48,10 @@ variable "private_subnet_cidr_blocks" {
 }
 
 # --- Route Table IDs --- #
-# The list of route table IDs to associate with the S3 Gateway Endpoint.
-variable "route_table_ids" {
-  description = "List of route table IDs for the S3 Gateway endpoint"
-  type        = list(string)
+# The list of route table ID to associate with the S3 Gateway Endpoint.
+variable "private_route_table_id" {
+  description = "The ID of the private route table used for Gateway Endpoints"
+  type        = string
 }
 
 # --- Endpoint Security Group ID --- #

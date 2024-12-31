@@ -2,25 +2,13 @@
 # This file defines key configurations for bucket policies, CORS, and lifecycle rules
 # to ensure security, compliance, and functionality.
 
-# --- Environment Logic --- #
-# In `dev` environment:
-# - Created buckets: terraform_state, scripts, logging, ami
-# - Not created: wordpress_media, replication
-#
-# In `stage` environment:
-# - Created buckets: terraform_state, scripts, logging, ami, wordpress_media.
-# - replication is created if `enable_s3_replication = true`.
-#
-# In `prod` environment:
-# - All buckets are created.
-# - wordpress_media is always created.
-# - replication is created if `enable_s3_replication = true`.
-
 # --- CORS Configuration for WordPress Media Bucket --- #
-# Configures CORS rules in stage and prod, as wordpress_media is created in both environments.
+# Configures CORS rules for the `wordpress_media` bucket when enabled via the `enable_cors` variable.
+
 resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
-  count  = var.environment == "stage" || var.environment == "prod" ? 1 : 0
-  bucket = aws_s3_bucket.wordpress_media[count.index].id # Safe because count=1 in stage/prod, 0 in dev
+  count = var.enable_cors && var.enable_wordpress_media_bucket ? 1 : 0
+
+  bucket = aws_s3_bucket.wordpress_media[count.index].id
 
   cors_rule {
     allowed_headers = ["Authorization", "Content-Type"] # Restrict headers to required ones.
@@ -28,6 +16,13 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
     allowed_origins = ["*"]                             # Initially allow all origins; restrict in prod if needed.
     max_age_seconds = 3000                              # Cache preflight responses.
   }
+
+  # Notes:
+  # 1. CORS is enabled only when `enable_cors = true` and `enable_wordpress_media_bucket = true`.
+  # 2. If the `wordpress_media` bucket does not exist, this resource will not be created.
+  # 3. This configuration applies specifically to the `wordpress_media` bucket.
+  # 4. Additional buckets can be added by extending this logic with other variables or dynamic for_each loops.
+  # 5. The `allowed_origins` can be restricted further for increased security in production environments.
 }
 
 # --- Bucket Policies --- #
@@ -38,11 +33,12 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 # - Ensures all bucket interactions occur over HTTPS for enhanced security.
 resource "aws_s3_bucket_policy" "deny_public_access" {
   # Loop through all "base" and "special" buckets from the `buckets` variable
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if(
-      bucket.type == "base" || bucket.type == "special"
-    )
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if value == "base" || value == "special"
+  })
+  # Notes:
+  # 1. Both "DenyPublicAccess" and "EnforceTLS" ensure that buckets remain private and secure.
+  # 2. These policies work together to enforce secure connections and prevent unauthorized access.
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -77,11 +73,9 @@ resource "aws_s3_bucket_policy" "deny_public_access" {
 # This policy ensures that only HTTPS/TLS connections are used to access the buckets.
 resource "aws_s3_bucket_policy" "force_https" {
   # Loop through all "base" and "special" buckets from the `buckets` variable
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if(
-      bucket.type == "base" || bucket.type == "special"
-    )
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if value == "base" || value == "special"
+  })
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -116,9 +110,10 @@ resource "aws_s3_bucket_policy" "force_https" {
 resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   # Filters the `buckets` variable to include only the bucket intended for logging.
   # Ensures the policy is applied specifically to the `logging` bucket.
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if bucket.name == "logging"
-  }
+  # Ensure that the logging bucket is not accessible from the public internet and is properly encrypted.
+  for_each = tomap({
+    for key, value in var.buckets : key => value if key == "logging"
+  })
 
   # The target bucket where the policy will be applied.
   bucket = aws_s3_bucket.buckets[each.key].id
@@ -158,11 +153,12 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
 # Key configurations:
 # - Noncurrent versions are retained for a configurable number of days.
 # - Incomplete uploads are aborted after 7 days to reduce costs.
+# Ensure versioning is enabled for buckets before applying lifecycle rules; otherwise, the rules for noncurrent versions will not have any effect.
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   # Dynamically processes all "base" and "special" buckets defined in the `buckets` variable.
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if bucket.type == "base" || bucket.type == "special"
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if value == "base" || value == "special"
+  })
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -176,6 +172,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     }
   }
 
+  # Rule to automatically abort incomplete multipart uploads.
   rule {
     id     = "${each.key}-abort-incomplete-uploads"
     status = "Enabled"
@@ -190,9 +187,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 # Applies lifecycle rules specifically to the replication bucket, if enabled.
 resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
   # Filter the `buckets` variable to include only the replication bucket
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if bucket.name == "replication" && var.enable_s3_replication
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if key == "replication" && var.enable_s3_replication
+  })
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -202,7 +199,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     status = "Enabled"
 
     noncurrent_version_expiration {
-      noncurrent_days = var.noncurrent_version_retention_days # Set in terraform.tfvars
+      noncurrent_days = var.noncurrent_version_retention_days # Set in dev.tfvars
     }
   }
 
@@ -215,12 +212,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
       days_after_initiation = 7
     }
   }
+  # Notes:
+  # 1. Lifecycle rules are effective only for buckets with versioning enabled.
+  # 2. Adjust `noncurrent_version_retention_days` in `dev.tfvars` to optimize cost and compliance requirements.
+  # 3. Rules for incomplete multipart uploads help minimize storage costs for unused objects.
 }
 
 # --- IAM Role for Replication --- #
 # This role allows S3 to replicate objects between buckets for cross-region replication.
-# - Created only when `enable_s3_replication = true` in `terraform.tfvars`.
-# - Applies to `stage` and `prod` environments only.
+# - Created only when `enable_s3_replication = true` in `dev.tfvars`.
 resource "aws_iam_role" "replication_role" {
   count = var.enable_s3_replication ? 1 : 0 # Dynamically created based on replication flag.
 
@@ -247,8 +247,9 @@ resource "aws_iam_role" "replication_role" {
 
 # --- Replication IAM Policy --- #
 # This policy grants the replication role permissions to perform actions necessary for cross-region replication.
+# Ensure that both source and destination buckets exist and are properly configured before enabling replication.
 resource "aws_iam_role_policy" "replication_policy" {
-  count = var.enable_s3_replication ? 1 : 0 # Set in terraform.tfvars
+  count = var.enable_s3_replication ? 1 : 0 # Set in dev.tfvars
 
   name = "${var.name_prefix}-replication-policy"
   role = aws_iam_role.replication_role[0].id
@@ -286,6 +287,10 @@ resource "aws_iam_role_policy" "replication_policy" {
       }
     ]
   })
+  # Notes:
+  # 1. Ensure source buckets exist and are properly configured before enabling replication.
+  # 2. The replication IAM role and policies are dynamically created for maximum flexibility.
+  # 3. Additional permissions can be added to the IAM policies as needed for custom workflows.
 }
 
 # --- Bucket Policy for Replication Destination --- #
@@ -293,9 +298,9 @@ resource "aws_iam_role_policy" "replication_policy" {
 resource "aws_s3_bucket_policy" "replication_bucket_policy" {
   # Dynamically filter the `buckets` variable to select only the replication bucket.
   # The condition ensures that the bucket is included only if replication is enabled.
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if bucket.name == "replication" && var.enable_s3_replication
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if key == "replication" && var.enable_s3_replication
+  })
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -322,6 +327,7 @@ resource "aws_s3_bucket_policy" "replication_bucket_policy" {
 
 # --- Source Bucket Replication Policy --- #
 # Grants the replication role read access on source buckets.
+# Ensure that both source and destination buckets exist and are properly configured before enabling replication.
 resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
   # Dynamically filter the `buckets` variable to include all "base" and "special" buckets.
   # The condition ensures that the policy is applied only if replication is enabled.
@@ -362,7 +368,7 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 #    - Enforces HTTPS-only access (EnforceTLS) to enhance security.
 #
 # 2. **Lifecycle Management**:
-#    - Retains noncurrent object versions for a defined period (e.g., 30 days, configurable in `terraform.tfvars`).
+#    - Retains noncurrent object versions for a defined period (e.g., 30 days, configurable in `dev.tfvars`).
 #    - Automatically aborts incomplete multipart uploads to reduce storage costs.
 #
 # 3. **Replication Configuration**:
@@ -374,7 +380,7 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 #    - Restricts allowed headers and methods for security, while enabling cross-origin requests for WordPress media.
 #
 # 5. **Dynamic Bucket Policies**:
-#    - All policies and configurations adapt based on the `buckets` variable in `terraform.tfvars`.
+#    - All policies and configurations adapt based on the `buckets` variable in `dev.tfvars`.
 #    - Simply adding a new bucket to `buckets` automatically includes it in relevant policies and rules.
 #
 # 6. **Logging Configuration**:

@@ -1,12 +1,5 @@
 # --- Outputs for VPC Endpoints --- #
 
-# --- S3 Gateway Endpoint ID --- #
-# Outputs the ID of the S3 Gateway Endpoint, which enables private access to Amazon S3.
-output "s3_endpoint_id" {
-  description = "The ID of the S3 Gateway Endpoint"
-  value       = aws_vpc_endpoint.s3.id
-}
-
 # --- SSM Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for AWS Systems Manager (SSM).
 output "ssm_endpoint_id" {

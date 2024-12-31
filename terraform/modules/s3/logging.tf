@@ -7,19 +7,18 @@
 # Dynamically determine prefixes for each bucket based on the `buckets` variable.
 locals {
   bucket_prefixes = {
-    for bucket in var.buckets : bucket.name => "${bucket.name}/"
+    for name, type in var.buckets : name => "${name}/"
   }
 }
 
 # --- Logging Configuration for Each Bucket --- #
 # Configures logging for all buckets except the logging bucket itself.
-# The logging bucket does not log itself to avoid recursive dependencies.
-# Logs from all other buckets are sent to this centralized logging bucket.
+# Buckets are dynamically selected based on the `buckets` variable from `dev.tfvars`.
+# Logs from all other buckets are sent to the centralized logging bucket.
 resource "aws_s3_bucket_logging" "bucket_logging" {
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket
-    if bucket.name != "logging" # Exclude the logging bucket itself to avoid recursive logs
-  }
+  for_each = tomap({
+    for key, value in var.buckets : key => value if key != "logging" # Exclude the logging bucket itself to avoid recursive logs
+  })
 
   bucket        = aws_s3_bucket.buckets[each.key].id
   target_bucket = aws_s3_bucket.logging.id

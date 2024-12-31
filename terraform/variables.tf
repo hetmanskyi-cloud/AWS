@@ -307,29 +307,6 @@ variable "enable_cloudwatch_logs_for_endpoints" {
   default     = false
 }
 
-# --- S3 Variables --- #
-
-variable "buckets" {
-  description = "List of buckets and their types."
-  type = list(object({
-    name = string
-    type = string
-  }))
-}
-
-# Lifecycle Configuration
-# Number of days to retain noncurrent object versions
-variable "noncurrent_version_retention_days" {
-  description = "Number of days to retain noncurrent versions of objects in S3 buckets"
-  type        = number
-}
-
-variable "enable_s3_replication" {
-  description = "Enable cross-region replication for S3 buckets"
-  type        = bool
-  default     = false
-}
-
 # --- SNS Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
@@ -401,4 +378,61 @@ variable "alb_enable_deletion_protection" {
   description = "Enable deletion protection for the ALB (recommended for prod)"
   type        = bool
   default     = false
+}
+
+# --- S3 Bucket Configuration Variables --- #
+
+variable "buckets" {
+  description = "Map of bucket names and their types (base or special)."
+  type        = map(string)
+}
+
+# Versioning settings are managed in the `dev.tfvars` file for dev environment.
+variable "enable_versioning" {
+  description = "Map of bucket names to enable or disable versioning."
+  type        = map(bool)
+  default     = {}
+}
+
+# Enable or disable the Terraform state bucket.
+variable "enable_terraform_state_bucket" {
+  description = "Enable or disable the Terraform state bucket"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable the WordPress media bucket.
+variable "enable_wordpress_media_bucket" {
+  description = "Enable or disable the WordPress media bucket"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable the replication bucket.
+variable "enable_replication_bucket" {
+  description = "Enable or disable the replication bucket"
+  type        = bool
+  default     = false
+}
+
+# --- Enable Replication Variable --- #
+# Enable cross-region replication for S3 buckets.
+variable "enable_s3_replication" {
+  description = "Enable cross-region replication for S3 buckets."
+  type        = bool
+  default     = false
+}
+
+# Enable CORS configuration for the WordPress media bucket
+variable "enable_cors" {
+  description = "Enable or disable CORS configuration for the WordPress media bucket."
+  type        = bool
+  default     = false # Set to true in `dev.tfvars` to enable CORS for the WordPress media bucket
+}
+
+# Lifecycle Configuration
+# Number of days to retain noncurrent object versions
+variable "noncurrent_version_retention_days" {
+  description = "Number of days to retain noncurrent versions of objects in S3 buckets"
+  type        = number
 }

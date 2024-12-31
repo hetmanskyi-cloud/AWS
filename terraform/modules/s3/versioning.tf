@@ -1,54 +1,49 @@
 # --- Versioning Configuration for Buckets --- #
-# This file enables versioning for S3 buckets to ensure object history is retained
-# for data recovery, auditing, and compliance purposes.
+# This file dynamically enables versioning for S3 buckets based on environment and
+# the `enable_versioning` variable. Retains object history for recovery, compliance, and auditing.
 
 # --- Enable Versioning for Buckets --- #
-# Applies versioning dynamically based on the bucket type and environment:
-# - In `dev`: Versioning is disabled for cost efficiency.
-# - In `stage`: Enabled for base buckets to ensure stability.
-# - In `prod`: Fully enabled for both base and special buckets.
-# The `for_each` loop filters buckets based on their type and environment logic.
-
 resource "aws_s3_bucket_versioning" "versioning" {
-  # Dynamically enable versioning for buckets based on environment logic.
-  for_each = var.environment == "prod" ? {
-    for bucket in var.buckets : bucket.name => bucket if bucket.type == "base" || bucket.type == "special"
-    } : (
-    var.environment == "stage" ? {
-      for bucket in var.buckets : bucket.name => bucket if bucket.type == "base"
-    } : {}
-  )
+  # Dynamically enable versioning for buckets explicitly marked in `enable_versioning`.
+  for_each = tomap({
+    for key, value in var.buckets : key => value if lookup(var.enable_versioning, key, false)
+  })
 
-  # Apply versioning to each bucket.
+  # Reference the bucket for which versioning is being applied.
   bucket = aws_s3_bucket.buckets[each.key].id
 
-  # Enables versioning for buckets to retain object history.
-  # Versioning status is set dynamically based on the environment:
-  # - "Enabled" in `stage` and `prod` for all relevant buckets.
-  # - "Disabled" in `dev` to minimize costs.
+  # Configure versioning to retain object history.
   versioning_configuration {
-    status = "Enabled" # Enable versioning to retain object history.
+    status = "Enabled" # Versioning is enabled to retain object history.
   }
 
-  # --- Comments on Status Options --- #
-  # - "Enabled": Versioning is active, creating new versions on changes.
-  # - "Suspended": Retains existing versions but stops creating new ones.
+  # --- Notes on Versioning Configuration --- #
+  # 1. "Enabled": New versions are created on changes.
+  # 2. "Suspended": Retains existing versions but stops creating new ones.
+  #    (Suspension can be configured manually if required.)
 }
 
 # --- Notes --- #
-# 1. Purpose of Versioning:
-#    - Enables historical version retention for recovery, audits, and compliance.
-#    - Provides a safeguard against accidental deletions or overwrites.
+# 1. **Purpose of Versioning**:
+#    - Ensures historical object retention for recovery, auditing, and compliance.
+#    - Protects against accidental deletions or overwrites.
 #
-# 2. Environment Logic:
-#    - In `dev`: Versioning is disabled to reduce costs.
-#    - In `stage`: Versioning is enabled for base buckets to test functionality and ensure stability.
-#    - In `prod`: Full versioning is enabled for base and special buckets for maximum durability.
+# 2. **Versioning Logic**:
+#    - Controlled by the `enable_versioning` variable in `dev.tfvars`.
+#    - If `enable_versioning` is not set for a bucket or explicitly false, no versioning is applied.
 #
-# 3. Best Practices:
-#    - Always enable versioning on critical buckets, especially in `prod`.
-#    - Pair versioning with lifecycle rules to control costs by managing older versions.
+# 3. **Best Practices**:
+#    - Enable versioning on critical buckets, especially in production.
+#    - Pair versioning with lifecycle rules to transition or expire noncurrent versions and manage costs.
 #
-# 4. Centralized Logic:
-#    - The logic dynamically applies versioning based on the `buckets` variable from `terraform.tfvars`.
-#    - This approach ensures consistency across environments and minimizes manual intervention.
+# 4. **Enable Versioning Anytime**:
+#    - Versioning can be enabled for existing buckets at any time without requiring bucket recreation.
+#    - Objects added before enabling versioning are marked with a "null version" and remain unchanged.
+#
+# 5. **Dynamic Application**:
+#    - Versioning logic applies dynamically to buckets based on the `buckets` and `enable_versioning` variables.
+#    - Simplifies environment management by centralizing control over versioning settings.
+#
+# 6. **Integration**:
+#    - Works seamlessly with the main S3 module configuration.
+#    - Ensure the `enable_versioning` map in `dev.tfvars` includes all relevant buckets.

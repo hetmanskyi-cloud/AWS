@@ -52,8 +52,8 @@ resource "aws_route_table_association" "public_route_table_association_3" {
   route_table_id = aws_route_table.public_route_table.id
 }
 
-# --- Private Route Table Configuration ---
-# This route table is for private subnets and routes traffic to VPC Endpoints (without Internet Gateway).
+# --- Private Route Table Configuration --- #
+# This route table provides access to S3 and DynamoDB via Gateway Endpoints for resources in private subnets.
 
 resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.vpc.id
@@ -64,7 +64,35 @@ resource "aws_route_table" "private_route_table" {
   }
 }
 
-# --- Private Subnet Route Table Association ---
+# --- S3 Gateway Endpoint --- #
+# Provides access to Amazon S3 through a Gateway Endpoint, allowing private access without internet.
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.vpc.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private_route_table.id] # Pass single route table ID
+
+  tags = {
+    Name        = "${var.name_prefix}-s3-endpoint"
+    Environment = var.environment
+  }
+}
+
+# --- DynamoDB Endpoint --- #
+# Provides access to Amazon DynamoDB through a Gateway Endpoint, allowing private access without internet.
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.vpc.id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private_route_table.id] # Pass single route table ID
+
+  tags = {
+    Name        = "${var.name_prefix}-dynamodb-endpoint"
+    Environment = var.environment
+  }
+}
+
+# --- Private Subnet Route Table Association --- #
 # Associate the private route table with each private subnet.
 
 # Association for Private Subnet 1
@@ -84,3 +112,22 @@ resource "aws_route_table_association" "private_route_table_association_3" {
   subnet_id      = aws_subnet.private_subnet_3.id
   route_table_id = aws_route_table.private_route_table.id
 }
+
+# --- Notes --- #
+# 1. **Public route table**:
+#    - Routes all outbound traffic from public subnets to the internet through the Internet Gateway (IGW).
+#
+# 2. **Private route table**:
+#    - Routes traffic to S3 and DynamoDB through Gateway Endpoints for private subnets.
+#    - Does not allow general internet-bound traffic, ensuring private connectivity.
+#
+# 3. **Endpoint routes**:
+#    - S3 and DynamoDB traffic are explicitly routed through their respective Gateway Endpoints.
+#
+# 4. **Subnet associations**:
+#    - Public route table is associated with public subnets for internet access.
+#    - Private route table is associated with private subnets for restricted access to S3 and DynamoDB.
+#
+# 5. **Best practices**:
+#    - Ensure all route table associations match the intended subnet types to avoid connectivity issues.
+#    - Regularly review route table configurations to maintain alignment with security and architectural requirements.

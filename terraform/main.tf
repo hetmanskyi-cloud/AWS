@@ -232,7 +232,7 @@ module "endpoints" {
   private_subnet_ids = local.private_subnet_ids
 
   # Route table configuration for gateway endpoints (e.g., S3)
-  route_table_ids = [module.vpc.private_route_table_id]
+  private_route_table_id = module.vpc.private_route_table_id # Pass single route table ID
 
   # Security group for interface endpoints created in the endpoints module
   endpoint_sg_id = module.endpoints.endpoint_security_group_id
@@ -255,37 +255,17 @@ module "s3" {
   environment                       = var.environment
   name_prefix                       = var.name_prefix
   kms_key_arn                       = module.kms.kms_key_arn
+  enable_versioning                 = var.enable_versioning
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
+  enable_terraform_state_bucket     = var.enable_terraform_state_bucket
+  enable_wordpress_media_bucket     = var.enable_wordpress_media_bucket
+  enable_cors                       = var.enable_cors
+  enable_replication_bucket         = var.enable_replication_bucket
   enable_s3_replication             = var.enable_s3_replication
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
 
-  # List of buckets and their types
-  buckets = [
-    {
-      name = "${var.name_prefix}-terraform-state"
-      type = "base"
-    },
-    {
-      name = "${var.name_prefix}-scripts"
-      type = "base"
-    },
-    {
-      name = "${var.name_prefix}-logging"
-      type = "base"
-    },
-    {
-      name = "${var.name_prefix}-ami"
-      type = "base"
-    },
-    {
-      name = "${var.name_prefix}-wordpress-media"
-      type = "special"
-    },
-    {
-      name = "${var.name_prefix}-replication"
-      type = "special"
-    }
-  ]
+  # Pass buckets list dynamically
+  buckets = var.buckets
 
   # Pass providers explicitly
   providers = {

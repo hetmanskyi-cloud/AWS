@@ -1,23 +1,19 @@
 # --- Public Access Block Configuration --- #
-# This block applies public access restrictions dynamically to all buckets.
-# The `for_each` loop filters buckets to include only `base` and `special` types.
+# This file enforces public access restrictions on S3 buckets dynamically, ensuring no unintended public exposure.
 # Public access control settings:
 # - Block public ACLs and policies.
 # - Ignore any existing public ACLs.
 # - Restrict public bucket access entirely.
 
-# This file enforces a public access block on all S3 buckets to prevent unintended public exposure.
-
 # --- Public Access Block Configuration for Buckets --- #
-# Applies to all "base" and "special" buckets as defined in the `buckets` variable.
-# Ensures public access is blocked for these buckets by default.
+# Dynamically applies public access restrictions to all "base" and "special" buckets as defined in the `buckets` variable.
 resource "aws_s3_bucket_public_access_block" "public_access_block" {
-  # Dynamically process all buckets based on the environment
-  for_each = {
-    for bucket in var.buckets : bucket.name => bucket if bucket.type == "base" || bucket.type == "special"
-  }
+  # Dynamically process all buckets based on their type
+  for_each = tomap({
+    for key, value in var.buckets : key => value if value == "base" || value == "special"
+  })
 
-  # Target bucket
+  # Target bucket for the public access block
   bucket = aws_s3_bucket.buckets[each.key].id
 
   # Block all public ACLs (Access Control Lists)
@@ -28,23 +24,28 @@ resource "aws_s3_bucket_public_access_block" "public_access_block" {
   ignore_public_acls = true
   # Restrict the bucket from being publicly accessible
   restrict_public_buckets = true
+
+  # --- Notes for Public Access Configuration --- #
+  # 1. Public access is fully restricted for all buckets.
+  # 2. Applies to both base and special buckets, ensuring consistent security.
+  # 3. Dynamic logic processes buckets defined in `terraform.tfvars`.
 }
 
 # --- Notes --- #
-# 1. Public Access Block:
-#    - Applies to all buckets, regardless of environment or type.
-#    - Prevents any form of public access via ACLs or bucket policies.
+# 1. **Public Access Block**:
+#    - Ensures no public access is allowed to any S3 bucket.
+#    - Prevents potential security risks associated with misconfigured ACLs or policies.
 #
-# 2. Dynamic Bucket Management:
-#    - Uses the `buckets` variable from `terraform.tfvars` for centralized bucket control.
-#    - Automatically processes all base and special buckets.
+# 2. **Dynamic Bucket Management**:
+#    - Uses the `buckets` variable to dynamically identify relevant buckets.
+#    - Processes all base and special buckets for consistent application of security settings.
 #
-# 3. Security Best Practices:
+# 3. **Security Best Practices**:
 #    - `block_public_acls`: Prevents adding ACLs that grant public access.
-#    - `block_public_policy`: Prevents bucket policies that allow public access.
-#    - `ignore_public_acls`: Ensures the bucket ignores any public ACLs.
-#    - `restrict_public_buckets`: Blocks any attempts to make the bucket public.
+#    - `block_public_policy`: Blocks bucket policies that allow public access.
+#    - `ignore_public_acls`: Ignores any public ACLs that might be applied.
+#    - `restrict_public_buckets`: Fully restricts public access at the bucket level.
 #
-# 4. Centralized Logic:
-#    - Simplifies management by centralizing bucket definitions in `terraform.tfvars`.
-#    - Automatically adjusts based on environment and bucket configuration.
+# 4. **Integration with Other Resources**:
+#    - Works seamlessly with the main S3 module configuration.
+#    - Ensures public access block settings are applied uniformly across environments and bucket types.
