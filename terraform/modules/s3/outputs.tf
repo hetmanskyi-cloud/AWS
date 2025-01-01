@@ -1,5 +1,5 @@
 # --- S3 Bucket Outputs --- #
-# This file defines outputs for key resources in the S3 module, including bucket ARNs, IDs, and DynamoDB table details.
+# Defines outputs for key S3 resources, including ARNs, IDs, and bucket names.
 
 # --- Base S3 Bucket Outputs --- #
 
@@ -9,6 +9,7 @@ output "scripts_bucket_arn" {
   value       = aws_s3_bucket.scripts.arn
 }
 
+# Output the Scripts bucket name
 output "scripts_bucket_name" {
   description = "The name of the S3 bucket for deployment scripts"
   value       = aws_s3_bucket.scripts.bucket
@@ -58,14 +59,22 @@ output "wordpress_media_bucket_arn" {
   value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].arn : null
 }
 
+# Output the ID of the WordPress media bucket
 output "wordpress_media_bucket_id" {
   description = "The ID of the S3 bucket used for WordPress media storage"
   value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].id : null
 }
 
+# Output the WordPress media bucket name
 output "wordpress_media_bucket_name" {
   description = "The name of the S3 bucket for WordPress media storage"
   value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].bucket : null
+}
+
+# Output the ETag of the uploaded object
+output "deploy_wordpress_script_etag" {
+  value       = aws_s3_object.deploy_wordpress_script.etag
+  description = "The ETag of the Deploy WordPress Script object in S3."
 }
 
 # --- Replication Bucket Outputs (if enabled) --- #
@@ -82,6 +91,7 @@ output "replication_bucket_id" {
   value       = var.enable_s3_replication ? aws_s3_bucket.replication[0].id : null
 }
 
+# Output the name of the replication bucket
 output "replication_bucket_name" {
   description = "The name of the S3 bucket used for replication destination"
   value       = var.enable_replication_bucket ? aws_s3_bucket.replication[0].bucket : null
@@ -103,7 +113,7 @@ output "all_bucket_arns" {
   ])
 }
 
-# Map of bucket names to ARNs and IDs for easier integration
+# Map of bucket names to ARNs and IDs
 # This output is useful for integration with other modules or automation scripts.
 output "bucket_details" {
   description = "A map of bucket names to their ARNs and IDs"
@@ -119,30 +129,28 @@ output "bucket_details" {
 
 # --- DynamoDB Table Outputs --- #
 
-# Output the name of the DynamoDB table for Terraform state locking
+# DynamoDB table for Terraform state locking
 output "terraform_locks_table_name" {
   description = "The name of the DynamoDB table used for Terraform state locking"
-  value       = aws_dynamodb_table.terraform_locks.name
+  value       = var.enable_dynamodb ? aws_dynamodb_table.terraform_locks[0].name : null
 }
 
 # Output the ARN of the DynamoDB table for Terraform state locking
 output "terraform_locks_table_arn" {
   description = "The ARN of the DynamoDB table used for Terraform state locking"
-  value       = aws_dynamodb_table.terraform_locks.arn
+  value       = var.enable_dynamodb ? aws_dynamodb_table.terraform_locks[0].arn : null
 }
 
-# --- Notes --- #
-# 1. Output Logic:
-#    - Outputs for optional buckets (e.g., `terraform_state`, `wordpress_media`, `replication`) are controlled by corresponding variables.
-#    - If a bucket is disabled, its outputs will return `null`.
+# --- Notes and Best Practices --- #
+# 1. Outputs dynamically handle optional buckets:
+#    - Disabled buckets return `null` for their outputs.
 #
 # 2. Aggregated Outputs:
-#    - `all_bucket_arns` provides a compact list of all enabled bucket ARNs.
-#    - `bucket_details` maps bucket names to their ARNs and IDs for integration with other modules.
+#    - `all_bucket_arns` consolidates ARNs of all enabled buckets.
+#    - `bucket_details` provides a map of bucket names, ARNs, and IDs for easy integration.
 #
-# 3. Special Considerations:
-#    - Ensure that optional buckets are enabled in `dev.tfvars` to access their outputs.
-#    - Adjust the `buckets` variable to match the infrastructure requirements for the environment.
+# 3. DynamoDB Outputs:
+#    - Used for Terraform state locking. Ensure proper configuration of the table.
 #
-# 4. DynamoDB Outputs:
-#    - Included for Terraform state locking functionality. Ensure the DynamoDB table is created and properly configured.
+# 4. Customization:
+#    - Adjust the `buckets` variable and enable/disable buckets as per environment needs.

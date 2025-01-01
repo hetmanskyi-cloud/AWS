@@ -6,52 +6,43 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ### Prerequisites
 
-- **AWS Provider Configuration**:
-The region and other parameters of the `aws` provider are specified in the `providers.tf` file of the root block.
-
-An example of the configuration can be found in the "Usage Example" section.
+- **AWS Provider Configuration**:  
+  The `aws` provider configuration, including the region and credentials, must be set in the root block of the Terraform project. Refer to the usage example for details.
 
 ---
 
 ## Features
 
-- **Creates Six S3 Buckets Dynamically**:
-  - Terraform state storage.
-  - WordPress scripts storage.
-  - Logging bucket.
-  - AMI storage bucket for golden images.
-  - WordPress media storage (in stage and prod environments).
-  - Replication bucket (optional, in stage and prod environments for cross-region replication).
-- **Dynamic Bucket Creation**:
-  - The `buckets` variable dynamically determines which buckets are created and their configurations.
-  - The `type` attribute defines whether the bucket is a `base` bucket (always created) or a `special` bucket (environment-specific).
-  - The logic is centralized in `terraform.tfvars` for easier management.
-  - Each entry in the buckets variable specifies:
-    - name: The unique name of the bucket.
-    - type: The classification of the bucket:
-  - Base buckets: Standard buckets created in all environments.
-  - Special buckets: Created only in specific environments (stage, prod).
-- **Server-Side Encryption (SSE)**:
-  - Encryption using AWS KMS for all buckets.
-  - Enforced upload encryption to deny unencrypted object uploads.
-- **Public Access Control**:
-  - Public access is disabled for all buckets by default.
-  - Bucket policies enforce HTTPS-only access.
-- **Bucket Logging**:
-  - Logging enabled for all buckets, with logs stored in a dedicated logging bucket.
-- **Versioning**:
-  - Versioning enabled to allow recovery of overwritten or deleted objects.
-- **Lifecycle Policies**:
-  - Automatic cleanup of incomplete multipart uploads after 7 days.
-  - Retention of noncurrent object versions for a configurable number of days.
-- **CORS Configuration**:
-  - Configures CORS rules for the WordPress media bucket to allow cross-origin access.
-- **Cross-Region Replication** (Optional):
-  - Replicates specified buckets to a destination bucket in a different AWS region for disaster recovery.
-- **DynamoDB for Terraform Locking**:
-  - A DynamoDB table is created for state file locking, ensuring no concurrent modifications.
-- **Lambda for TTL Automation**:
-  - An AWS Lambda function updates expiration timestamps for DynamoDB locks to avoid stale entries.
+- **S3 Bucket Management**:
+  - **Base buckets**: Always created (e.g., scripts, logging, ami).
+  - **Special buckets**: Created conditionally based on `terraform.tfvars` (e.g., terraform_state, wordpress_media, replication).
+  - Fully configurable via the `buckets` variable.
+
+- **Conditional Resource Creation**:
+  - **DynamoDB Table**: Created only if `enable_dynamodb = true`.
+  - **AWS Lambda Function**: Created only if `enable_lambda = true`.
+
+- **Encryption and Security**:
+  - Server-Side Encryption (SSE) with AWS KMS.
+  - Policies enforcing encryption for all uploaded objects.
+  - HTTPS-only access enforced via bucket policies.
+  - Public access disabled by default.
+
+- **Logging and Monitoring**:
+  - Logging enabled for all buckets, stored in a dedicated logging bucket.
+  - Notifications for object creation and deletion integrated with SNS.
+
+- **Versioning and Lifecycle Policies**:
+  - Versioning enabled to protect against accidental overwrites or deletions.
+  - Automatic cleanup of incomplete multipart uploads and old versions.
+
+- **Cross-Region Replication**:
+  - Enabled via `enable_s3_replication` and `enable_replication_bucket`.
+  - Supports disaster recovery by replicating data to another AWS region.
+
+- **DynamoDB Locking**:
+  - DynamoDB table for Terraform state file locking.
+  - TTL automation with AWS Lambda to prevent stale locks.
 
 ---
 
@@ -60,11 +51,11 @@ An example of the configuration can be found in the "Usage Example" section.
 | **File**          | **Description**                                                                          |
 |-------------------|------------------------------------------------------------------------------------------|
 | `main.tf`         | Creates S3 buckets, replication configuration, and bucket notifications.                 |
-| `access.tf`       | Configures public access block settings for all buckets, including replication.          |
+| `access.tf`       | Configures public access block settings for all buckets.                                 |
 | `encryption.tf`   | Configures encryption policies for S3 buckets.                                           |
 | `logging.tf`      | Enables logging for all buckets.                                                         |
-| `policies.tf`     | Defines bucket policies for security, including replication and lifecycle rules.         |
-| `versioning.tf`   | Enables versioning for all buckets, including replication.                               |
+| `policies.tf`     | Defines bucket policies for security, including lifecycle rules.                         |
+| `versioning.tf`   | Enables versioning for all buckets.                                                      |
 | `dynamodb.tf`     | Defines a DynamoDB table for Terraform state file locking.                               |
 | `lambda.tf`       | Configures a Lambda function for DynamoDB TTL automation.                                |
 | `outputs.tf`      | Exposes key outputs for integration with other modules.                                  |
@@ -77,14 +68,17 @@ An example of the configuration can be found in the "Usage Example" section.
 | **Name**                            | **Type**       | **Description**                                                                        | **Default/Required**  |
 |-------------------------------------|----------------|----------------------------------------------------------------------------------------|-----------------------|
 | `replication_region`                | `string`       | AWS region for the destination replication bucket.                                     | Required              |
-| `environment`                       | `string`       | Environment for the resources (e.g., dev, stage, prod). Used for tagging and naming.   | Required              |
-| `name_prefix`                       | `string`       | Name prefix for S3 resources to ensure unique and identifiable names.                  | Required              |
+| `environment`                       | `string`       | Environment for the resources (e.g., dev, stage, prod).                                | Required              |
+| `name_prefix`                       | `string`       | Prefix for S3 resources to ensure unique and identifiable names.                       | Required              |
 | `aws_account_id`                    | `string`       | AWS Account ID for bucket policies and resource security.                              | Required              |
 | `kms_key_arn`                       | `string`       | ARN of the KMS key used for S3 bucket encryption.                                      | Required              |
 | `sns_topic_arn`                     | `string`       | ARN of the SNS topic to send S3 bucket notifications.                                  | Required              |
-| `noncurrent_version_retention_days` | `number`       | Days to retain noncurrent object versions for versioned buckets.                       | `90`                  |
+| `noncurrent_version_retention_days` | `number`       | Days to retain noncurrent object versions for versioned buckets.                       | `30`                  |
 | `enable_s3_replication`             | `bool`         | Enables cross-region replication for specific buckets.                                 | `false`               |
-| `buckets`                           | `list(object)` | Defines the list of buckets with their `name` and `type` (e.g., "base", "special")     | Required              |
+| `enable_replication_bucket`         | `bool`         | Enables the creation of the replication bucket for cross-region replication.           | `false`               |
+| `enable_lambda`                     | `bool`         | Enables creation of Lambda function for DynamoDB TTL updates.                          | `false`               |
+| `enable_dynamodb`                   | `bool`         | Enables creation of DynamoDB table for state locking.                                  | `false`               |
+| `buckets`                           | `map(string)`  | Map of bucket names and types (e.g., "base", "special").                               | Required              |
 
 ---
 
@@ -98,146 +92,78 @@ An example of the configuration can be found in the "Usage Example" section.
 | `logging_bucket_arn`              | ARN of the S3 bucket used for logging.                                         |
 | `ami_bucket_arn`                  | ARN of the S3 bucket used for AMI storage.                                     |
 | `replication_bucket_arn`          | ARN of the replication bucket, if created.                                     |
-| `all_bucket_arns`                 | List of ARNs for all S3 buckets created by the module.                         |
-| `logging_bucket_id`               | ID of the S3 bucket used for logging.                                          |
-| `terraform_locks_table_name`      | Name of the DynamoDB table used for Terraform state locking.                   |
-| `terraform_locks_table_arn`       | ARN of the DynamoDB table used for Terraform state locking.                    |
 | `bucket_details`                  | Map of bucket names to their ARNs and IDs.                                     |
 
 ---
 
-## Usage Example
+## Environment-Specific Logic
+
+- **Development (dev)**:
+  - Base buckets (e.g., scripts, logging, ami) are created by default.
+  - Special buckets (e.g., terraform_state, replication) are created only if explicitly enabled.
+  - DynamoDB and Lambda are created only if `enable_dynamodb` and `enable_lambda` are `true`.
+
+- **Staging (stage)**:
+  - Includes both base and special buckets, with optional cross-region replication.
+  - DynamoDB and Lambda can be enabled for enhanced functionality.
+
+- **Production (prod)**:
+  - Similar to staging but typically with full-scale replication and stricter security policies.
+
+---
+
+## Security Best Practices
+
+- **Public Access**:
+  - Disabled by default for all buckets.
+  - HTTPS-only access enforced.
+
+- **Encryption**:
+  - Server-Side Encryption (SSE) with AWS KMS for all buckets.
+  - Policies enforce encryption during uploads.
+
+- **Logging**:
+  - Centralized in a dedicated logging bucket.
+  - Regularly review and monitor logs for security.
+
+---
+
+## Future Improvements
+- Expand lifecycle policies to include archival storage using Glacier for cost optimization.
+- Integrate bucket logging analysis tools for improved security auditing and anomaly detection.
+- Add CloudWatch Alarms for monitoring:
+  - Lambda execution errors.
+  - DynamoDB throughput limits.
+- Add conditional creation for additional resources to enhance modularity.
+
+---
+
+## Alternative State Locking with S3 Conditional Writes
+
+Starting from Terraform 1.10.0, you can use S3 Conditional Writes for state locking, removing the need for DynamoDB.
+
+### Key Benefits:
+1. **Simpler Setup**: No need for additional DynamoDB tables.
+2. **Cost Efficiency**: Reduces costs by leveraging S3 features.
+3. **Compatibility**: Backward compatible with existing DynamoDB locking.
+
+---
+
+### Example Configuration
 
 ```hcl
-# Root Configuration for Providers
 terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
+  backend "s3" {
+    bucket = "my-terraform-state-bucket"
+    key    = "path/to/my/state/terraform.tfstate"
+    region = "eu-west-1"
+    use_lockfile = true
   }
 }
 
 provider "aws" {
-  region = "eu-west-1" # AWS region defined in the root configuration
+  region = "eu-west-1"
 }
-
-module "s3" {
-  source                            = "./modules/s3"
-  environment                       = "dev"
-  name_prefix                       = "dev"
-  aws_account_id                    = "123456789012"
-  kms_key_arn                       = "arn:aws:kms:region:123456789012:key/example-key-id"
-  sns_topic_arn                     = "arn:aws:sns:region:123456789012:cloudwatch-alarms"
-  noncurrent_version_retention_days = 30
-  enable_s3_replication             = true
-  replication_region                = "us-east-1"
-  buckets = [
-    { name = "terraform_state", type = "base" },
-    { name = "logging", type = "base" },
-    { name = "wordpress_media", type = "special" },
-    { name = "replication", type = "special" }
-  ]
-}
-
-output "replication_bucket" {
-  value = module.s3.replication_bucket_arn
-}
-
----
-
-## Environment-Specific Logic
-# dev:
-Only base buckets are created (e.g., terraform_state, logging).
-Special buckets (e.g., wordpress_media, replication) are not created.
-# stage:
-Both base and special buckets are created.
-Cross-region replication can be enabled if enable_s3_replication is true.
-# prod:
-Same as stage, but with full-scale replication and additional production-grade configurations.
-
-## Security Best Practices
-
-**Public Access**:  
-- Public access is disabled by default for all buckets.  
-- Bucket policies enforce HTTPS-only access to prevent insecure connections.
-
-**Encryption**:  
-- Server-side encryption (SSE) with KMS ensures all data is encrypted at rest.  
-- Policies enforce encryption during uploads, rejecting unencrypted objects to maintain compliance.
-
-**Logging**:  
-- Logging is enabled for all buckets except the logging bucket itself (to avoid recursive logging).  
-- Logs are stored in a centralized logging bucket for monitoring and auditing.  
-- Regularly monitor the logging bucket for unusual activity.
-
-**Notifications**:  
-- Sends notifications to an SNS topic when objects are created or deleted.  
-- These notifications can be integrated with CloudWatch for enhanced monitoring and alerting.
-
-**Versioning**:  
-- Versioning is enabled for all buckets in stage and prod environments, ensuring data recovery for overwritten or deleted objects.  
-- In dev, versioning is disabled to reduce costs.
-
-**DynamoDB**:  
-- The DynamoDB table used for Terraform locking is encrypted with a KMS key.  
-- Point-in-time recovery (PITR) is enabled for disaster recovery.  
-- A Lambda function automatically updates expiration timestamps for locks to prevent stale entries.
-
----
-
-### Notes
-
-** Buckets Configuration Examples:
-
-The buckets variable is a flexible configuration option that allows defining the S3 buckets to be created. Below are examples of typical configurations for different environments:
-
-In dev, only base buckets are created to simplify testing.
-In stage and prod, additional special-purpose buckets, such as wordpress_media and replication, are included.
-
-# Example for dev:
-buckets = [
-  { name = "terraform_state", type = "base" },
-  { name = "scripts", type = "base" },
-  { name = "logging", type = "base" },
-  { name = "ami", type = "base" }
-]
-
-# Example for stage or prod:
-buckets = [
-  { name = "terraform_state", type = "base" },
-  { name = "scripts", type = "base" },
-  { name = "logging", type = "base" },
-  { name = "ami", type = "base" },
-  { name = "wordpress_media", type = "special" },
-  { name = "replication", type = "special" } # If enable_s3_replication = true
-]
-
-**Cross-Region Replication
-- Primary Region: The primary AWS region is specified in the providers.tf file of the main block.
-- Replication Region: The replication_region variable specifies the destination region for replication.
-- Enabling Replication: Replication is enabled only when enable_s3_replication = true.
-- Destination Bucket: The destination bucket is automatically created in the specified replication_region.
-- Security: Source and destination buckets are secured with IAM policies to enforce replication permissions.  
-
-**CORS Rules**:  
-- Configured only for the WordPress media bucket in stage and prod environments.  
-- Allows restricted cross-origin access for WordPress media if required.
-
-**Logging**:  
-- The logging bucket itself does not have logging enabled to avoid circular dependencies.  
-- The logging bucket centralizes logging for ALB, WAF, other S3 buckets, and various AWS resources in their respective folders.  
-- Logging paths are dynamically organized with prefixes based on the source (e.g., `${var.name_prefix}/alb-logs/`, `${var.name_prefix}/waf-logs/`).
-
----
-
-### Future Improvements
-
-1. Expand lifecycle policies to include archival storage using Glacier for cost optimization.  
-2. Integrate bucket logging analysis tools for improved security auditing and anomaly detection.  
-3. Add support for additional use cases, such as real-time object monitoring via Lambda.  
-4. Enhance modularity by allowing conditional creation of DynamoDB and Lambda resources.
 
 ---
 
@@ -268,54 +194,5 @@ For more information on AWS S3 and related services, refer to the following reso
 - [AWS DynamoDB Documentation](https://docs.aws.amazon.com/dynamodb/index.html)  
 - [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/index.html)  
 - [Cross-Region Replication in S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
-
----
-
-## Alternative State Locking with S3 Conditional Writes
-
-Starting from Terraform 1.10.0 and newer, you can utilize the new S3 Conditional Writes feature for state locking. This eliminates the need for DynamoDB as a locking mechanism. Instead, Terraform uses an `.tflock` file in the S3 bucket, along with Amazon S3's conditional write functionality, to ensure safe state locking.
-
-### Key Benefits:
-1. **Simpler Configuration**:
-   - No additional DynamoDB table required.
-   - Leverages native S3 functionality.
-
-2. **Cost Efficiency**:
-   - Eliminates DynamoDB costs for state locking.
-
-3. **Backward Compatible**:
-   - Can coexist with the existing DynamoDB-based locking mechanism if needed.
-
----
-
-### Example Configuration
-
-Below is an example configuration for using S3 Conditional Writes for state locking:
-
-```hcl
-terraform {
-  backend "s3" {
-    bucket = "my-terraform-state-bucket"
-    key    = "path/to/my/state/terraform.tfstate"
-    region = "eu-west-1"
-    use_lockfile = true
-  }
-}
-
-provider "aws" {
-  region = "eu-west-1"
-}
-
----
-
-**Notes**:
-
-Migration: If you are currently using DynamoDB for state locking, this feature allows for a seamless transition to a simpler setup.
-
-Compatibility: Ensure that your AWS provider version and Terraform version meet the requirements for S3 Conditional Writes.
-
-Coexistence: You can enable this feature in one environment (e.g., dev) while maintaining DynamoDB locking in others (e.g., stage, prod).
-
-Best Practices: For sensitive environments, continue using versioning and server-side encryption for added security.
 
 ---

@@ -1,10 +1,9 @@
 # --- Logging Configuration --- #
-# Enables logging for all buckets except the logging bucket itself (to prevent recursive logs).
-# Logs are stored in the logging bucket with prefixes for source buckets.
-# The `for_each` loop uses the `buckets` variable to dynamically identify logging targets.
+# Enables logging for all S3 buckets except the logging bucket itself to prevent recursive logging.
+# Logs are stored in the centralized logging bucket under dedicated prefixes for each source bucket.
 
 # --- Prefixes for Buckets --- #
-# Dynamically determine prefixes for each bucket based on the `buckets` variable.
+# Dynamically generate log prefixes for each bucket based on the `buckets` variable.
 locals {
   bucket_prefixes = {
     for name, type in var.buckets : name => "${name}/"
@@ -12,9 +11,7 @@ locals {
 }
 
 # --- Logging Configuration for Each Bucket --- #
-# Configures logging for all buckets except the logging bucket itself.
-# Buckets are dynamically selected based on the `buckets` variable from `dev.tfvars`.
-# Logs from all other buckets are sent to the centralized logging bucket.
+# Buckets are dynamically selected based on the `buckets` variable from `terraform.tfvars`.
 resource "aws_s3_bucket_logging" "bucket_logging" {
   for_each = tomap({
     for key, value in var.buckets : key => value if key != "logging" # Exclude the logging bucket itself to avoid recursive logs
@@ -26,8 +23,8 @@ resource "aws_s3_bucket_logging" "bucket_logging" {
 }
 
 # --- Optional Logging for the Logging Bucket --- #
-# Uncomment this block to enable logging for the logging bucket itself.
-# Note: Ensure the logging bucket is properly configured to store its own logs.
+# Uncomment this block if you need to log activities for the logging bucket itself.
+# Ensure that log delivery permissions are properly configured for recursive logs.
 # resource "aws_s3_bucket_logging" "logging_for_logging_bucket" {
 #   bucket        = aws_s3_bucket.logging.id
 #   target_bucket = aws_s3_bucket.logging.id
@@ -35,26 +32,22 @@ resource "aws_s3_bucket_logging" "bucket_logging" {
 # }
 
 # --- Notes and Best Practices --- #
-# 1. Purpose of Logging:
-#    - Enables tracking of access and operations on S3 buckets.
-#    - Useful for debugging, compliance, and security audits.
+# 1. **Purpose of Logging**:
+#    - Tracks access and operations for debugging, compliance, and audits.
+#    - Centralizes logs in a single bucket with organized prefixes for each source.
 #
-# 2. Central Logging Bucket:
-#    - Aggregates logs for all buckets into a single location.
-#    - Each bucket's logs are organized under a dedicated prefix (e.g., `terraform_state/`, `scripts/`).
+# 2. **Central Logging Bucket**:
+#    - Aggregates logs for all buckets except itself (to prevent recursion).
+#    - Each bucket's logs are stored under a unique prefix for clarity.
 #
-# 3. Dynamic Configuration:
-#    - Uses the `buckets` variable to dynamically determine which buckets require logging.
-#    - The `bucket_prefixes` local maps bucket names to their respective log prefixes.
+# 3. **Dynamic Configuration**:
+#    - Automatically applies logging to buckets based on the `buckets` variable.
+#    - Uses the `bucket_prefixes` local variable for consistent log organization.
 #
-# 4. Environment-Specific Logic:
-#    - Logging applies to all buckets defined in the `buckets` variable for the current environment.
-#    - The logging bucket itself can optionally have logging enabled (commented out by default).
+# 4. **Optional Logging for Logging Bucket**:
+#    - Uncomment the `logging_for_logging_bucket` block if recursive logs are required.
+#    - Ensure the logging bucket has appropriate permissions and storage policies.
 #
-# 5. Security Considerations:
+# 5. **Security Considerations**:
 #    - Ensure the logging bucket is private and encrypted.
-#    - Grant the `s3:PutObject` permission to allow log delivery.
-#
-# 6. Customization:
-#    - Adjust `bucket_prefixes` in `buckets` if bucket names or prefixes change.
-#    - Uncomment the `logging_for_logging_bucket` resource if logging for the logging bucket is needed.
+#    - Grant the `s3:PutObject` permission for log delivery.

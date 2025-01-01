@@ -3,6 +3,8 @@
 # The locking mechanism prevents multiple users from making concurrent changes to the state file.
 
 resource "aws_dynamodb_table" "terraform_locks" {
+  count = var.enable_dynamodb ? 1 : 0 # Dynamically enable or disable resource creation based on enable_dynamodb.
+
   # --- Table Name --- #
   # Construct the table name dynamically using a project-specific prefix and a random suffix for uniqueness.
   name = "${lower(var.name_prefix)}-terraform-locks-${random_string.suffix.result}"

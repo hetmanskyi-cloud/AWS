@@ -387,7 +387,7 @@ variable "buckets" {
   type        = map(string)
 }
 
-# Versioning settings are managed in the `dev.tfvars` file for dev environment.
+# Versioning settings are managed in the `terraform.tfvars` file for dev environment.
 variable "enable_versioning" {
   description = "Map of bucket names to enable or disable versioning."
   type        = map(bool)
@@ -427,7 +427,7 @@ variable "enable_s3_replication" {
 variable "enable_cors" {
   description = "Enable or disable CORS configuration for the WordPress media bucket."
   type        = bool
-  default     = false # Set to true in `dev.tfvars` to enable CORS for the WordPress media bucket
+  default     = false # Set to true in `terraform.tfvars` to enable CORS for the WordPress media bucket
 }
 
 # Lifecycle Configuration
@@ -435,4 +435,33 @@ variable "enable_cors" {
 variable "noncurrent_version_retention_days" {
   description = "Number of days to retain noncurrent versions of objects in S3 buckets"
   type        = number
+}
+
+# --- Enable DynamoDB for State Locking --- #
+# This variable controls whether the DynamoDB table for Terraform state locking is created.
+# - true: Creates the DynamoDB table and associated resources for state locking.
+# - false: Skips the creation of DynamoDB-related resources.
+variable "enable_dynamodb" {
+  description = "Enable DynamoDB table for Terraform state locking."
+  type        = bool
+  default     = false
+
+  # --- Notes --- #
+  # 1. When enabled, the module creates a DynamoDB table with TTL and stream configuration.
+  # 2. This is required only if you are using DynamoDB-based state locking.
+  # 3. If you prefer S3 Conditional Writes for state locking, set this to false.
+}
+
+# --- Enable Lambda for TTL Automation --- #
+# This variable controls whether the Lambda function for TTL automation is created.
+# - true: Creates the Lambda function and associated resources.
+# - false: Skips the creation of Lambda-related resources.
+variable "enable_lambda" {
+  description = "Enable Lambda function for DynamoDB TTL automation."
+  type        = bool
+  default     = false
+
+  # --- Notes --- #
+  # 1. This variable must be set to true only if `enable_dynamodb = true`.
+  # 2. When disabled, all Lambda-related resources (IAM role, policy, function, etc.) are skipped.
 }

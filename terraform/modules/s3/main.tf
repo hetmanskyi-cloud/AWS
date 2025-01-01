@@ -1,15 +1,15 @@
 # --- Main Configuration for S3 Buckets --- #
 # This file defines the S3 buckets required for the project, with dynamic logic for environment and type.
 # Buckets include:
-# 1. scripts: To store project-related scripts. This backet is always created.
+# 1. scripts: To store project-related scripts. This bucket is always created.
 # 2. logging: To store logs for all buckets. This bucket is always created.
 # 3. ami: To store golden AMI images for the project. This bucket is always created.
 # 4. terraform_state: To store the Terraform state file.
-#    - This bucket is created only if condition is enabled.
-# 5. wordpress_media: To store media assets for WordPress in stage and prod environments.
-#    - This bucket is created only if condition is enabled.
+#    - This bucket is created only if enabled via the variable `enable_terraform_state_bucket`.
+# 5. wordpress_media: To store media assets for WordPress site.
+#    - This bucket is created only if enabled via the variable `enable_wordpress_media_bucket`.
 # 6. replication: Serves as the destination for cross-region replication.
-#    - This bucket is created only if condition is enabled.
+#    - This bucket is created only if enabled via the variable `enable_replication_bucket` and used for replication logic.
 
 # --- Terraform Configuration --- #
 # Specifies the required Terraform providers and their versions.
@@ -27,9 +27,8 @@ terraform {
 # This resource dynamically creates S3 buckets based on the input `buckets` variable.
 # Each entry in `buckets` defines the name and type of the bucket.
 # The logic here ensures:
-# - Base buckets are always created.
-# - Special buckets are created only if condition is enabled in `dev.tfvars`.
-# Each bucket is uniquely identified by its name, which is passed in the `buckets` variable.
+# - Base buckets (e.g., `scripts`, `logging`, `ami`) are always created.
+# - Special buckets (e.g., `terraform_state`, `wordpress_media`, `replication`) are created only if enabled via variables.
 # Tags are applied to all created buckets for proper identification and organization.
 
 resource "aws_s3_bucket" "buckets" {
@@ -94,7 +93,7 @@ resource "aws_s3_object" "deploy_wordpress_script" {
   # --- Notes --- #
   # 1. This resource uploads the WordPress deployment script to the `scripts` bucket.
   # 2. The `source` attribute points to the local script file to be uploaded.
-  # 3. The script is placed under the `wordpress/` folder in the bucket for organization.
+  # 3. This script is placed under the `wordpress/` folder in the bucket.
   # 4. Terraform does not validate the existence of the `deploy_wordpress.sh` file during the plan phase.
   # 5. Ensure that the file exists at the specified local path (`scripts/deploy_wordpress.sh`) before running `terraform apply`.
   # 6. Missing or incorrect file paths will cause the S3 object upload to fail during the apply phase.
@@ -132,7 +131,7 @@ resource "aws_s3_bucket" "ami" {
 
 # --- Terraform State S3 Bucket --- #
 resource "aws_s3_bucket" "terraform_state" {
-  # Enabled via the enable_terraform_state_bucket variable in dev.tfvars.
+  # Enabled via the enable_terraform_state_bucket variable in terraform.tfvars.
   count = var.enable_terraform_state_bucket ? 1 : 0
 
   # Unique bucket name using the name_prefix and a random suffix
@@ -147,7 +146,7 @@ resource "aws_s3_bucket" "terraform_state" {
 
 # --- WordPress Media S3 Bucket --- #
 resource "aws_s3_bucket" "wordpress_media" {
-  # Enabled via the enable_wordpress_media_bucket variable in dev.tfvars.
+  # Enabled via the enable_wordpress_media_bucket variable in terraform.tfvars.
   count = var.enable_wordpress_media_bucket ? 1 : 0
 
   # Unique bucket name using the name_prefix and a random suffix
@@ -165,7 +164,7 @@ resource "aws_s3_bucket" "wordpress_media" {
 # The replication destination bucket is created in the specified `replication_region`.
 resource "aws_s3_bucket" "replication" {
   provider = aws.replication
-  # Enabled via the enable_replication_bucket variable in dev.tfvars.
+  # Enabled via the enable_replication_bucket variable in terraform.tfvars.
   count = var.enable_replication_bucket ? 1 : 0 # The enable_replication_bucket variable is only used to enable the bucket, not the configuration.
 
   # Unique bucket name using the name_prefix and a random suffix
@@ -179,6 +178,10 @@ resource "aws_s3_bucket" "replication" {
 }
 
 # --- S3 Bucket Notifications --- #
+# This resource configures S3 bucket notifications for the specified buckets.
+# Notifications are sent to the specified SNS topic for events like object creation or deletion.
+# Only buckets enabled and present in the `buckets` variable are included in this configuration.
+# Disabled buckets are ignored automatically via `for_each` logic.
 resource "aws_s3_bucket_notification" "bucket_notifications" {
   # Filter buckets dynamically
   for_each = tomap({
@@ -197,24 +200,22 @@ resource "aws_s3_bucket_notification" "bucket_notifications" {
     topic_arn = var.sns_topic_arn # Notifications are configured for object creation and deletion events using SNS.
     events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
   }
-
-  # --- Notes --- #
-  # 1. This resource configures S3 bucket notifications for the specified buckets.
-  # 2. Notifications are sent to the specified SNS topic for events like object creation or deletion.
-  # 3. Only buckets that are enabled in `dev.tfvars` are included in this configuration.
 }
 
 # --- Replication Configuration for Source Buckets --- #
 # This resource configures cross-region replication for selected buckets.
 # Replication is enabled only when `enable_s3_replication` is `true`.
 # Each replicated bucket uses a prefix matching its name for object organization in the destination bucket.
+# Buckets that are not enabled are automatically excluded via the `for_each` logic.
 resource "aws_s3_bucket_replication_configuration" "replication_config" {
   for_each = var.enable_s3_replication ? tomap({
-    scripts         = aws_s3_bucket.scripts.id,
-    logging         = aws_s3_bucket.logging.id,
-    ami             = aws_s3_bucket.ami.id,
-    terraform_state = var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0].id : null,
-    wordpress_media = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].id : null
+    for key, bucket_id in {
+      scripts         = aws_s3_bucket.scripts.id,
+      logging         = aws_s3_bucket.logging.id,
+      ami             = aws_s3_bucket.ami.id,
+      terraform_state = var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0].id : null,
+      wordpress_media = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].id : null
+    } : key => bucket_id if bucket_id != null
   }) : {}
 
   bucket = each.value
@@ -237,7 +238,8 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
   # --- Notes --- #
   # 1. The source buckets listed in this replication configuration must exist before enabling replication.
   # 2. Ensure that the `replication` destination bucket is accessible and properly configured for cross-region replication.
-  # 3. Any missing source or destination buckets will cause Terraform to fail during the apply phase.
+  # 3. Any misconfigured or inaccessible source or destination buckets may cause Terraform to fail during the apply phase.
+  # Ensure that all buckets referenced in this configuration are created and accessible.
 }
 
 # --- Random String Configuration --- #
@@ -256,6 +258,7 @@ resource "random_string" "suffix" {
 #
 # 2. Bucket Notifications:
 #    - Notifications are dynamically applied based on the environment and bucket availability.
+#    - Notifications are dynamically applied based on the buckets enabled through variables like `enable_terraform_state_bucket`.
 #
 # 3. Dependencies:
 #    - Use explicit `depends_on` for clarity when resources rely on others.

@@ -1,10 +1,10 @@
 # --- Versioning Configuration for Buckets --- #
 # This file dynamically enables versioning for S3 buckets based on environment and
-# the `enable_versioning` variable. Retains object history for recovery, compliance, and auditing.
+# the enable_versioning variable. Retains object history for recovery, compliance, and auditing.
 
 # --- Enable Versioning for Buckets --- #
 resource "aws_s3_bucket_versioning" "versioning" {
-  # Dynamically enable versioning for buckets explicitly marked in `enable_versioning`.
+  # Dynamically enable versioning for buckets explicitly marked in enable_versioning.
   for_each = tomap({
     for key, value in var.buckets : key => value if lookup(var.enable_versioning, key, false)
   })
@@ -29,8 +29,8 @@ resource "aws_s3_bucket_versioning" "versioning" {
 #    - Protects against accidental deletions or overwrites.
 #
 # 2. **Versioning Logic**:
-#    - Controlled by the `enable_versioning` variable in `dev.tfvars`.
-#    - If `enable_versioning` is not set for a bucket or explicitly false, no versioning is applied.
+#    - Controlled by the enable_versioning variable in terraform.tfvars.
+#    - If enable_versioning is not set for a bucket or explicitly false, no versioning is applied.
 #
 # 3. **Best Practices**:
 #    - Enable versioning on critical buckets, especially in production.
@@ -41,9 +41,9 @@ resource "aws_s3_bucket_versioning" "versioning" {
 #    - Objects added before enabling versioning are marked with a "null version" and remain unchanged.
 #
 # 5. **Dynamic Application**:
-#    - Versioning logic applies dynamically to buckets based on the `buckets` and `enable_versioning` variables.
+#    - Versioning logic applies dynamically to buckets based on the buckets and enable_versioning variables.
 #    - Simplifies environment management by centralizing control over versioning settings.
 #
 # 6. **Integration**:
 #    - Works seamlessly with the main S3 module configuration.
-#    - Ensure the `enable_versioning` map in `dev.tfvars` includes all relevant buckets.
+#    - Ensure the enable_versioning map in terraform.tfvars includes all relevant buckets.

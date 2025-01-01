@@ -262,6 +262,8 @@ module "s3" {
   enable_cors                       = var.enable_cors
   enable_replication_bucket         = var.enable_replication_bucket
   enable_s3_replication             = var.enable_s3_replication
+  enable_lambda                     = var.enable_lambda
+  enable_dynamodb                   = var.enable_dynamodb
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
 
   # Pass buckets list dynamically
