@@ -1,4 +1,6 @@
-# --- General Encryption Key Configuration for CloudWatch Logs and S3 Buckets --- #
+# --- Initial Configuration for KMS Key --- #
+# This configuration is used for the initial creation of the KMS key with root account access.
+# After creation, you must remove root access manually and switch to the IAM role for managing the KMS key.
 
 # Define a KMS key resource to encrypt CloudWatch logs, S3 buckets, and other resources
 resource "aws_kms_key" "general_encryption_key" {
@@ -63,7 +65,26 @@ locals {
 }
 
 # --- Notes --- #
+# 1. **Initial Setup**:
+#    - This configuration is only for the initial setup of the KMS key.
+#    - Root access is required for creating the key but should be removed after initial setup.
+#    - To remove root access:
+#      1. Enable the IAM role management configuration in `kms/key.tf`.
+#      2. Manually delete the following code from `kms/main.tf`:
+#         ```hcl
+#         {
+#           Effect    = "Allow"
+#           Principal = { AWS = "arn:aws:iam::${var.aws_account_id}:root" }
+#           Action    = "kms:*"
+#           Resource  = "*"
+#         }
+#         ```
 
-# 1. This KMS key is designed for general encryption purposes, such as CloudWatch Logs and S3 buckets.
-# 2. Automatic key rotation is enabled to enhance security and compliance.
-# 3. Additional permissions can be granted dynamically using the additional_principals variable.
+# 2. **Additional Principals**:
+#    - Use the `additional_principals` variable to grant permissions to other roles or services.
+#    - This allows for flexible and secure addition of new participants.
+
+# 3. **Recommendations**:
+#    - **Principle of Least Privilege**: After initial setup, switch to IAM roles with minimal required permissions.
+#    - **CloudTrail Monitoring**: Consider enabling CloudTrail logs for tracking KMS key activities (e.g., key rotations, encryption events).
+#    - **Documentation**: Maintain clear documentation for adding new participants and managing the key.

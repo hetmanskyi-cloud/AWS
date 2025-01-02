@@ -39,3 +39,11 @@ variable "additional_principals" {
   type        = list(string)
   default     = []
 }
+
+# Enable or disable the creation of the IAM role for managing the KMS key
+# Set to true to create the IAM role and its associated policy for managing the KMS key.
+variable "enable_kms_management_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}

@@ -150,3 +150,11 @@ variable "enable_lambda" {
   # 1. This variable must be set to true only if `enable_dynamodb = true`.
   # 2. When disabled, all Lambda-related resources (IAM role, policy, function, etc.) are skipped.
 }
+
+# --- Enable KMS Role for S3 --- #
+# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
+variable "enable_kms_s3_role" {
+  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
+  type        = bool
+  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
+}

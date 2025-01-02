@@ -74,10 +74,11 @@ module "vpc" {
 module "kms" {
   source = "./modules/kms" # Path to module KMS
 
-  aws_region     = var.aws_region
-  aws_account_id = var.aws_account_id
-  environment    = var.environment
-  name_prefix    = var.name_prefix
+  aws_region                 = var.aws_region
+  aws_account_id             = var.aws_account_id
+  environment                = var.environment
+  name_prefix                = var.name_prefix
+  enable_kms_management_role = var.enable_kms_management_role
 }
 
 # --- EC2 Module Configuration --- #
@@ -265,6 +266,9 @@ module "s3" {
   enable_lambda                     = var.enable_lambda
   enable_dynamodb                   = var.enable_dynamodb
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
+
+  # KMS role for S3 module
+  enable_kms_s3_role = var.enable_kms_s3_role
 
   # Pass buckets list dynamically
   buckets = var.buckets

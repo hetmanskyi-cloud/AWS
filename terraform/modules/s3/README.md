@@ -8,6 +8,9 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 - **AWS Provider Configuration**:  
   The `aws` provider configuration, including the region and credentials, must be set in the root block of the Terraform project. Refer to the usage example for details.
+- **KMS Key**:  
+  Ensure that a KMS key ARN is provided via the `kms_key_arn` variable.  
+  *Note*: If the key is managed in a separate module or manually created, consider using `data "aws_kms_key"` for explicit validation of its existence. This approach is especially recommended in production environments for added reliability.
 
 ---
 
@@ -44,6 +47,10 @@ This module creates and manages S3 buckets for various use cases within a projec
   - DynamoDB table for Terraform state file locking.
   - TTL automation with AWS Lambda to prevent stale locks.
 
+- **KMS Role for S3**:
+  - Conditional creation of an IAM role and policy for S3 to access KMS.
+  - The role can be enabled with `enable_kms_s3_role` and integrates seamlessly with the specified `kms_key_arn`.
+
 ---
 
 ## Files Structure
@@ -60,6 +67,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `lambda.tf`       | Configures a Lambda function for DynamoDB TTL automation.                                |
 | `outputs.tf`      | Exposes key outputs for integration with other modules.                                  |
 | `variables.tf`    | Declares input variables for the module.                                                 |
+| `kms.tf`          | Manages IAM roles and policies for S3 to interact with KMS.                              |
 
 ---
 
@@ -72,6 +80,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `name_prefix`                       | `string`       | Prefix for S3 resources to ensure unique and identifiable names.                       | Required              |
 | `aws_account_id`                    | `string`       | AWS Account ID for bucket policies and resource security.                              | Required              |
 | `kms_key_arn`                       | `string`       | ARN of the KMS key used for S3 bucket encryption.                                      | Required              |
+| `enable_kms_s3_role`                | `bool`         | Enables creation of an IAM role for S3 to access KMS.                                  | `false`               |
 | `sns_topic_arn`                     | `string`       | ARN of the SNS topic to send S3 bucket notifications.                                  | Required              |
 | `noncurrent_version_retention_days` | `number`       | Days to retain noncurrent object versions for versioned buckets.                       | `30`                  |
 | `enable_s3_replication`             | `bool`         | Enables cross-region replication for specific buckets.                                 | `false`               |
@@ -121,6 +130,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 - **Encryption**:
   - Server-Side Encryption (SSE) with AWS KMS for all buckets.
   - Policies enforce encryption during uploads.
+  - Consider using `data "aws_kms_key"` to validate KMS key existence if keys are managed externally.
 
 - **Logging**:
   - Centralized in a dedicated logging bucket.
@@ -129,12 +139,26 @@ This module creates and manages S3 buckets for various use cases within a projec
 ---
 
 ## Future Improvements
+
+- Add dynamic KMS key lookup using `data "aws_kms_key"` for more robust validation in distributed environments.
 - Expand lifecycle policies to include archival storage using Glacier for cost optimization.
 - Integrate bucket logging analysis tools for improved security auditing and anomaly detection.
 - Add CloudWatch Alarms for monitoring:
   - Lambda execution errors.
   - DynamoDB throughput limits.
-- Add conditional creation for additional resources to enhance modularity.
+
+---
+
+### Useful Resources
+
+For more information on AWS S3 and related services, refer to the following resources:
+
+- [Amazon S3 Documentation](https://docs.aws.amazon.com/s3/index.html)  
+- [AWS S3 Server-Side Encryption (SSE)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html)  
+- [Amazon S3 Bucket Policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)  
+- [AWS DynamoDB Documentation](https://docs.aws.amazon.com/dynamodb/index.html)  
+- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/index.html)  
+- [Cross-Region Replication in S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
 
 ---
 
@@ -181,18 +205,5 @@ Community contributions are welcome to further enhance its functionality and app
 3. **Readable**: Written in clear language, making it easy to understand and implement.  
 
 The module is production-ready and designed for integration into complex environments!
-
----
-
-### Useful Resources
-
-For more information on AWS S3 and related services, refer to the following resources:
-
-- [Amazon S3 Documentation](https://docs.aws.amazon.com/s3/index.html)  
-- [AWS S3 Server-Side Encryption (SSE)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html)  
-- [Amazon S3 Bucket Policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)  
-- [AWS DynamoDB Documentation](https://docs.aws.amazon.com/dynamodb/index.html)  
-- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/index.html)  
-- [Cross-Region Replication in S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
 
 ---

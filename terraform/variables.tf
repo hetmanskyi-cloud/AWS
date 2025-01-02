@@ -105,6 +105,26 @@ variable "log_retention_in_days" {
   type        = number
 }
 
+# --- KMS Configuration --- #
+
+# Enable or disable the creation of the IAM role for managing the KMS key
+# Set to true to create the IAM role and its associated policy for managing the KMS key.
+variable "enable_kms_management_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}
+
+# --- Enable KMS Role for S3 --- #
+# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
+variable "enable_kms_s3_role" {
+  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
+  type        = bool
+  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
+
+  # Notes: this role is created in S3 module.
+}
+
 # --- EC2 Instance Configuration --- #
 
 # Settings for instance, AMI, and key

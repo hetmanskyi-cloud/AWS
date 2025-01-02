@@ -7,9 +7,9 @@ This module creates and manages a KMS (Key Management Service) key in AWS. The k
 ### Prerequisites
 
 - **AWS Provider Configuration**:
-The region and other parameters of the `aws` provider are specified in the `providers.tf` file of the root block.
+  The region and other parameters of the `aws` provider are specified in the `providers.tf` file of the root block.
 
-An example of the configuration can be found in the "Usage Example" section.
+  An example of the configuration can be found in the "Usage Example" section.
 
 ---
 
@@ -61,11 +61,12 @@ An example of the configuration can be found in the "Usage Example" section.
 
 ```hcl
 module "kms" {
-  source               = "./modules/kms"
-  aws_account_id       = "123456789012"
-  aws_region           = "eu-west-1"
-  name_prefix          = "dev"
-  environment          = "dev"
+  source                     = "./modules/kms"
+  aws_account_id             = "123456789012"
+  aws_region                 = "eu-west-1"
+  name_prefix                = "dev"
+  environment                = "dev"
+  enable_kms_management_role = false # Activate after initial setup KMS
   additional_principals = [
     "arn:aws:iam::123456789012:role/example-role",
     "arn:aws:iam::123456789012:role/another-role"
@@ -75,50 +76,52 @@ module "kms" {
 output "kms_key_arn" {
   value = module.kms.kms_key_arn
 }
+```
+
+---
+
+### Initial Setup
+
+During the initial creation of the KMS key, full access is granted to the AWS account root principal to simplify setup and ensure that the key can be managed securely. However, **it is strongly recommended to update the KMS key policy after initial creation** to restrict access and adhere to the principle of least privilege.  
+
+1. **Step 1**: Create the key with root access using the default settings in this module.
+2. **Step 2**: Review and update the KMS key policy to remove root access and grant specific permissions to IAM roles or services that require access.
+3. **Step 3**: Test the updated policy to ensure it meets the operational requirements without introducing unnecessary risks.
 
 ---
 
 ## Security Best Practices
 
-1. **Key Rotation**:
-   - Enable automatic key rotation to reduce the risk of compromised encryption keys.
+1. **Key Rotation**:  
+   Enable automatic key rotation to reduce the risk of compromised encryption keys.
 
-2. **Access Policies**:
-   - Grant only the necessary permissions to additional principals using `additional_principals`.
-   - Regularly review and update the key policy to ensure it aligns with security requirements.
+2. **Access Policies**:  
+   - During initial setup, full access is granted to the AWS root account for ease of configuration.  
+   - After setup, review and update the key policy to:  
+     - Remove root access.  
+     - Grant only necessary permissions to IAM roles and services.  
+   - Use the `additional_principals` variable to define additional entities requiring access.
 
-3. **Environment Isolation**:
-   - Use distinct KMS keys for each environment (e.g., dev, stage, prod) to maintain resource isolation.
+3. **Environment Isolation**:  
+   Use distinct KMS keys for each environment (e.g., dev, stage, prod) to maintain resource isolation.
 
-4. **Monitoring**:
-   - Monitor key usage through AWS CloudTrail to detect unauthorized access or anomalies.
-
----
-
-### Notes
-
-- This KMS key is designed for general encryption purposes and can be extended to meet specific needs.
-- Ensure proper tagging to differentiate resources across environments.
+4. **Monitoring**:  
+   Monitor key usage through AWS CloudTrail to detect unauthorized access or anomalies.
 
 ---
 
-### Future Improvements
+## Future Improvements
 
-1. **Add support for alias creation to simplify key management**:
+1. **Add support for alias creation**:  
    - Creating aliases for KMS keys provides a user-friendly way to reference the keys.
    - Instead of using full ARNs, services or developers can use the alias name (e.g., `alias/project-key`) to interact with the key.
-   - This can also help in scenarios where keys need to be rotated or replaced without changing the configurations in dependent services.
+   - This simplifies key management and allows for easier key rotation.
 
-2. **Include predefined IAM roles for common use cases (e.g., Lambda, ECS)**:
-   - Predefining IAM roles for specific services (e.g., Lambda functions or ECS tasks) simplifies access control setup.
-   - These roles can include scoped-down policies that only allow access to perform necessary actions like encrypting and decrypting data with the KMS key.
-   - This approach improves security by adhering to the principle of least privilege.
-
-3. **Integrate key usage monitoring alerts using CloudWatch Alarms**:
-   - Setting up CloudWatch Alarms to monitor KMS key usage can help detect potential security issues or anomalies.
-   - Example metrics to monitor include:
-     - Number of encryption and decryption requests.
-     - Unauthorized access attempts.
+2. **Integrate key usage monitoring alerts using CloudWatch Alarms**:  
+   - Setting up CloudWatch Alarms to monitor KMS key usage can help detect potential security issues or anomalies.  
+   - Example metrics to monitor include:  
+     - Number of encryption and decryption requests.  
+     - Unauthorized access attempts.  
    - Notifications can be sent to an SNS topic, enabling real-time alerting and faster response to suspicious activities.
 
 ---
