@@ -3,7 +3,7 @@
 # Web ACL (Access Control List) protects ALB from common web vulnerabilities.
 # Includes managed rules for blocking bad bots, preventing SQL injections, XSS, and Log4j exploits.
 resource "aws_wafv2_web_acl" "alb_waf" {
-  count = var.environment != "dev" ? 1 : 0
+  count = var.enable_waf ? 1 : 0
   # Name of the WAF ACL
   name        = "${var.name_prefix}-alb-waf" # # Unique name for the WAF ACL
   scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
@@ -130,11 +130,11 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   }
 
   # --- Visibility Configuration --- #
-  # Enable detailed logging for monitoring WAF activity (prod only).
+  # Enable detailed logging for monitoring WAF activity.
   visibility_config {
-    cloudwatch_metrics_enabled = var.environment == "prod" # Enable detailed metrics only in prod
-    metric_name                = "ALB-WAF"                 # Metric name for the WAF
-    sampled_requests_enabled   = var.environment == "prod" # Enable sampled request logging only in prod
+    cloudwatch_metrics_enabled = true      # Enable detailed metrics
+    metric_name                = "ALB-WAF" # Metric name for the WAF
+    sampled_requests_enabled   = true      # Enable sampled request logging
   }
 
   tags = {
@@ -146,7 +146,8 @@ resource "aws_wafv2_web_acl" "alb_waf" {
 # --- WAF Association with ALB --- #
 # Associates the WAF with the ALB to protect incoming traffic.
 resource "aws_wafv2_web_acl_association" "alb_waf_association" {
-  count = var.environment != "dev" ? 1 : 0
+  count = var.enable_waf ? 1 : 0
+
   # The ARN of the ALB to associate with this WAF
   resource_arn = aws_lb.application.arn
   # The ARN of the WAF ACL
@@ -154,15 +155,16 @@ resource "aws_wafv2_web_acl_association" "alb_waf_association" {
 }
 
 # --- WAF Logging Configuration --- #
-# Logs all WAF activity to the specified destination (enabled only for prod).
+# Logs all WAF activity to the specified destination.
 resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
-  count                   = var.environment == "prod" ? 1 : 0
+  count = (var.enable_waf_logging && var.enable_firehose) ? 1 : 0
+
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn
 }
 
 # --- Notes --- #
-# 1. WAF is disabled in dev to avoid unnecessary overhead.
+# 1. WAF resources are controlled by `enable_waf` variable.
 # 2. Managed Rules:
 #    - "BlockBadBots": Protects from malicious bots targeting the ALB.
 #    - "PreventLog4j": Blocks Log4j exploit attempts to ensure compliance.
@@ -170,5 +172,4 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
 #    - "PreventXSS": Prevents Cross-Site Scripting attacks.
 #    - "PreventDoS": Protects from Denial-of-Service attacks.
 # 3. Logging:
-#    - Disabled in dev to reduce noise.
-#    - Enabled only in prod for compliance and monitoring.
+#    - Enabled only if `enable_waf` variable and `enable_waf_logging` variable are both set to `true`.

@@ -253,7 +253,7 @@ resource "random_string" "suffix" {
 
 # --- Notes --- #
 # 1. Replication Configuration:
-#    - Replication can be enabled in any environment, including dev, for testing.
+#    - Replication can be enabled in any environment for testing.
 #    - Destination buckets should be pre-configured and accessible.
 #
 # 2. Bucket Notifications:

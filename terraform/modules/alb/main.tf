@@ -1,5 +1,5 @@
 # --- Application Load Balancer --- #
-# This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP traffic
+# This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 resource "aws_lb" "application" {
   name               = "${var.name_prefix}-alb"       # ALB name
   internal           = false                          # ALB is public-facing
@@ -13,12 +13,16 @@ resource "aws_lb" "application" {
   enable_cross_zone_load_balancing = true
   # To enhance security, enable header dropping for ALB
   drop_invalid_header_fields = true
+  # The amount of time (in seconds) that ALB will keep the connection open if no data is being transferred.
+  idle_timeout = 60
+  # The type of IP addresses used by ALB
+  ip_address_type = "ipv4"
 
   # Access logging configuration for ALB logs
   access_logs {
     bucket  = var.logging_bucket             # S3 bucket for storing logs
     prefix  = "${var.name_prefix}/alb-logs/" # Separate ALB logs with a specific prefix
-    enabled = var.environment != "dev"       # Enable logging for stage and prod
+    enabled = var.enable_alb_access_logs     # Control logging via variable
   }
 
   tags = {
@@ -37,9 +41,6 @@ resource "aws_lb_target_group" "wordpress" {
 
   # Health check configuration for monitoring target instance health
   health_check {
-    # Health check path:
-    # - Use "/" for basic root-level health checks.
-    # - Use "/healthz" for custom application-specific checks (common in microservices).
     path                = "/" # Health check endpoint (default path, can be customized for app-specific needs).
     interval            = 30  # Time (seconds) between health checks
     timeout             = 5   # Time to wait for a response before failing
@@ -47,14 +48,27 @@ resource "aws_lb_target_group" "wordpress" {
     unhealthy_threshold = 3   # Consecutive failures required to mark unhealthy
   }
 
+  # Additional attributes for the target group behavior
+  deregistration_delay = 300 # 300 seconds delay before deregistering targets
+  slow_start           = 30  # Gradual traffic increase for new targets over 30 seconds
+
+  # --- Stickiness Configuration --- #
+  # Ensures clients are routed to the same target for the duration of their session.
+  stickiness {
+    enabled         = true        # Enable stickiness
+    type            = "lb_cookie" # Use load balancer-managed cookies
+    cookie_duration = 86400       # Duration of the cookie (1 day)
+  }
+
+  # --- Tags --- #
   tags = {
-    Name        = "${var.name_prefix}-wordpress-tg"
-    Environment = var.environment
+    Name        = "${var.name_prefix}-wordpress-tg" # Name tag for resource identification
+    Environment = var.environment                   # Environment tag for organization
   }
 }
 
 # --- ALB Listener for HTTP --- #
-# Handles HTTP traffic for dev and stage. Redirects to HTTPS in prod.
+# Handles HTTP traffic and optionally redirects to HTTPS if HTTPS listener is active.
 resource "aws_lb_listener" "http" {
   count = 1 # Always create an HTTP listener for handling traffic.
 
@@ -63,29 +77,29 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = var.environment == "prod" ? "redirect" : "forward"
+    type = var.enable_https_listener ? "redirect" : "forward"
 
-    # Redirect HTTP to HTTPS only in prod.
+    # Redirect HTTP to HTTPS if HTTPS listener is active.
     redirect {
       protocol    = "HTTPS"
       port        = "443"
       status_code = "HTTP_301"
     }
 
-    # Forward traffic to target group in dev and stage.
-    target_group_arn = var.environment != "prod" ? aws_lb_target_group.wordpress.arn : null
+    # Forward traffic to the target group if HTTPS listener is not active.
+    target_group_arn = var.enable_https_listener ? null : aws_lb_target_group.wordpress.arn
   }
 }
 
 # --- HTTPS Listener --- #
-# HTTPS Listener is created only for prod.
+# HTTPS Listener creation is controlled by a count variable.
 resource "aws_lb_listener" "https" {
-  count             = var.environment == "prod" ? 1 : 0
+  count             = var.enable_https_listener ? 1 : 0 # Controlled by a variable to determine creation.
   load_balancer_arn = aws_lb.application.arn
-  port              = 443                         # Listener port for HTTPS traffic
-  protocol          = "HTTPS"                     # Protocol for the listener
-  ssl_policy        = "ELBSecurityPolicy-2016-08" # SSL policy
-  certificate_arn   = var.certificate_arn         # SSL Certificate ARN (expected for prod only)
+  port              = 443                                 # Listener port for HTTPS traffic
+  protocol          = "HTTPS"                             # Protocol for the listener
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01" # SSL policy
+  certificate_arn   = var.certificate_arn                 # SSL Certificate ARN (required for HTTPS)
 
   # Default action: Forward traffic to the target group
   default_action {
@@ -96,27 +110,23 @@ resource "aws_lb_listener" "https" {
 
 # --- Notes --- #
 
-# Environment-Specific Logic:
-# - ALB and Target Group are created for all environments (dev, stage, prod).
-# - HTTP Listener:
-#   - In dev and stage: Routes traffic directly to the target group.
-#   - In prod: Redirects HTTP traffic to HTTPS for secure communication.
-# - HTTPS Listener is enabled only in prod to ensure secure and encrypted communication.
-# - Access logs:
-#   - Enabled only in stage and prod for compliance and analysis.
-#   - Stored in a centralized S3 logging bucket with identifiable prefixes.
-# - Deletion protection is enabled in prod to prevent accidental resource deletion.
+# General Logic:
+# - HTTP Listener: Always created to handle traffic on port 80.
+#   - If `enable_https_listener` is true, HTTP traffic is redirected to HTTPS on port 443.
+#   - If `enable_https_listener` is false, HTTP traffic is forwarded to the Target Group.
+# - HTTPS Listener: Created only when `enable_https_listener` is set to true.
+#   - SSL Certificate ARN must be provided when enabling the HTTPS Listener.
 
-# Health Checks:
-# - Default path is root ("/"), suitable for most applications.
-# - Use "/healthz" for more specific health checks (e.g., for microservices or containerized apps).
-# - Conservative thresholds (e.g., interval, timeout) ensure accurate monitoring.
+# Key Features:
+# - Cross-zone load balancing ensures even traffic distribution across AZs.
+# - Access logs: Controlled by the `var.enable_alb_access_logs` variable.
+# - Health checks monitor target availability and ensure stable traffic routing.
+# - Secure traffic:
+#   - HTTPS Listener ensures encrypted communication when enabled.
+#   - HTTP requests are redirected to HTTPS when the HTTPS Listener is active.
 
 # Recommendations:
-# - Always ensure the SSL certificate ARN is valid in prod environments.
-# - Regularly audit health check settings to align with application changes.
-# - Periodically verify access logs for unexpected traffic patterns or anomalies.
-
-# General Security:
-# - Cross-zone load balancing is enabled to distribute traffic evenly across AZs.
-# - Invalid header fields are dropped to enhance security and reduce attack vectors.
+# - Use valid SSL certificates for HTTPS.
+# - Periodically review health check settings to align with application requirements.
+# - Enable HTTPS Listener for environments requiring secure traffic.
+# - Regularly monitor ALB logs and metrics for performance and security insights.

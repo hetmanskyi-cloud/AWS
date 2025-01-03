@@ -56,7 +56,7 @@ output "alb_access_logs_prefix" {
 # ARN of the WAF Web ACL
 output "waf_arn" {
   description = "The ARN of the WAF Web ACL"
-  value       = var.environment != "dev" ? aws_wafv2_web_acl.alb_waf[0].arn : null
+  value       = var.enable_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
 }
 
 # --- Notes --- #

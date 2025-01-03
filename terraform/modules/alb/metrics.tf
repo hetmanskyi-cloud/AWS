@@ -1,9 +1,9 @@
 # --- CloudWatch Alarms for ALB --- #
 
-# --- Alarm for high request count (Only for stage and prod) --- #
+# --- Alarm for high request count --- #
 # Explanation: Tracks high traffic on the ALB. Useful for scaling or debugging.
 resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
-  count = var.environment != "dev" ? 1 : 0 # Active only for stage and prod
+  count = var.enable_high_request_alarm ? 1 : 0 # Controlled by the variable `enable_high_request_alarm`
 
   alarm_name          = "${var.name_prefix}-alb-high-request-count"
   comparison_operator = "GreaterThanThreshold"
@@ -13,16 +13,16 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   period              = 300
   statistic           = "Sum"
   threshold           = var.alb_request_count_threshold
-  alarm_actions       = var.environment == "prod" ? [var.sns_topic_arn] : [] # Notify only in prod
+  alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
   }
 }
 
-# --- Alarm for 5XX errors (Only for stage and prod) --- #
+# --- Alarm for 5XX errors --- #
 # Explanation: Catches HTTP 5xx errors, often caused by application or server failures.
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
-  count = var.environment != "dev" ? 1 : 0 # Active only for stage and prod
+  count = var.enable_5xx_alarm ? 1 : 0 # Controlled by the variable `enable_5xx_alarm`
 
   alarm_name          = "${var.name_prefix}-alb-5xx-errors"
   comparison_operator = "GreaterThanThreshold"
@@ -32,7 +32,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   period              = 300
   statistic           = "Sum"
   threshold           = var.alb_5xx_threshold
-  alarm_actions       = [var.sns_topic_arn] # Notify for stage and prod
+  alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
   }
@@ -51,7 +51,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
   period              = 300
   statistic           = "Average"
   threshold           = 0                   # Triggered if at least one unhealthy target
-  alarm_actions       = [var.sns_topic_arn] # Notify in all environments
+  alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
     TargetGroup  = aws_lb_target_group.wordpress.arn_suffix
@@ -60,10 +60,23 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
 
 # --- Notes --- #
 
-# Minimizing alerts in test environments (dev, stage):
-# - In dev, experiments often trigger temporary errors. Alerts in this environment add unnecessary noise and are handled manually during testing.
-# - In stage, metrics are used for load testing and analysis, but alerts are unnecessary since monitoring is performed manually during the test phase.
+# Dynamic Alarm Creation:
+# - Alarms for high request count and 5XX errors are conditionally created based on:
+#   - `enable_high_request_alarm`: Controls high request count alarms.
+#   - `enable_5xx_alarm`: Controls 5XX error alarms.
 
-# Centralizing critical alerts in prod:
-# - In prod, alerts are essential for immediate response to incidents that affect real users.
-# - Notifications are enabled only in prod to reduce noise in non-critical environments and ensure alerts are focused on critical issues.
+# Always-On Alarm:
+# - The `alb_unhealthy_host_count` alarm is always created to ensure health monitoring of target instances.
+
+# Simplified Notification Logic:
+# - Notifications are always enabled for each alarm if the resource is created.
+# - Alerts are delivered to the specified SNS topic (`var.sns_topic_arn`).
+
+# Key Metrics:
+# - `RequestCount`: Monitors high traffic for scaling or debugging.
+# - `HTTPCode_Target_5XX_Count`: Detects server/application-level errors.
+# - `UnHealthyHostCount`: Tracks the health status of target instances.
+
+# Recommendations:
+# - Regularly review and adjust alarm thresholds (`alb_request_count_threshold`, `alb_5xx_threshold`) to align with application needs.
+# - Periodically verify that the SNS topic is configured correctly to receive alerts.

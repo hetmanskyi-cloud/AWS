@@ -9,13 +9,25 @@ output "kms_key_arn" {
 # Output the KMS management role ARN
 output "kms_management_role_arn" {
   description = "ARN of the IAM role for managing the KMS encryption key"
-  value       = var.enable_kms_management_role ? aws_iam_role.kms_management_role[0].arn : null
+  value       = var.enable_kms_role ? aws_iam_role.kms_role[0].arn : null
 }
 
 # Output the KMS management policy ARN
 output "kms_management_policy_arn" {
   description = "ARN of the KMS management policy for managing the encryption key"
-  value       = var.enable_kms_management_role ? aws_iam_policy.kms_management_policy[0].arn : null
+  value       = var.enable_kms_role ? aws_iam_policy.kms_management_policy[0].arn : null
+}
+
+# Output the KMS alias name
+output "kms_key_alias" {
+  description = "The name of the KMS key alias"
+  value       = aws_kms_alias.kms_alias[0].name
+}
+
+# Output the CloudWatch Alarm ARN
+output "kms_decrypt_alarm_arn" {
+  description = "The ARN of the CloudWatch Alarm for decrypt operations"
+  value       = aws_cloudwatch_metric_alarm.kms_decrypt_alarm[0].arn
 }
 
 # --- Notes --- #

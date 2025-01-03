@@ -1,28 +1,8 @@
 # --- Security Group for the ALB --- #
-# This security group defines inbound and outbound traffic rules for the Application Load Balancer (ALB).
-
+# This security group defines the base configuration for the ALB.
 resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.name_prefix}-alb-sg" # Security group name prefixed with the environment name.
   vpc_id      = var.vpc_id                  # VPC where the ALB resides.
-
-  # --- Ingress Rules --- #
-  # Allow HTTP traffic for dev and stage.
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Allow traffic from all IP addresses.
-    description = "Allow HTTP traffic for redirect or testing"
-  }
-
-  # Allow HTTPS traffic only in prod.
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Allow traffic from all IP addresses.
-    description = "Allow HTTPS traffic from anywhere (prod only)"
-  }
 
   # --- Egress Rules --- #
   # Allow all outbound traffic.
@@ -36,23 +16,43 @@ resource "aws_security_group" "alb_sg" {
 
   # --- Tags --- #
   tags = {
-    Name        = "${var.name_prefix}-alb-sg" # Human-readable name for the security group.
-    Environment = var.environment             # Tag to identify the environment (dev, stage, prod).
+    Name        = "${var.name_prefix}-alb-sg"
+    Environment = var.environment
   }
+}
+
+# --- Ingress Rule for HTTP --- #
+resource "aws_security_group_rule" "alb_http" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.alb_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow HTTP traffic for redirecting to HTTPS"
+}
+
+# --- Ingress Rule for HTTPS --- #
+resource "aws_security_group_rule" "alb_https" {
+  count = var.enable_https_listener ? 1 : 0
+
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.alb_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow HTTPS traffic (enabled only if HTTPS listener is active)"
 }
 
 # --- Notes --- #
 # 1. HTTP (port 80):
-#    - Open in all environments to support redirects or testing.
-#    - In prod, HTTP requests are redirected to HTTPS by ALB.
-#
+#    - Always enabled to allow traffic for redirecting HTTP to HTTPS.
 # 2. HTTPS (port 443):
-#    - Enabled only in prod for secure traffic.
-#    - Certificates must be valid in prod environments.
-#
+#    - Enabled only if `enable_https_listener = true` via `aws_security_group_rule`.
+#    - Requires a valid SSL certificate.
 # 3. Egress Rules:
 #    - All outbound traffic is allowed to ensure ALB can respond to incoming requests.
-#
 # 4. Security Recommendations:
 #    - Regularly review CIDR blocks for ingress rules to ensure they meet your security requirements.
 #    - Monitor ALB logs for unexpected traffic patterns.

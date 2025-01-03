@@ -146,6 +146,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 - Add CloudWatch Alarms for monitoring:
   - Lambda execution errors.
   - DynamoDB throughput limits.
+- Consider implementing log compression using AWS Lambda for S3 bucket logs to reduce storage costs and optimize data handling, in combination with lifecycle policies for archival management.
 
 ---
 

@@ -108,7 +108,7 @@ variable "buckets" {
 
 # --- Versioning Configuration --- #
 
-# Versioning settings are managed in the `terraform.tfvars` file for dev environment.
+# Versioning settings are managed in the `terraform.tfvars` file.
 variable "enable_versioning" {
   description = "Map of bucket names to enable or disable versioning."
   type        = map(bool)

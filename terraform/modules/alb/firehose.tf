@@ -1,8 +1,9 @@
 # --- Firehose Delivery Stream --- #
 # This resource creates a Firehose delivery stream to process and deliver WAF logs to an S3 bucket.
-# - Enabled only in `stage` and `prod` environments to reduce costs during development (`dev`).
+# Controlled by the `enable_firehose` variable to enable or disable all related resources.
 resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
-  count       = var.environment != "dev" ? 1 : 0 # Firehose is enabled only in stage and prod.
+  count = var.enable_firehose ? 1 : 0
+
   name        = "${var.name_prefix}-waf-logs"
   destination = "extended_s3" # Destination is an S3 bucket with extended configuration.
 
@@ -27,8 +28,9 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
 # --- IAM Role for Firehose --- #
 # This role allows Firehose to write logs to the S3 bucket.
 resource "aws_iam_role" "firehose_role" {
-  count = var.environment != "dev" ? 1 : 0 # Role is created only in stage and prod.
-  name  = "${var.name_prefix}-firehose-role"
+  count = var.enable_firehose ? 1 : 0
+
+  name = "${var.name_prefix}-firehose-role"
 
   # Policy for assuming the role.
   assume_role_policy = jsonencode({
@@ -48,8 +50,9 @@ resource "aws_iam_role" "firehose_role" {
 # --- IAM Policy for Firehose --- #
 # This policy defines permissions for Firehose to interact with the S3 bucket.
 resource "aws_iam_policy" "firehose_policy" {
-  count = var.environment != "dev" ? 1 : 0 # Policy is attached only in stage and prod.
-  name  = "${var.name_prefix}-firehose-policy"
+  count = var.enable_firehose ? 1 : 0
+
+  name = "${var.name_prefix}-firehose-policy"
 
   # Policy details.
   policy = jsonencode({
@@ -59,14 +62,29 @@ resource "aws_iam_policy" "firehose_policy" {
         Effect = "Allow",
         Action = [
           "s3:PutObject",
-          "s3:PutObjectAcl",
           "s3:GetBucketLocation",
           "s3:ListBucket"
         ],
         Resource = [
           "${var.logging_bucket_arn}/*", # Applies to all objects in the logging bucket.
           var.logging_bucket_arn         # Applies to the bucket itself.
-        ]
+        ],
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control" # AWS Recommendation
+          }
+        }
+      },
+      { # Permission to encrypt using KMS
+        Effect = "Allow",
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ],
+        Resource = var.kms_key_arn
       }
     ]
   })
@@ -75,13 +93,14 @@ resource "aws_iam_policy" "firehose_policy" {
 # --- IAM Role Policy Attachment --- #
 # Attaches the IAM policy to the Firehose role.
 resource "aws_iam_role_policy_attachment" "firehose_policy_attachment" {
-  count      = var.environment != "dev" ? 1 : 0 # Attachment is applied only in stage and prod.
+  count = var.enable_firehose ? 1 : 0
+
   role       = aws_iam_role.firehose_role[0].name
   policy_arn = aws_iam_policy.firehose_policy[0].arn
 }
 
 # --- Notes --- #
-# 1. Firehose is disabled in dev to avoid unnecessary overhead and storage costs.
+# 1. All Firehose-related resources are controlled by the `enable_firehose` variable.
 # 2. Logs are delivered to an S3 bucket with GZIP compression for storage efficiency.
 # 3. S3 is chosen over CloudWatch Logs for its cost-effectiveness and flexibility in long-term storage.
 #    For small projects, this is the optimal solution. If the project scales, consider CloudWatch Logs

@@ -74,11 +74,17 @@ module "vpc" {
 module "kms" {
   source = "./modules/kms" # Path to module KMS
 
-  aws_region                 = var.aws_region
-  aws_account_id             = var.aws_account_id
-  environment                = var.environment
-  name_prefix                = var.name_prefix
-  enable_kms_management_role = var.enable_kms_management_role
+  aws_region            = var.aws_region
+  aws_account_id        = var.aws_account_id
+  environment           = var.environment
+  name_prefix           = var.name_prefix
+  additional_principals = var.additional_principals           # List of additional principals
+  enable_key_rotation   = var.enable_key_rotation             # Enable automatic key rotation
+  enable_kms_role       = var.enable_kms_role                 # Activate after initial setup KMS
+  enable_key_monitoring = true                                # Enable CloudWatch Alarms for KMS monitoring
+  key_decrypt_threshold = 100                                 # Set a custom threshold for Decrypt operations, adjust as needed
+  enable_kms_alias      = true                                # Enable alias creation for the KMS key
+  sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn # SNS Topic for CloudWatch Alarms
 }
 
 # --- EC2 Module Configuration --- #
@@ -317,14 +323,24 @@ module "alb" {
   source             = "./modules/alb"
   name_prefix        = var.name_prefix
   environment        = var.environment
+  kms_key_arn        = module.kms.kms_key_arn
   alb_name           = module.alb.alb_name
   public_subnets     = module.vpc.public_subnets
   logging_bucket     = module.s3.logging_bucket_id
   logging_bucket_arn = module.s3.logging_bucket_arn
-  kms_key_arn        = module.kms.kms_key_arn
   alb_sg_id          = module.alb.alb_sg_id
   vpc_id             = module.vpc.vpc_id
   sns_topic_arn      = aws_sns_topic.cloudwatch_alarms.arn
+
+  alb_enable_deletion_protection = var.alb_enable_deletion_protection
+  enable_https_listener          = var.enable_https_listener
+  enable_alb_access_logs         = var.enable_alb_access_logs
+  enable_high_request_alarm      = var.enable_high_request_alarm
+  enable_5xx_alarm               = var.enable_5xx_alarm
+  enable_waf                     = var.enable_waf
+  enable_waf_logging             = var.enable_waf_logging
+  enable_firehose                = var.enable_firehose
+  enable_kms_alb_role            = var.enable_kms_alb_role
 
   depends_on = [module.vpc, module.s3]
 }

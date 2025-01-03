@@ -335,10 +335,9 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 #
 # 3. **Replication Configuration**:
 #    - Dynamically creates IAM roles and policies for replication if `enable_s3_replication = true`.
-#    - Configures source and destination policies for bucket replication in `stage` and `prod`.
-#
+#    
 # 4. **CORS Rules**:
-#    - Applied to the `wordpress_media` bucket in `stage` and `prod`.
+#    - Applied to the `wordpress_media` bucket if `enable_cors = true`.
 #    - Restricts allowed headers and methods for security, while enabling cross-origin requests for WordPress media.
 #
 # 5. **Dynamic Bucket Policies**:

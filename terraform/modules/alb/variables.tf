@@ -48,15 +48,14 @@ variable "target_group_port" {
 }
 
 # ARN of the SSL certificate for HTTPS listener (optional).
-# Note: In dev and stage, SSL certificate is not required.
 variable "certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener"
   type        = string
   default     = null
 
   validation {
-    condition     = var.environment == "dev" || can(length(var.certificate_arn))
-    error_message = "In stage and prod, 'certificate_arn' cannot be empty."
+    condition     = var.enable_https_listener ? can(length(var.certificate_arn)) : true
+    error_message = "Certificate ARN must be provided if HTTPS listener is enabled."
   }
 }
 
@@ -122,8 +121,68 @@ variable "sns_topic_arn" {
   type        = string
 }
 
-# --- Notes --- #
-# 1. Variables `name_prefix`, `environment`, `public_subnets`, and `vpc_id` are mandatory for all environments.
-# 2. Logging-related variables (`logging_bucket`, `logging_bucket_arn`, `kms_key_arn`) are used in stage and prod only.
-# 3. `alb_request_count_threshold` and `alb_5xx_threshold` control alarm sensitivity; these can be adjusted based on the expected traffic.
-# 4. `certificate_arn` is required for HTTPS configuration in prod. In dev and stage, it can remain null.
+# Enable or disable HTTPS Listener
+variable "enable_https_listener" {
+  description = "Enable or disable the creation of the HTTPS Listener"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable ALB access logs
+variable "enable_alb_access_logs" {
+  description = "Enable or disable ALB access logs"
+  type        = bool
+  default     = false # Logging is unabled by default
+}
+
+# --- Enable High Request Count Alarm --- #
+# Controls the creation of a CloudWatch Alarm for high request count on the ALB.
+# true: The metric is created. false: The metric is not created.
+variable "enable_high_request_alarm" {
+  description = "Enable or disable the CloudWatch alarm for high request count on the ALB."
+  type        = bool
+  default     = false
+}
+
+# --- Enable 5XX Error Alarm --- #
+# Controls the creation of a CloudWatch Alarm for HTTP 5XX errors on the ALB.
+# true: The metric is created. false: The metric is not created.
+variable "enable_5xx_alarm" {
+  description = "Enable or disable the CloudWatch alarm for HTTP 5XX errors on the ALB."
+  type        = bool
+  default     = false
+}
+
+# Toggle WAF for ALB
+variable "enable_waf" {
+  description = "Enable or disable WAF for ALB" # Description of the variable
+  type        = bool                            # Boolean type for true/false values
+  default     = false                           # Default value is false
+}
+
+# --- Enable WAF Logging --- #
+# This variable controls the creation of WAF logging resources. WAF logging will be enabled only if:
+# 1. `enable_waf_logging` is set to true.
+# 2. Firehose (`enable_firehose`) is also enabled, as it is required for delivering logs.
+# By default, WAF logging is disabled.
+variable "enable_waf_logging" {
+  description = "Enable or disable logging for WAF independently of WAF enablement"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable Firehose and related resources
+variable "enable_firehose" {
+  description = "Enable or disable Firehose and related resources"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable KMS IAM role and policy for ALB module
+# - Set to true to create KMS-related IAM resources.
+# - Set to false to skip KMS IAM resource creation.
+variable "enable_kms_alb_role" {
+  description = "Enable or disable KMS IAM role and policy for ALB module"
+  type        = bool
+  default     = false
+}
