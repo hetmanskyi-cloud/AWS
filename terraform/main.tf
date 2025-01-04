@@ -108,6 +108,7 @@ module "ec2" {
 
   # S3 bucket for storing AMI images
   ami_bucket_name = module.s3.ami_bucket_name
+
   # S3 bucket for storing scripts
   scripts_bucket_name = module.s3.scripts_bucket_name
 
@@ -261,7 +262,6 @@ module "s3" {
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
   name_prefix                       = var.name_prefix
-  kms_key_arn                       = module.kms.kms_key_arn
   enable_versioning                 = var.enable_versioning
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_terraform_state_bucket     = var.enable_terraform_state_bucket
@@ -274,6 +274,7 @@ module "s3" {
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
 
   # KMS role for S3 module
+  kms_key_arn        = module.kms.kms_key_arn
   enable_kms_s3_role = var.enable_kms_s3_role
 
   # Pass buckets list dynamically
@@ -293,6 +294,9 @@ module "elasticache" {
   name_prefix = var.name_prefix
   environment = var.environment
 
+  kms_key_arn     = module.kms.kms_key_arn
+  enable_kms_role = module.kms.enable_kms_role
+
   # ElastiCache configuration
   redis_version            = var.redis_version
   node_type                = var.node_type
@@ -301,7 +305,6 @@ module "elasticache" {
   redis_port               = var.redis_port
   snapshot_retention_limit = var.snapshot_retention_limit
   snapshot_window          = var.snapshot_window
-  kms_key_arn              = module.kms.kms_key_arn
 
   # Networking (from VPC module)
   vpc_id             = module.vpc.vpc_id
@@ -311,8 +314,11 @@ module "elasticache" {
   ec2_security_group_id = module.ec2.ec2_security_group_id
 
   # Monitoring
-  redis_cpu_threshold    = var.redis_cpu_threshold
-  redis_memory_threshold = var.redis_memory_threshold
+  redis_cpu_threshold                = var.redis_cpu_threshold
+  redis_memory_threshold             = var.redis_memory_threshold
+  enable_redis_low_memory_alarm      = var.enable_redis_low_memory_alarm
+  enable_redis_high_cpu_alarm        = var.enable_redis_high_cpu_alarm
+  enable_redis_low_cpu_credits_alarm = var.enable_redis_low_cpu_credits_alarm
 
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn

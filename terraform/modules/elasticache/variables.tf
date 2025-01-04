@@ -102,6 +102,54 @@ variable "redis_security_group_id" {
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting Redis data at rest"
   type        = string
+
+  validation {
+    condition     = length(var.kms_key_arn) > 0
+    error_message = "The kms_key_arn variable cannot be empty."
+  }
+}
+
+# Enable or disable the creation of the IAM role for managing the KMS key
+variable "enable_kms_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}
+
+# --- Enable Freeable Memory Alarm for Redis --- #
+# Controls whether the CloudWatch alarm for freeable memory is created.
+# Useful for monitoring memory usage and detecting potential bottlenecks.
+# Recommended: Enable in all environments.
+variable "enable_redis_low_memory_alarm" {
+  description = "Enable or disable the freeable memory alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# --- Enable High CPU Utilization Alarm for Redis --- #
+# Controls whether the CloudWatch alarm for high CPU utilization is created.
+variable "enable_redis_high_cpu_alarm" {
+  description = "Enable or disable the high CPU utilization alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# --- Enable Low CPU Credits Alarm for Redis --- #
+# Controls whether the CloudWatch alarm for low CPU credits is created.
+# Recommended: Enable for burstable instance types to prevent throttling.
+variable "enable_redis_low_cpu_credits_alarm" {
+  description = "Enable or disable the low CPU credits alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# --- Enable KMS Role for ElastiCache --- #
+# Controls whether the IAM role and policy for KMS interaction are created.
+# Recommended: Enable if KMS is used for encrypting Redis data.
+variable "enable_kms_elasticache_role" {
+  description = "Enable or disable the creation of IAM role and policy for KMS interaction"
+  type        = bool
+  default     = false # Set to true to enable the role and policy
 }
 
 # --- Notes --- #

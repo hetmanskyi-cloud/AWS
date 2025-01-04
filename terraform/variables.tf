@@ -417,16 +417,36 @@ variable "snapshot_window" {
   type        = string
 }
 
-# --- Redis Monitoring Variables --- #
-
+# Threshold values for CloudWatch alarms related to Redis performance.
 variable "redis_cpu_threshold" {
-  description = "CPU utilization threshold for CloudWatch Alarm (in percent)"
+  description = "CPU utilization threshold for Redis alarms"
   type        = number
 }
 
 variable "redis_memory_threshold" {
-  description = "Memory utilization threshold for CloudWatch Alarm (in bytes)"
+  description = "Memory usage threshold for Redis alarms"
   type        = number
+}
+
+# Enable Freeable Memory Alarm for Redis
+variable "enable_redis_low_memory_alarm" {
+  description = "Enable or disable the freeable memory alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# Enable High CPU Utilization Alarm for Redis
+variable "enable_redis_high_cpu_alarm" {
+  description = "Enable or disable the high CPU utilization alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# Enable Low CPU Credits Alarm for Redis
+variable "enable_redis_low_cpu_credits_alarm" {
+  description = "Enable or disable the low CPU credits alarm for Redis"
+  type        = bool
+  default     = false # Set to true to enable the alarm
 }
 
 # --- ALB Configuration Variables --- #

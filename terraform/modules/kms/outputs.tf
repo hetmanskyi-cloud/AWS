@@ -6,6 +6,12 @@ output "kms_key_arn" {
   value       = aws_kms_key.general_encryption_key.arn
 }
 
+# Output the enable_kms_role variable
+output "enable_kms_role" {
+  description = "Enable or disable the creation of IAM role and policy for KMS interaction"
+  value       = var.enable_kms_role
+}
+
 # Output the KMS management role ARN
 output "kms_management_role_arn" {
   description = "ARN of the IAM role for managing the KMS encryption key"

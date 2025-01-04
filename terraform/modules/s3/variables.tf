@@ -38,6 +38,26 @@ variable "aws_account_id" {
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting S3 buckets to enhance security."
   type        = string
+
+  validation {
+    condition     = length(var.kms_key_arn) > 0
+    error_message = "The kms_key_arn variable cannot be empty."
+  }
+}
+
+# Enable or disable the creation of the IAM role for managing the KMS key
+variable "enable_kms_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}
+
+# --- Enable KMS Role for S3 --- #
+# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
+variable "enable_kms_s3_role" {
+  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
+  type        = bool
+  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
 }
 
 # --- Lifecycle Configuration Variable --- #
@@ -149,12 +169,4 @@ variable "enable_lambda" {
   # --- Notes --- #
   # 1. This variable must be set to true only if `enable_dynamodb = true`.
   # 2. When disabled, all Lambda-related resources (IAM role, policy, function, etc.) are skipped.
-}
-
-# --- Enable KMS Role for S3 --- #
-# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
-variable "enable_kms_s3_role" {
-  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
-  type        = bool
-  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
 }

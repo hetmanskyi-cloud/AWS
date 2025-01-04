@@ -100,6 +100,22 @@ variable "kms_key_arn" {
   }
 }
 
+# Enable or disable the creation of the IAM role for managing the KMS key
+variable "enable_kms_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable KMS IAM role and policy for ALB module
+# - Set to true to create KMS-related IAM resources.
+# - Set to false to skip KMS IAM resource creation.
+variable "enable_kms_alb_role" {
+  description = "Enable or disable KMS IAM role and policy for ALB module"
+  type        = bool
+  default     = false
+}
+
 # --- Alarm and Monitoring Configuration --- #
 # Threshold for high request count on ALB.
 variable "alb_request_count_threshold" {
@@ -174,15 +190,6 @@ variable "enable_waf_logging" {
 # Enable or disable Firehose and related resources
 variable "enable_firehose" {
   description = "Enable or disable Firehose and related resources"
-  type        = bool
-  default     = false
-}
-
-# Enable or disable KMS IAM role and policy for ALB module
-# - Set to true to create KMS-related IAM resources.
-# - Set to false to skip KMS IAM resource creation.
-variable "enable_kms_alb_role" {
-  description = "Enable or disable KMS IAM role and policy for ALB module"
   type        = bool
   default     = false
 }

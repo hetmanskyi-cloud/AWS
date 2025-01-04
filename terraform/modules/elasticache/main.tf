@@ -11,6 +11,11 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   }
 }
 
+locals {
+
+  kms_key_id = var.enable_kms_role && length(aws_iam_role.elasticache_kms_role) > 0 ? aws_iam_role.elasticache_kms_role[0].arn : var.kms_key_arn
+}
+
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
 resource "aws_elasticache_replication_group" "redis" {
@@ -26,7 +31,7 @@ resource "aws_elasticache_replication_group" "redis" {
   port                       = var.redis_port                                       # Port for Redis connections.
   subnet_group_name          = aws_elasticache_subnet_group.redis_subnet_group.name # Subnet group for deployment.
   security_group_ids         = [aws_security_group.redis_sg.id]                     # Security group for controlling network access.
-  kms_key_id                 = var.kms_key_arn                                      # KMS key for encrypting data at rest.
+  kms_key_id                 = local.kms_key_id                                     # KMS key for encrypting data at rest.
 
   # --- Backup Configuration --- #
   snapshot_retention_limit = var.snapshot_retention_limit # Number of days to retain backups.
