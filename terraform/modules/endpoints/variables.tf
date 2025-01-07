@@ -7,6 +7,12 @@ variable "aws_region" {
   type        = string
 }
 
+# --- AWS Account ID --- #
+variable "aws_account_id" {
+  description = "AWS account ID for permissions and policies"
+  type        = string
+}
+
 # --- Name Prefix --- #
 # A prefix applied to all resource names for easy identification.
 variable "name_prefix" {
@@ -21,7 +27,7 @@ variable "environment" {
   type        = string
 
   validation {
-    condition     = can(regex("(dev|stage|prod)", var.environment))
+    condition     = can(regex("^(dev|stage|prod)$", var.environment))
     error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
   }
 }
@@ -47,29 +53,37 @@ variable "private_subnet_cidr_blocks" {
   type        = list(string)
 }
 
-# --- Route Table IDs --- #
-# The list of route table ID to associate with the S3 Gateway Endpoint.
-variable "private_route_table_id" {
-  description = "The ID of the private route table used for Gateway Endpoints"
-  type        = string
-}
-
-# --- Endpoint Security Group ID --- #
-# The ID of the Security Group used for Interface Endpoints. Created by this module.
-variable "endpoint_sg_id" {
-  description = "Security Group ID for interface endpoints"
+# --- Encryption Configuration --- #
+# ARN of the KMS key used for encrypting data.
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for encrypting data"
   type        = string
 }
 
 # --- Enable CloudWatch Logs for Endpoints --- #
-# Enables CloudWatch Logs for monitoring VPC Endpoints in stage and prod environments.
+# Enables CloudWatch Logs for monitoring VPC Endpoints.
 variable "enable_cloudwatch_logs_for_endpoints" {
   description = "Enable CloudWatch Logs for VPC Endpoints in stage and prod environments"
   type        = bool
   default     = false
 }
 
+# --- Log Retention Period --- #
+# Defines the retention period for CloudWatch Logs.
+variable "endpoints_log_retention_in_days" {
+  description = "Retention period for CloudWatch Logs in days"
+  type        = number
+  default     = 14
+
+  validation {
+    condition     = var.endpoints_log_retention_in_days > 0
+    error_message = "Log retention period must be a positive integer."
+  }
+}
+
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.
-# 3. CloudWatch Logs can be enabled for Interface Endpoints for monitoring traffic in stage and prod environments.
+# 3. CloudWatch Logs can be enabled for Interface Endpoints for monitoring traffic.
+# 4. KMS Key ARN is required if encryption for CloudWatch Logs is enabled.
+# 5. Log retention period is configurable to meet different compliance and operational requirements.

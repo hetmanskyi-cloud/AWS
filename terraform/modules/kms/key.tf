@@ -1,11 +1,11 @@
 # --- IAM Role for Managing KMS Key --- #
 # This role is created for administrative management of the KMS key.
 # Designed to replace root-level access for better security and compliance.
-# Trust relationship allows only the root account of the AWS account to assume this role.
+# Only the root account of the AWS account can assume this role.
 resource "aws_iam_role" "kms_role" {
   count = var.enable_kms_role ? 1 : 0 # Enable or disable the creation of this role dynamically
 
-  name = "${var.name_prefix}-kms-role"
+  name = "${var.name_prefix}-kms-role-${var.environment}"
 
   # Trust relationship limited to the root account of the AWS account
   assume_role_policy = jsonencode({
@@ -33,7 +33,7 @@ resource "aws_iam_role" "kms_role" {
 resource "aws_iam_policy" "kms_management_policy" {
   count = var.enable_kms_role ? 1 : 0 # Enable or disable the creation of this policy dynamically
 
-  name        = "${var.name_prefix}-kms-management-policy"
+  name        = "${var.name_prefix}-kms-management-policy-${var.environment}"
   description = "IAM policy for managing the KMS key"
 
   policy = jsonencode({
@@ -69,16 +69,15 @@ resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
 # 2. **Enable via Variable**:
 #    - Set `enable_kms_role = true` in `terraform.tfvars` to enable this configuration.
 #
-# 3. **Dynamic Root Access Update**:
-#    - Root access is initially granted for the creation of the KMS key in `kms/main.tf`.
-#    - After creation, Terraform dynamically updates the policy using the `aws_kms_key_policy` resource to remove root access and enforce least privilege.
+# 3. **Manual Root Access Removal**:
+#    - Root access is initially granted in the KMS key policy for the creation of the KMS key.
+#    - After creation, you must manually remove root access from the `aws_kms_key_policy` to enforce least privilege.
 #
 # 4. **Granular Control**:
 #    - This role provides only necessary permissions for managing the KMS key (rotation, description update).
 #    - Disables broad root-level access for better security and compliance.
 #
 # 5. **Integration with Other Resources**:
-#    - This role is intended only for administrative purposes (manual management of the KMS key).
-#    - Access for services like S3 or EC2 should be defined in their respective modules.
-#      - For example, the S3 module will include the necessary policies to interact with the KMS key.
-#      - This approach ensures clear separation of responsibilities and modularity.
+#    - This IAM role is intended solely for administrative management of the KMS key.
+#    - Permissions for services such as S3 or EC2 to use the KMS key are managed within their respective Terraform modules.
+#    - This ensures clear separation of responsibilities and maintains modularity.

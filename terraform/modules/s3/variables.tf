@@ -45,21 +45,6 @@ variable "kms_key_arn" {
   }
 }
 
-# Enable or disable the creation of the IAM role for managing the KMS key
-variable "enable_kms_role" {
-  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
-  type        = bool
-  default     = false
-}
-
-# --- Enable KMS Role for S3 --- #
-# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
-variable "enable_kms_s3_role" {
-  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
-  type        = bool
-  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
-}
-
 # --- Lifecycle Configuration Variable --- #
 # Retention period for noncurrent object versions (applies only to buckets with versioning enabled).
 variable "noncurrent_version_retention_days" {
@@ -165,6 +150,11 @@ variable "enable_lambda" {
   description = "Enable Lambda function for DynamoDB TTL automation."
   type        = bool
   default     = false
+
+  validation {
+    condition     = var.enable_lambda ? var.enable_dynamodb : true
+    error_message = "enable_lambda requires enable_dynamodb = true."
+  }
 
   # --- Notes --- #
   # 1. This variable must be set to true only if `enable_dynamodb = true`.

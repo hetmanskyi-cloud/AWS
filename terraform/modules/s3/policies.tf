@@ -116,6 +116,13 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Principal = { Service = "waf.amazonaws.com" },
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets[each.key].arn}/waf-logs/*"
+      },
+      {
+        Sid       = "AllowDeliveryLogsWrite",
+        Effect    = "Allow",
+        Principal = { Service = "delivery.logs.amazonaws.com" },
+        Action    = "s3:PutObject",
+        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/alb-logs/*"
       }
     ]
   })

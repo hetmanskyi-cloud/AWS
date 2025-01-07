@@ -28,7 +28,14 @@ output "endpoint_security_group_id" {
   value       = aws_security_group.endpoints_sg.id
 }
 
+# --- SSM Interface Endpoint DNS Names --- #
+# Outputs the DNS names for the Interface Endpoint for AWS Systems Manager (SSM).
+output "ssm_endpoint_dns_names" {
+  description = "DNS names for the SSM Interface Endpoint"
+  value       = [for entry in aws_vpc_endpoint.ssm.dns_entry : entry.dns_name]
+}
+
 # --- Notes --- #
-# 1. Outputs include the IDs of all VPC Endpoints (Gateway and Interface) created by this module.
+# 1. Outputs include the IDs of VPC Endpoints (Interface) created by this module.
 # 2. The Security Group ID is provided for Interface Endpoints to manage inbound and outbound rules.
 # 3. These outputs can be referenced by other modules or resources for integration.

@@ -51,7 +51,6 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 | `waf.tf`           | Configures WAF with managed rules for security.                                          |
 | `firehose.tf`      | Configures Firehose for WAF logging.                                                     |
 | `metrics.tf`       | Defines CloudWatch alarms for monitoring ALB activity.                                   |
-| `kms.tf`           | Configures IAM roles and policies for ALB KMS encryption.                                |
 | `variables.tf`     | Declares input variables for the module.                                                 |
 | `outputs.tf`       | Exposes key outputs for integration with other modules.                                  |
 
@@ -90,6 +89,7 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 |--------------------------|--------------------------------------------------|
 | `alb_arn`                | ARN of the Application Load Balancer.            |
 | `alb_dns_name`           | DNS name of the Application Load Balancer.       |
+| `alb_name`               | Name of the Application Load Balancer.           |
 | `wordpress_tg_arn`       | ARN of the Target Group for WordPress.           |
 | `alb_access_logs_bucket` | S3 bucket for ALB access logs.                   |
 | `alb_access_logs_prefix` | Prefix for ALB access logs.                      |

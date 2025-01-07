@@ -107,8 +107,6 @@ variable "log_retention_in_days" {
 
 # --- KMS Configuration --- #
 
-# --- Enable Key Rotation --- #
-
 # List of additional AWS principals that require access to the KMS key
 # Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
 variable "additional_principals" {
@@ -132,16 +130,6 @@ variable "enable_kms_role" {
   default     = false
 }
 
-# --- Enable KMS Role for S3 --- #
-# This variable controls whether the IAM role and policy for KMS interaction in the S3 module are created.
-variable "enable_kms_s3_role" {
-  description = "Enable or disable the creation of IAM role and policy for S3 to access KMS."
-  type        = bool
-  default     = false # Set to true in terraform.tfvars if S3 needs a dedicated KMS role.
-
-  # Notes: this role is created in S3 module.
-}
-
 # --- Enable CloudWatch Monitoring --- #
 # This variable controls whether CloudWatch Alarms for the KMS key usage are created.
 variable "enable_key_monitoring" {
@@ -156,14 +144,6 @@ variable "key_decrypt_threshold" {
   description = "Threshold for KMS decrypt operations to trigger an alarm."
   type        = number
   default     = 100 # Example value, adjust as needed.
-}
-
-# --- Enable KMS Alias Creation --- #
-# This variable controls whether an alias is created for the KMS key.
-variable "enable_kms_alias" {
-  description = "Enable or disable the creation of a KMS alias."
-  type        = bool
-  default     = false
 }
 
 # --- EC2 Instance Configuration --- #
@@ -366,6 +346,19 @@ variable "enable_cloudwatch_logs_for_endpoints" {
   description = "Enable CloudWatch Logs for VPC Endpoints in stage and prod environments"
   type        = bool
   default     = false
+}
+
+# --- Log Retention Period --- #
+# Defines the retention period for CloudWatch Logs.
+variable "endpoints_log_retention_in_days" {
+  description = "Retention period for CloudWatch Logs in days"
+  type        = number
+  default     = 14
+
+  validation {
+    condition     = var.endpoints_log_retention_in_days > 0
+    error_message = "Log retention period must be a positive integer."
+  }
 }
 
 # --- SNS Variables --- #

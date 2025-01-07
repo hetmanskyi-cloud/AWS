@@ -14,6 +14,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   statistic           = "Sum"
   threshold           = var.alb_request_count_threshold
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
+  ok_actions          = [var.sns_topic_arn]
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
   }
@@ -33,6 +34,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   statistic           = "Sum"
   threshold           = var.alb_5xx_threshold
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
+  ok_actions          = [var.sns_topic_arn]
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
   }
@@ -52,6 +54,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
   statistic           = "Average"
   threshold           = 0                   # Triggered if at least one unhealthy target
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled
+  ok_actions          = [var.sns_topic_arn]
   dimensions = {
     LoadBalancer = aws_lb.application.arn_suffix
     TargetGroup  = aws_lb_target_group.wordpress.arn_suffix

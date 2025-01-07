@@ -8,8 +8,8 @@ resource "aws_kms_key" "general_encryption_key" {
   enable_key_rotation = var.enable_key_rotation # Enable automatic key rotation for added security
 
   tags = {
-    Name        = "${var.name_prefix}-general-encryption-key" # Dynamic name for the encryption key
-    Environment = var.environment                             # Environment tag for tracking
+    Name        = "${var.name_prefix}-general-encryption-key-${var.environment}" # Dynamic name for the encryption key
+    Environment = var.environment                                                # Environment tag for tracking
   }
 }
 
@@ -20,55 +20,92 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = concat([
-      # TODO: Remove root access once the KMS key is fully configured.
-      {
-        Effect    = "Allow",
-        Principal = { AWS = "arn:aws:iam::${var.aws_account_id}:root" }, # Initial root access
-        Action    = "kms:*",
-        Resource  = aws_kms_key.general_encryption_key.arn
-      },
-      {
-        Effect    = "Allow",
-        Principal = { Service = "logs.${var.aws_region}.amazonaws.com" }, # Permissions for CloudWatch Logs
-        Action = [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncryptFrom",
-          "kms:ReEncryptTo",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey"
-        ],
-        Resource = aws_kms_key.general_encryption_key.arn
-      }
-      ], [
-      for principal in var.additional_principals : {
-        Effect    = "Allow",
-        Principal = { AWS = principal },
-        Action = [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncryptFrom",
-          "kms:ReEncryptTo",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey"
-        ],
-        Resource = aws_kms_key.general_encryption_key.arn
-      }
-    ])
+    Statement = concat(
+      [
+        # 1. Root account access
+        {
+          Effect    = "Allow",
+          Principal = { AWS = "arn:aws:iam::${var.aws_account_id}:root" }, # Initial root access
+          Action    = "kms:*",
+          Resource  = aws_kms_key.general_encryption_key.arn
+        },
+        # 2. CloudWatch Logs permissions
+        {
+          Effect    = "Allow",
+          Principal = { Service = "logs.${var.aws_region}.amazonaws.com" },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncryptFrom",
+            "kms:ReEncryptTo",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        },
+        # 3. ElastiCache permissions
+        {
+          Effect    = "Allow",
+          Principal = { Service = "elasticache.amazonaws.com" },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        }
+      ],
+      [
+        # 4. ALB Access Logs: delivery.logs.amazonaws.com
+        {
+          Effect    = "Allow",
+          Principal = { Service = "delivery.logs.amazonaws.com" },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncryptFrom",
+            "kms:ReEncryptTo",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        }
+      ],
+      [
+        # 5. Permission for S3 Service
+        {
+          Effect    = "Allow",
+          Principal = { Service = "s3.amazonaws.com" },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        }
+      ],
+      [
+        # 6. Additional principals (for var.additional_principals)
+        for principal in var.additional_principals : {
+          Effect    = "Allow",
+          Principal = { AWS = principal },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncryptFrom",
+            "kms:ReEncryptTo",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        }
+      ]
+    )
   })
-}
-
-# --- Create an Alias for the KMS Key --- #
-# This resource creates a user-friendly alias for the KMS key, making it easier to reference the key in other services.
-resource "aws_kms_alias" "kms_alias" {
-  count = var.enable_kms_alias ? 1 : 0 # Conditional creation based on the `enable_kms_alias` variable.
-
-  # Alias name with a project-specific prefix
-  name = "alias/${var.name_prefix}-kms-key"
-
-  # The ID of the target KMS key for which the alias is created
-  target_key_id = aws_kms_key.general_encryption_key.id
 }
 
 # --- Notes --- #
@@ -96,7 +133,3 @@ resource "aws_kms_alias" "kms_alias" {
 #    - **Principle of Least Privilege**: After the initial setup, replace root access with minimal permissions through IAM roles.
 #    - **CloudTrail Monitoring**: Enable CloudTrail to monitor KMS key activities (e.g., encryption/decryption operations).
 #    - **Documentation**: Maintain up-to-date documentation on access and participants who have permissions for the key.
-#
-# 4. **Alias Usage**:
-#    - If the `enable_kms_alias` variable is enabled, a convenient alias for the key is created.
-#    - Using aliases simplifies integration with other AWS services and key management.

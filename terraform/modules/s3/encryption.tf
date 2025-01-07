@@ -15,8 +15,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   # Server-Side Encryption Configuration
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"                                                                  # Use AWS KMS for encryption
-      kms_master_key_id = var.enable_kms_s3_role ? aws_iam_role.s3_kms_role[0].arn : var.kms_key_arn # KMS key for encrypting data
+      sse_algorithm     = "aws:kms"       # Use AWS KMS for encryption
+      kms_master_key_id = var.kms_key_arn # KMS key for encrypting data
     }
   }
 

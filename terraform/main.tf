@@ -81,9 +81,8 @@ module "kms" {
   additional_principals = var.additional_principals           # List of additional principals
   enable_key_rotation   = var.enable_key_rotation             # Enable automatic key rotation
   enable_kms_role       = var.enable_kms_role                 # Activate after initial setup KMS
-  enable_key_monitoring = true                                # Enable CloudWatch Alarms for KMS monitoring
-  key_decrypt_threshold = 100                                 # Set a custom threshold for Decrypt operations, adjust as needed
-  enable_kms_alias      = true                                # Enable alias creation for the KMS key
+  enable_key_monitoring = var.enable_key_monitoring           # Enable CloudWatch Alarms for KMS monitoring
+  key_decrypt_threshold = var.key_decrypt_threshold           # Set a custom threshold for Decrypt operations, adjust as needed
   sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn # SNS Topic for CloudWatch Alarms
 }
 
@@ -232,25 +231,16 @@ module "rds" {
 module "endpoints" {
   source = "./modules/endpoints" # Path to module Endpoints
 
-  # VPC configuration for endpoints
-  vpc_id     = module.vpc.vpc_id
-  aws_region = var.aws_region
-
-  # Subnet configuration for interface endpoints
-  private_subnet_ids = local.private_subnet_ids
-
-  # Route table configuration for gateway endpoints (e.g., S3)
-  private_route_table_id = module.vpc.private_route_table_id # Pass single route table ID
-
-  # Security group for interface endpoints created in the endpoints module
-  endpoint_sg_id = module.endpoints.endpoint_security_group_id
-
-  # CIDR blocks of private subnets for security group rules
-  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
-
-  # Tagging and naming
-  name_prefix = var.name_prefix
-  environment = var.environment
+  aws_region                           = var.aws_region
+  aws_account_id                       = var.aws_account_id
+  name_prefix                          = var.name_prefix
+  environment                          = var.environment
+  vpc_id                               = module.vpc.vpc_id
+  kms_key_arn                          = module.kms.kms_key_arn
+  private_subnet_ids                   = local.private_subnet_ids
+  private_subnet_cidr_blocks           = local.private_subnet_cidr_blocks
+  enable_cloudwatch_logs_for_endpoints = var.enable_cloudwatch_logs_for_endpoints
+  endpoints_log_retention_in_days      = var.endpoints_log_retention_in_days
 }
 
 # --- S3 Module --- #
@@ -274,8 +264,7 @@ module "s3" {
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
 
   # KMS role for S3 module
-  kms_key_arn        = module.kms.kms_key_arn
-  enable_kms_s3_role = var.enable_kms_s3_role
+  kms_key_arn = module.kms.kms_key_arn
 
   # Pass buckets list dynamically
   buckets = var.buckets
@@ -294,8 +283,7 @@ module "elasticache" {
   name_prefix = var.name_prefix
   environment = var.environment
 
-  kms_key_arn     = module.kms.kms_key_arn
-  enable_kms_role = module.kms.enable_kms_role
+  kms_key_arn = module.kms.kms_key_arn
 
   # ElastiCache configuration
   redis_version            = var.redis_version
@@ -346,7 +334,6 @@ module "alb" {
   enable_waf                     = var.enable_waf
   enable_waf_logging             = var.enable_waf_logging
   enable_firehose                = var.enable_firehose
-  enable_kms_alb_role            = var.enable_kms_alb_role
 
   depends_on = [module.vpc, module.s3]
 }

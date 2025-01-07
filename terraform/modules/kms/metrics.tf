@@ -5,7 +5,7 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   count = var.enable_key_monitoring ? 1 : 0 # Conditional creation based on the `enable_key_monitoring` variable.
 
   # Name of the CloudWatch Alarm
-  alarm_name = "${var.name_prefix}-kms-decrypt-usage-high"
+  alarm_name = "${var.name_prefix}-kms-decrypt-usage-high-${var.environment}"
 
   # Operator used for comparing the metric and threshold
   comparison_operator = "GreaterThanThreshold"
@@ -36,4 +36,7 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
 
   # Actions to perform when the alarm state changes
   alarm_actions = [var.sns_topic_arn] # Notify via SNS topic
+
+  # Treat missing data as missing (default behavior)
+  treat_missing_data = "notBreaching"
 }

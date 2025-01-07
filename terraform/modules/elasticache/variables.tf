@@ -109,13 +109,6 @@ variable "kms_key_arn" {
   }
 }
 
-# Enable or disable the creation of the IAM role for managing the KMS key
-variable "enable_kms_role" {
-  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
-  type        = bool
-  default     = false
-}
-
 # --- Enable Freeable Memory Alarm for Redis --- #
 # Controls whether the CloudWatch alarm for freeable memory is created.
 # Useful for monitoring memory usage and detecting potential bottlenecks.
@@ -141,15 +134,6 @@ variable "enable_redis_low_cpu_credits_alarm" {
   description = "Enable or disable the low CPU credits alarm for Redis"
   type        = bool
   default     = false # Set to true to enable the alarm
-}
-
-# --- Enable KMS Role for ElastiCache --- #
-# Controls whether the IAM role and policy for KMS interaction are created.
-# Recommended: Enable if KMS is used for encrypting Redis data.
-variable "enable_kms_elasticache_role" {
-  description = "Enable or disable the creation of IAM role and policy for KMS interaction"
-  type        = bool
-  default     = false # Set to true to enable the role and policy
 }
 
 # --- Notes --- #

@@ -22,44 +22,27 @@ resource "aws_security_group" "endpoints_sg" {
 
 # --- Ingress Rules (Inbound Traffic) --- #
 # Allow HTTPS traffic (port 443) to the VPC Endpoints from each private subnet.
+resource "aws_security_group_rule" "https_ingress" {
+  for_each = { for cidr in var.private_subnet_cidr_blocks : cidr => cidr }
 
-# Allow HTTPS access from the first private subnet
-resource "aws_vpc_security_group_ingress_rule" "https_ingress_1" {
   security_group_id = aws_security_group.endpoints_sg.id
+  type              = "ingress"
   from_port         = 443
   to_port           = 443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[0]
-  description       = "Allow HTTPS access from the first private subnet"
-}
-
-# Allow HTTPS access from the second private subnet
-resource "aws_vpc_security_group_ingress_rule" "https_ingress_2" {
-  security_group_id = aws_security_group.endpoints_sg.id
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[1]
-  description       = "Allow HTTPS access from the second private subnet"
-}
-
-# Allow HTTPS access from the third private subnet
-resource "aws_vpc_security_group_ingress_rule" "https_ingress_3" {
-  security_group_id = aws_security_group.endpoints_sg.id
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.private_subnet_cidr_blocks[2]
-  description       = "Allow HTTPS access from the third private subnet"
+  protocol          = "tcp"
+  cidr_blocks       = [each.key]
+  description       = "Allow HTTPS access from private subnet ${each.key}"
 }
 
 # --- Egress Rules (Outbound Traffic) --- #
 # Allow all outbound traffic from the VPC Endpoints to external resources.
-
-resource "aws_vpc_security_group_egress_rule" "all_outbound" {
+resource "aws_security_group_rule" "all_outbound" {
   security_group_id = aws_security_group.endpoints_sg.id
-  ip_protocol       = "-1"
-  cidr_ipv4         = "0.0.0.0/0"
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
   description       = "Allow all outbound traffic"
 }
 
