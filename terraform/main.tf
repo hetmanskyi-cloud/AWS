@@ -214,6 +214,10 @@ module "rds" {
   rds_storage_threshold     = var.rds_storage_threshold
   rds_connections_threshold = var.rds_connections_threshold
 
+  enable_low_storage_alarm      = var.enable_low_storage_alarm
+  enable_high_cpu_alarm         = var.enable_high_cpu_alarm
+  enable_high_connections_alarm = var.enable_high_connections_alarm
+
   # Read Replica Configuration
   read_replicas_count = var.read_replicas_count
 

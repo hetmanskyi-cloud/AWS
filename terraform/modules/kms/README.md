@@ -167,7 +167,7 @@ This step-by-step process ensures secure management of the KMS key while followi
    Implement stricter key policies for production environments, ensuring tighter access control.
     
 4. **Centralized CloudTrail Integration**:  
-   Use a separate module for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
+   Use a separate module (if needed) for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
     
 ---
     

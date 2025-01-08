@@ -185,7 +185,7 @@ This step-by-step process ensures the secure and efficient management of VPC End
 
 **Centralized CloudTrail Integration:**
 
-- Use a separate module for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
+- Use a separate module (if needed) for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
 
 ---
 

@@ -87,7 +87,7 @@ variable "backup_retention_period" {
 }
 
 variable "backup_window" {
-  description = "Preferred window for automated RDS backups (e.g., '02:00-03:00')"
+  description = "Preferred window for automated RDS backups (e.g., '03:00-04:00')"
   type        = string
 }
 
@@ -107,7 +107,7 @@ variable "deletion_protection" {
 variable "skip_final_snapshot" {
   description = "Skip final snapshot when deleting the RDS instance"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # --- Networking Variables --- #
@@ -189,6 +189,27 @@ variable "db_instance_identifier" {
   description = "The identifier of the primary RDS database instance."
   type        = string
 }
+
+# --- CloudWatch Alarm Configuration --- #
+# Enable or disable specific CloudWatch Alarms
+variable "enable_low_storage_alarm" {
+  description = "Enable the CloudWatch Alarm for low storage on RDS"
+  type        = bool
+  default     = false
+}
+
+variable "enable_high_cpu_alarm" {
+  description = "Enable the CloudWatch Alarm for high CPU utilization on RDS"
+  type        = bool
+  default     = false
+}
+
+variable "enable_high_connections_alarm" {
+  description = "Enable the CloudWatch Alarm for high database connections on RDS"
+  type        = bool
+  default     = false
+}
+
 
 # --- Notes --- #
 # 1. Variables are organized into logical sections for naming, environment, networking, and monitoring.

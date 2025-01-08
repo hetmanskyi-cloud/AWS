@@ -24,15 +24,19 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
       [
         # 1. Root account access
         {
-          Effect    = "Allow",
-          Principal = { AWS = "arn:aws:iam::${var.aws_account_id}:root" }, # Initial root access
-          Action    = "kms:*",
-          Resource  = aws_kms_key.general_encryption_key.arn
+          Effect = "Allow",
+          Principal = {
+            AWS = "arn:aws:iam::${var.aws_account_id}:root"
+          },
+          Action   = "kms:*",
+          Resource = aws_kms_key.general_encryption_key.arn
         },
         # 2. CloudWatch Logs permissions
         {
-          Effect    = "Allow",
-          Principal = { Service = "logs.${var.aws_region}.amazonaws.com" },
+          Effect = "Allow",
+          Principal = {
+            Service = "logs.${var.aws_region}.amazonaws.com"
+          },
           Action = [
             "kms:Encrypt",
             "kms:Decrypt",
@@ -43,10 +47,27 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           ],
           Resource = aws_kms_key.general_encryption_key.arn
         },
-        # 3. ElastiCache permissions
+        # 3. RDS permissions
         {
-          Effect    = "Allow",
-          Principal = { Service = "elasticache.amazonaws.com" },
+          Effect = "Allow",
+          Principal = {
+            Service = "rds.amazonaws.com"
+          },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn
+        },
+        # 4. ElastiCache permissions
+        {
+          Effect = "Allow",
+          Principal = {
+            Service = "elasticache.amazonaws.com"
+          },
           Action = [
             "kms:Encrypt",
             "kms:Decrypt",
@@ -58,10 +79,12 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
         }
       ],
       [
-        # 4. ALB Access Logs: delivery.logs.amazonaws.com
+        # 5. ALB Access Logs: delivery.logs.amazonaws.com
         {
-          Effect    = "Allow",
-          Principal = { Service = "delivery.logs.amazonaws.com" },
+          Effect = "Allow",
+          Principal = {
+            Service = "delivery.logs.amazonaws.com"
+          },
           Action = [
             "kms:Encrypt",
             "kms:Decrypt",
@@ -74,10 +97,12 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
         }
       ],
       [
-        # 5. Permission for S3 Service
+        # 6. Permission for S3 Service
         {
-          Effect    = "Allow",
-          Principal = { Service = "s3.amazonaws.com" },
+          Effect = "Allow",
+          Principal = {
+            Service = "s3.amazonaws.com"
+          },
           Action = [
             "kms:Encrypt",
             "kms:Decrypt",
@@ -89,7 +114,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
         }
       ],
       [
-        # 6. Additional principals (for var.additional_principals)
+        # 7. Additional principals (for var.additional_principals)
         for principal in var.additional_principals : {
           Effect    = "Allow",
           Principal = { AWS = principal },

@@ -328,6 +328,25 @@ variable "rds_connections_threshold" {
   type        = number
 }
 
+# Enable or disable specific CloudWatch Alarms
+variable "enable_low_storage_alarm" {
+  description = "Enable the CloudWatch Alarm for low storage on RDS"
+  type        = bool
+  default     = true
+}
+
+variable "enable_high_cpu_alarm" {
+  description = "Enable the CloudWatch Alarm for high CPU utilization on RDS"
+  type        = bool
+  default     = true
+}
+
+variable "enable_high_connections_alarm" {
+  description = "Enable the CloudWatch Alarm for high database connections on RDS"
+  type        = bool
+  default     = true
+}
+
 # Number of read replicas to create for the RDS instance
 variable "read_replicas_count" {
   description = "Number of read replicas to create for the RDS instance"

@@ -1,6 +1,6 @@
 # RDS Module for Terraform
 
-This module provisions and manages an RDS (Relational Database Service) instance in AWS, including Multi-AZ deployment, read replicas, Enhanced Monitoring, CloudWatch Alarms, and secure networking configurations. It is designed to work across multiple environments (`dev`, `stage`, and `prod`) with optimized settings for each environment.
+This module provisions and manages an RDS (Relational Database Service) instance in AWS, including Multi-AZ deployment, read replicas, Enhanced Monitoring, CloudWatch Alarms, and secure networking configurations. It is designed to work across multiple environments (`dev`, `stage`, and `prod`).
 
 ---
 
@@ -27,7 +27,7 @@ An example of the configuration can be found in the "Usage Example" section.
 - **CloudWatch Alarms**:
   - Monitors critical metrics such as:
     - **High CPU utilization**.
-    - **Low free storage space** (adjusted for dev environments).
+    - **Low free storage space**.
     - **High database connections**.
 - **Security Group**:
   - Manages access control by allowing database connections only from specific EC2 instances or Security Groups.
@@ -67,7 +67,7 @@ An example of the configuration can be found in the "Usage Example" section.
 | `db_port`                            | `number`       | Database port (default: 3306).                                                | `3306`                |
 | `multi_az`                           | `bool`         | Enable Multi-AZ deployment for high availability.                             | Required              |
 | `backup_retention_period`            | `number`       | Number of days to retain automated backups.                                   | Required              |
-| `backup_window`                      | `string`       | Preferred window for automated backups (e.g., '02:00-03:00').                 | Required              |
+| `backup_window`                      | `string`       | Preferred window for automated backups (e.g., '03:00-04:00').                 | Required              |
 | `performance_insights_enabled`       | `bool`         | Enable or disable Performance Insights.                                       | Required              |
 | `deletion_protection`                | `bool`         | Enable or disable deletion protection for RDS.                                | Required              |
 | `vpc_id`                             | `string`       | The VPC ID where the RDS instance will be deployed.                           | Required              |
@@ -138,23 +138,17 @@ output "rds_endpoint" {
 
 ## Notes
 
-1. Monitoring Strategy:
-
-Minimal monitoring in dev to reduce noise and costs.
-
-Full monitoring in stage and prod, including CPU utilization, storage, and connection thresholds.
-
-2. Security:
+1. Security:
 
 Encryption at rest and in transit is enabled by default.
 
 Access to RDS is restricted via Security Groups.
 
-3. High Availability:
+2. High Availability:
 
 Multi-AZ deployment and optional read replicas ensure fault tolerance.
 
-4. Flexibility:
+3. Flexibility:
 
 All key configurations, including backups, monitoring thresholds, and encryption, are customizable via input variables.
 
@@ -164,9 +158,39 @@ All key configurations, including backups, monitoring thresholds, and encryption
 
 Add support for automated scaling of read replicas.
 
+Provide conditional CloudWatch Alarms based on dynamic thresholds.
+
 Integrate with AWS Secrets Manager for secure management of database credentials.
 
-Provide conditional CloudWatch Alarms based on dynamic thresholds.
+### Future Integration with AWS Secrets Manager (if needed)
+
+For production environments, it is highly recommended to store sensitive credentials (e.g., RDS master username and password) in AWS Secrets Manager rather than hardcoding them in `terraform.tfvars`. This approach facilitates secure rotation of credentials and keeps them out of version control. A typical workflow is:
+
+1. **Create secret_manager module, then create a Secret in AWS Secrets Manager**  
+   Store the database username and password as a JSON object (e.g., `{"username": "admin", "password": "example"}`).
+
+2. **Reference the Secret in Terraform**  
+   Use a data source like `aws_secretsmanager_secret_version` to retrieve the secret values:
+   ```hcl
+   data "aws_secretsmanager_secret_version" "db_creds" {
+     secret_id = "my-rds-secret" # The name or ARN of your secret in Secrets Manager
+   }
+
+   locals {
+     db_creds = jsondecode(data.aws_secretsmanager_secret_version.db_creds.secret_string)
+   }
+3. **Pass the Credentials to the RDS Module**
+  In your RDS module configuration, set:
+    module "rds" {
+    source       = "./modules/rds"
+    db_username  = local.db_creds.username
+    db_password  = local.db_creds.password
+    # ... other variables ...
+   }
+4. **Rotate Passwords Periodically**
+  Leverage AWS Secrets Manager’s rotation functionality to periodically update the database password without manual intervention.
+
+By adopting Secrets Manager for password management, you minimize the risk of exposing sensitive data in Terraform state files and can easily rotate credentials to comply with best-practice security policies.
 
 ---
 

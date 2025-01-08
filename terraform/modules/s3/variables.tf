@@ -104,7 +104,7 @@ variable "buckets" {
 # Example for `buckets`:
 # {
 #   "scripts"         = "base",
-#   "logging"         = "special",
+#   "logging"         = "base",
 #   "ami"             = "base",
 #   "terraform_state" = "special",
 #   "wordpress_media" = "special"
