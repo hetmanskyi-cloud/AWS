@@ -9,24 +9,25 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
 
   # --- Extended S3 Configuration --- #
   extended_s3_configuration {
-    role_arn           = aws_iam_role.firehose_role[0].arn # IAM Role for Firehose permissions.
-    bucket_arn         = var.logging_bucket_arn            # Target S3 bucket for logs.
-    prefix             = "${var.name_prefix}/waf-logs/"    # Prefix for organizing WAF logs in the bucket.
-    buffering_interval = 300                               # Buffering interval in seconds.
-    buffering_size     = 5                                 # Buffering size in MB.
-    compression_format = "GZIP"                            # Compress logs in GZIP format for storage efficiency.
-    kms_key_arn        = var.kms_key_arn                   # KMS key for encrypting logs.
-  }
+    role_arn   = aws_iam_role.firehose_role[0].arn # IAM Role for Firehose permissions.
+    bucket_arn = var.logging_bucket_arn            # Target S3 bucket for logs.
+    prefix     = "${var.name_prefix}/waf-logs/"    # Prefix for organizing WAF logs in the bucket.
 
-  # Tags for resource identification.
-  tags = {
-    Name        = "${var.name_prefix}-waf-firehose"
-    Environment = var.environment
+    # These buffering settings represent a default configuration suitable for testing. 
+    # For production, these values should be adjusted based on anticipated log volume and delivery latency requirements.
+    buffering_interval = 300 # Buffering interval in seconds.
+    buffering_size     = 5   # Buffering size in MB.
+
+    # GZIP compression reduces storage costs but may increase processing costs when decrypting data in the future.
+    compression_format = "GZIP" # Compress logs in GZIP format for storage efficiency.
+
+    kms_key_arn = var.kms_key_arn # KMS key for encrypting logs.
   }
 }
 
 # --- IAM Role for Firehose --- #
-# This role allows Firehose to write logs to the S3 bucket.
+# This IAM Role is specifically required for delivering logs from Firehose to the target S3 bucket.
+# Ensure this role has permissions only for the required actions to follow the principle of least privilege.
 resource "aws_iam_role" "firehose_role" {
   count = var.enable_firehose ? 1 : 0
 
@@ -48,7 +49,7 @@ resource "aws_iam_role" "firehose_role" {
 }
 
 # --- IAM Policy for Firehose --- #
-# This policy defines permissions for Firehose to interact with the S3 bucket.
+# This policy defines the permissions required by Firehose to interact with the S3 bucket.
 resource "aws_iam_policy" "firehose_policy" {
   count = var.enable_firehose ? 1 : 0
 
@@ -68,12 +69,7 @@ resource "aws_iam_policy" "firehose_policy" {
         Resource = [
           "${var.logging_bucket_arn}/*", # Applies to all objects in the logging bucket.
           var.logging_bucket_arn         # Applies to the bucket itself.
-        ],
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control" # AWS Recommendation
-          }
-        }
+        ]
       },
       { # Permission to encrypt using KMS
         Effect = "Allow",
@@ -100,6 +96,7 @@ resource "aws_iam_role_policy_attachment" "firehose_policy_attachment" {
 }
 
 # --- Notes --- #
+
 # 1. All Firehose-related resources are controlled by the `enable_firehose` variable.
 # 2. Logs are delivered to an S3 bucket with GZIP compression for storage efficiency.
 # 3. S3 is chosen over CloudWatch Logs for its cost-effectiveness and flexibility in long-term storage.

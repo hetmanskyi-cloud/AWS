@@ -101,6 +101,7 @@ module "kms" {
 output "kms_key_arn" {
   value = module.kms.kms_key_arn
 }
+```
 
 ---
 
@@ -128,13 +129,13 @@ During the initial creation of the KMS key, full access is granted to the AWS ac
 This step-by-step process ensures secure management of the KMS key while following the principle of least privilege.
 
 ---
-    
+
 ## Security Best Practices
-    
-1. **Key Rotation**:  
+
+1. **Key Rotation**:
    Enable automatic key rotation to reduce the risk of compromised encryption keys.
-    
-2. **Access Policies**:  
+
+2. **Access Policies**:
    - **During Initial Setup**:
      - Full access is granted to the AWS root account for ease of configuration.
    - **After Setup**:
@@ -142,45 +143,58 @@ This step-by-step process ensures secure management of the KMS key while followi
        - Remove root access.
        - Grant only necessary permissions to IAM roles and services.
      - Use the `additional_principals` variable to define additional entities requiring access.
-    
-3. **Environment Isolation**:  
+
+3. **Environment Isolation**:
    Use separate KMS keys for each environment (e.g., dev, stage, prod) to maintain resource isolation.
-    
-4. **Monitoring**:  
+
+4. **Monitoring**:
    Monitor key usage through AWS CloudWatch Alarms to detect unauthorized access or anomalies.
-    
+
 5. **IAM Role Management**:
    - If `enable_kms_role` is enabled, ensure the IAM role has only necessary permissions to manage the KMS key.
    - Regularly review and audit IAM roles and policies associated with the KMS key.
-    
+
+6. **Recovery Process**:
+   - In the event of accidental deletion or loss of access to a key, use AWS support or account root access to recover the key.
+   - Regularly back up key metadata and policies for disaster recovery planning.
+
 ---
-    
+
 ## Future Improvements
-    
-1. **Deploy Policy Setup**:  
+
+1. **Deploy Policy Setup**:
    Provide more detailed control in the `additional_principals` variable to allow specific actions (e.g., `kms:EncryptOnly` or `kms:DecryptOnly`) for certain principals.
-    
-2. **Enhance Monitoring and Notifications**:  
+
+2. **Enhance Monitoring and Notifications**:
    Introduce additional metrics or thresholds to monitor key usage, such as tracking encryption errors or unusual usage patterns.
-    
-3. **Environment-Related Enhancements**:  
+
+3. **Environment-Related Enhancements**:
    Implement stricter key policies for production environments, ensuring tighter access control.
-    
-4. **Centralized CloudTrail Integration**:  
+
+4. **Centralized CloudTrail Integration**:
    Use a separate module (if needed) for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
-    
+
 ---
-    
+
 ### Authors
-    
+
 This module was created following Terraform best practices, emphasizing security, scalability, and maintainability. Contributions and feedback are welcome to further enhance its functionality.
-    
+
 ---
-    
+
 ### Useful Resources
-    
+
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/index.html)
 - [Best Practices for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html)
+- [Symmetric and Asymmetric KMS Keys](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#symmetric-asymmetric)
+- [AWS Config Rules for KMS](https://docs.aws.amazon.com/config/latest/developerguide/evaluate-config_kms.html)
 - [AWS IAM Policies for KMS](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html)
+- [AWS CloudTrail Documentation](https://docs.aws.amazon.com/cloudtrail/index.html)
+- [AWS Config Documentation](https://docs.aws.amazon.com/config/index.html)
+- [AWS KMS Key Rotation Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html)
+- [AWS Multi-Region Keys Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-overview.html)
+- [AWS Encryption SDK](https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/what-is.html)
+- [AWS KMS Metrics Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/monitoring-cloudwatch.html)
+- [AWS Backup Documentation](https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html)
 
 ---

@@ -6,6 +6,11 @@
 variable "replication_region" {
   description = "Region for the replication bucket"
   type        = string
+
+  validation {
+    condition     = var.replication_region == "us-east-1" || var.replication_region == "eu-west-1"
+    error_message = "Replication region must be one of 'us-east-1' or 'eu-west-1'."
+  }
 }
 
 # --- Environment Variable --- #
@@ -118,6 +123,11 @@ variable "enable_versioning" {
   description = "Map of bucket names to enable or disable versioning."
   type        = map(bool)
   default     = {}
+
+  validation {
+    condition     = alltrue([for key in keys(var.enable_versioning) : contains(keys(var.buckets), key)])
+    error_message = "All keys in enable_versioning must exist in buckets."
+  }
 }
 
 # Enable CORS configuration for the WordPress media bucket
@@ -128,35 +138,42 @@ variable "enable_cors" {
 }
 
 # --- Enable DynamoDB for State Locking --- #
-# This variable controls whether the DynamoDB table for Terraform state locking is created.
-# - true: Creates the DynamoDB table and associated resources for state locking.
-# - false: Skips the creation of DynamoDB-related resources.
+# Controls the creation of the DynamoDB table for state locking.
 variable "enable_dynamodb" {
-  description = "Enable DynamoDB table for Terraform state locking."
+  description = "Enable DynamoDB table for state locking."
   type        = bool
   default     = false
 
+  # --- Validation --- #
+  # Ensures DynamoDB is only enabled when S3 bucket are active.
+  validation {
+    condition     = var.enable_dynamodb ? var.enable_terraform_state_bucket : true
+    error_message = "enable_dynamodb requires enable_terraform_state_bucket = true."
+  }
+
   # --- Notes --- #
-  # 1. When enabled, the module creates a DynamoDB table with TTL and stream configuration.
-  # 2. This is required only if you are using DynamoDB-based state locking.
-  # 3. If you prefer S3 Conditional Writes for state locking, set this to false.
+  # 1. Required for state locking in remote backend setups.
+  # 2. Creates a DynamoDB table with TTL and stream configuration.
+  # 3. Skipped if state locking is managed differently or not required.
 }
 
 # --- Enable Lambda for TTL Automation --- #
-# This variable controls whether the Lambda function for TTL automation is created.
-# - true: Creates the Lambda function and associated resources.
-# - false: Skips the creation of Lambda-related resources.
+# Enables Lambda for DynamoDB TTL cleanup.
 variable "enable_lambda" {
-  description = "Enable Lambda function for DynamoDB TTL automation."
+  description = "Enable Lambda for DynamoDB TTL automation."
   type        = bool
   default     = false
 
+  # --- Validation --- #
+  # Ensures Lambda is enabled only if DynamoDB is active.
   validation {
     condition     = var.enable_lambda ? var.enable_dynamodb : true
     error_message = "enable_lambda requires enable_dynamodb = true."
   }
 
   # --- Notes --- #
-  # 1. This variable must be set to true only if `enable_dynamodb = true`.
-  # 2. When disabled, all Lambda-related resources (IAM role, policy, function, etc.) are skipped.
+  # 1. Required for state locking in remote backend setups.
+  # 2. This variable requires enable_dynamodb to be true to create Lambda resources.
+  # 3. The Lambda function automates the cleanup of expired locks in the DynamoDB table.
+  # 4. Set to false if DynamoDB TTL automation is not required or managed differently.
 }

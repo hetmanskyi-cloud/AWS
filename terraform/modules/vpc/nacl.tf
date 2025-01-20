@@ -15,44 +15,53 @@ resource "aws_network_acl" "public_nacl" {
 }
 
 # --- Public NACL Rules --- #
+# HTTP/HTTPS rules are not required because traffic is routed through ALB.
+# Enable only if direct instance access for HTTP/HTTPS is needed (e.g., for debugging).
+
 # Rules for the public NACL, defining which traffic is allowed or denied.
 
 ## Ingress Rules: Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
 
 # Rule for inbound HTTP traffic on port 80
-# resource "aws_network_acl_rule" "public_inbound_http" {
-#  network_acl_id = aws_network_acl.public_nacl.id # NACL ID
-#  rule_number    = 100                            # Rule number
-#  egress         = false                          # false for ingress traffic
-#  protocol       = "tcp"                          # TCP protocol
-#  from_port      = 80                             # Start port
-#  to_port        = 80                             # End port
-#  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs
-#  rule_action    = "allow"                        # Allow traffic
-# }
+resource "aws_network_acl_rule" "public_inbound_http" {
+  count = var.enable_public_nacl_http ? 1 : 0
+
+  network_acl_id = aws_network_acl.public_nacl.id # NACL ID
+  rule_number    = 100                            # Rule number
+  egress         = false                          # false for ingress traffic
+  protocol       = "tcp"                          # TCP protocol
+  from_port      = 80                             # Start port
+  to_port        = 80                             # End port
+  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs
+  rule_action    = "allow"                        # Allow traffic
+}
 
 # Rule for inbound HTTPS traffic on port 443
-# resource "aws_network_acl_rule" "public_inbound_https" {
-#  network_acl_id = aws_network_acl.public_nacl.id
-#  rule_number    = 110
-#  egress         = false
-#  protocol       = "tcp"
-#  from_port      = 443
-#  to_port        = 443
-#  cidr_block     = "0.0.0.0/0"
-#  rule_action    = "allow"
-# }
+resource "aws_network_acl_rule" "public_inbound_https" {
+  count = var.enable_public_nacl_https ? 1 : 0
+
+  network_acl_id = aws_network_acl.public_nacl.id
+  rule_number    = 110
+  egress         = false
+  protocol       = "tcp"
+  from_port      = 443
+  to_port        = 443
+  cidr_block     = "0.0.0.0/0"
+  rule_action    = "allow"
+}
 
 # Rule for inbound SSH traffic on port 22
+# CIDR block "0.0.0.0/0" is acceptable for testing but should be restricted to specific IP ranges in production for security.
 resource "aws_network_acl_rule" "public_inbound_ssh" {
-  count          = var.enable_ssh_access ? 1 : 0
+  count = var.enable_vpc_ssh_access ? 1 : 0
+
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
   egress         = false
   protocol       = "tcp"
   from_port      = 22
   to_port        = 22
-  cidr_block     = "0.0.0.0/0" # It is recommended to restrict the IP range in production
+  cidr_block     = "0.0.0.0/0"
   rule_action    = "allow"
 }
 
@@ -161,6 +170,7 @@ resource "aws_network_acl_rule" "private_outbound_elasticache" {
 }
 
 # Rule for outbound DNS traffic (ports 53 TCP/UDP)
+# NACL rules for DNS (port 53) are required for DNS queries
 resource "aws_network_acl_rule" "private_outbound_dns_tcp" {
   network_acl_id = aws_network_acl.private_nacl.id
   rule_number    = 220
@@ -235,3 +245,11 @@ resource "aws_network_acl_association" "private_nacl_association_3" {
   network_acl_id = aws_network_acl.private_nacl.id
   depends_on     = [aws_network_acl.private_nacl]
 }
+
+# --- Notes --- #
+# 1. Public NACLs are configured to allow HTTP, HTTPS, and SSH traffic, 
+#    but these rules can be toggled via variables for enhanced security.
+# 2. Private NACLs allow restricted access to resources like MySQL and Redis within the VPC.
+# 3. Egress rules permit outbound traffic to DNS and ephemeral ports for normal operations.
+# 4. Ensure that NACLs are correctly associated with the intended subnets to avoid connectivity issues.
+# 5. Regularly review NACL rules to maintain alignment with security best practices.

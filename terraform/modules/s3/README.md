@@ -34,6 +34,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 - **Logging and Monitoring**:
   - Logging enabled for all buckets, stored in a dedicated logging bucket.
   - Notifications for object creation and deletion integrated with SNS.
+  - Dependencies are explicitly declared with `depends_on` for resources such as `aws_s3_bucket_logging` and `aws_s3_bucket_policy` to ensure correct creation order.
 
 - **Versioning and Lifecycle Policies**:
   - Versioning enabled to protect against accidental overwrites or deletions.
@@ -44,12 +45,30 @@ This module creates and manages S3 buckets for various use cases within a projec
   - Supports disaster recovery by replicating data to another AWS region.
 
 - **DynamoDB Locking**:
-  - DynamoDB table for Terraform state file locking.
-  - TTL automation with AWS Lambda to prevent stale locks.
-
-- **KMS Role for S3**:
-  - Conditional creation of an IAM role and policy for S3 to access KMS.
-  - The role can be enabled with `enable_kms_s3_role` and integrates seamlessly with the specified `kms_key_arn`.
+  - DynamoDB table is used for Terraform state file locking, ensuring that only one process can modify the state file at a time.
+  - The table includes:
+    - **TTL (Time-to-Live)**: Automatically deletes expired locks to prevent stale entries.
+    - **Point-in-Time Recovery**: Protects against accidental deletions or modifications, allowing recovery to any point in the past 35 days.
+    - **Stream Configuration**: Enables integration with AWS Lambda for real-time processing of DynamoDB changes.
+  - **TTL Automation with AWS Lambda**:
+    - A Lambda function updates expiration timestamps in the DynamoDB table, ensuring proper lock cleanup.
+    - Lambda automatically processes records from DynamoDB Streams and prevents stale locks from accumulating.
+    - **Testing Note**: The Lambda function logic can be tested locally with mock data before deploying to AWS Lambda to verify correctness and functionality.
+  - **Integration Notes**:
+  - **Enable Only If Remote Backend Is Configured**:
+    - This feature should be used only when the remote backend is enabled in the `remote_backend.tf` file in the main block (e.g., using S3 for state storage).
+    - Ensure that the remote backend configuration in `remote_backend.tf` is uncommented and correctly initialized.
+    - To enable this feature, set the following variables in `terraform.tfvars`:
+      ```hcl
+      enable_dynamodb = true
+      enable_lambda   = true
+      ```
+    - Ensure the `update_ttl.zip` Lambda function code is deployed in the `scripts` directory.
+    - Validate the S3 bucket and DynamoDB table are created before enabling the remote backend.
+  - **Best Practices**:
+    - Always run `terraform apply` to create the DynamoDB table and Lambda function before enabling the remote backend.
+    - Regularly review and update the `update_ttl.zip` Lambda function logic to ensure compatibility with new requirements or schema changes.
+    - Monitor the DynamoDB table for stale locks and ensure TTL automation is functioning as expected.
 
 ---
 
@@ -67,7 +86,6 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `lambda.tf`       | Configures a Lambda function for DynamoDB TTL automation.                                |
 | `outputs.tf`      | Exposes key outputs for integration with other modules.                                  |
 | `variables.tf`    | Declares input variables for the module.                                                 |
-| `kms.tf`          | Manages IAM roles and policies for S3 to interact with KMS.                              |
 
 ---
 
@@ -80,7 +98,6 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `name_prefix`                       | `string`       | Prefix for S3 resources to ensure unique and identifiable names.                       | Required              |
 | `aws_account_id`                    | `string`       | AWS Account ID for bucket policies and resource security.                              | Required              |
 | `kms_key_arn`                       | `string`       | ARN of the KMS key used for S3 bucket encryption.                                      | Required              |
-| `enable_kms_s3_role`                | `bool`         | Enables creation of an IAM role for S3 to access KMS.                                  | `false`               |
 | `sns_topic_arn`                     | `string`       | ARN of the SNS topic to send S3 bucket notifications.                                  | Required              |
 | `noncurrent_version_retention_days` | `number`       | Days to retain noncurrent object versions for versioned buckets.                       | `30`                  |
 | `enable_s3_replication`             | `bool`         | Enables cross-region replication for specific buckets.                                 | `false`               |
@@ -105,22 +122,6 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ---
 
-## Environment-Specific Logic
-
-- **Development (dev)**:
-  - Base buckets (e.g., scripts, logging, ami) are created by default.
-  - Special buckets (e.g., terraform_state, replication) are created only if explicitly enabled.
-  - DynamoDB and Lambda are created only if `enable_dynamodb` and `enable_lambda` are `true`.
-
-- **Staging (stage)**:
-  - Includes both base and special buckets, with optional cross-region replication.
-  - DynamoDB and Lambda can be enabled for enhanced functionality.
-
-- **Production (prod)**:
-  - Similar to staging but typically with full-scale replication and stricter security policies.
-
----
-
 ## Security Best Practices
 
 - **Public Access**:
@@ -140,12 +141,9 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ## Future Improvements
 
-- Add dynamic KMS key lookup using `data "aws_kms_key"` for more robust validation in distributed environments.
+- Add data "aws_kms_key" to validate the existence of the provided KMS key for improved reliability in distributed environments.
 - Expand lifecycle policies to include archival storage using Glacier for cost optimization.
 - Integrate bucket logging analysis tools for improved security auditing and anomaly detection.
-- Add CloudWatch Alarms for monitoring:
-  - Lambda execution errors.
-  - DynamoDB throughput limits.
 - Consider implementing log compression using AWS Lambda for S3 bucket logs to reduce storage costs and optimize data handling, in combination with lifecycle policies for archival management.
 
 ---
@@ -189,6 +187,7 @@ terraform {
 provider "aws" {
   region = "eu-west-1"
 }
+```
 
 ---
 

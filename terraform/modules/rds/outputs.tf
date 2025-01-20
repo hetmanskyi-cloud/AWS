@@ -46,25 +46,21 @@ output "db_endpoint" {
 # Outputs the ARN of the IAM role used for RDS Enhanced Monitoring.
 output "rds_monitoring_role_arn" {
   description = "The ARN of the IAM role for RDS Enhanced Monitoring"
-  value       = aws_iam_role.rds_monitoring_role.arn
-}
-
-# --- Primary RDS Instance Identifier --- #
-# Outputs the unique identifier for the primary RDS instance.
-output "rds_db_instance_id" {
-  description = "Identifier of the primary RDS database instance"
-  value       = aws_db_instance.db.id
+  value       = length(aws_iam_role.rds_monitoring_role) > 0 ? aws_iam_role.rds_monitoring_role[0].arn : null
 }
 
 # --- Read Replicas Identifiers --- #
 # Outputs a list of identifiers for all RDS read replicas.
+# Note: Returns an empty list if no read replicas are configured.
 output "rds_read_replicas_ids" {
   description = "Identifiers of the RDS read replicas"
   value       = [for replica in aws_db_instance.read_replica : replica.id]
 }
 
 # --- RDS Instance Identifier --- #
-# Outputs the identifier for the RDS instance.
+# Outputs the unique identifier of the RDS instance.
+# Note: This is the primary and recommended output for referencing the RDS instance identifier,
+# ensuring consistency with AWS terminology and Terraform's resource naming conventions.
 output "db_instance_identifier" {
   description = "The identifier of the RDS instance"
   value       = aws_db_instance.db.id

@@ -18,7 +18,10 @@ resource "aws_lb" "application" {
   # The type of IP addresses used by ALB
   ip_address_type = "ipv4"
 
-  # Access logging configuration for ALB logs
+  # --- Access logging configuration for ALB logs --- #
+  # Ensure Access Logs are enabled for production environments.
+  # Access Logs provide critical visibility into traffic patterns and help with debugging.
+  # Check that the S3 bucket is correctly specified and `enable_alb_access_logs` is set to `true` in production.
   access_logs {
     bucket  = var.logging_bucket             # S3 bucket for storing logs
     prefix  = "${var.name_prefix}/alb-logs/" # Separate ALB logs with a specific prefix
@@ -32,20 +35,25 @@ resource "aws_lb" "application" {
 }
 
 # --- Target Group for ALB --- #
-# This resource defines a target group for the ALB to forward traffic to EC2 instances
+# This resource defines a target group for the ALB to forward traffic to ASG instances
 resource "aws_lb_target_group" "wordpress" {
   name     = "${var.name_prefix}-wordpress-tg" # Target group name
   port     = var.target_group_port             # Port for traffic (default: 80 for HTTP)
   protocol = "HTTP"                            # Protocol for traffic
   vpc_id   = var.vpc_id                        # VPC where the target group exists
 
-  # Health check configuration for monitoring target instance health
+  # --- Health check configuration for monitoring target instance health --- #
+  # Verify that the health check path and thresholds align with the application requirements.
+  # Consider stricter criteria for critical applications:
+  # - Lower `timeout` and `interval` values for faster detection of failures.
+  # - Higher `healthy_threshold` to ensure stability before marking targets as healthy.
   health_check {
-    path                = "/" # Health check endpoint (default path, can be customized for app-specific needs).
-    interval            = 30  # Time (seconds) between health checks
-    timeout             = 5   # Time to wait for a response before failing
-    healthy_threshold   = 3   # Consecutive successes required to mark healthy
-    unhealthy_threshold = 3   # Consecutive failures required to mark unhealthy
+    path                = "/"       # Health check endpoint (default path, can be customized for app-specific needs).
+    interval            = 30        # Time (seconds) between health checks
+    timeout             = 5         # Time to wait for a response before failing
+    healthy_threshold   = 3         # Consecutive successes required to mark healthy
+    unhealthy_threshold = 3         # Consecutive failures required to mark unhealthy
+    matcher             = "200-299" # Acceptable HTTP codes for successful health checks
   }
 
   # Additional attributes for the target group behavior
@@ -67,8 +75,8 @@ resource "aws_lb_target_group" "wordpress" {
   }
 }
 
-# --- ALB Listener for HTTP --- #
-# Handles HTTP traffic and optionally redirects to HTTPS if HTTPS listener is active.
+# --- ALB Listener Configuration for HTTP --- #
+# HTTP traffic is redirected to HTTPS only if enable_https_listener is set to true.
 resource "aws_lb_listener" "http" {
   count = 1 # Always create an HTTP listener for handling traffic.
 
@@ -91,8 +99,11 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# --- HTTPS Listener --- #
+# --- HTTPS Listener Configuration --- #
 # HTTPS Listener creation is controlled by a count variable.
+# Ensure the `certificate_arn` variable is validated and non-empty if `enable_https_listener` is `true`.
+# Missing or invalid certificates will cause Terraform to fail during creation.
+# Add explicit checks for `certificate_arn` in `variables.tf` to prevent deployment issues.
 resource "aws_lb_listener" "https" {
   count             = var.enable_https_listener ? 1 : 0 # Controlled by a variable to determine creation.
   load_balancer_arn = aws_lb.application.arn

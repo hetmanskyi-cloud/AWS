@@ -53,19 +53,50 @@ variable "private_subnet_cidr_blocks" {
   type        = list(string)
 }
 
+# --- Public Subnet IDs --- #
+# List of public subnet IDs for interface endpoints, if needed.
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for interface endpoints"
+  type        = list(string)
+}
+
+# --- Public Subnet CIDR Blocks --- #
+# CIDR blocks for public subnets used to define Security Group rules.
+variable "public_subnet_cidr_blocks" {
+  description = "CIDR blocks for public subnets"
+  type        = list(string)
+}
+
 # --- Encryption Configuration --- #
 # ARN of the KMS key used for encrypting data.
 variable "kms_key_arn" {
-  description = "ARN of the KMS key used for encrypting data"
+  description = <<EOT
+  ARN of the KMS key used for encrypting CloudWatch Logs data.
+  Ensure the KMS key has permissions for CloudWatch Logs actions, such as:
+  - kms:Encrypt
+  - kms:Decrypt
+  - kms:GenerateDataKey
+  EOT
   type        = string
+  default     = ""
+
+  validation {
+    condition     = !(var.enable_cloudwatch_logs_for_endpoints && var.kms_key_arn == "")
+    error_message = "When enable_cloudwatch_logs_for_endpoints is true, kms_key_arn must be provided."
+  }
 }
 
 # --- Enable CloudWatch Logs for Endpoints --- #
 # Enables CloudWatch Logs for monitoring VPC Endpoints.
 variable "enable_cloudwatch_logs_for_endpoints" {
-  description = "Enable CloudWatch Logs for VPC Endpoints in stage and prod environments"
+  description = "Enable CloudWatch Logs for VPC Endpoints"
   type        = bool
   default     = false
+
+  validation {
+    condition     = !(var.enable_cloudwatch_logs_for_endpoints && (var.aws_account_id == "" || var.aws_region == ""))
+    error_message = "When enable_cloudwatch_logs_for_endpoints is true, aws_account_id and aws_region must be provided."
+  }
 }
 
 # --- Log Retention Period --- #
@@ -73,7 +104,7 @@ variable "enable_cloudwatch_logs_for_endpoints" {
 variable "endpoints_log_retention_in_days" {
   description = "Retention period for CloudWatch Logs in days"
   type        = number
-  default     = 14
+  default     = 7
 
   validation {
     condition     = var.endpoints_log_retention_in_days > 0

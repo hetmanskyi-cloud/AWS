@@ -6,6 +6,13 @@ output "vpc_id" {
   value       = aws_vpc.vpc.id
 }
 
+# --- VPC CIDR Block Output ---
+# Outputs the CIDR block of the VPC for use in other modules.
+output "vpc_cidr_block" {
+  description = "The CIDR block of the VPC"
+  value       = aws_vpc.vpc.cidr_block
+}
+
 # --- Public Subnet Outputs --- #
 
 # Output IDs for public subnets
@@ -144,3 +151,8 @@ output "dynamodb_endpoint_id" {
   description = "The ID of the DynamoDB VPC Endpoint"
   value       = aws_vpc_endpoint.dynamodb.id
 }
+
+# --- Notes --- #
+# 1. Outputs are organized to provide all necessary IDs and CIDR blocks for subnets, route tables, and endpoints.
+# 2. These outputs can be used by other modules to dynamically reference VPC resources.
+# 3. Regularly validate outputs to ensure they match the desired infrastructure configuration.

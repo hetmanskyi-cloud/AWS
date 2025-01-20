@@ -1,9 +1,10 @@
 # --- IAM Role for Managing KMS Key --- #
 # This role is created for administrative management of the KMS key.
 # Designed to replace root-level access for better security and compliance.
-# Only the root account of the AWS account can assume this role.
+# This role is strictly for administrative purposes and should not be used
+# for day-to-day operations or automated tasks.
 resource "aws_iam_role" "kms_role" {
-  count = var.enable_kms_role ? 1 : 0 # Enable or disable the creation of this role dynamically
+  for_each = var.enable_kms_role ? { "kms_role" : "kms_role" } : {} # Enable or disable the creation of this role dynamically
 
   name = "${var.name_prefix}-kms-role-${var.environment}"
 
@@ -30,8 +31,10 @@ resource "aws_iam_role" "kms_role" {
 
 # --- IAM Policy for KMS Key Management --- #
 # This policy allows minimal permissions for managing the KMS key.
+# Note: This policy grants minimal permissions for KMS key management.
+# In production, ensure to audit and minimize permissions further as required.
 resource "aws_iam_policy" "kms_management_policy" {
-  count = var.enable_kms_role ? 1 : 0 # Enable or disable the creation of this policy dynamically
+  for_each = var.enable_kms_role ? { "kms_policy" : "kms_policy" } : {} # Enable or disable the creation of this policy dynamically
 
   name        = "${var.name_prefix}-kms-management-policy-${var.environment}"
   description = "IAM policy for managing the KMS key"
@@ -56,9 +59,9 @@ resource "aws_iam_policy" "kms_management_policy" {
 # --- Attach the Policy to the IAM Role --- #
 # This resource ensures the role can perform actions allowed by the policy.
 resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
-  count      = var.enable_kms_role ? 1 : 0 # Enable or disable the creation of this attachment dynamically
-  role       = aws_iam_role.kms_role[0].name
-  policy_arn = aws_iam_policy.kms_management_policy[0].arn
+  for_each   = var.enable_kms_role ? { "kms_attachment" : "kms_attachment" } : {} # Enable or disable the creation of this attachment dynamically
+  role       = aws_iam_role.kms_role["kms_role"].name
+  policy_arn = aws_iam_policy.kms_management_policy["kms_policy"].arn
 }
 
 # --- Notes --- #
@@ -79,5 +82,5 @@ resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
 #
 # 5. **Integration with Other Resources**:
 #    - This IAM role is intended solely for administrative management of the KMS key.
-#    - Permissions for services such as S3 or EC2 to use the KMS key are managed within their respective Terraform modules.
+#    - Permissions for services such as S3 or ASG to use the KMS key are managed within their respective Terraform modules.
 #    - This ensures clear separation of responsibilities and maintains modularity.

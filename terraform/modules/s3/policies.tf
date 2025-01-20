@@ -15,6 +15,10 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
     allowed_origins = ["*"]                             # Initially allow all origins; restrict in prod if needed.
     max_age_seconds = 3000                              # Cache preflight responses.
   }
+
+  # Notes:
+  # - `allowed_origins` is set to "*" for testing purposes.
+  # TODO: Replace `allowed_origins` with specific domain names for production.
 }
 
 # --- Bucket Policies --- #
@@ -91,6 +95,8 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   })
 
   bucket = aws_s3_bucket.buckets[each.key].id
+
+  depends_on = [aws_s3_bucket.logging]
 
   # JSON policy granting permissions to write logs into the bucket.
   policy = jsonencode({

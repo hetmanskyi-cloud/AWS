@@ -6,7 +6,7 @@ resource "aws_vpc_endpoint" "ssm" {
   vpc_id             = var.vpc_id
   service_name       = "com.amazonaws.${var.aws_region}.ssm"
   vpc_endpoint_type  = "Interface"
-  subnet_ids         = var.private_subnet_ids
+  subnet_ids         = concat(var.private_subnet_ids, var.public_subnet_ids)
   security_group_ids = [aws_security_group.endpoints_sg.id] # Created by this module
 
   # Optional: Enable CloudWatch Logs for monitoring traffic
@@ -21,19 +21,22 @@ resource "aws_vpc_endpoint" "ssm_messages" {
   vpc_id             = var.vpc_id
   service_name       = "com.amazonaws.${var.aws_region}.ssmmessages"
   vpc_endpoint_type  = "Interface"
-  subnet_ids         = var.private_subnet_ids
+  subnet_ids         = concat(var.private_subnet_ids, var.public_subnet_ids)
   security_group_ids = [aws_security_group.endpoints_sg.id] # Created by this module
+
+  # Note: Combining public and private subnets is useful if access to VPC Endpoints is required from both.
+  # For most cases, private subnets are sufficient for SSM and similar services. Review your requirements carefully.
 
   tags = local.tags
 }
 
-# --- EC2 Messages Interface Endpoint --- #
-# Provides access to EC2 Messages for Systems Manager operations.
-resource "aws_vpc_endpoint" "ec2_messages" {
+# --- ASG Messages Interface Endpoint --- #
+# Provides access to ASG Messages for Systems Manager operations.
+resource "aws_vpc_endpoint" "asg_messages" {
   vpc_id             = var.vpc_id
   service_name       = "com.amazonaws.${var.aws_region}.ec2messages"
   vpc_endpoint_type  = "Interface"
-  subnet_ids         = var.private_subnet_ids
+  subnet_ids         = concat(var.private_subnet_ids, var.public_subnet_ids)
   security_group_ids = [aws_security_group.endpoints_sg.id] # Created by this module
 
   tags = local.tags
@@ -58,6 +61,8 @@ data "aws_iam_policy_document" "endpoint_ssm_doc" {
       "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/vpc-endpoints/${var.name_prefix}:*"
     ]
   }
+  # Note: Wide permissions are used in testing environments for simplicity.
+  # In production, replace this policy with more granular permissions targeting specific log streams.
 }
 
 # --- Local Tags for Resources --- #
@@ -69,7 +74,7 @@ locals {
 }
 
 # --- Notes --- #
-# 1. This module creates Interface Endpoints for SSM, SSM Messages, and EC2 Messages (Gateway Endpoints for S3 and DynamoDB creates in `vpc module`).
+# 1. This module creates Interface Endpoints for SSM, SSM Messages, and ASG Messages (Gateway Endpoints for S3 and DynamoDB creates in `vpc module`).
 # 2. Security Group for Interface Endpoints allows HTTPS access (port 443) only from private subnets.
 # 3. CloudWatch Logs are optional and can be enabled for monitoring traffic.
 # 4. Tags are applied to all resources for better identification and management across environments.

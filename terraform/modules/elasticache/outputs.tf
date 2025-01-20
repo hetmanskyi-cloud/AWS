@@ -17,8 +17,21 @@ output "redis_endpoint" {
 # --- Redis Security Group ID --- #
 # Outputs the ID of the Security Group used to control access to the Redis replication group.
 output "redis_security_group_id" {
-  description = "The ID of the Security Group for ElastiCache Redis"
+  description = "The ID of the Security Group for ElastiCache Redis. Used for integrating with other modules."
   value       = aws_security_group.redis_sg.id
+}
+
+# --- Redis Replication Group ID --- #
+# Outputs the ID of the Redis replication group for integration and monitoring.
+output "redis_replication_group_id" {
+  description = "The ID of the Redis replication group"
+  value       = aws_elasticache_replication_group.redis.id
+}
+
+# Failover status for Redis replication group
+output "failover_status" {
+  description = "Indicates if failover is enabled for Redis replication group."
+  value       = aws_elasticache_replication_group.redis.automatic_failover_enabled
 }
 
 # --- Notes --- #

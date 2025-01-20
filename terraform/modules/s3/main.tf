@@ -42,6 +42,7 @@ resource "aws_s3_bucket" "buckets" {
     Name        = each.key        # Name tag for the bucket.
     Environment = var.environment # Environment tag (e.g., dev, stage, prod).
   }
+  # WARNING: Versioning is disabled for this buckets in `terraform.tfvars`. Objects without versions cannot be recovered.
 }
 
 # --- Base S3 Buckets --- #

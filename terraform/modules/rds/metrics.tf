@@ -1,4 +1,6 @@
 # --- CloudWatch Alarms for RDS --- #
+# CloudWatch alarms can be enabled or disabled using the enable_<alarm> variables.
+# This flexibility allows monitoring to be adjusted for testing or production environments.
 
 # --- Low Free Storage Space Alarm --- #
 # Monitors available storage space and triggers an alarm if exceeded.
@@ -18,6 +20,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }
+  # Ensure the RDS instance is created before the alarm
+  depends_on = [aws_db_instance.db]
 }
 
 # --- High CPU Utilization Alarm --- #
@@ -38,6 +42,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }
+  # Ensure the RDS instance is created before the alarm
+  depends_on = [aws_db_instance.db]
 }
 
 # --- High Number of Database Connections --- #
@@ -58,6 +64,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }
+  # Ensure the RDS instance is created before the alarm
+  depends_on = [aws_db_instance.db]
 }
 
 # --- Notes --- #

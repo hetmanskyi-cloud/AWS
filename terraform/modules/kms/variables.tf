@@ -5,6 +5,11 @@
 variable "aws_account_id" {
   description = "AWS Account ID for configuring permissions in the KMS key policy"
   type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "The AWS Account ID must be a 12-digit numeric string."
+  }
 }
 
 # AWS Region where the resources are created
@@ -12,6 +17,11 @@ variable "aws_account_id" {
 variable "aws_region" {
   description = "AWS Region where the resources are created"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "The AWS Region must follow the format 'xx-xxxx-x', e.g., 'eu-west-1'."
+  }
 }
 
 # Prefix for naming KMS and related resources
@@ -19,6 +29,11 @@ variable "aws_region" {
 variable "name_prefix" {
   description = "Name prefix for all resources"
   type        = string
+
+  validation {
+    condition     = length(var.name_prefix) > 0
+    error_message = "The name_prefix variable cannot be empty."
+  }
 }
 
 # Environment label for tracking resources (dev, stage, prod)
@@ -26,14 +41,21 @@ variable "name_prefix" {
 variable "environment" {
   description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
+
   validation {
     condition     = can(regex("^(dev|stage|prod)$", var.environment))
     error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
   }
 }
 
-# --- Enable Key Rotation --- #
-# Allows enabling or disabling automatic key rotation for the KMS key.
+# S3 buckets variable
+variable "buckets" {
+  description = "Map of bucket names and their types (e.g., base or special)"
+  type        = map(string)
+}
+
+# Enable Key Rotation
+# Controls whether automatic key rotation is enabled for the KMS key.
 variable "enable_key_rotation" {
   description = "Enable or disable automatic key rotation for the KMS key"
   type        = bool
@@ -52,6 +74,7 @@ Leave this as an empty list if no additional principals need to be granted acces
 EOT
   type        = list(string)
   default     = [] # Default is an empty list, meaning no additional principals
+
   validation {
     condition     = alltrue([for arn in var.additional_principals : can(regex("^arn:aws:iam::[0-9]{12}:(user|role)/[A-Za-z0-9-_]+$", arn))])
     error_message = "All additional principals must be valid IAM ARNs."
@@ -66,7 +89,7 @@ variable "enable_kms_role" {
   default     = false
 }
 
-# --- Enable CloudWatch Monitoring --- #
+# Enable Key Monitoring
 # This variable controls whether CloudWatch Alarms for the KMS key usage are created.
 variable "enable_key_monitoring" {
   description = "Enable or disable CloudWatch Alarms for monitoring KMS key usage."
@@ -74,8 +97,8 @@ variable "enable_key_monitoring" {
   default     = false
 }
 
-# --- Threshold for Decrypt Operations --- #
-# Defines the threshold for the number of Decrypt operations that trigger a CloudWatch Alarm.
+# Decrypt Operations Threshold
+# Sets the threshold for the number of decrypt operations that trigger an alarm.
 variable "key_decrypt_threshold" {
   description = "Threshold for KMS decrypt operations to trigger an alarm."
   type        = number
@@ -88,12 +111,50 @@ variable "key_decrypt_threshold" {
 }
 
 # ARN of the SNS Topic for CloudWatch alarms.
+# Specifies the SNS topic to send CloudWatch alarm notifications.
+# This is mandatory if `enable_key_monitoring` is true.
 variable "sns_topic_arn" {
-  description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
+  description = <<EOT
+ARN of the SNS Topic for sending CloudWatch alarm notifications.
+This is mandatory if `enable_key_monitoring` is true.
+EOT
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sns_topic_arn))
-    error_message = "The SNS Topic ARN must be a valid ARN."
+    condition     = !(var.enable_key_monitoring && var.sns_topic_arn == "") && can(regex("^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sns_topic_arn))
+    error_message = "The SNS Topic ARN must be a valid ARN in the format 'arn:aws:sns:<region>:<account_id>:<topic_name>'. It is mandatory when `enable_key_monitoring` is true."
   }
+}
+
+# Enable DynamoDB
+# Indicates if permissions for DynamoDB should be added to the KMS key.
+variable "enable_dynamodb" {
+  description = "Flag to indicate if DynamoDB is enabled for state locking"
+  type        = bool
+  default     = false
+}
+
+# Enable Lambda
+# Indicates if permissions for Lambda should be added to the KMS key.
+variable "enable_lambda" {
+  description = "Flag to indicate if Lambda is enabled for TTL automation"
+  type        = bool
+  default     = false
+}
+
+# Enable Firehose
+# Controls whether permissions for Kinesis Firehose are added to the KMS key.
+variable "enable_firehose" {
+  description = "Enable permissions for Kinesis Firehose to use the KMS key"
+  type        = bool
+  default     = false
+}
+
+# Enable WAF Logging
+# Controls whether permissions for WAF logging are added to the KMS key.
+variable "enable_waf_logging" {
+  description = "Enable permissions for WAF logging to use the KMS key"
+  type        = bool
+  default     = false
 }

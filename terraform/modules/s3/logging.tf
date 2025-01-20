@@ -20,6 +20,8 @@ resource "aws_s3_bucket_logging" "bucket_logging" {
   bucket        = aws_s3_bucket.buckets[each.key].id
   target_bucket = aws_s3_bucket.logging.id
   target_prefix = "${var.name_prefix}/${lookup(local.bucket_prefixes, each.key, "unknown/")}"
+
+  depends_on = [aws_s3_bucket.logging]
 }
 
 # --- Optional Logging for the Logging Bucket --- #

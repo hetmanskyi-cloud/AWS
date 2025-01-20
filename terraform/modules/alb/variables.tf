@@ -16,11 +16,6 @@ variable "environment" {
 }
 
 # --- ALB Configuration --- #
-# Name of the ALB.
-variable "alb_name" {
-  description = "Name of the Application Load Balancer"
-  type        = string
-}
 
 # List of public subnet IDs for ALB placement.
 variable "public_subnets" {
@@ -31,12 +26,6 @@ variable "public_subnets" {
 # VPC ID for the ALB and target group.
 variable "vpc_id" {
   description = "VPC ID for the ALB and target group"
-  type        = string
-}
-
-# Security Group ID for the ALB.
-variable "alb_sg_id" {
-  description = "Security Group ID for the ALB"
   type        = string
 }
 
@@ -90,6 +79,7 @@ variable "logging_bucket_arn" {
 
 # --- KMS Key ARN --- #
 # ARN of the KMS key used for encrypting Firehose data in the S3 bucket.
+# kms_key_arn is required if enable_firehose is set to true.
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting Firehose data in the S3 bucket"
   type        = string
@@ -149,6 +139,24 @@ variable "enable_high_request_alarm" {
 # true: The metric is created. false: The metric is not created.
 variable "enable_5xx_alarm" {
   description = "Enable or disable the CloudWatch alarm for HTTP 5XX errors on the ALB."
+  type        = bool
+  default     = false
+}
+
+# --- Enable Target Response Time Alarm --- #
+# Controls the creation of a CloudWatch Alarm for Target Response Time.
+# true: The metric is created. false: The metric is not created.
+variable "enable_target_response_time_alarm" {
+  description = "Enable or disable the CloudWatch alarm for Target Response Time."
+  type        = bool
+  default     = false
+}
+
+# --- Enable Health Check Failed Alarm --- #
+# Controls the creation of a CloudWatch Alarm for ALB health check failures.
+# true: The alarm is created. false: The alarm is not created.
+variable "enable_health_check_failed_alarm" {
+  description = "Enable or disable the CloudWatch alarm for ALB health check failures."
   type        = bool
   default     = false
 }

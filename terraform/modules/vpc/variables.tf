@@ -111,14 +111,33 @@ variable "kms_key_arn" {
 }
 
 # Specifies how long CloudWatch logs will be retained in days before deletion
-variable "log_retention_in_days" {
+variable "flow_logs_retention_in_days" {
   description = "Number of days to retain CloudWatch logs before deletion"
   type        = number
 }
 
 # --- SSH Access Configuration ---
-# Enable or disable SSH access to EC2 instances (recommended to disable in production)
-variable "enable_ssh_access" {
-  description = "Enable or disable SSH access to EC2 instances"
+# Enable or disable SSH access
+variable "enable_vpc_ssh_access" {
+  description = "Enable or disable SSH access"
   type        = bool
 }
+
+# Enable or disable HTTP/HTTPS rules for public NACL
+variable "enable_public_nacl_http" {
+  description = "Enable or disable HTTP rule for public NACL (port 80)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_public_nacl_https" {
+  description = "Enable or disable HTTPS rule for public NACL (port 443)"
+  type        = bool
+  default     = false
+}
+
+# --- Notes --- #
+# 1. Variables are structured to allow flexible configuration of the VPC, subnets, and associated resources.
+# 2. Ensure default values for variables are set appropriately for each environment (e.g., dev, prod).
+# 3. Use validations where applicable to enforce consistent and expected values.
+# 4. Regularly update variable descriptions to reflect changes in module functionality.

@@ -1,15 +1,15 @@
 # RDS Module for Terraform
 
-This module provisions and manages an RDS (Relational Database Service) instance in AWS, including Multi-AZ deployment, read replicas, Enhanced Monitoring, CloudWatch Alarms, and secure networking configurations. It is designed to work across multiple environments (`dev`, `stage`, and `prod`).
+This module provisions and manages an RDS (Relational Database Service) instance in AWS, including Multi-AZ deployment, read replicas, Enhanced Monitoring, CloudWatch Alarms, and secure networking configurations.
 
 ---
 
 ### Prerequisites
 
 - **AWS Provider Configuration**:
-The AWS region and other parameters for the `aws` provider are specified in the root configuration file.
+  The AWS region and other parameters for the `aws` provider are specified in the root configuration file.
 
-An example of the configuration can be found in the "Usage Example" section.
+  An example of the configuration can be found in the "Usage Example" section.
 
 ---
 
@@ -24,13 +24,19 @@ An example of the configuration can be found in the "Usage Example" section.
   - Optional read replicas for improved read performance and fault tolerance.
 - **Enhanced Monitoring**:
   - Provides detailed monitoring metrics by enabling Enhanced Monitoring with a dedicated IAM role.
+  - Monitoring is conditionally created based on the `enable_rds_monitoring` variable.
 - **CloudWatch Alarms**:
   - Monitors critical metrics such as:
     - **High CPU utilization**.
     - **Low free storage space**.
     - **High database connections**.
 - **Security Group**:
-  - Manages access control by allowing database connections only from specific EC2 instances or Security Groups.
+  - Manages access control by allowing database connections only from ASG instances or Security Groups.
+  - Security Group rules:
+  - Ingress: Allows inbound traffic only from ASG Security Groups.
+  - Egress: Limits outbound traffic to:
+    - Internal communication within the VPC.
+    - HTTPS traffic to S3 and CloudWatch Logs for backups and monitoring.
 - **CloudWatch Logs**:
   - Exports audit, error, general, and slowquery logs to CloudWatch for enhanced observability.
 
@@ -72,9 +78,9 @@ An example of the configuration can be found in the "Usage Example" section.
 | `deletion_protection`                | `bool`         | Enable or disable deletion protection for RDS.                                | Required              |
 | `vpc_id`                             | `string`       | The VPC ID where the RDS instance will be deployed.                           | Required              |
 | `private_subnet_ids`                 | `list(string)` | List of private subnet IDs for RDS deployment.                                | Required              |
-| `ec2_security_group_id`              | `string`       | Security Group ID for EC2 instances that connect to RDS.                      | Required              |
-| `kms_key_arn`                        | `string`       | The ARN of the KMS key for RDS encryption.                                    | Required              |
-| `enable_monitoring`                  | `bool`         | Enable RDS Enhanced Monitoring.                                               | Required              |
+| `asg_security_group_id`              | `string`       | Security Group ID for ASG instances that connect to RDS.                      | Required              |
+| `kms_key_arn`                        | `string`       | The ARN of the KMS key for encryption (used by RDS and other modules)         | Required              |
+| `enable_rds_monitoring`              | `bool`         | Enable RDS Enhanced Monitoring.                                               | Required              |
 | `rds_cpu_threshold_high`             | `number`       | Threshold for high CPU utilization.                                           | Required              |
 | `rds_storage_threshold`              | `number`       | Threshold for low free storage space (in bytes).                              | Required              |
 | `rds_connections_threshold`          | `number`       | Threshold for high number of database connections.                            | Required              |
@@ -120,9 +126,9 @@ module "rds" {
   deletion_protection     = false
   vpc_id                  = "vpc-0123456789abcdef0"
   private_subnet_ids      = ["subnet-abcdef123", "subnet-123abcdef"]
-  ec2_security_group_id   = "sg-0123456789abcdef0"
+  asg_security_group_id   = "sg-0123456789abcdef0"
   kms_key_arn             = "arn:aws:kms:eu-west-1:123456789012:key/example-key"
-  enable_monitoring       = false
+  enable_rds_monitoring   = false
   rds_cpu_threshold_high  = 80
   rds_storage_threshold   = 10000000000 # 10 GB
   rds_connections_threshold = 100
@@ -133,64 +139,65 @@ module "rds" {
 output "rds_endpoint" {
   value = module.rds.db_endpoint
 }
+```
 
 ---
 
 ## Notes
 
-1. Security:
+1. **Security**:
+   - Encryption at rest and in transit is enabled by default.
+   - Access to RDS is restricted via Security Groups.
 
-Encryption at rest and in transit is enabled by default.
+2. **High Availability**:
+   - Multi-AZ deployment and optional read replicas ensure fault tolerance.
 
-Access to RDS is restricted via Security Groups.
+3. **Flexibility**:
+   - All key configurations, including backups, monitoring thresholds, and encryption, are customizable via input variables.
 
-2. High Availability:
+4. **Enhanced Monitoring**:
+   - Monitoring metrics are conditionally created based on the `enable_rds_monitoring` variable.
+   - Requires an IAM role with the `AmazonRDSEnhancedMonitoringRole` policy.
+   - Enhanced Monitoring supports custom IAM policies for stricter permissions instead of the default `AmazonRDSEnhancedMonitoringRole`.
 
-Multi-AZ deployment and optional read replicas ensure fault tolerance.
+5. **AWS Secrets Manager Integration**:
+   - For production environments, consider using AWS Secrets Manager to securely manage database credentials.
 
-3. Flexibility:
+6. For production environments, consider using `aws_ip_ranges` to restrict egress rules to specific AWS services like S3 and CloudWatch Logs.
 
-All key configurations, including backups, monitoring thresholds, and encryption, are customizable via input variables.
+7. Input variables include validations (e.g., environment, instance class) to prevent configuration errors.
+
+8. Enhanced Monitoring can use a custom IAM policy for improved security in production environments.
 
 ---
 
 ## Future Improvements
 
-Add support for automated scaling of read replicas.
+1. **Automated Read Replica Scaling**:
+   - Implement automatic scaling for read replicas based on workload demands.
 
-Provide conditional CloudWatch Alarms based on dynamic thresholds.
+2. **Dynamic CloudWatch Alarms**:
+   - Enable conditional CloudWatch Alarms with dynamic thresholds to adapt to workload patterns.
 
-Integrate with AWS Secrets Manager for secure management of database credentials.
+3. **AWS Secrets Manager Integration**:
+   - Securely manage database credentials using AWS Secrets Manager.
+   - Implement automatic password rotation and secure secret storage for RDS.
 
-### Future Integration with AWS Secrets Manager (if needed)
+4. **Dedicated KMS Key for RDS**:
+   - Use a separate KMS key for RDS encryption to enhance security and control access.
 
-For production environments, it is highly recommended to store sensitive credentials (e.g., RDS master username and password) in AWS Secrets Manager rather than hardcoding them in `terraform.tfvars`. This approach facilitates secure rotation of credentials and keeps them out of version control. A typical workflow is:
+5. **Enable High Availability**:
+   - Set `multi_az = true` in production environments to ensure high availability and fault tolerance across Availability Zones.
 
-1. **Create secret_manager module, then create a Secret in AWS Secrets Manager**  
-   Store the database username and password as a JSON object (e.g., `{"username": "admin", "password": "example"}`).
+6. **Centralized Backup Management**:
+   - Integrate with AWS Backup for centralized backup management, retention policies, and compliance.
 
-2. **Reference the Secret in Terraform**  
-   Use a data source like `aws_secretsmanager_secret_version` to retrieve the secret values:
-   ```hcl
-   data "aws_secretsmanager_secret_version" "db_creds" {
-     secret_id = "my-rds-secret" # The name or ARN of your secret in Secrets Manager
-   }
+7. **Advanced Monitoring and Alerting**:
+   - Configure CloudWatch Alarms for all critical RDS metrics, including CPU, memory, storage, and connections.
+   - Integrate CloudWatch Alarms with notification systems like Slack or PagerDuty for real-time alerts.
 
-   locals {
-     db_creds = jsondecode(data.aws_secretsmanager_secret_version.db_creds.secret_string)
-   }
-3. **Pass the Credentials to the RDS Module**
-  In your RDS module configuration, set:
-    module "rds" {
-    source       = "./modules/rds"
-    db_username  = local.db_creds.username
-    db_password  = local.db_creds.password
-    # ... other variables ...
-   }
-4. **Rotate Passwords Periodically**
-  Leverage AWS Secrets Manager’s rotation functionality to periodically update the database password without manual intervention.
-
-By adopting Secrets Manager for password management, you minimize the risk of exposing sensitive data in Terraform state files and can easily rotate credentials to comply with best-practice security policies.
+8. **Restrict Egress Rules with aws_ip_ranges**:
+   - Limit egress rules for S3 and CloudWatch Logs to specific AWS service IP ranges for improved security.
 
 ---
 
@@ -202,6 +209,5 @@ This module was crafted following Terraform best practices, with a focus on secu
 
 ## Useful Resources
 
-Amazon RDS Documentation
-
-[AWS CloudWatch Alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/
+- [Amazon RDS Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html)
+- [AWS CloudWatch Alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/)

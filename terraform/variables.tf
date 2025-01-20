@@ -38,6 +38,11 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
+variable "enable_vpc_ssh_access" {
+  description = "Enable or disable SSH access"
+  type        = bool
+}
+
 variable "public_subnet_cidr_block_1" {
   description = "CIDR block for the first public subnet"
   type        = string
@@ -100,9 +105,22 @@ variable "availability_zone_private_3" {
 }
 
 # --- CloudWatch Log Retention --- #
-variable "log_retention_in_days" {
+variable "flow_logs_retention_in_days" {
   description = "Retention period in days for CloudWatch logs"
   type        = number
+}
+
+# Enable or disable HTTP/HTTPS rules for public NACL
+variable "enable_public_nacl_http" {
+  description = "Enable or disable HTTP rule for public NACL (port 80)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_public_nacl_https" {
+  description = "Enable or disable HTTPS rule for public NACL (port 443)"
+  type        = bool
+  default     = false
 }
 
 # --- KMS Configuration --- #
@@ -146,11 +164,11 @@ variable "key_decrypt_threshold" {
   default     = 100 # Example value, adjust as needed.
 }
 
-# --- EC2 Instance Configuration --- #
+# --- ASG Instance Configuration --- #
 
 # Settings for instance, AMI, and key
 variable "ami_id" {
-  description = "Amazon Machine Image (AMI) ID for the EC2 instances"
+  description = "Amazon Machine Image (AMI) ID for the ASG instances"
   type        = string
 }
 
@@ -159,9 +177,33 @@ variable "instance_type" {
   type        = string
 }
 
+variable "enable_s3_script" {
+  description = "Flag to determine if the WordPress deployment script should be fetched from S3"
+  type        = bool
+  default     = false
+}
+
+variable "enable_public_ip" {
+  description = "Enable public IP for ASG instances"
+  type        = bool
+  default     = false
+}
+
+variable "enable_asg_ssh_access" {
+  description = "Allow SSH access to ASG instances"
+  type        = bool
+  default     = false
+}
+
 variable "ssh_key_name" {
-  description = "Name of the SSH key for EC2 access"
+  description = "Name of the SSH key for ASG access"
   type        = string
+}
+
+variable "ssh_allowed_cidr" {
+  description = "List of allowed CIDR blocks for SSH access to ASG instances"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Open for development, restrict for production
 }
 
 variable "autoscaling_min" {
@@ -172,6 +214,24 @@ variable "autoscaling_min" {
 variable "autoscaling_max" {
   description = "Maximum number of instances in the Auto Scaling Group"
   type        = number
+}
+
+variable "desired_capacity" {
+  description = "Desired number of instances in the Auto Scaling Group; null for dynamic adjustment"
+  type        = number
+  default     = null
+}
+
+variable "enable_scaling_policies" {
+  description = "Enable or disable scaling policies for the ASG"
+  type        = bool
+  default     = true
+}
+
+variable "enable_data_source" {
+  description = "Enable or disable the data source for fetching ASG instance details"
+  type        = bool
+  default     = false
 }
 
 # Threshold for high incoming network traffic. Triggers an alarm when exceeded. 
@@ -196,6 +256,41 @@ variable "scale_in_cpu_threshold" {
   type        = number
 }
 
+# Enable or disable the Scale-Out Alarm
+variable "enable_scale_out_alarm" {
+  description = "Enable or disable the Scale-Out Alarm for ASG"
+  type        = bool
+  default     = true
+}
+
+# Enable or disable the Scale-In Alarm
+variable "enable_scale_in_alarm" {
+  description = "Enable or disable the Scale-In Alarm for ASG"
+  type        = bool
+  default     = true
+}
+
+# Enable or disable the ASG Status Check Alarm
+variable "enable_asg_status_check_alarm" {
+  description = "Enable or disable the ASG Status Check Alarm"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable the High Network-In Alarm
+variable "enable_high_network_in_alarm" {
+  description = "Enable or disable the High Network-In Alarm for ASG"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable the High Network-Out Alarm
+variable "enable_high_network_out_alarm" {
+  description = "Enable or disable the High Network-Out Alarm for ASG"
+  type        = bool
+  default     = false
+}
+
 # --- EBS Volume Configuration --- #
 variable "volume_size" {
   description = "Size of the EBS volume for the root device in GiB"
@@ -207,11 +302,10 @@ variable "volume_type" {
   type        = string
 }
 
-# --- SSH Access Configuration --- #
-# Enable or disable SSH access to EC2 instances (recommended to disable in production)
-variable "enable_ssh_access" {
-  description = "Enable or disable SSH access to EC2 instances"
+variable "enable_ebs_encryption" {
+  description = "Enable encryption for ASG EC2 instance root volumes"
   type        = bool
+  default     = false
 }
 
 # --- RDS Configuration --- #
@@ -296,7 +390,7 @@ variable "skip_final_snapshot" {
 }
 
 # Enable or disable enhanced monitoring for RDS instances
-variable "enable_monitoring" {
+variable "enable_rds_monitoring" {
   description = "Enable or disable enhanced monitoring for RDS instances"
   type        = bool
   default     = false
@@ -372,7 +466,7 @@ variable "enable_cloudwatch_logs_for_endpoints" {
 variable "endpoints_log_retention_in_days" {
   description = "Retention period for CloudWatch Logs in days"
   type        = number
-  default     = 14
+  default     = 7
 
   validation {
     condition     = var.endpoints_log_retention_in_days > 0
@@ -407,11 +501,29 @@ variable "node_type" {
 variable "replicas_per_node_group" {
   description = "Number of replicas per shard"
   type        = number
+  validation {
+    condition     = var.replicas_per_node_group >= 0
+    error_message = "replicas_per_node_group must be a non-negative integer."
+  }
 }
 
 variable "num_node_groups" {
   description = "Number of shards (node groups)"
   type        = number
+  validation {
+    condition     = var.num_node_groups > 0
+    error_message = "num_node_groups must be greater than zero."
+  }
+}
+
+variable "enable_failover" {
+  description = "Enable or disable automatic failover for Redis replication group"
+  type        = bool
+  default     = false
+  validation {
+    condition     = var.enable_failover ? var.replicas_per_node_group > 0 : true
+    error_message = "Automatic failover can only be enabled if replicas_per_node_group > 0."
+  }
 }
 
 variable "redis_port" {
@@ -452,6 +564,35 @@ variable "enable_redis_high_cpu_alarm" {
   description = "Enable or disable the high CPU utilization alarm for Redis"
   type        = bool
   default     = false # Set to true to enable the alarm
+}
+
+# Enable Redis Evictions Alarm
+variable "enable_redis_evictions_alarm" {
+  description = "Enable or disable the Redis evictions alarm."
+  type        = bool
+  default     = false # Set to true to enable the alarm
+}
+
+# --- Enable Replication Bytes Used Alarm --- #
+# Controls whether the CloudWatch alarm for ReplicationBytesUsed is created.
+# Relevant only when replicas are enabled (replicas_per_node_group > 0).
+variable "enable_redis_replication_bytes_alarm" {
+  description = "Enable or disable the ReplicationBytesUsed alarm. Relevant only for configurations with replicas."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !(var.enable_redis_replication_bytes_alarm && var.replicas_per_node_group == 0)
+    error_message = "ReplicationBytesUsed alarm can only be enabled if replicas_per_node_group > 0."
+  }
+}
+
+# --- Threshold for Replication Bytes Used Alarm --- #
+# Threshold for triggering the replication bytes used alarm.
+variable "redis_replication_bytes_threshold" {
+  description = "Threshold (in bytes) for replication bytes used alarm in Redis."
+  type        = number
+  default     = 50000000 # Example threshold: 50 MB
 }
 
 # Enable Low CPU Credits Alarm for Redis
@@ -499,6 +640,24 @@ variable "enable_high_request_alarm" {
 # Controls the creation of a CloudWatch Alarm for HTTP 5XX errors on the ALB.
 variable "enable_5xx_alarm" {
   description = "Enable or disable the CloudWatch alarm for HTTP 5XX errors on the ALB."
+  type        = bool
+  default     = false
+}
+
+# --- Enable Target Response Time Alarm --- #
+# Controls the creation of a CloudWatch Alarm for Target Response Time.
+# true: The metric is created. false: The metric is not created.
+variable "enable_target_response_time_alarm" {
+  description = "Enable or disable the CloudWatch alarm for Target Response Time."
+  type        = bool
+  default     = false
+}
+
+# --- Enable Health Check Failed Alarm --- #
+# Controls the creation of a CloudWatch Alarm for ALB health check failures.
+# true: The alarm is created. false: The alarm is not created.
+variable "enable_health_check_failed_alarm" {
+  description = "Enable or disable the CloudWatch alarm for ALB health check failures."
   type        = bool
   default     = false
 }
@@ -595,30 +754,29 @@ variable "noncurrent_version_retention_days" {
 }
 
 # --- Enable DynamoDB for State Locking --- #
-# This variable controls whether the DynamoDB table for Terraform state locking is created.
-# - true: Creates the DynamoDB table and associated resources for state locking.
-# - false: Skips the creation of DynamoDB-related resources.
+# Controls the creation of the DynamoDB table for state locking.
 variable "enable_dynamodb" {
-  description = "Enable DynamoDB table for Terraform state locking."
+  description = "Enable DynamoDB table for state locking."
   type        = bool
   default     = false
 
-  # --- Notes --- #
-  # 1. When enabled, the module creates a DynamoDB table with TTL and stream configuration.
-  # 2. This is required only if you are using DynamoDB-based state locking.
-  # 3. If you prefer S3 Conditional Writes for state locking, set this to false.
+  # Ensures DynamoDB is only enabled when S3 bucket are active.
+  validation {
+    condition     = var.enable_dynamodb ? var.enable_terraform_state_bucket : true
+    error_message = "enable_dynamodb requires enable_terraform_state_bucket = true."
+  }
 }
 
 # --- Enable Lambda for TTL Automation --- #
-# This variable controls whether the Lambda function for TTL automation is created.
-# - true: Creates the Lambda function and associated resources.
-# - false: Skips the creation of Lambda-related resources.
+# Enables Lambda for DynamoDB TTL cleanup.
 variable "enable_lambda" {
-  description = "Enable Lambda function for DynamoDB TTL automation."
+  description = "Enable Lambda for DynamoDB TTL automation."
   type        = bool
   default     = false
 
-  # --- Notes --- #
-  # 1. This variable must be set to true only if `enable_dynamodb = true`.
-  # 2. When disabled, all Lambda-related resources (IAM role, policy, function, etc.) are skipped.
+  # Ensures Lambda is enabled only if DynamoDB is active.
+  validation {
+    condition     = var.enable_lambda ? var.enable_dynamodb : true
+    error_message = "enable_lambda requires enable_dynamodb = true."
+  }
 }

@@ -141,6 +141,18 @@ output "terraform_locks_table_arn" {
   value       = var.enable_dynamodb ? aws_dynamodb_table.terraform_locks[0].arn : null
 }
 
+# --- DynamoDB and Lambda Outputs --- #
+
+output "enable_dynamodb" {
+  description = "Flag indicating if DynamoDB is enabled for state locking"
+  value       = var.enable_dynamodb
+}
+
+output "enable_lambda" {
+  description = "Flag indicating if Lambda is enabled for TTL automation"
+  value       = var.enable_lambda
+}
+
 # --- Notes and Best Practices --- #
 # 1. Outputs dynamically handle optional buckets:
 #    - Disabled buckets return `null` for their outputs.

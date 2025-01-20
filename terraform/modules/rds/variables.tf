@@ -32,14 +32,25 @@ variable "environment" {
 
 # --- RDS Instance Configuration Variables --- #
 # Configuration options for the RDS database instance.
+
+# Allocated Storage
 variable "allocated_storage" {
   description = "Storage size in GB for the RDS instance"
   type        = number
+  validation {
+    condition     = var.allocated_storage >= 20 && var.allocated_storage <= 16384
+    error_message = "Allocated storage must be between 20 GB and 16,384 GB."
+  }
 }
 
+# --- Instance Class --- #
 variable "instance_class" {
   description = "Instance class for RDS"
   type        = string
+  validation {
+    condition     = can(regex("^db\\.[a-z0-9]+\\.[a-z0-9]+$", var.instance_class))
+    error_message = "Instance class must follow the format 'db.<family>.<size>' (e.g., 'db.t3.micro')."
+  }
 }
 
 variable "engine" {
@@ -77,6 +88,10 @@ variable "db_port" {
 variable "multi_az" {
   description = "Enable Multi-AZ deployment for RDS high availability"
   type        = bool
+  validation {
+    condition     = var.multi_az == true || var.multi_az == false
+    error_message = "Multi-AZ deployment must be a boolean value."
+  }
 }
 
 # --- Backup and Retention Configuration --- #
@@ -117,6 +132,13 @@ variable "vpc_id" {
   type        = string
 }
 
+# --- VPC CIDR Block --- #
+# CIDR block of the VPC where the RDS instance is deployed.
+variable "vpc_cidr_block" {
+  description = "The CIDR block of the VPC where RDS is deployed."
+  type        = string
+}
+
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for RDS deployment"
   type        = list(string)
@@ -137,10 +159,11 @@ variable "public_subnet_cidr_blocks" {
 variable "rds_security_group_id" {
   description = "ID of the Security Group for RDS instances"
   type        = list(string)
+  default     = []
 }
 
-variable "ec2_security_group_id" {
-  description = "Security Group ID for EC2 instances"
+variable "asg_security_group_id" {
+  description = "Security Group ID for ASG instances that need access to the RDS instance"
   type        = string
 }
 
@@ -151,7 +174,7 @@ variable "kms_key_arn" {
 }
 
 # --- Enhanced Monitoring Configuration --- #
-variable "enable_monitoring" {
+variable "enable_rds_monitoring" {
   description = "Enable RDS enhanced monitoring if set to true"
   type        = bool
 }
@@ -185,11 +208,6 @@ variable "read_replicas_count" {
   type        = number
 }
 
-variable "db_instance_identifier" {
-  description = "The identifier of the primary RDS database instance."
-  type        = string
-}
-
 # --- CloudWatch Alarm Configuration --- #
 # Enable or disable specific CloudWatch Alarms
 variable "enable_low_storage_alarm" {
@@ -210,10 +228,10 @@ variable "enable_high_connections_alarm" {
   default     = false
 }
 
-
 # --- Notes --- #
 # 1. Variables are organized into logical sections for naming, environment, networking, and monitoring.
 # 2. RDS instance configuration allows for customization of storage, performance insights, and backups.
 # 3. Monitoring thresholds for CPU, storage, and connections ensure proactive alerting.
 # 4. Read replica count and encryption settings are customizable to meet high availability requirements.
 # 5. Sensitive variables like 'db_password' are marked sensitive to avoid accidental exposure.
+# 6. Validation ensures that inputs are correct and prevent runtime errors.

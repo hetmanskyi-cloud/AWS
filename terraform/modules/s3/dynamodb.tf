@@ -3,7 +3,8 @@
 # The locking mechanism prevents multiple users from making concurrent changes to the state file.
 
 resource "aws_dynamodb_table" "terraform_locks" {
-  count = var.enable_dynamodb ? 1 : 0 # Dynamically enable or disable resource creation based on enable_dynamodb.
+  # Create the table only if the remote backend, S3 bucket for state, and DynamoDB are enabled.
+  count = var.enable_terraform_state_bucket && var.enable_dynamodb ? 1 : 0
 
   # --- Table Name --- #
   # Construct the table name dynamically using a project-specific prefix and a random suffix for uniqueness.
@@ -76,12 +77,12 @@ resource "aws_dynamodb_table" "terraform_locks" {
 }
 
 # --- Notes --- #
-# 1. **Purpose**:
-#    - This DynamoDB table is designed exclusively for Terraform state locking to ensure safe and consistent state management.
-# 2. **Best Practices**:
-#    - Enable TTL to automatically clean up expired lock entries.
-#    - Use server-side encryption with a dedicated KMS key for enhanced data security.
-#    - Enable point-in-time recovery to protect against accidental data loss.
-# 3. **Integration**:
-#    - The `aws_dynamodb_table.terraform_locks` resource is referenced in `s3/outputs.tf` for exposing table details.
-#    - The DynamoDB Streams are connected to a Lambda function defined in `s3/lambda.tf` for TTL automation.
+# 1. **Creation Logic**:
+#    - The DynamoDB table is created only if `enable_terraform_state_bucket`, and `enable_dynamodb` are all set to `true`.
+# 2. **Purpose**:
+#    - This DynamoDB table is designed exclusively for Terraform state locking.
+# 3. **Best Practices**:
+#    - Enable TTL to clean up expired lock entries automatically.
+#    - Use KMS encryption for enhanced data security.
+# 4. **Integration**:
+#    - The DynamoDB table integrates with Lambda for TTL automation defined in `s3/lambda.tf`.

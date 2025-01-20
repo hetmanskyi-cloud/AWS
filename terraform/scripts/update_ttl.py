@@ -34,7 +34,7 @@ def lambda_handler(event, context):
 
     Returns:
         dict: The status of the processing.
-    """
+    """    
     processed_records = 0
     failed_records = 0
 

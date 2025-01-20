@@ -11,7 +11,12 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   comparison_operator = "GreaterThanThreshold"
 
   # Number of consecutive evaluation periods the metric must meet the threshold condition to trigger the alarm
-  evaluation_periods = 1
+  evaluation_periods  = 3 # Increased to reduce false positives
+  datapoints_to_alarm = 2 # Number of breaching datapoints within the evaluation period to trigger the alarm
+  # Note: Using `datapoints_to_alarm` ensures that temporary spikes in usage do not trigger false positives.
+  # Example: With `evaluation_periods = 3` and `datapoints_to_alarm = 2`,
+  # the alarm triggers only if 2 out of 3 evaluation periods exceed the threshold.
+
 
   # Metric name and namespace to monitor KMS decrypt operations
   metric_name = "DecryptCount"
@@ -35,8 +40,18 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   alarm_description = "Alert when decrypt operations exceed the threshold."
 
   # Actions to perform when the alarm state changes
-  alarm_actions = [var.sns_topic_arn] # Notify via SNS topic
+  alarm_actions = var.sns_topic_arn != "" ? [var.sns_topic_arn] : [] # Avoid errors if sns_topic_arn is empty
 
   # Treat missing data as missing (default behavior)
   treat_missing_data = "notBreaching"
+
+  # --- Comments for clarity --- #
+  # This alarm monitors high usage of the Decrypt operation on the KMS key.
+  # It is triggered when the number of decrypt operations exceeds the threshold.
+
+  # Note: The threshold and evaluation periods should be adjusted based on observed workload patterns.
+  # Increasing `evaluation_periods` and using `datapoints_to_alarm` helps reduce false positives in production.
+
+  # Ensure `sns_topic_arn` is set to receive alarm notifications.
+  # If left empty, alarm actions will not send notifications.
 }

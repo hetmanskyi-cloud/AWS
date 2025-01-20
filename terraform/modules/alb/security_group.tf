@@ -4,6 +4,11 @@ resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.name_prefix}-alb-sg" # Security group name prefixed with the environment name.
   vpc_id      = var.vpc_id                  # VPC where the ALB resides.
 
+  # Ensures a new Security Group is created before the old one is destroyed to avoid downtime.
+  lifecycle {
+    create_before_destroy = true
+  }
+
   # --- Egress Rules --- #
   # Allow all outbound traffic.
   egress {
@@ -12,6 +17,9 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "-1"          # "-1" allows all protocols.
     cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
     description = "Allow all outbound traffic"
+
+    # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes. 
+    # For production, replace with AWS service prefixes for improved security.
   }
 
   # --- Tags --- #
@@ -43,6 +51,9 @@ resource "aws_security_group_rule" "alb_https" {
   security_group_id = aws_security_group.alb_sg.id
   cidr_blocks       = ["0.0.0.0/0"]
   description       = "Allow HTTPS traffic (enabled only if HTTPS listener is active)"
+
+  # Note: Ensure the SSL certificate provided via `certificate_arn` is valid and properly configured.
+  # The HTTPS listener depends on a valid SSL certificate to function correctly.  
 }
 
 # --- Notes --- #

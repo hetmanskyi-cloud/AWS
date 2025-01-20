@@ -92,3 +92,11 @@ resource "aws_subnet" "private_subnet_3" {
     Environment = var.environment
   }
 }
+
+# --- Notes --- #
+# 1. The VPC is configured with both public and private subnets to support various workloads.
+# 2. Public subnets allow internet access through the Internet Gateway (IGW).
+# 3. Private subnets are isolated and do not allow direct internet access, 
+#    providing a secure environment for sensitive resources (e.g., databases).
+# 4. All subnets and resources are tagged with a consistent naming convention for easy management.
+# 5. Ensure `map_public_ip_on_launch` is enabled only for public subnets.

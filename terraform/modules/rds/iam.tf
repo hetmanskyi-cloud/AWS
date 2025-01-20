@@ -1,9 +1,10 @@
 # --- IAM Role for RDS Enhanced Monitoring --- #
 # This file defines the IAM Role and Policy Attachment for enabling Enhanced Monitoring in RDS.
-
-# --- IAM Role for RDS Enhanced Monitoring --- #
 # Creates an IAM Role that allows RDS to send enhanced monitoring metrics to CloudWatch.
+# The `assume_role_policy` grants RDS the permission to assume this IAM Role.
 resource "aws_iam_role" "rds_monitoring_role" {
+  count = var.enable_rds_monitoring ? 1 : 0 # Create role only if monitoring is enabled
+
   name = "${var.name_prefix}-rds-monitoring-role" # Dynamic name for the IAM role.
 
   # Assume role policy grants permission for RDS to assume this IAM role.
@@ -29,15 +30,19 @@ resource "aws_iam_role" "rds_monitoring_role" {
 }
 
 # --- IAM Role Policy Attachment --- #
-# Attaches the AWS-managed policy for Enhanced Monitoring to the IAM Role.
+# Attaches an AWS-managed policy for Enhanced Monitoring to the IAM Role.
+# Note: It is possible to replace this policy with a custom policy for stricter permissions.
+
 resource "aws_iam_role_policy_attachment" "rds_monitoring_policy" {
-  role       = aws_iam_role.rds_monitoring_role.name                                  # IAM role to attach the policy to.
+  count = var.enable_rds_monitoring ? 1 : 0
+
+  role       = try(aws_iam_role.rds_monitoring_role[0].name, null)                    # IAM role to attach the policy to.
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole" # AWS-managed policy for Enhanced Monitoring.
 }
 
 # --- Notes --- #
-# 1. This IAM Role enables Enhanced Monitoring for RDS, allowing detailed metrics to be sent to CloudWatch.
-# 2. The 'AmazonRDSEnhancedMonitoringRole' is an AWS-managed policy with predefined permissions.
-# 3. Tags are applied to the IAM role for better identification and resource management.
-# 4. Enhanced Monitoring provides additional performance metrics beyond standard CloudWatch metrics, such as CPU, memory, and disk I/O.
-# 5. This role must be referenced in the 'monitoring_role_arn' parameter of the RDS instance configuration.
+# 1. The IAM Role is created only if `enable_rds_monitoring` is set to true.
+# 2. The AWS-managed policy provides broad permissions for Enhanced Monitoring.
+#    - It can be replaced with a custom policy for stricter security and tailored permissions.
+# 3. The `assume_role_policy` is required for RDS to assume the role and send metrics to CloudWatch.
+# 4. Tags are applied for easier resource identification and management.

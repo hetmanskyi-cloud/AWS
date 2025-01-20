@@ -14,19 +14,23 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
 resource "aws_elasticache_replication_group" "redis" {
-  replication_group_id       = "${var.name_prefix}-redis-${var.environment}"        # Unique ID for the replication group.
-  description                = "Redis replication group for ${var.name_prefix}"     # Description for the replication group.
-  engine                     = "redis"                                              # Specifies Redis as the engine type.
-  engine_version             = var.redis_version                                    # Redis version (e.g., 7.1).
-  node_type                  = var.node_type                                        # Instance type for Redis nodes (e.g., cache.t3.micro).
-  replicas_per_node_group    = var.replicas_per_node_group                          # Number of replicas per shard.
-  num_node_groups            = var.num_node_groups                                  # Number of shards (node groups).
-  automatic_failover_enabled = var.replicas_per_node_group > 0 ? true : false       # Enables failover only if replicas exist.
-  parameter_group_name       = aws_elasticache_parameter_group.redis_params.name    # Specifies the parameter group for Redis.
-  port                       = var.redis_port                                       # Port for Redis connections.
-  subnet_group_name          = aws_elasticache_subnet_group.redis_subnet_group.name # Subnet group for deployment.
-  security_group_ids         = [aws_security_group.redis_sg.id]                     # Security group for controlling network access.
-  kms_key_id                 = var.kms_key_arn                                      # KMS key for encrypting data at rest.
+  replication_group_id       = "${var.name_prefix}-redis-${var.environment}"          # Unique ID for the replication group.
+  description                = "Redis replication group for ${var.name_prefix}"       # Description for the replication group.
+  engine                     = "redis"                                                # Specifies Redis as the engine type.
+  engine_version             = var.redis_version                                      # Redis version (e.g., 7.1).
+  node_type                  = var.node_type                                          # Instance type for Redis nodes (e.g., cache.t3.micro).
+  replicas_per_node_group    = var.replicas_per_node_group                            # Number of replicas per shard.
+  num_node_groups            = var.num_node_groups                                    # Number of shards (node groups).
+  automatic_failover_enabled = var.enable_failover && var.replicas_per_node_group > 0 # Enables failover only if replicas exist.
+  parameter_group_name       = aws_elasticache_parameter_group.redis_params.name      # Specifies the parameter group for Redis.
+  port                       = var.redis_port                                         # Port for Redis connections.
+  subnet_group_name          = aws_elasticache_subnet_group.redis_subnet_group.name   # Subnet group for deployment.
+  security_group_ids         = [aws_security_group.redis_sg.id]                       # Security group for controlling network access.
+
+  # --- Notes on KMS Key Usage --- #
+  # Ensure the kms_key_arn is specified to enable data encryption at rest.
+  # If left empty, data encryption will not be applied, which is not recommended for production environments.
+  kms_key_id = var.kms_key_arn # KMS key for encrypting data at rest.
 
   # --- Backup Configuration --- #
   snapshot_retention_limit = var.snapshot_retention_limit # Number of days to retain backups.

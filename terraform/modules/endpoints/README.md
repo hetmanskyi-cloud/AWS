@@ -1,6 +1,6 @@
 # VPC Endpoints Module for Terraform
 
-This module creates and manages VPC Interface Endpoints for AWS Systems Manager (SSM), SSM Messages, and EC2 Messages within a specified VPC. It also configures optional CloudWatch Logs for monitoring VPC Endpoint traffic and sets up the necessary Security Groups to control access. Gateway Endpoints for S3 and DynamoDB creates in `vpc module`.
+This module creates and manages VPC Interface Endpoints for AWS Systems Manager (SSM), SSM Messages, and ASG Messages within a specified VPC. It also configures optional CloudWatch Logs for monitoring VPC Endpoint traffic and sets up the necessary Security Groups to control access. Gateway Endpoints for S3 and DynamoDB are created in the `vpc module`.
 
 ---
 
@@ -19,7 +19,7 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 - **Creates VPC Interface Endpoints**:
   - **SSM Endpoint**: Provides access to AWS Systems Manager for instances in private subnets.
   - **SSM Messages Endpoint**: Facilitates communication for the Systems Manager Agent.
-  - **EC2 Messages Endpoint**: Enables Systems Manager operations for EC2 instances.
+  - **ASG Messages Endpoint**: Enables Systems Manager operations for ASG instances.
 
 - **Optional CloudWatch Logs Integration**:
   - Creates a CloudWatch Log Group for monitoring VPC Endpoint traffic.
@@ -28,7 +28,7 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 - **Security Group Configuration**:
   - Creates a dedicated Security Group for VPC Endpoints.
   - Ingress rules allow HTTPS access (port 443) from specified private subnets.
-  - Egress rules permit unrestricted outbound traffic for seamless communication with AWS services.
+  - Egress rules permit unrestricted outbound traffic for seamless communication with AWS services (not recommended for production environments).
 
 - **Environment-Specific Tags**:
   - Tags include the resource name and environment (e.g., dev, stage, prod) for better organization and tracking.
@@ -60,11 +60,11 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 | `private_subnet_cidr_blocks`          | `list(string)` | CIDRs for subnets, must match subnet IDs.    | **Required**                                                  |
 | `kms_key_arn`                         | `string`       | KMS key ARN for log encryption.              | **Required** if `enable_cloudwatch_logs_for_endpoints` = true |
 | `enable_cloudwatch_logs_for_endpoints`| `bool`         | Enable CloudWatch Logs for VPC Endpoints.    | `false` (Optional)                                            |
-| `endpoints_log_retention_in_days`     | `number`       | Retention period for logs (days).            | `14` (Optional)                                               |
+| `endpoints_log_retention_in_days`     | `number`       | Retention period for logs (days).            | `7` (Optional)                                               |
 
 **Note:**
-- `kms_key_arn` is only required when `enable_cloudwatch_logs_for_endpoints` is set to `true`.
-- Make sure this KMS key is provided by the KMS module if logging is enabled.
+- `kms_key_arn` is required only when `enable_cloudwatch_logs_for_endpoints` is set to `true`.
+- Ensure the KMS key has sufficient permissions to create and manage CloudWatch Logs.
 
 ---
 
@@ -74,9 +74,10 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 |-----------------------------|-----------------------------------------------------------|
 | `ssm_endpoint_id`           | The ID of the SSM Interface Endpoint.                     |
 | `ssm_messages_endpoint_id`  | The ID of the SSM Messages Interface Endpoint.            |
-| `ec2_messages_endpoint_id`  | The ID of the EC2 Messages Interface Endpoint.            |
+| `asg_messages_endpoint_id`  | The ID of the ASG Messages Interface Endpoint.            |
 | `endpoint_security_group_id`| ID of the Security Group for VPC Endpoints.               |
-| `ssm_endpoint_dns_names`    | DNS names for the SSM Interface Endpoint.                 |
+| `log_group_arn`             | ARN of the CloudWatch Log Group for VPC Endpoints.        |
+| `log_group_name`            | Name of the CloudWatch Log Group for VPC Endpoints.       |
 
 ---
 
@@ -96,7 +97,7 @@ module "vpc_endpoints" {
   kms_key_arn                = module.kms.kms_key_arn # Reference to KMS module's output
 
   enable_cloudwatch_logs_for_endpoints = true
-  endpoints_log_retention_in_days      = 14
+  endpoints_log_retention_in_days      = 7
 }
 
 output "vpc_endpoints_ssm_id" {
@@ -106,96 +107,42 @@ output "vpc_endpoints_ssm_id" {
 output "vpc_endpoints_security_group_id" {
   value = module.vpc_endpoints.endpoint_security_group_id
 }
-
----
-
-### Initial Setup
-
-During the initial setup of VPC Endpoints, it's essential to configure logging and security appropriately to ensure secure and efficient operation.
-
-**Step 1: Create the Endpoints with Logging (Optional)**
-
-- Set `enable_cloudwatch_logs_for_endpoints = true` to enable CloudWatch Logs for monitoring.
-- Provide a valid `kms_key_arn` to encrypt the logs.
-- This setup provides visibility into traffic and aids in troubleshooting.
-
-**Step 2: Review and Adjust Security Policies**
-
-- Ensure that the Security Group rules align with your organization's security policies.
-- Modify ingress or egress rules as necessary to meet specific requirements.
-
-**Step 3: Integrate with Other Modules**
-
-- Reference the outputs in other modules or resources to ensure seamless integration and communication.
-
-**Step 4: Monitor and Maintain**
-
-- Regularly review CloudWatch Logs (if enabled) to monitor endpoint traffic.
-- Adjust log retention periods and security group rules based on evolving needs.
-
-This step-by-step process ensures the secure and efficient management of VPC Endpoints while adhering to best practices.
+```
 
 ---
 
 ## Security Best Practices
 
-**Key Rotation:**
+### Egress Rules
+- Restrict egress rules to necessary IP addresses and ports to improve security in production environments.
+- Avoid using `0.0.0.0/0` in production unless strictly required.
 
-- Enable automatic key rotation to reduce the risk of compromised encryption keys.
+### CloudWatch Logs
+- Enable CloudWatch Logs for detailed monitoring and troubleshooting.
+- Use a dedicated KMS key for log encryption and ensure key rotation is enabled.
 
-**Access Policies:**
-
-- **During Initial Setup:**
-  - Full access is granted to the AWS root account for ease of configuration.
-  
-- **After Setup:**
-  - Review and update the key policy to:
-    - Remove root access.
-    - Grant only necessary permissions to IAM roles and services.
-  - Use the `additional_principals` variable to define additional entities requiring access.
-
-**Environment Isolation:**
-
-- Use separate KMS keys for each environment (e.g., dev, stage, prod) to maintain resource isolation.
-
-**Monitoring:**
-
-- Monitor key usage through AWS CloudWatch Alarms to detect unauthorized access or anomalies.
-
-**IAM Role Management:**
-
-- If `enable_kms_role` is enabled, ensure the IAM role has only necessary permissions to manage the KMS key.
-- Regularly review and audit IAM roles and policies associated with the KMS key.
+### Access Policies
+- Limit permissions for IAM roles and users interacting with this module.
+- Review and regularly update security group rules and IAM policies.
 
 ---
 
 ## Future Improvements
 
-**Deploy Policy Setup:**
-
-- Provide more detailed control in the `additional_principals` variable to allow specific actions (e.g., `kms:EncryptOnly` or `kms:DecryptOnly`) for certain principals.
-
-**Enhance Monitoring and Notifications:**
-
-- Introduce additional metrics or thresholds to monitor key usage, such as tracking encryption errors or unusual usage patterns.
-
-**Environment-Related Enhancements:**
-
-- Implement stricter key policies for production environments, ensuring tighter access control.
-
-**Centralized CloudTrail Integration:**
-
-- Use a separate module (if needed) for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
+- Add CloudWatch Logs configuration for ASG Messages and SSM Messages endpoints (if needed).
+- Introduce granular IAM policies for CloudWatch Logs to limit permissions.
+- Improve egress rule configuration to better align with production security practices.
+- Expand the documentation with advanced configurations, such as multi-environment setups and integration with centralized logging solutions.
 
 ---
 
-### Authors
+## Authors
 
 This module was crafted following Terraform best practices, emphasizing security, scalability, and maintainability. Contributions and feedback are welcome to enhance its functionality further.
 
 ---
 
-### Useful Resources
+## Useful Resources
 
 - [AWS VPC Endpoints Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-endpoints.html)
 - [AWS CloudWatch Logs Documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html)

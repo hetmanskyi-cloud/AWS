@@ -1,13 +1,25 @@
-# --- WAF Configuration for ALB --- #
+# --- WAF (Web Application Firewall) Configuration for ALB --- #
+
+# --- Notes on ALB Protection --- #
+# By default, ALB is protected by AWS Shield Standard, which defends against DDoS attacks at the 
+# Network (L3) and Transport (L4) layers. 
+# 
+# For application-level (L7) attacks, AWS WAF provides additional protection through managed rules.
+# Combining WAF and Shield Standard ensures a comprehensive security strategy for ALB.
 
 # Web ACL (Access Control List) protects ALB from common web vulnerabilities.
-# Includes managed rules for blocking bad bots, preventing SQL injections, XSS, and Log4j exploits.
+# Includes managed rules for blocking bad bots, preventing SQL injections, XSS, Denial-of-Service (DoS) attacks and Log4j exploits.
 resource "aws_wafv2_web_acl" "alb_waf" {
   count = var.enable_waf ? 1 : 0
   # Name of the WAF ACL
   name        = "${var.name_prefix}-alb-waf" # # Unique name for the WAF ACL
   scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
   description = "WAF for ALB to protect against basic attacks"
+
+  # --- Notes on Rules --- #
+  # Ensure that the WAF rules are updated to include the latest versions.
+  # Regularly review managed rules (e.g., AWSManagedRulesBotControlRuleSet, AWSManagedRulesSQLiRuleSet)
+  # to ensure they cover emerging threats.
 
   # --- Default Action --- #
   # Default action is to allow all requests if no rules match.
@@ -18,6 +30,10 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   }
 
   # --- Managed Rules --- #
+  # Managed rules (e.g., SQLi, XSS, Log4j) help protect against common vulnerabilities.
+  # Prioritize rules based on application-specific risks.
+  # For production, consider enabling additional rulesets for enhanced security.
+
   # Rule 1: Block malicious bots
   rule {
     name     = "BlockBadBots"
@@ -158,6 +174,10 @@ resource "aws_wafv2_web_acl_association" "alb_waf_association" {
 # Logs all WAF activity to the specified destination.
 resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
   count = (var.enable_waf_logging && var.enable_firehose) ? 1 : 0
+
+  # Note: WAF logging depends on both `enable_waf_logging` and `enable_firehose`.
+  # If Firehose is disabled, logging will not function even if WAF is enabled.
+  # Ensure `enable_firehose = true` when enabling WAF logging.
 
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn

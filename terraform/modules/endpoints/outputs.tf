@@ -14,11 +14,11 @@ output "ssm_messages_endpoint_id" {
   value       = aws_vpc_endpoint.ssm_messages.id
 }
 
-# --- EC2 Messages Interface Endpoint ID --- #
-# Outputs the ID of the Interface Endpoint for EC2 Messages, used for Systems Manager communications.
-output "ec2_messages_endpoint_id" {
-  description = "The ID of the EC2 Messages Interface Endpoint"
-  value       = aws_vpc_endpoint.ec2_messages.id
+# --- ASG Messages Interface Endpoint ID --- #
+# Outputs the ID of the Interface Endpoint for ASG Messages, used for Systems Manager communications.
+output "asg_messages_endpoint_id" {
+  description = "The ID of the ASG Messages Interface Endpoint"
+  value       = aws_vpc_endpoint.asg_messages.id
 }
 
 # --- Endpoint Security Group ID --- #
@@ -33,6 +33,18 @@ output "endpoint_security_group_id" {
 output "ssm_endpoint_dns_names" {
   description = "DNS names for the SSM Interface Endpoint"
   value       = [for entry in aws_vpc_endpoint.ssm.dns_entry : entry.dns_name]
+}
+
+# Output ARN of the CloudWatch Log Group for VPC Endpoints
+output "log_group_arn" {
+  description = "ARN of the CloudWatch Log Group for VPC Endpoints"
+  value       = length(aws_cloudwatch_log_group.endpoint_logs) > 0 ? aws_cloudwatch_log_group.endpoint_logs[0].arn : null
+}
+
+# Output name of the CloudWatch Log Group for VPC Endpoints
+output "log_group_name" {
+  description = "Name of the CloudWatch Log Group for VPC Endpoints"
+  value       = length(aws_cloudwatch_log_group.endpoint_logs) > 0 ? aws_cloudwatch_log_group.endpoint_logs[0].name : null
 }
 
 # --- Notes --- #

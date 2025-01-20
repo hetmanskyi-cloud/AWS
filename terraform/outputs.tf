@@ -51,43 +51,43 @@ output "kms_key_arn" {
   value       = module.kms.kms_key_arn
 }
 
-# --- EC2 Outputs ---
-output "ec2_asg_id" {
-  description = "The ID of the EC2 Auto Scaling Group"
-  value       = module.ec2.ec2_asg_id
+# --- ASG Outputs ---
+output "asg_id" {
+  description = "The ID of the Auto Scaling Group"
+  value       = try(module.asg[0].asg_id, null)
 }
 
 output "launch_template_latest_version" {
   description = "The latest version of the EC2 Launch Template"
-  value       = module.ec2.launch_template_latest_version
+  value       = try(module.asg[0].launch_template_latest_version, null)
 }
 
 output "launch_template_id" {
-  description = "The ID of the EC2 Launch Template"
-  value       = module.ec2.launch_template_id
+  description = "The ID of the ASG Launch Template"
+  value       = try(module.asg[0].launch_template_id, null)
 }
 
 output "instance_public_ips" {
   description = "Public IPs of instances in the Auto Scaling Group (if assigned)"
-  value       = module.ec2.instance_public_ips
+  value       = try(module.asg[0].instance_public_ips, null)
 }
 
 output "instance_private_ips" {
   description = "Private IPs of instances in the Auto Scaling Group"
-  value       = module.ec2.instance_private_ips
+  value       = try(module.asg[0].instance_private_ips, null)
 }
 
 output "instance_ids" {
   description = "Instance IDs of instances in the Auto Scaling Group"
-  value       = module.ec2.instance_ids
+  value       = try(module.asg[0].instance_ids, null)
 }
 
 output "ec2_security_group_id" {
-  description = "ID of the Security Group created for EC2 instances"
-  value       = module.ec2.ec2_security_group_id
+  description = "ID of the Security Group created for ASG instances"
+  value       = try(module.asg[0].asg_security_group_id, null)
 }
 
-# Exports the RDS database host to be used by the EC2 instance running WordPress
+# Exports the RDS database host to be used by the ASG instance running WordPress
 # Outputs the RDS database host address (hostname only) for application configurations
 output "db_host" {
   value       = module.rds.db_host

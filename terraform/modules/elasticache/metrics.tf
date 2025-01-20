@@ -40,9 +40,50 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
   }
 }
 
+# --- Alarm for Redis Evictions --- #
+# Tracks memory issues in Redis by monitoring eviction events.
+resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
+  count = var.enable_redis_evictions_alarm ? 1 : 0
+
+  alarm_name                = "${var.name_prefix}-redis-evictions"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = 1
+  metric_name               = "Evictions"
+  namespace                 = "AWS/ElastiCache"
+  period                    = 300
+  statistic                 = "Sum"
+  threshold                 = 1 # Triggers alarm on any eviction
+  alarm_actions             = [var.sns_topic_arn]
+  ok_actions                = [var.sns_topic_arn]
+  insufficient_data_actions = [var.sns_topic_arn]
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.redis.id
+  }
+}
+
+# --- Replication Bytes Used Alarm --- #
+# Monitors the replication bytes used to detect high memory usage for replication.
+resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
+  count = var.enable_redis_replication_bytes_alarm && var.replicas_per_node_group > 0 ? 1 : 0
+
+  alarm_name                = "${var.name_prefix}-redis-replication-bytes-used"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = 1
+  metric_name               = "ReplicationBytesUsed"
+  namespace                 = "AWS/ElastiCache"
+  period                    = 300
+  statistic                 = "Average"
+  threshold                 = var.redis_replication_bytes_threshold # Configurable threshold
+  alarm_actions             = [var.sns_topic_arn]
+  ok_actions                = [var.sns_topic_arn]
+  insufficient_data_actions = [var.sns_topic_arn]
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.redis.id
+  }
+}
+
 # --- CPU Credit Balance Alarm --- #
-# This alarm monitors CPU credit balance for burstable instance types (e.g., cache.t3.micro).
-# If CPU credits drop too low, performance may degrade due to throttling.
+# Monitors CPU credit balance for burstable instances to prevent throttling.
 resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
   count                     = var.enable_redis_low_cpu_credits_alarm ? 1 : 0
   alarm_name                = "${var.name_prefix}-redis-low-cpu-credits"
@@ -63,11 +104,11 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
 
 # --- Notes --- #
 # 1. Monitoring strategy:
-#    - Critical alarms are controlled via dedicated enable variables:
-#       - `enable_redis_low_memory_alarm` for memory monitoring.
-#       - `enable_redis_high_cpu_alarm` for CPU utilization.
-#       - `enable_redis_low_cpu_credits_alarm` for CPU credits.
-# 2. The 'redis_low_cpu_credits' alarm prevents performance degradation by ensuring sufficient CPU credits are available.
-#    This is particularly critical for burstable instance types.
-# 3. All alarm thresholds are fully configurable through input variables for flexibility.
-# 4. Use CloudWatch Alarms to detect and address resource bottlenecks early, improving reliability and availability.
+#    - Critical alarms are controlled via enable variables:
+#       - `enable_redis_low_memory_alarm`: Monitors memory usage to prevent bottlenecks.
+#       - `enable_redis_high_cpu_alarm`: Tracks CPU utilization for performance issues.
+#       - `enable_redis_evictions_alarm`: Detects key evictions due to memory limits, highlighting potential data loss risks.
+#       - `enable_redis_replication_bytes_alarm`: Tracks replication memory usage to detect potential issues with replication memory overhead.
+#       - `enable_redis_low_cpu_credits_alarm`: Ensures sufficient CPU credits for burstable instance types.
+# 2. Alarms help detect and resolve resource bottlenecks early, improving reliability and availability.
+# 3. Configurable thresholds and enable variables provide flexibility across environments.

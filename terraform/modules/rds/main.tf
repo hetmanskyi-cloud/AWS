@@ -35,17 +35,23 @@ resource "aws_db_instance" "db" {
   deletion_protection = var.deletion_protection # Enable or disable deletion protection
 
   # --- Final Snapshot Configuration --- #
-  skip_final_snapshot       = true                                                   # Skip final snapshot on deletion
-  final_snapshot_identifier = "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name
-  delete_automated_backups  = true                                                   # Delete automated backups when the instance is deleted
+  skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on deletion
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name
+  delete_automated_backups  = true                                                                                    # Delete automated backups when the instance is deleted
 
   # --- Performance Insights --- #
   performance_insights_enabled    = var.performance_insights_enabled
   performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null
 
   # --- Monitoring --- #
-  monitoring_interval = var.enable_monitoring ? 60 : 0 # Enable Enhanced Monitoring if enabled
-  monitoring_role_arn = var.enable_monitoring ? aws_iam_role.rds_monitoring_role.arn : null
+  # Monitoring_interval defines the monitoring interval in seconds.
+  # If monitoring is disabled, it is set to 0.
+  monitoring_interval = var.enable_rds_monitoring ? 60 : 0
+
+  # Monitoring_role_arn specifies the ARN of the IAM role used for Enhanced Monitoring.
+  # The try() function ensures that if the role is not created (count = 0),
+  # the value is safely set to null to avoid errors.
+  monitoring_role_arn = var.enable_rds_monitoring ? try(aws_iam_role.rds_monitoring_role[0].arn, null) : null
 
   # --- CloudWatch Logs Configuration --- #
   enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"] # Enable CloudWatch logs export
@@ -109,7 +115,9 @@ resource "aws_db_instance" "read_replica" {
 
   publicly_accessible = false # Read replicas should not be publicly accessible
 
-  skip_final_snapshot = true # Do not create a final snapshot during deletion
+  # Note: AWS does not create final snapshots for replicas during deletion.
+  # This parameter is included solely for code consistency.
+  skip_final_snapshot = var.skip_final_snapshot
 
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
