@@ -687,15 +687,6 @@ variable "enable_firehose" {
   default     = false
 }
 
-# Enable or disable KMS IAM role and policy for ALB module
-# - Set to true to create KMS-related IAM resources.
-# - Set to false to skip KMS IAM resource creation.
-variable "enable_kms_alb_role" {
-  description = "Enable or disable KMS IAM role and policy for ALB module"
-  type        = bool
-  default     = false
-}
-
 # --- S3 Bucket Configuration Variables --- #
 
 variable "buckets" {
