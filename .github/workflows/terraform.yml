@@ -19,15 +19,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@latest
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@latest
         with:
           terraform_version: latest
 
       - name: Cache Terraform modules
-        uses: actions/cache@v3
+        uses: actions/cache@latest
         with:
           path: ~/.terraform.d/plugin-cache
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/provider_versions.tf', '.terraform-version') }}
@@ -52,7 +52,7 @@ jobs:
           severity: error
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@latest
         with:
           tflint_version: latest
 
@@ -61,7 +61,7 @@ jobs:
         working-directory: ./terraform
 
       - name: Setup Checkov
-        uses: bridgecrewio/checkov-action@v1
+        uses: bridgecrewio/checkov-action@latest
         with:
           directory: ./terraform
           framework: terraform
@@ -74,7 +74,7 @@ jobs:
         working-directory: ./terraform
 
       - name: Terraform Plan Output Annotations
-        uses: actions/github-script@v6
+        uses: actions/github-script@latest
         if: github.event_name == 'pull_request'
         env:
           PLAN: "terraform plan -no-color"
