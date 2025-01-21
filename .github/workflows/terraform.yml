@@ -10,52 +10,85 @@ on:
 
 jobs:
   terraform:
+    name: 'Terraform'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
 
     steps:
-    # Step 1: Checkout the code from the repository
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Step 2: Setup Terraform CLI
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: latest
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
 
-    # Step 3: Initialize Terraform
-    - name: Terraform Init
-      run: terraform init
-      working-directory: ./terraform
+      - name: Cache Terraform modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/provider_versions.tf', '.terraform-version') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
 
-    # Step 4: Check Terraform formatting
-    - name: Terraform Format
-      run: terraform fmt -check
-      working-directory: ./terraform
+      - name: Terraform Init
+        run: terraform init -upgrade
+        working-directory: ./terraform
 
-    # Step 5: Validate Terraform configuration
-    - name: Terraform Validate
-      run: terraform validate
-      working-directory: ./terraform
+      - name: Terraform Format
+        run: terraform fmt -check -diff -recursive
+        working-directory: ./terraform
 
-    # Step 6: ShellCheck for bash scripts
-    - name: ShellCheck
-      run: |
-        find ./terraform -name '*.sh' -exec shellcheck {} + || exit 1
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./terraform
 
-    # Step 7: Setup TFLint
-    - name: Setup TFLint
-      uses: terraform-linters/setup-tflint@v4
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          severity: error
 
-    # Step 8: Run TFLint to lint the Terraform configuration
-    - name: TFLint
-      run: tflint
-      working-directory: ./terraform
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
 
-    # Step 9: Run Checkov for security scanning
-    - name: Install Checkov
-      run: |
-        pip install checkov
+      - name: TFLint
+        run: tflint
+        working-directory: ./terraform
 
-    - name: Run Checkov
-      run: checkov -d ./terraform
+      - name: Setup Checkov
+        uses: bridgecrewio/checkov-action@v1
+        with:
+          directory: ./terraform
+          framework: terraform
+          enable_telemetry: false
+          skip_check: CKV_AWS_192
+
+      - name: Terraform Plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color
+        working-directory: ./terraform
+
+      - name: Terraform Plan Output Annotations
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform plan -no-color"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = await exec.getExecOutput(process.env.PLAN, [], {cwd: './terraform'});
+            if (output.exitCode !== 0) {
+              core.setFailed(output.stderr);
+            } else if (output.stdout.length > 0) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: "`terraform\n" + output.stdout + "\n`"
+              });
+            }
