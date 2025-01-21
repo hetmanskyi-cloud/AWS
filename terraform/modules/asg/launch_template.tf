@@ -58,7 +58,7 @@ resource "aws_launch_template" "asg_launch_template" {
   metadata_options {
     http_endpoint               = "enabled"  # Enable instance metadata endpoint
     http_tokens                 = "required" # Enforce IMDSv2 for metadata security
-    http_put_response_hop_limit = 2          # # Consider the route through ALB
+    http_put_response_hop_limit = 1          # # Consider the route through ALB
     instance_metadata_tags      = "enabled"  # Enable instance metadata tags for better tracking.
   }
 

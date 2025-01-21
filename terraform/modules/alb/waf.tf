@@ -26,7 +26,9 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   # - In case no rules match, allow all incoming requests.
   # - Can be changed to `block {}` for stricter security if required.
   default_action {
-    allow {}
+    allow {
+
+    }
   }
 
   # --- Managed Rules --- #
