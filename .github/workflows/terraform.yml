@@ -65,22 +65,12 @@ jobs:
         with:
           directory: ./terraform
           framework: terraform
-          enable_telemetry: false
+          output_format: sarif          
           skip_check: > 
-            CKV_AWS_192,
-            CKV_AWS_241,
-            CKV_AWS_240,
-            CKV_AWS_2,
-            CKV_AWS_378,
-            CKV_AWS_382,
-            CKV_AWS_23,
-            CKV_AWS_145,
-            CKV2_AWS_6,
-            CKV_AWS_21,
-            CKV_AWS_157,
-            CKV_AWS_232,
-            CKV_AWS_231
-
+            CKV_AWS_192,CKV_AWS_241,CKV_AWS_240,CKV_AWS_2,CKV_AWS_378,
+            CKV_AWS_382,CKV_AWS_23,CKV_AWS_145,CKV2_AWS_6,CKV_AWS_21,
+            CKV_AWS_157,CKV_AWS_232,CKV_AWS_231
+            
       - name: Terraform Plan
         if: github.event_name == 'pull_request'
         run: terraform plan -no-color

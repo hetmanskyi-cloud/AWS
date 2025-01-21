@@ -21,6 +21,11 @@ This module creates and manages S3 buckets for various use cases within a projec
   - **Special buckets**: Created conditionally based on `terraform.tfvars` (e.g., terraform_state, wordpress_media, replication).
   - Fully configurable via the `buckets` variable.
 
+- **Lifecycle Management**:
+  - Object versioning enabled to protect against accidental overwrites or deletions.
+  - Noncurrent object versions are automatically deleted after a defined retention period (default: 30 days).
+  - Incomplete multipart uploads are automatically aborted after 7 days to prevent unnecessary storage costs.
+
 - **Conditional Resource Creation**:
   - **DynamoDB Table**: Created only if `enable_dynamodb = true`.
   - **AWS Lambda Function**: Created only if `enable_lambda = true`.
@@ -34,41 +39,32 @@ This module creates and manages S3 buckets for various use cases within a projec
 - **Logging and Monitoring**:
   - Logging enabled for all buckets, stored in a dedicated logging bucket.
   - Notifications for object creation and deletion integrated with SNS.
-  - Dependencies are explicitly declared with `depends_on` for resources such as `aws_s3_bucket_logging` and `aws_s3_bucket_policy` to ensure correct creation order.
-
-- **Versioning and Lifecycle Policies**:
-  - Versioning enabled to protect against accidental overwrites or deletions.
-  - Automatic cleanup of incomplete multipart uploads and old versions.
+  - CloudWatch Logs provide insights into Lambda execution and failures.
+  - Configurable log retention for Lambda using the `lambda_log_retention_days` variable.
 
 - **Cross-Region Replication**:
   - Enabled via `enable_s3_replication` and `enable_replication_bucket`.
   - Supports disaster recovery by replicating data to another AWS region.
 
-- **DynamoDB Locking**:
-  - DynamoDB table is used for Terraform state file locking, ensuring that only one process can modify the state file at a time.
-  - The table includes:
-    - **TTL (Time-to-Live)**: Automatically deletes expired locks to prevent stale entries.
-    - **Point-in-Time Recovery**: Protects against accidental deletions or modifications, allowing recovery to any point in the past 35 days.
-    - **Stream Configuration**: Enables integration with AWS Lambda for real-time processing of DynamoDB changes.
-  - **TTL Automation with AWS Lambda**:
-    - A Lambda function updates expiration timestamps in the DynamoDB table, ensuring proper lock cleanup.
-    - Lambda automatically processes records from DynamoDB Streams and prevents stale locks from accumulating.
-    - **Testing Note**: The Lambda function logic can be tested locally with mock data before deploying to AWS Lambda to verify correctness and functionality.
-  - **Integration Notes**:
-  - **Enable Only If Remote Backend Is Configured**:
-    - This feature should be used only when the remote backend is enabled in the `remote_backend.tf` file in the main block (e.g., using S3 for state storage).
-    - Ensure that the remote backend configuration in `remote_backend.tf` is uncommented and correctly initialized.
-    - To enable this feature, set the following variables in `terraform.tfvars`:
-      ```hcl
-      enable_dynamodb = true
-      enable_lambda   = true
-      ```
-    - Ensure the `update_ttl.zip` Lambda function code is deployed in the `scripts` directory.
-    - Validate the S3 bucket and DynamoDB table are created before enabling the remote backend.
-  - **Best Practices**:
-    - Always run `terraform apply` to create the DynamoDB table and Lambda function before enabling the remote backend.
-    - Regularly review and update the `update_ttl.zip` Lambda function logic to ensure compatibility with new requirements or schema changes.
-    - Monitor the DynamoDB table for stale locks and ensure TTL automation is functioning as expected.
+- **DynamoDB Locking and TTL Automation**:
+  - Ensures Terraform state file locking using DynamoDB to prevent concurrent operations.
+  - The table features:
+    - **TTL (Time-to-Live)**: Automatically deletes expired locks.
+    - **Point-in-Time Recovery**: Allows recovery to any point in the past 35 days.
+    - **Stream Configuration**: Enables integration with AWS Lambda for real-time processing.
+  - The AWS Lambda function automatically processes DynamoDB Streams to manage TTL updates.
+  - Failed events are captured in an SQS Dead Letter Queue (DLQ) for further analysis.
+
+- **Timeout and Error Handling**:
+  - Configurable timeouts for Lambda function creation, update, and deletion to prevent long-running operations.
+  - SQS DLQ stores failed Lambda events, allowing investigation and resolution of issues.
+
+- **Best Practices**:
+  - Ensure `update_ttl.zip` is up-to-date in the `scripts` directory before deployment.
+  - Regularly review and update Lambda logic to align with schema changes.
+  - Monitor CloudWatch logs and SQS DLQ messages to optimize performance and detect issues.
+  - Run `terraform apply` to create necessary resources before enabling the remote backend.
+  - Use the least privilege principle for IAM roles and policies to enhance security.
 
 ---
 
@@ -105,6 +101,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `enable_lambda`                     | `bool`         | Enables creation of Lambda function for DynamoDB TTL updates.                          | `false`               |
 | `enable_dynamodb`                   | `bool`         | Enables creation of DynamoDB table for state locking.                                  | `false`               |
 | `buckets`                           | `map(string)`  | Map of bucket names and types (e.g., "base", "special").                               | Required              |
+| `lambda_log_retention_days`         | `number`       | Number of days to retain logs for the Lambda function                                  | `30`                  |
 
 ---
 

@@ -771,3 +771,10 @@ variable "enable_lambda" {
     error_message = "enable_lambda requires enable_dynamodb = true."
   }
 }
+
+# Retention period (in days) for Lambda function logs in CloudWatch.
+variable "lambda_log_retention_days" {
+  description = "Number of days to retain logs for the Lambda function"
+  type        = number
+  default     = 30
+}

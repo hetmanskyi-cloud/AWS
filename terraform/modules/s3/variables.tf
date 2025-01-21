@@ -177,3 +177,37 @@ variable "enable_lambda" {
   # 3. The Lambda function automates the cleanup of expired locks in the DynamoDB table.
   # 4. Set to false if DynamoDB TTL automation is not required or managed differently.
 }
+
+# --- Log Retention for Lambda Function --- #
+# This variable defines the number of days to retain logs in CloudWatch Logs 
+# for the Lambda function. Retention period helps in managing log storage costs 
+# and complying with auditing and monitoring requirements.
+#
+# Recommended values:
+# - Short-lived environments (e.g., dev/testing): 7-14 days
+# - Production environments: 30-90 days (based on compliance needs)
+# - Unlimited storage (retention_in_days = 0) should be used with caution due to cost.
+#
+# Modify this value based on operational and compliance requirements.
+variable "lambda_log_retention_days" {
+  description = "Number of days to retain logs for the Lambda function"
+  type        = number
+  default     = 30
+}
+
+# --- VPC Variables for Lambda --- #
+
+variable "vpc_id" {
+  description = "VPC ID where Lambda security group will be created"
+  type        = string
+}
+
+variable "private_subnet_ids" {
+  description = "List of private subnet IDs for Lambda function"
+  type        = list(string)
+}
+
+variable "private_subnet_cidr_blocks" {
+  description = "CIDR blocks of private subnets for security group ingress"
+  type        = list(string)
+}
