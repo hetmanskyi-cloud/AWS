@@ -123,7 +123,7 @@ module "s3" {
   enable_terraform_state_bucket     = var.enable_terraform_state_bucket
   enable_dynamodb                   = var.enable_dynamodb
   enable_lambda                     = var.enable_lambda
-  lambda_log_retention_days = var.lambda_log_retention_days
+  lambda_log_retention_days         = var.lambda_log_retention_days
   enable_wordpress_media_bucket     = var.enable_wordpress_media_bucket
   enable_cors                       = var.enable_cors
   enable_replication_bucket         = var.enable_replication_bucket
@@ -137,9 +137,9 @@ module "s3" {
   # Pass buckets list dynamically
   buckets = var.buckets
 
-  vpc_id                   = module.vpc.vpc_id
-  private_subnet_ids        = module.vpc.private_subnets
-  private_subnet_cidr_blocks = module.vpc.private_subnet_cidrs
+  vpc_id                     = module.vpc.vpc_id
+  private_subnet_ids         = module.vpc.private_subnets
+  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
 
   # Pass providers explicitly
   providers = {

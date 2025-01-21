@@ -48,7 +48,7 @@ resource "aws_security_group" "lambda_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"] # This is only for demonstration and should be replaced with VPC endpoints or prefix lists.
-    }
+  }
 
   # Tags for resource identification.
   tags = {
@@ -141,7 +141,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group" {
   count = var.enable_lambda ? 1 : 0
 
   name              = "/aws/lambda/${var.name_prefix}-update-ttl" # Log group name follows AWS Lambda convention
-  retention_in_days = var.lambda_log_retention_days # Use variable for flexibility
+  retention_in_days = var.lambda_log_retention_days               # Use variable for flexibility
 
   tags = {
     Name        = "${var.name_prefix}-lambda-log-group"
@@ -167,13 +167,13 @@ resource "aws_sqs_queue" "lambda_dlq" {
 resource "aws_lambda_event_source_mapping" "dynamodb_to_lambda" {
   count = var.enable_lambda && var.enable_dynamodb && length(aws_dynamodb_table.terraform_locks) > 0 ? 1 : 0
 
-  event_source_arn  = aws_dynamodb_table.terraform_locks[0].stream_arn # DynamoDB Streams ARN.
-  function_name     = aws_lambda_function.update_ttl[0].arn            # Lambda function ARN.
-  batch_size        = 100                                              # Number of records to process per batch.
-  starting_position = "LATEST"                                         # Start processing from the latest stream record.
-  maximum_retry_attempts        = 5  # Number of retries of processing
-  maximum_record_age_in_seconds = 600  # Maximum age of a record in a stream
-  bisect_batch_on_function_error = true # Split into parts on error 
+  event_source_arn               = aws_dynamodb_table.terraform_locks[0].stream_arn # DynamoDB Streams ARN.
+  function_name                  = aws_lambda_function.update_ttl[0].arn            # Lambda function ARN.
+  batch_size                     = 100                                              # Number of records to process per batch.
+  starting_position              = "LATEST"                                         # Start processing from the latest stream record.
+  maximum_retry_attempts         = 5                                                # Number of retries of processing
+  maximum_record_age_in_seconds  = 600                                              # Maximum age of a record in a stream
+  bisect_batch_on_function_error = true                                             # Split into parts on error 
 
   destination_config {
     on_failure {
@@ -188,16 +188,16 @@ resource "aws_lambda_event_source_mapping" "dynamodb_to_lambda" {
 resource "aws_iam_policy" "lambda_dlq_access" {
   count = var.enable_lambda ? 1 : 0
 
-  name        = "${var.name_prefix}-lambda-dlq-policy"  # Policy name with prefix for uniqueness.
-  description = "Allow Lambda function to send messages to SQS DLQ"  # Description of the policy.
+  name        = "${var.name_prefix}-lambda-dlq-policy"              # Policy name with prefix for uniqueness.
+  description = "Allow Lambda function to send messages to SQS DLQ" # Description of the policy.
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect   = "Allow",
-        Action   = "sqs:SendMessage",  # Allows Lambda to send messages to the DLQ.
-        Resource = aws_sqs_queue.lambda_dlq[0].arn  # Specifies the target SQS queue ARN.
+        Action   = "sqs:SendMessage",              # Allows Lambda to send messages to the DLQ.
+        Resource = aws_sqs_queue.lambda_dlq[0].arn # Specifies the target SQS queue ARN.
       }
     ]
   })
@@ -209,8 +209,8 @@ resource "aws_iam_policy" "lambda_dlq_access" {
 resource "aws_iam_role_policy_attachment" "lambda_dlq_policy_attachment" {
   count = var.enable_lambda ? 1 : 0
 
-  role       = aws_iam_role.lambda_execution_role[0].name  # Attach policy to the Lambda execution role.
-  policy_arn = aws_iam_policy.lambda_dlq_access[0].arn     # Reference the created policy.
+  role       = aws_iam_role.lambda_execution_role[0].name # Attach policy to the Lambda execution role.
+  policy_arn = aws_iam_policy.lambda_dlq_access[0].arn    # Reference the created policy.
 }
 
 # --- Retrieve current AWS region and account ID --- #
@@ -222,7 +222,7 @@ data "aws_caller_identity" "current" {}
 # --- IAM Policy for Lambda CloudWatch Logs --- #
 # This policy allows the Lambda function to create and write logs to CloudWatch Logs.
 resource "aws_iam_policy" "lambda_cloudwatch_logs_policy" {
-  count       = var.enable_lambda ? 1 : 0
+  count = var.enable_lambda ? 1 : 0
 
   name        = "${var.name_prefix}-lambda-cloudwatch-logs-policy"
   description = "IAM policy for Lambda to write logs to CloudWatch"
@@ -233,9 +233,9 @@ resource "aws_iam_policy" "lambda_cloudwatch_logs_policy" {
       {
         Effect = "Allow",
         Action = [
-          "logs:CreateLogGroup",   # Allows creation of new log groups if they don't exist
-          "logs:CreateLogStream",  # Allows creation of new log streams within log groups
-          "logs:PutLogEvents"      # Allows writing log events to the streams
+          "logs:CreateLogGroup",  # Allows creation of new log groups if they don't exist
+          "logs:CreateLogStream", # Allows creation of new log streams within log groups
+          "logs:PutLogEvents"     # Allows writing log events to the streams
         ],
         Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.update_ttl[0].function_name}:*"
       }
@@ -246,8 +246,8 @@ resource "aws_iam_policy" "lambda_cloudwatch_logs_policy" {
 # --- IAM Role Policy Attachment for CloudWatch Logs --- #
 # Attaches the CloudWatch Logs policy to the Lambda execution role.
 resource "aws_iam_role_policy_attachment" "lambda_cloudwatch_logs_policy_attachment" {
-  count      = var.enable_lambda ? 1 : 0
-  
+  count = var.enable_lambda ? 1 : 0
+
   role       = aws_iam_role.lambda_execution_role[0].name
   policy_arn = aws_iam_policy.lambda_cloudwatch_logs_policy[0].arn
 }
