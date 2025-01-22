@@ -123,6 +123,12 @@ variable "enable_vpc_ssh_access" {
   type        = bool
 }
 
+variable "ssh_allowed_cidr" {
+  description = "List of allowed CIDR blocks for SSH access to ASG instances"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Open for development, restrict for production
+}
+
 # Enable or disable HTTP/HTTPS rules for public NACL
 variable "enable_public_nacl_http" {
   description = "Enable or disable HTTP rule for public NACL (port 80)"

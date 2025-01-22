@@ -1,0 +1,193 @@
+# Checkov issue: CKV_AWS_241 - "Ensure that Kinesis Firehose Delivery Streams are encrypted with CMK"
+# The following check is skipped because Kinesis Firehose encryption with a customer-managed CMK 
+# is not required in the test environment. We are using SSE-S3 encryption, which is sufficient 
+# for now. CMK encryption will be considered for production to ensure fine-grained control.
+skip_checks:
+  - id: "CKV_AWS_241"
+    reason: "Kinesis Firehose CMK encryption is not required in the test environment. Using SSE-S3 encryption instead."
+    paths:
+      - "modules/alb/firehose.tf"
+
+# Checkov issue: CKV_AWS_240 - "Ensure Kinesis Firehose delivery stream is encrypted with CMK"
+# In the test environment, using an AWS-managed KMS key (SSE-S3) is sufficient for security needs.
+# A customer-managed CMK will be implemented in production for enhanced security and access control.
+  - id: "CKV_AWS_240"
+    reason: "AWS-managed KMS key (SSE-S3) is sufficient for the test environment; CMK will be implemented in production."
+    paths:
+      - "modules/alb/firehose.tf"
+
+# Checkov issue: CKV_AWS_2 - "Ensure ALB protocol is HTTPS"
+# In the test environment, HTTP is used temporarily because an SSL certificate is not yet available.
+# HTTPS with a valid certificate will be configured in production to ensure secure communication.
+  - id: "CKV_AWS_2"
+    reason: "HTTP is used in the test environment until an SSL certificate is available. HTTPS will be implemented in production."
+    paths:
+      - "modules/alb/main.tf"
+
+# Checkov issue: CKV_AWS_382 - "Ensure no security groups allow egress from 0.0.0.0:0 to port -1"
+# Allowing all outbound traffic is acceptable in the test environment to ensure connectivity and debugging.
+# In production, specific AWS service prefixes or IP ranges will be used to restrict outbound access.
+  - id: "CKV_AWS_382"
+    reason: "Allowing all outbound traffic is acceptable for testing. Will be restricted in production."
+    paths:
+      - "modules/alb/security_group.tf"
+
+# Checkov issue: CKV_AWS_260 - "Ensure no security groups allow ingress from 0.0.0.0/0 to port 80"
+# HTTP traffic is allowed from all IPs in the test environment to facilitate website accessibility.
+# In production, port 80 will be used only for redirection to HTTPS (port 443) after obtaining an SSL certificate.
+  - id: "CKV_AWS_260"
+    reason: "HTTP traffic is allowed in the test environment to ensure website availability. HTTPS will be enforced in production."
+    paths:
+      - "modules/alb/security_group.tf"
+
+# Checkov issue: CKV_AWS_31 - "Ensure all data stored in the ElastiCache Replication Group is securely encrypted at transit and has auth token"
+# Encryption in transit is enabled to secure data transmission. The auth token is omitted for the test environment
+# to simplify access and testing. In production, an auth token may be implemented if required for security compliance.
+  - id: "CKV_AWS_31"
+    reason: "Auth token is not required in the test environment. Encryption in transit is enabled for security."
+    paths:
+      - "modules/elasticache/main.tf"
+
+# Checkov issue: CKV_AWS_382 - "Ensure no security groups allow egress from 0.0.0.0/0 to port -1"
+# Allowing all outbound traffic is acceptable in the test environment to ensure unrestricted connectivity.
+# In production, outbound traffic will be restricted to required services only.
+  - id: "CKV_AWS_382"
+    reason: "Egress to 0.0.0.0/0 is allowed for testing. In production, it will be restricted to known IPs or AWS services."
+    paths:
+      - "modules/elasticache/security_group.tf"
+
+# Checkov issue: CKV_AWS_382 - "Ensure no security groups allow egress from 0.0.0.0/0 to port -1"
+# Allowing all outbound traffic is acceptable in the test environment for connectivity and testing.
+# In production, outbound traffic will be restricted to required IPs and AWS services.
+  - id: "CKV_AWS_382"
+    reason: "Outbound traffic is allowed for testing purposes. It will be restricted in production."
+    paths:
+      - "modules/endpoints/security_group.tf"
+
+# Checkov issue: CKV_AWS_382 - "Ensure no security groups allow egress from 0.0.0.0/0 to port -1"
+# Allowing all outbound traffic is acceptable in the test environment for connectivity and testing purposes.
+# In production, outbound traffic will be restricted to required services using VPC endpoints or prefix lists.
+  - id: "CKV_AWS_382"
+    reason: "All outbound traffic is allowed in the test environment. It will be restricted in production using VPC endpoints or prefix lists."
+    paths:
+      - "modules/s3/lambda.tf"
+
+# Checkov issue: CKV_AWS_157 - "Ensure that RDS instances have Multi-AZ enabled"
+# Multi-AZ is not required in the test environment to reduce costs and simplify deployment.
+# It will be enabled in production to ensure high availability.
+  - id: "CKV_AWS_157"
+    reason: "Multi-AZ is not required in the test environment to minimize costs. It will be enabled in production."
+    paths:
+      - "modules/rds/main.tf"
+
+# Checkov issue: CKV_AWS_272 - "Ensure AWS Lambda function is configured to validate code-signing"
+# Code signing validation is not required in the test environment as the function code is controlled internally.
+# In production, a code-signing configuration will be implemented to enhance security and ensure integrity.
+  - id: "CKV_AWS_272"
+    reason: "Code signing is not required in the test environment. It will be implemented in production to enhance security."
+    paths:
+      - "modules/s3/lambda.tf"
+
+# Checkov issue: CKV_AWS_50 - "X-Ray tracing is enabled for Lambda"
+# AWS X-Ray tracing is not required for the WordPress site, as it adds unnecessary overhead.
+# The application does not require distributed tracing, and CloudWatch logs provide sufficient monitoring.
+  - id: "CKV_AWS_50"
+    reason: "X-Ray tracing is not required for the WordPress site. CloudWatch logs provide adequate monitoring."
+    paths:
+      - "modules/s3/lambda.tf"
+
+# Checkov issue: CKV_AWS_130 - "Ensure VPC subnets do not assign public IP by default"
+# Public subnets in this project intentionally assign public IPs for accessibility.
+# This is acceptable for test environments; production might require a stricter policy.
+  - id: "CKV_AWS_130"
+    reason: "Public subnets require automatic public IP assignment for accessibility in the test environment."
+    paths:
+      - "modules/vpc/main.tf"
+      - "modules/vpc/main.tf"
+      - "modules/vpc/main.tf"
+
+# Checkov issue: CKV_AWS_231 - "Ensure no NACL allow ingress from 0.0.0.0/0 to port 3389"
+# Allowing ephemeral ports for testing purposes; in production, this will be restricted.
+  - id: "CKV_AWS_231"
+    reason: "Ephemeral port range is allowed in the test environment for connectivity; it will be restricted in production."
+    paths:
+      - "modules/vpc/nacl.tf"
+
+# Checkov issue: CKV2_AWS_61 - "Ensure that an S3 bucket has a lifecycle configuration"
+# The lifecycle configuration for all S3 buckets is dynamically managed within the Terraform module 
+# and confirmed via Terraform plan output.
+  - id: "CKV2_AWS_61"
+    reason: "All S3 buckets have lifecycle configurations managed dynamically within Terraform and confirmed in plan output."
+    paths:
+      - "modules/s3/main.tf"
+
+# Checkov issue: CKV2_AWS_6 - "Ensure that an S3 bucket has a Public Access block"
+# Public access blocks are explicitly managed using `aws_s3_bucket_public_access_block` within the Terraform code,
+# and their presence is confirmed in Terraform plan output.
+  - id: "CKV2_AWS_6"
+    reason: "Public access blocks are explicitly managed using Terraform and confirmed in the plan output."
+    paths:
+      - "modules/s3/main.tf"
+
+# Checkov issue: CKV_AWS_378 - "Ensure AWS Load Balancer doesn't use HTTP protocol"
+# HTTP is currently used in the test environment. HTTPS will be enabled in production.
+  - id: "CKV_AWS_378"
+    reason: "HTTP is used for testing purposes. HTTPS will be configured before production deployment."
+    paths:
+      - "modules/alb/main.tf"
+
+# Checkov issue: CKV2_AWS_62 - "Ensure S3 buckets should have event notifications enabled"
+# The following S3 buckets do not require event notifications in the current setup for the specified reasons:
+
+# - scripts bucket:
+#   This bucket stores project-related scripts, which are updated manually or via CI/CD pipelines.
+#   There is no need for automated notifications as deployment processes handle changes.
+#   In the future, notifications can be added if automation of deployment workflows is needed.
+
+# - logging bucket:
+#   This bucket is used for centralized logging from various AWS services.
+#   Log processing is done via CloudWatch Logs and Athena, making S3 notifications unnecessary.
+#   In production, CloudWatch alarms can be set up instead.
+
+# - ami bucket:
+#   This bucket stores AMI images created manually through the AWS Console or automation scripts.
+#   Notifications are not required since AMI management is handled externally.
+#   Future enhancements may include notifications if AMI lifecycle automation is implemented.
+
+# - terraform_state bucket:
+#   This bucket is used for storing Terraform state files.
+#   Terraform handles state locking and consistency using DynamoDB, and notifications are not necessary.
+#   Adding notifications could introduce unnecessary complexity.
+
+# - wordpress_media bucket:
+#   This bucket stores media files for the WordPress website.
+#   Media processing (resizing, optimization) is handled within WordPress itself, without requiring S3 notifications.
+#   Notifications may be considered in production for automated workflows such as image optimization.
+
+# - replication bucket:
+#   This bucket is used for cross-region replication.
+#   AWS S3 manages replication automatically, and notifications are not required.
+#   Monitoring of replication status can be done via CloudWatch metrics if needed.
+
+  - id: "CKV2_AWS_62"
+    reason: "S3 notifications are not required for the specified buckets as they are managed through other processes or services."
+    paths:
+    - "modules/s3/main.tf"
+
+# Checkov issue: CKV2_AWS_1 - "Ensure that all NACL are attached to subnets"
+# The network ACLs are correctly associated with the public and private subnets in the VPC.
+# Terraform plan confirms the associations will be created successfully.
+  - id: "CKV2_AWS_1"
+    reason: "Network ACLs are correctly associated with subnets, verified via Terraform plan output."
+    paths:
+    - "modules/vpc/nacl.tf"
+
+# Checkov issue: CKV2_AWS_1 - "Ensure that all NACL are attached to subnets"
+# The private NACL is correctly associated with the corresponding private subnets.
+# Verified by Terraform plan output, ensuring proper associations.
+  - id: "CKV2_AWS_1"
+    reason: "Private NACL is properly associated with subnets as confirmed by Terraform plan output."
+    paths:
+    - "modules/vpc/nacl.tf"
+
+

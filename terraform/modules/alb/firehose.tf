@@ -21,7 +21,7 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
     # GZIP compression reduces storage costs but may increase processing costs when decrypting data in the future.
     compression_format = "GZIP" # Compress logs in GZIP format for storage efficiency.
 
-    kms_key_arn = var.kms_key_arn # KMS key for encrypting logs.
+    kms_key_arn = var.kms_key_arn # KMS key for encrypting logs. In production replace with CMK
   }
 }
 

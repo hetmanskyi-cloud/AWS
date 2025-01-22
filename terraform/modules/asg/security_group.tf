@@ -92,7 +92,26 @@ resource "aws_vpc_security_group_egress_rule" "all_outbound" {
 
 }
 
+# --- Default Security Group Restrictions --- #
+# Restrict all inbound and outbound traffic for the default security group in the VPC.
+# This default security group is intentionally left without rules
+# to ensure that no unintended traffic flows through it.
+# It is recommended to use custom security groups instead.
+resource "aws_default_security_group" "default" {
+  vpc_id = var.vpc_id # VPC ID where the Security Group is created
+
+  # Remove all inbound and outbound rules to restrict traffic
+  ingress = []
+  egress  = []
+
+  tags = {
+    Name        = "${var.name_prefix}-default-sg"
+    Environment = var.environment
+  }
+}
+
 # --- Notes --- #
+#
 # 1. **Traffic Rules**:
 #    - HTTP traffic is always enabled for communication between ALB and ASG.
 #    - HTTPS traffic is enabled only if `enable_https_listener` is set to `true` in the ALB module.
@@ -103,3 +122,7 @@ resource "aws_vpc_security_group_egress_rule" "all_outbound" {
 # 3. **Best Practices**:
 #    - Regularly audit security group rules to minimize unnecessary access.
 #    - Ensure ALB and ASG configurations align with application requirements.
+#
+# 4. **Default Security Group**:
+#    - The default security group for the VPC is restricted to avoid unintended access.
+#    - It is recommended to use custom security groups for precise control over instance access.

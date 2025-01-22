@@ -69,6 +69,7 @@ module "vpc" {
 
   # SSH Access configuration
   enable_vpc_ssh_access = var.enable_vpc_ssh_access
+  ssh_allowed_cidr      = var.ssh_allowed_cidr
 
   enable_public_nacl_http  = var.enable_public_nacl_http
   enable_public_nacl_https = var.enable_public_nacl_https

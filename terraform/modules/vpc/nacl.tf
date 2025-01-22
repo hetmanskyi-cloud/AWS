@@ -61,7 +61,7 @@ resource "aws_network_acl_rule" "public_inbound_ssh" {
   protocol       = "tcp"
   from_port      = 22
   to_port        = 22
-  cidr_block     = "0.0.0.0/0"
+  cidr_block     = var.ssh_allowed_cidr[0]
   rule_action    = "allow"
 }
 
@@ -73,7 +73,7 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   protocol       = "tcp"
   from_port      = 1024
   to_port        = 65535
-  cidr_block     = "0.0.0.0/0" # Allow from all IPs
+  cidr_block     = "0.0.0.0/0" # Allow from all IPs # Replace with a more restrictive CIDR in production.
   rule_action    = "allow"
 }
 
