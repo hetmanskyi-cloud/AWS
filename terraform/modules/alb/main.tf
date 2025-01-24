@@ -19,13 +19,15 @@ resource "aws_lb" "application" {
   ip_address_type = "ipv4"
 
   # --- Access logging configuration for ALB logs --- #
-  # Ensure Access Logs are enabled for production environments.
-  # Access Logs provide critical visibility into traffic patterns and help with debugging.
-  # Check that the S3 bucket is correctly specified and `enable_alb_access_logs` is set to `true` in production.
-  access_logs {
-    bucket  = var.logging_bucket             # S3 bucket for storing logs
-    prefix  = "${var.name_prefix}/alb-logs/" # Separate ALB logs with a specific prefix
-    enabled = var.enable_alb_access_logs     # Control logging via variable
+  # Ensure Access Logs are enabled only if the logging bucket is specified.
+  dynamic "access_logs" {
+    for_each = var.logging_bucket != null ? [1] : []
+
+    content {
+      bucket  = var.logging_bucket             # S3 bucket for storing logs
+      prefix  = "${var.name_prefix}/alb-logs/" # Separate ALB logs with a specific prefix
+      enabled = var.enable_alb_access_logs     # Control logging via variable
+    }
   }
 
   tags = {

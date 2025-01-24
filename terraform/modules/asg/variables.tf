@@ -214,9 +214,11 @@ variable "php_fpm_service" {
 # --- S3 Configuration --- #
 # S3 bucket configuration for storing media and scripts.
 
-variable "enable_wordpress_media_bucket" {
-  description = "Enable or disable access to the WordPress Media S3 bucket"
-  type        = bool
+# Enable Buckets
+variable "buckets" {
+  description = "Map to enable or disable S3 buckets"
+  type        = map(bool)
+  default     = {}
 }
 
 variable "wordpress_media_bucket_arn" {
@@ -239,6 +241,7 @@ variable "scripts_bucket_name" {
 variable "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket for deployment scripts"
   type        = string
+  default     = ""
 }
 
 # --- ALB Configuration --- #

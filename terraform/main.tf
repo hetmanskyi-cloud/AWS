@@ -121,13 +121,10 @@ module "s3" {
   name_prefix                       = var.name_prefix
   enable_versioning                 = var.enable_versioning
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
-  enable_terraform_state_bucket     = var.enable_terraform_state_bucket
   enable_dynamodb                   = var.enable_dynamodb
   enable_lambda                     = var.enable_lambda
   lambda_log_retention_days         = var.lambda_log_retention_days
-  enable_wordpress_media_bucket     = var.enable_wordpress_media_bucket
   enable_cors                       = var.enable_cors
-  enable_replication_bucket         = var.enable_replication_bucket
   enable_s3_replication             = var.enable_s3_replication
 
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
@@ -207,10 +204,10 @@ module "asg" {
   enable_https_listener = module.alb.enable_https_listener
 
   # S3 bucket configurations
-  enable_wordpress_media_bucket = var.enable_wordpress_media_bucket
-  wordpress_media_bucket_arn    = module.s3.wordpress_media_bucket_arn
-  scripts_bucket_name           = module.s3.scripts_bucket_name
-  scripts_bucket_arn            = module.s3.scripts_bucket_arn
+  buckets                    = var.buckets
+  wordpress_media_bucket_arn = module.s3.wordpress_media_bucket_arn
+  scripts_bucket_name        = module.s3.scripts_bucket_name
+  scripts_bucket_arn         = module.s3.scripts_bucket_arn
 
   # Pass RDS host and endpoint for WordPress configuration
   db_name         = var.db_name

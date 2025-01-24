@@ -36,8 +36,10 @@ resource "aws_iam_role" "asg_role" {
 locals {
   # Combine S3 resources for WordPress media (conditionally) and scripts bucket (always required)
   asg_s3_resources = concat(
-    var.enable_wordpress_media_bucket ? ["${var.wordpress_media_bucket_arn}", "${var.wordpress_media_bucket_arn}/*"] : [],
-    ["${var.scripts_bucket_arn}", "${var.scripts_bucket_arn}/*"]
+    lookup(var.buckets, "wordpress_media", false) && var.wordpress_media_bucket_arn != null ?
+    ["${var.wordpress_media_bucket_arn}", "${var.wordpress_media_bucket_arn}/*"] : [],
+    var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ?
+    ["${var.scripts_bucket_arn}", "${var.scripts_bucket_arn}/*"] : []
   )
 }
 
@@ -127,7 +129,7 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
 #    - Accessible through IMDSv2 with a validity of 1 hour (rotated automatically).
 #
 # 2. S3 access:
-#    - Access to the WordPress media bucket is conditional, controlled by `enable_wordpress_media_bucket`.
+#    - Access to the WordPress media bucket is conditional, controlled by `buckets`.
 #    - Access to Scripts bucket is always enabled.
 #
 # 3. SSM policy:

@@ -8,13 +8,13 @@ variable "replication_region" {
   type        = string
 
   validation {
-    condition     = var.replication_region == "us-east-1" || var.replication_region == "eu-west-1"
+    condition     = contains(["us-east-1", "eu-west-1"], var.replication_region)
     error_message = "Replication region must be one of 'us-east-1' or 'eu-west-1'."
   }
 }
 
 # --- Environment Variable --- #
-# Determines the deployment environment (e.g., dev, stage, prod) and drives conditional resource creation and tagging.
+# Determines the deployment environment (e.g., dev, stage, prod).
 variable "environment" {
   description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
@@ -25,9 +25,9 @@ variable "environment" {
 }
 
 # --- Name Prefix Variable --- #
-# Prefix for resource names, ensuring unique and identifiable resources, particularly in shared AWS accounts.
+# Prefix for resource names, ensuring unique and identifiable resources.
 variable "name_prefix" {
-  description = "Name prefix for S3 resources. This ensures unique and identifiable resource names."
+  description = "Name prefix for S3 resources to ensure uniqueness."
   type        = string
 }
 
@@ -55,6 +55,7 @@ variable "kms_key_arn" {
 variable "noncurrent_version_retention_days" {
   description = "Number of days to retain noncurrent object versions in S3 buckets for versioning."
   type        = number
+
   validation {
     condition     = var.noncurrent_version_retention_days > 0
     error_message = "Retention days must be greater than 0."
@@ -69,27 +70,25 @@ variable "sns_topic_arn" {
   type        = string
 }
 
-# --- Bucket Toggles --- #
+# --- Bucket Configuration Variables --- #
 
-# Enable or disable the Terraform state bucket.
-variable "enable_terraform_state_bucket" {
-  description = "Enable or disable the Terraform state bucket"
-  type        = bool
-  default     = false
+# Map to enable or disable S3 buckets dynamically.
+variable "buckets" {
+  description = "Map to enable or disable S3 buckets dynamically."
+  type        = map(bool)
+  default     = {}
 }
 
-# Enable or disable the WordPress media bucket.
-variable "enable_wordpress_media_bucket" {
-  description = "Enable or disable the WordPress media bucket"
-  type        = bool
-  default     = false
-}
+# Versioning settings are managed in the `terraform.tfvars` file.
+variable "enable_versioning" {
+  description = "Map of bucket names to enable or disable versioning."
+  type        = map(bool)
+  default     = {}
 
-# Enable or disable the replication bucket.
-variable "enable_replication_bucket" {
-  description = "Enable or disable the replication bucket"
-  type        = bool
-  default     = false
+  validation {
+    condition     = alltrue([for key in keys(var.enable_versioning) : contains(keys(var.buckets), key) if lookup(var.enable_versioning, key, false)])
+    error_message = "All keys in enable_versioning must exist in buckets."
+  }
 }
 
 # --- Enable Replication Variable --- #
@@ -100,36 +99,6 @@ variable "enable_s3_replication" {
   default     = false
 }
 
-# --- Buckets Variable --- #
-# Core variable defining the S3 buckets for the module, driving all bucket creation and configuration.
-variable "buckets" {
-  description = "Map of bucket names and their types."
-  type        = map(string)
-}
-# Example for `buckets`:
-# {
-#   "scripts"         = "base",
-#   "logging"         = "base",
-#   "ami"             = "base",
-#   "terraform_state" = "special",
-#   "wordpress_media" = "special"
-#   "replication"     = "special"
-# }
-
-# --- Versioning Configuration --- #
-
-# Versioning settings are managed in the `terraform.tfvars` file.
-variable "enable_versioning" {
-  description = "Map of bucket names to enable or disable versioning."
-  type        = map(bool)
-  default     = {}
-
-  validation {
-    condition     = alltrue([for key in keys(var.enable_versioning) : contains(keys(var.buckets), key)])
-    error_message = "All keys in enable_versioning must exist in buckets."
-  }
-}
-
 # Enable CORS configuration for the WordPress media bucket
 variable "enable_cors" {
   description = "Enable or disable CORS configuration for the WordPress media bucket."
@@ -137,77 +106,79 @@ variable "enable_cors" {
   default     = false # Set to true in `terraform.tfvars` to enable CORS for the WordPress media bucket
 }
 
-# --- Enable DynamoDB for State Locking --- #
-# Controls the creation of the DynamoDB table for state locking.
+# --- DynamoDB and Lambda Configuration --- #
+
+# Enable DynamoDB table for Terraform state locking.
 variable "enable_dynamodb" {
-  description = "Enable DynamoDB table for state locking."
+  description = "Enable DynamoDB table for Terraform state locking."
   type        = bool
   default     = false
 
-  # --- Validation --- #
-  # Ensures DynamoDB is only enabled when S3 bucket are active.
   validation {
-    condition     = var.enable_dynamodb ? var.enable_terraform_state_bucket : true
-    error_message = "enable_dynamodb requires enable_terraform_state_bucket = true."
+    condition     = var.enable_dynamodb ? lookup(var.buckets, "terraform_state", false) : true
+    error_message = "enable_dynamodb requires buckets[\"terraform_state\"] to be true."
   }
-
-  # --- Notes --- #
-  # 1. Required for state locking in remote backend setups.
-  # 2. Creates a DynamoDB table with TTL and stream configuration.
-  # 3. Skipped if state locking is managed differently or not required.
 }
 
-# --- Enable Lambda for TTL Automation --- #
-# Enables Lambda for DynamoDB TTL cleanup.
+# Enable Lambda for DynamoDB TTL automation.
 variable "enable_lambda" {
   description = "Enable Lambda for DynamoDB TTL automation."
   type        = bool
   default     = false
 
-  # --- Validation --- #
-  # Ensures Lambda is enabled only if DynamoDB is active.
   validation {
     condition     = var.enable_lambda ? var.enable_dynamodb : true
     error_message = "enable_lambda requires enable_dynamodb = true."
   }
-
-  # --- Notes --- #
-  # 1. Required for state locking in remote backend setups.
-  # 2. This variable requires enable_dynamodb to be true to create Lambda resources.
-  # 3. The Lambda function automates the cleanup of expired locks in the DynamoDB table.
-  # 4. Set to false if DynamoDB TTL automation is not required or managed differently.
 }
 
-# --- Log Retention for Lambda Function --- #
-# This variable defines the number of days to retain logs in CloudWatch Logs 
-# for the Lambda function. Retention period helps in managing log storage costs 
-# and complying with auditing and monitoring requirements.
-#
-# Recommended values:
-# - Short-lived environments (e.g., dev/testing): 7-14 days
-# - Production environments: 30-90 days (based on compliance needs)
-# - Unlimited storage (retention_in_days = 0) should be used with caution due to cost.
-#
-# Modify this value based on operational and compliance requirements.
+# Log retention period for Lambda functions.
 variable "lambda_log_retention_days" {
-  description = "Number of days to retain logs for the Lambda function"
+  description = "Number of days to retain logs for the Lambda function."
   type        = number
   default     = 30
 }
 
 # --- VPC Variables for Lambda --- #
 
+# VPC ID where the Lambda security group will be created.
 variable "vpc_id" {
-  description = "VPC ID where Lambda security group will be created"
+  description = "VPC ID where Lambda security group will be created."
   type        = string
 }
 
+# List of private subnet IDs for the Lambda function.
 variable "private_subnet_ids" {
-  description = "List of private subnet IDs for Lambda function"
+  description = "List of private subnet IDs for the Lambda function."
   type        = list(string)
 }
 
+# CIDR blocks of private subnets for security group ingress rules.
 variable "private_subnet_cidr_blocks" {
-  description = "CIDR blocks of private subnets for security group ingress"
+  description = "CIDR blocks of private subnets for security group ingress."
   type        = list(string)
 }
+
+# --- Notes --- #
+# 1. **Dynamic Bucket Management**:
+#    - The `buckets` variable determines which S3 buckets are created.
+#    - The `enable_versioning` map controls versioning settings.
+#
+# 2. **Security Considerations**:
+#    - KMS encryption is used for data protection.
+#    - IAM policies ensure restricted access to S3 buckets.
+#
+# 3. **DynamoDB and Lambda**:
+#    - DynamoDB is enabled for Terraform state locking only when needed.
+#    - Lambda automates the cleanup of expired state locks.
+#
+# 4. **Replication Configuration**:
+#    - Buckets can be replicated across regions based on `enable_s3_replication`.
+#    - Ensure IAM policies allow replication when enabled.
+#
+# 5. **CORS Handling**:
+#    - If `enable_cors` is set to true, CORS policies are applied to WordPress media buckets.
+#
+# 6. **Best Practices**:
+#    - Set appropriate lifecycle rules for cost efficiency.
+#    - Use meaningful prefixes and tags for tracking resources.

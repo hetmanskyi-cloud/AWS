@@ -689,11 +689,6 @@ variable "enable_firehose" {
 
 # --- S3 Bucket Configuration Variables --- #
 
-variable "buckets" {
-  description = "Map of bucket names and their types (base or special)."
-  type        = map(string)
-}
-
 # Versioning settings are managed in the `terraform.tfvars` file for dev environment.
 variable "enable_versioning" {
   description = "Map of bucket names to enable or disable versioning."
@@ -701,25 +696,11 @@ variable "enable_versioning" {
   default     = {}
 }
 
-# Enable or disable the Terraform state bucket.
-variable "enable_terraform_state_bucket" {
-  description = "Enable or disable the Terraform state bucket"
-  type        = bool
-  default     = false
-}
-
-# Enable or disable the WordPress media bucket.
-variable "enable_wordpress_media_bucket" {
-  description = "Enable or disable the WordPress media bucket"
-  type        = bool
-  default     = false
-}
-
-# Enable or disable the replication bucket.
-variable "enable_replication_bucket" {
-  description = "Enable or disable the replication bucket"
-  type        = bool
-  default     = false
+# Enable Buckets
+variable "buckets" {
+  description = "Map to enable or disable S3 buckets"
+  type        = map(bool)
+  default     = {}
 }
 
 # --- Enable Replication Variable --- #
@@ -753,8 +734,8 @@ variable "enable_dynamodb" {
 
   # Ensures DynamoDB is only enabled when S3 bucket are active.
   validation {
-    condition     = var.enable_dynamodb ? var.enable_terraform_state_bucket : true
-    error_message = "enable_dynamodb requires enable_terraform_state_bucket = true."
+    condition     = var.enable_dynamodb ? lookup(var.buckets, "terraform_state", false) : true
+    error_message = "enable_dynamodb requires `terraform_state` bucket = true."
   }
 }
 

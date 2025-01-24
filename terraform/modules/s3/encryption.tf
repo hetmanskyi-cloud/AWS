@@ -5,12 +5,10 @@
 # Dynamically applies SSE settings to all buckets defined in the `buckets` variable.
 resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   # Apply encryption settings to all defined buckets
-  for_each = tomap({
-    for key, value in var.buckets : key => value
-  })
+  for_each = { for key, value in var.buckets : key => value if value }
 
   # Target bucket
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = each.key
 
   # Server-Side Encryption Configuration
   rule {
@@ -28,13 +26,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
 # --- Bucket Policy to Enforce Encryption --- #
 # Ensures that only encrypted objects can be uploaded to the selected buckets.
 resource "aws_s3_bucket_policy" "enforce_encryption" {
-  # Apply policy to base and special buckets
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value == "base" || value == "special"
-  })
+  # Apply policy to enabled buckets
+  for_each = { for key, value in var.buckets : key => value if value }
 
   # Target bucket
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = each.key
 
   # Policy to enforce encryption
   policy = jsonencode({
@@ -62,7 +58,7 @@ resource "aws_s3_bucket_policy" "enforce_encryption" {
 #    - Data at rest is always encrypted to meet security and compliance requirements.
 #
 # 2. **Bucket Policy for Encryption**:
-#    - Only encrypted objects can be uploaded to "base" and "special" buckets.
+#    - Only encrypted objects can be uploaded to buckets.
 #    - Prevents accidental or intentional uploads of unencrypted data.
 #
 # 3. **Lifecycle and Updates**:

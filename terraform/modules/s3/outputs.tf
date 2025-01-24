@@ -1,100 +1,95 @@
 # --- S3 Bucket Outputs --- #
 # Defines outputs for key S3 resources, including ARNs, IDs, and bucket names.
 
-# --- Base S3 Bucket Outputs --- #
-
 # Scripts Bucket
 output "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket used for WordPress setup scripts"
-  value       = aws_s3_bucket.scripts.arn
+  value       = lookup(var.buckets, "scripts", false) ? aws_s3_bucket.buckets["scripts"].arn : null
 }
 
 # Output the Scripts bucket name
 output "scripts_bucket_name" {
   description = "The name of the S3 bucket for deployment scripts"
-  value       = aws_s3_bucket.scripts.bucket
+  value       = length(aws_s3_bucket.scripts) > 0 ? aws_s3_bucket.scripts[0].bucket : null
 }
 
 # Logging Bucket
 output "logging_bucket_arn" {
   description = "The ARN of the S3 bucket used for logging"
-  value       = aws_s3_bucket.logging.arn
+  value       = length(aws_s3_bucket.logging) > 0 ? aws_s3_bucket.logging[0].arn : null
+}
+
+output "deploy_wordpress_script_etag" {
+  value       = length(aws_s3_object.deploy_wordpress_script) > 0 ? aws_s3_object.deploy_wordpress_script[0].etag : null
+  description = "The ETag of the Deploy WordPress Script object in S3."
 }
 
 # Output the ID of the logging bucket
 output "logging_bucket_id" {
   description = "The ID of the S3 bucket used for logging"
-  value       = aws_s3_bucket.logging.id
+  value       = length(aws_s3_bucket.logging) > 0 ? aws_s3_bucket.logging[0].id : null
 }
 
 # AMI Bucket
 output "ami_bucket_arn" {
   description = "The ARN of the S3 bucket used for storing golden AMI images"
-  value       = aws_s3_bucket.ami.arn
+  value       = length(aws_s3_bucket.ami) > 0 ? aws_s3_bucket.ami[0].arn : null
 }
 
 # Outputs for the AMI bucket to provide its ID for other modules
 output "ami_bucket_id" {
   description = "The ID of the S3 bucket used for storing golden AMI images"
-  value       = aws_s3_bucket.ami.id
+  value       = length(aws_s3_bucket.ami) > 0 ? aws_s3_bucket.ami[0].id : null
 }
 
 # Output the AMI S3 bucket name
 output "ami_bucket_name" {
   description = "The name of the S3 bucket for storing AMI images"
-  value       = aws_s3_bucket.ami.bucket
+  value       = length(aws_s3_bucket.ami) > 0 ? aws_s3_bucket.ami[0].bucket : null
 }
-
-# --- Special S3 Bucket Outputs --- #
 
 # Terraform State Bucket
 output "terraform_state_bucket_arn" {
   description = "The ARN of the S3 bucket used for storing Terraform remote state files"
-  value       = var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0].arn : null
+  value       = var.buckets["terraform_state"] ? aws_s3_bucket.terraform_state[0].arn : null
 }
 
 # WordPress Media Bucket
 output "wordpress_media_bucket_arn" {
   description = "The ARN of the S3 bucket used for WordPress media storage"
-  value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].arn : null
+  value       = var.buckets["wordpress_media"] ? aws_s3_bucket.wordpress_media[0].arn : null
 }
 
 # Output the ID of the WordPress media bucket
 output "wordpress_media_bucket_id" {
   description = "The ID of the S3 bucket used for WordPress media storage"
-  value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].id : null
+  value       = var.buckets["wordpress_media"] ? aws_s3_bucket.wordpress_media[0].id : null
 }
 
 # Output the WordPress media bucket name
 output "wordpress_media_bucket_name" {
   description = "The name of the S3 bucket for WordPress media storage"
-  value       = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].bucket : null
+  value       = var.buckets["wordpress_media"] ? aws_s3_bucket.wordpress_media[0].bucket : null
 }
 
-# Output the ETag of the uploaded object
-output "deploy_wordpress_script_etag" {
-  value       = aws_s3_object.deploy_wordpress_script.etag
-  description = "The ETag of the Deploy WordPress Script object in S3."
-}
-
-# --- Replication Bucket Outputs (if enabled) --- #
+# --- Replication Bucket Outputs --- #
 
 # Output the ARN of the replication bucket
 output "replication_bucket_arn" {
-  description = "The ARN of the S3 bucket used for replication destination"
-  value       = var.enable_s3_replication ? aws_s3_bucket.replication[0].arn : null
+  description = "The ARN of the replication S3 bucket if enabled"
+  value       = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? (contains(keys(aws_s3_bucket.buckets), "replication") ? aws_s3_bucket.buckets["replication"].arn : null) : null
 }
 
 # Output the ID of the replication bucket
 output "replication_bucket_id" {
-  description = "The ID of the S3 bucket used for replication destination"
-  value       = var.enable_s3_replication ? aws_s3_bucket.replication[0].id : null
+  description = "The ID of the replication S3 bucket if enabled"
+  value       = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? (contains(keys(aws_s3_bucket.buckets), "replication") ? aws_s3_bucket.buckets["replication"].id : null) : null
 }
 
 # Output the name of the replication bucket
 output "replication_bucket_name" {
   description = "The name of the S3 bucket used for replication destination"
-  value       = var.enable_replication_bucket ? aws_s3_bucket.replication[0].bucket : null
+  value       = lookup(var.buckets, "replication", false) ? aws_s3_bucket.replication[0].bucket : null
 }
 
 # --- Aggregated Bucket Outputs --- #
@@ -104,12 +99,12 @@ output "replication_bucket_name" {
 output "all_bucket_arns" {
   description = "A list of ARNs for all S3 buckets in the module"
   value = compact([
-    aws_s3_bucket.scripts.arn,
-    aws_s3_bucket.logging.arn,
-    aws_s3_bucket.ami.arn,
-    var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0].arn : null,
-    var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].arn : null,
-    var.enable_replication_bucket ? aws_s3_bucket.replication[0].arn : null
+    length(aws_s3_bucket.scripts) > 0 ? aws_s3_bucket.scripts[0].arn : null,
+    length(aws_s3_bucket.logging) > 0 ? aws_s3_bucket.logging[0].arn : null,
+    length(aws_s3_bucket.ami) > 0 ? aws_s3_bucket.ami[0].arn : null,
+    lookup(var.buckets, "terraform_state", false) && length(aws_s3_bucket.terraform_state) > 0 ? aws_s3_bucket.terraform_state[0].arn : null,
+    lookup(var.buckets, "wordpress_media", false) && length(aws_s3_bucket.wordpress_media) > 0 ? aws_s3_bucket.wordpress_media[0].arn : null,
+    lookup(var.buckets, "replication", false) && length(aws_s3_bucket.replication) > 0 ? aws_s3_bucket.replication[0].arn : null
   ])
 }
 
@@ -118,12 +113,12 @@ output "all_bucket_arns" {
 output "bucket_details" {
   description = "A map of bucket names to their ARNs and IDs"
   value = {
-    scripts         = { arn = aws_s3_bucket.scripts.arn, id = aws_s3_bucket.scripts.id },
-    logging         = { arn = aws_s3_bucket.logging.arn, id = aws_s3_bucket.logging.id },
-    ami             = { arn = aws_s3_bucket.ami.arn, id = aws_s3_bucket.ami.id },
-    terraform_state = var.enable_terraform_state_bucket ? { arn = aws_s3_bucket.terraform_state[0].arn, id = aws_s3_bucket.terraform_state[0].id } : null,
-    wordpress_media = var.enable_wordpress_media_bucket ? { arn = aws_s3_bucket.wordpress_media[0].arn, id = aws_s3_bucket.wordpress_media[0].id } : null,
-    replication     = var.enable_replication_bucket ? { arn = aws_s3_bucket.replication[0].arn, id = aws_s3_bucket.replication[0].id } : null
+    scripts         = length(aws_s3_bucket.scripts) > 0 ? { arn = aws_s3_bucket.scripts[0].arn, id = aws_s3_bucket.scripts[0].id } : null,
+    logging         = length(aws_s3_bucket.logging) > 0 ? { arn = aws_s3_bucket.logging[0].arn, id = aws_s3_bucket.logging[0].id } : null,
+    ami             = length(aws_s3_bucket.ami) > 0 ? { arn = aws_s3_bucket.ami[0].arn, id = aws_s3_bucket.ami[0].id } : null,
+    terraform_state = lookup(var.buckets, "terraform_state", false) && length(aws_s3_bucket.terraform_state) > 0 ? { arn = aws_s3_bucket.terraform_state[0].arn, id = aws_s3_bucket.terraform_state[0].id } : null,
+    wordpress_media = lookup(var.buckets, "wordpress_media", false) && length(aws_s3_bucket.wordpress_media) > 0 ? { arn = aws_s3_bucket.wordpress_media[0].arn, id = aws_s3_bucket.wordpress_media[0].id } : null,
+    replication     = lookup(var.buckets, "replication", false) && length(aws_s3_bucket.replication) > 0 ? { arn = aws_s3_bucket.replication[0].arn, id = aws_s3_bucket.replication[0].id } : null
   }
 }
 

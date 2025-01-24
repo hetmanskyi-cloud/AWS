@@ -43,7 +43,7 @@ This module creates and manages S3 buckets for various use cases within a projec
   - Configurable log retention for Lambda using the `lambda_log_retention_days` variable.
 
 - **Cross-Region Replication**:
-  - Enabled via `enable_s3_replication` and `enable_replication_bucket`.
+  - Enabled via `enable_s3_replication` and `buckets` variables in `terraform.tfvars` (`replication` bucket)
   - Supports disaster recovery by replicating data to another AWS region.
 
 - **DynamoDB Locking and TTL Automation**:
@@ -97,7 +97,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `sns_topic_arn`                     | `string`       | ARN of the SNS topic to send S3 bucket notifications.                                  | Required              |
 | `noncurrent_version_retention_days` | `number`       | Days to retain noncurrent object versions for versioned buckets.                       | `30`                  |
 | `enable_s3_replication`             | `bool`         | Enables cross-region replication for specific buckets.                                 | `false`               |
-| `enable_replication_bucket`         | `bool`         | Enables the creation of the replication bucket for cross-region replication.           | `false`               |
+| `buckets`                    | `bool`         | Enables the creation of the replication bucket for cross-region replication.           | `false`               |
 | `enable_lambda`                     | `bool`         | Enables creation of Lambda function for DynamoDB TTL updates.                          | `false`               |
 | `enable_dynamodb`                   | `bool`         | Enables creation of DynamoDB table for state locking.                                  | `false`               |
 | `buckets`                           | `map(string)`  | Map of bucket names and types (e.g., "base", "special").                               | Required              |

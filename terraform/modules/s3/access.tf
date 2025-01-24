@@ -5,11 +5,11 @@
 # - Restricts bucket-level public access entirely.
 
 # --- Public Access Block Configuration for Buckets --- #
-# Dynamically applies public access restrictions to all "base" and "special" buckets as defined in the `buckets` variable.
+# Dynamically applies public access restrictions to all buckets as defined in the `buckets` variable.
 resource "aws_s3_bucket_public_access_block" "public_access_block" {
-  # Dynamically process all buckets based on their type
+  # Dynamically process all buckets
   for_each = tomap({
-    for key, value in var.buckets : key => value if value == "base" || value == "special"
+    for key, value in var.buckets : key => value if value
   })
 
   # Target bucket for the public access block
@@ -28,6 +28,5 @@ resource "aws_s3_bucket_public_access_block" "public_access_block" {
 # --- Notes --- #
 # Security Highlights:
 # 1. Fully restricts public access to all defined buckets.
-# 2. Dynamically identifies "base" and "special" buckets from `buckets` variable.
-# 3. Ensures consistent application of best practices across all environments.
-# 4. Dynamic logic processes buckets defined in `terraform.tfvars`.
+# 2. Ensures consistent application of best practices across all environments.
+# 3. Dynamic logic processes buckets defined in `terraform.tfvars`.

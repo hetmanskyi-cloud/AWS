@@ -5,11 +5,11 @@
 # 2. logging: To store logs for all buckets. This bucket is always created.
 # 3. ami: To store golden AMI images for the project. This bucket is always created.
 # 4. terraform_state: To store the Terraform state file.
-#    - This bucket is created only if enabled via the variable `enable_terraform_state_bucket`.
+#    - This bucket is created only if enabled via the variable `buckets`.
 # 5. wordpress_media: To store media assets for WordPress site.
-#    - This bucket is created only if enabled via the variable `enable_wordpress_media_bucket`.
+#    - This bucket is created only if enabled via the variable `buckets`.
 # 6. replication: Serves as the destination for cross-region replication.
-#    - This bucket is created only if enabled via the variable `enable_replication_bucket` and used for replication logic.
+#    - This bucket is created only if enabled via the variable `buckets` and used for replication logic.
 
 # --- Terraform Configuration --- #
 # Specifies the required Terraform providers and their versions.
@@ -24,16 +24,16 @@ terraform {
 }
 
 # --- Dynamically Create S3 Buckets --- #
+
 # This resource dynamically creates S3 buckets based on the input `buckets` variable.
-# Each entry in `buckets` defines the name and type of the bucket.
-# The logic here ensures:
-# - Base buckets (e.g., `scripts`, `logging`, `ami`) are always created.
-# - Special buckets (e.g., `terraform_state`, `wordpress_media`, `replication`) are created only if enabled via variables.
+# Each entry in `buckets` defines the name of the bucket.
 # Tags are applied to all created buckets for proper identification and organization.
 
 resource "aws_s3_bucket" "buckets" {
   # Iterate through the `buckets` variable, creating a bucket for each entry.
-  for_each = var.buckets
+  for_each = tomap({
+    for key, value in var.buckets : key => value if value
+  })
 
   bucket = each.key # Use the bucket name as the unique identifier.
 
@@ -45,10 +45,10 @@ resource "aws_s3_bucket" "buckets" {
   # WARNING: Versioning is disabled for this buckets in `terraform.tfvars`. Objects without versions cannot be recovered.
 }
 
-# --- Base S3 Buckets --- #
-
 # --- Scripts S3 Bucket --- #
 resource "aws_s3_bucket" "scripts" {
+  count = lookup(var.buckets, "scripts", false) ? 1 : 0
+
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-scripts-${random_string.suffix.result}"
 
@@ -64,8 +64,10 @@ resource "aws_s3_bucket" "scripts" {
 
 # --- WordPress Folder in Scripts Bucket --- #
 resource "aws_s3_object" "wordpress_folder" {
-  bucket = aws_s3_bucket.scripts.bucket # Specify the bucket where the folder will be created
-  key    = "wordpress/"                 # Use a trailing slash to denote a directory
+  count = lookup(var.buckets, "scripts", false) ? 1 : 0
+
+  bucket = aws_s3_bucket.scripts[0].bucket # Specify the bucket where the folder will be created
+  key    = "wordpress/"                    # Use a trailing slash to denote a directory
 
   # Dependency ensures the Scripts bucket is created first
   depends_on = [aws_s3_bucket.scripts]
@@ -77,7 +79,9 @@ resource "aws_s3_object" "wordpress_folder" {
 
 # --- Deploy WordPress Script --- #
 resource "aws_s3_object" "deploy_wordpress_script" {
-  bucket       = aws_s3_bucket.scripts.bucket               # The bucket where the script will be stored
+  count = lookup(var.buckets, "scripts", false) ? 1 : 0
+
+  bucket       = aws_s3_bucket.scripts[0].bucket            # The bucket where the script will be stored
   key          = "wordpress/deploy_wordpress.sh"            # The path and name of the script in the bucket
   source       = "${path.root}/scripts/deploy_wordpress.sh" # Path to the local script
   content_type = "text/x-shellscript"                       # MIME type for shell scripts
@@ -102,6 +106,8 @@ resource "aws_s3_object" "deploy_wordpress_script" {
 
 # --- Logging S3 Bucket --- #
 resource "aws_s3_bucket" "logging" {
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
+
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${var.name_prefix}-logging-${random_string.suffix.result}"
 
@@ -115,6 +121,8 @@ resource "aws_s3_bucket" "logging" {
 
 # --- AMI S3 Bucket --- #
 resource "aws_s3_bucket" "ami" {
+  count = lookup(var.buckets, "ami", false) ? 1 : 0
+
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-ami-${random_string.suffix.result}"
 
@@ -128,12 +136,10 @@ resource "aws_s3_bucket" "ami" {
   }
 }
 
-# --- Special S3 Buckets --- #
-
 # --- Terraform State S3 Bucket --- #
 resource "aws_s3_bucket" "terraform_state" {
-  # Enabled via the enable_terraform_state_bucket variable in terraform.tfvars.
-  count = var.enable_terraform_state_bucket ? 1 : 0
+  # Enabled via the buckets variable in terraform.tfvars.
+  count = lookup(var.buckets, "terraform_state", false) ? 1 : 0
 
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-terraform-state-${random_string.suffix.result}"
@@ -147,8 +153,8 @@ resource "aws_s3_bucket" "terraform_state" {
 
 # --- WordPress Media S3 Bucket --- #
 resource "aws_s3_bucket" "wordpress_media" {
-  # Enabled via the enable_wordpress_media_bucket variable in terraform.tfvars.
-  count = var.enable_wordpress_media_bucket ? 1 : 0
+  # Enabled via the buckets variable in terraform.tfvars.
+  count = lookup(var.buckets, "wordpress_media", false) ? 1 : 0
 
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-wordpress-media-${random_string.suffix.result}"
@@ -165,8 +171,10 @@ resource "aws_s3_bucket" "wordpress_media" {
 # The replication destination bucket is created in the specified `replication_region`.
 resource "aws_s3_bucket" "replication" {
   provider = aws.replication
-  # Enabled via the enable_replication_bucket variable in terraform.tfvars.
-  count = var.enable_replication_bucket ? 1 : 0 # The enable_replication_bucket variable is only used to enable the bucket, not the configuration.
+
+  # Enabled via the buckets variable in terraform.tfvars.
+  count = lookup(var.buckets, "replication", false) ? 1 : 0
+  # The buckets variable is used to enable the bucket, not the configuration.
 
   # Unique bucket name using the name_prefix and a random suffix
   bucket = "${lower(var.name_prefix)}-replication-${random_string.suffix.result}"
@@ -184,15 +192,10 @@ resource "aws_s3_bucket" "replication" {
 # Only buckets enabled and present in the `buckets` variable are included in this configuration.
 # Disabled buckets are ignored automatically via `for_each` logic.
 resource "aws_s3_bucket_notification" "bucket_notifications" {
-  # Filter buckets dynamically
+  # Filter buckets dynamically using buckets map
   for_each = tomap({
-    for key, value in {
-      scripts         = aws_s3_bucket.scripts,
-      logging         = aws_s3_bucket.logging,
-      ami             = aws_s3_bucket.ami,
-      terraform_state = var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0] : null,
-      wordpress_media = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0] : null
-    } : key => value if value != null
+    for key, enabled in var.buckets : key => aws_s3_bucket.buckets[key]
+    if enabled && lookup(aws_s3_bucket.buckets, key, null) != null
   })
 
   bucket = each.value.id
@@ -201,6 +204,14 @@ resource "aws_s3_bucket_notification" "bucket_notifications" {
     topic_arn = var.sns_topic_arn # Notifications are configured for object creation and deletion events using SNS.
     events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
   }
+
+  # --- Notes --- #
+  # 1. In the production environment, consider adding filters to minimize unnecessary notifications and reduce costs.
+  #    Example filters to optimize event notifications:
+  #    - `prefix = "uploads/"` for tracking uploaded media files only.
+  #    - `suffix = ".jpg"` for processing specific image file types.
+  #    - `prefix = "backups/"` for detecting critical backups.
+  #    - `prefix = "logs/"` for monitoring log files storage.
 }
 
 # --- Replication Configuration for Source Buckets --- #
@@ -209,30 +220,31 @@ resource "aws_s3_bucket_notification" "bucket_notifications" {
 # Each replicated bucket uses a prefix matching its name for object organization in the destination bucket.
 # Buckets that are not enabled are automatically excluded via the `for_each` logic.
 resource "aws_s3_bucket_replication_configuration" "replication_config" {
-  for_each = var.enable_s3_replication ? tomap({
-    for key, bucket_id in {
-      scripts         = aws_s3_bucket.scripts.id,
-      logging         = aws_s3_bucket.logging.id,
-      ami             = aws_s3_bucket.ami.id,
-      terraform_state = var.enable_terraform_state_bucket ? aws_s3_bucket.terraform_state[0].id : null,
-      wordpress_media = var.enable_wordpress_media_bucket ? aws_s3_bucket.wordpress_media[0].id : null
-    } : key => bucket_id if bucket_id != null
-  }) : {}
+  count = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? 1 : 0
 
-  bucket = each.value
-  role   = aws_iam_role.replication_role[0].arn
+  bucket = aws_s3_bucket.buckets["replication"].id
 
-  rule {
-    id     = "${each.key}-replication"
-    status = "Enabled"
+  role = length(aws_iam_role.replication_role) > 0 ? aws_iam_role.replication_role[0].arn : null
 
-    filter {
-      prefix = "${each.key}/"
+  dynamic "rule" {
+    for_each = {
+      for bucket_name, enabled in var.buckets :
+      bucket_name => enabled
+      if enabled && bucket_name != "replication"
     }
 
-    destination {
-      bucket        = aws_s3_bucket.replication[0].arn
-      storage_class = "STANDARD"
+    content {
+      id     = "${rule.key}-replication"
+      status = "Enabled"
+
+      filter {
+        prefix = "${rule.key}/"
+      }
+
+      destination {
+        bucket        = aws_s3_bucket.buckets["replication"].arn
+        storage_class = "STANDARD"
+      }
     }
   }
 
@@ -253,19 +265,29 @@ resource "random_string" "suffix" {
 }
 
 # --- Notes --- #
+
 # 1. Replication Configuration:
-#    - Replication can be enabled in any environment for testing.
-#    - Destination buckets should be pre-configured and accessible.
+# - Replication can be enabled in any environment if required.
+# - Source and destination buckets are created dynamically based on the buckets variable.
+#  -Ensure destination buckets exist and are properly configured before enabling replication.
 #
 # 2. Bucket Notifications:
-#    - Notifications are dynamically applied based on the environment and bucket availability.
-#    - Notifications are dynamically applied based on the buckets enabled through variables like `enable_terraform_state_bucket`.
+# - Notifications are applied only to enabled buckets.
+# - Bucket creation is controlled dynamically via the buckets variable.
+# - Filters can be applied in production to reduce notification noise and costs.
 #
 # 3. Dependencies:
-#    - Use explicit `depends_on` for clarity when resources rely on others.
+# - Resources dependent on specific buckets are conditionally created.
+# - Explicit depends_on is used to avoid deployment sequence issues.
 #
-# 4. Unique Naming:
-#    - Ensure bucket names remain unique across environments to avoid conflicts.
+# 4. Dynamic Bucket Creation:
+# - The buckets variable controls the creation of all buckets.
+# - Buckets that are not enabled will not be created, and their related resources will also be excluded.
 #
-# 5. Logical Structure:
-#    - Adjust variables and conditions to match the specific requirements of your project.
+# 5. Unique Naming:
+# - Bucket names are generated dynamically using prefixes and suffixes to ensure uniqueness across environments.
+# - Ensure consistent naming conventions to avoid conflicts.
+#
+# 6. Logical Structure:
+# - The module adapts dynamically based on project requirements.
+# - Adjustments to variables and conditions allow for greater flexibility and resource optimization.

@@ -68,12 +68,13 @@ variable "logging_bucket" {
 # --- Logging Bucket ARN --- #
 # ARN of the S3 bucket for Firehose logging.
 variable "logging_bucket_arn" {
-  description = "ARN of the S3 bucket for Firehose logging"
+  description = "The ARN of the S3 bucket used for ALB access logs. If not provided, logging is disabled."
   type        = string
+  default     = null
 
   validation {
-    condition     = length(var.logging_bucket_arn) > 0
-    error_message = "The logging_bucket_arn variable cannot be empty."
+    condition     = var.logging_bucket_arn == null ? true : length(var.logging_bucket_arn) > 0
+    error_message = "If provided, logging_bucket_arn must be a non-empty string."
   }
 }
 

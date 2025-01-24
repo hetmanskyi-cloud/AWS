@@ -5,9 +5,9 @@
 
 # Configures CORS rules for the `wordpress_media` bucket when enabled via the `enable_cors` variable.
 resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
-  count = var.enable_cors && var.enable_wordpress_media_bucket ? 1 : 0
+  count = var.enable_cors && lookup(var.buckets, "wordpress_media", false) ? 1 : 0
 
-  bucket = aws_s3_bucket.wordpress_media[count.index].id
+  bucket = aws_s3_bucket.wordpress_media[0].id
 
   cors_rule {
     allowed_headers = ["Authorization", "Content-Type"] # Restrict headers to required ones.
@@ -16,19 +16,17 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
     max_age_seconds = 3000                              # Cache preflight responses.
   }
 
-  # Notes:
+  # --- Notes --- #
   # - `allowed_origins` is set to "*" for testing purposes.
-  # TODO: Replace `allowed_origins` with specific domain names for production.
+  # - TODO: In production, replace `allowed_origins` with specific domain names for security.
+  # - Consider restricting allowed methods to necessary ones only.
 }
 
 # --- Bucket Policies --- #
 
 # Deny Public Access
 resource "aws_s3_bucket_policy" "deny_public_access" {
-  # Loop through all "base" and "special" buckets from the `buckets` variable
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value == "base" || value == "special"
-  })
+  for_each = { for key, value in var.buckets : key => value if value }
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -57,10 +55,7 @@ resource "aws_s3_bucket_policy" "deny_public_access" {
 
 # Enforce HTTPS
 resource "aws_s3_bucket_policy" "force_https" {
-  # Loop through all "base" and "special" buckets from the `buckets` variable
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value == "base" || value == "special"
-  })
+  for_each = { for key, value in var.buckets : key => value if value }
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -89,14 +84,13 @@ resource "aws_s3_bucket_policy" "force_https" {
 
 # Logging Bucket Policy
 resource "aws_s3_bucket_policy" "logging_bucket_policy" {
-  # Ensures the policy is applied specifically to the `logging` bucket.
   for_each = tomap({
-    for key, value in var.buckets : key => value if key == "logging"
+    for key, value in var.buckets : key => value if key == "logging" && value && lookup(aws_s3_bucket.buckets, key, null) != null
   })
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
-  depends_on = [aws_s3_bucket.logging]
+  depends_on = [aws_s3_bucket.buckets]
 
   # JSON policy granting permissions to write logs into the bucket.
   policy = jsonencode({
@@ -138,10 +132,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
 
 # General Lifecycle Rules
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
-  # Loop through all "base" and "special" buckets from the `buckets` variable
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value == "base" || value == "special"
-  })
+  for_each = { for key, value in var.buckets : key => value if value }
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -166,12 +157,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   }
 }
 
-# Replication Bucket Lifecycle Rules
+# --- Replication Configuration --- #
+
+# --- Replication Bucket Lifecycle Rules --- #
+# Defines lifecycle rules for the replication bucket.
+# This resource is created only if replication is enabled via `enable_s3_replication`.
 resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
-  # Filter the `buckets` variable to include only the replication bucket
-  for_each = tomap({
-    for key, value in var.buckets : key => value if key == "replication" && var.enable_s3_replication
-  })
+  for_each = {
+    for key, value in var.buckets : key => value
+    if key == "replication" && lookup(var.buckets, key, false) && var.enable_s3_replication
+  }
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -227,7 +222,7 @@ resource "aws_iam_role" "replication_role" {
 # This policy grants the replication role permissions to perform actions necessary for cross-region replication.
 # Ensure that both source and destination buckets exist and are properly configured before enabling replication.
 resource "aws_iam_role_policy" "replication_policy" {
-  count = var.enable_s3_replication ? 1 : 0 # Set in terraform.tfvars
+  count = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? 1 : 0 # Set in terraform.tfvars
 
   name = "${var.name_prefix}-replication-policy"
   role = aws_iam_role.replication_role[0].id
@@ -245,7 +240,7 @@ resource "aws_iam_role_policy" "replication_policy" {
           "s3:GetObjectVersionTagging"
         ],
         Resource = [
-          for bucket in var.buckets : "${aws_s3_bucket.buckets[bucket.name].arn}" if bucket.type == "base" || bucket.type == "special"
+          for key in keys(var.buckets) : aws_s3_bucket.buckets[key].arn if lookup(var.buckets, key, false)
         ]
       },
       {
@@ -255,10 +250,7 @@ resource "aws_iam_role_policy" "replication_policy" {
           "s3:ReplicateDelete",
           "s3:ReplicateTags"
         ],
-        Resource = [
-          aws_s3_bucket.replication[0].arn,
-          "${aws_s3_bucket.replication[0].arn}/*"
-        ]
+        Resource = length(aws_s3_bucket.replication) > 0 ? aws_s3_bucket.replication[0].arn : null
       }
     ]
   })
@@ -270,14 +262,11 @@ resource "aws_iam_role_policy" "replication_policy" {
 
 # --- Bucket Policy for Replication Destination --- #
 # Allows the replication role to write objects to the replication bucket.
+# Created dynamically based on the `buckets` variable and `enable_s3_replication` flag.
 resource "aws_s3_bucket_policy" "replication_bucket_policy" {
-  # Dynamically filter the `buckets` variable to select only the replication bucket.
-  # The condition ensures that the bucket is included only if replication is enabled.
-  for_each = tomap({
-    for key, value in var.buckets : key => value if key == "replication" && var.enable_s3_replication
-  })
+  count = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? 1 : 0
 
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = aws_s3_bucket.buckets["replication"].id
 
   # The policy grants the replication role permissions to replicate objects into this bucket.
   policy = jsonencode({
@@ -294,7 +283,7 @@ resource "aws_s3_bucket_policy" "replication_bucket_policy" {
           "s3:ReplicateDelete",
           "s3:ReplicateTags"
         ],
-        Resource = "${aws_s3_bucket.buckets[each.key].arn}/*"
+        Resource = "${aws_s3_bucket.buckets["replication"].arn}/*"
       }
     ]
   })
@@ -304,11 +293,7 @@ resource "aws_s3_bucket_policy" "replication_bucket_policy" {
 # Grants the replication role read access on source buckets.
 # Ensure that both source and destination buckets exist and are properly configured before enabling replication.
 resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
-  # Dynamically filter the `buckets` variable to include all "base" and "special" buckets.
-  # The condition ensures that the policy is applied only if replication is enabled.
-  for_each = var.enable_s3_replication ? {
-    for bucket in var.buckets : bucket.name => bucket if bucket.type == "base" || bucket.type == "special"
-  } : {}
+  for_each = { for key, value in var.buckets : key => value if value && var.enable_s3_replication }
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
@@ -320,7 +305,7 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
         Sid    = "AllowReplication",
         Effect = "Allow",
         Principal = {
-          AWS = aws_iam_role.replication_role[0].arn
+          AWS = length(aws_iam_role.replication_role) > 0 ? aws_iam_role.replication_role[0].arn : null
         },
         Action = [
           "s3:GetObjectVersion",
@@ -341,23 +326,32 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 # 1. **Security Policies**:
 #    - Denies all public access via ACLs and bucket policies (DenyPublicAccess).
 #    - Enforces HTTPS-only access (EnforceTLS) to enhance security.
+#    - The replication destination bucket must allow the replication role to write data.
+#    - Source buckets should have minimal permissions necessary for replication.
 #
 # 2. **Lifecycle Management**:
-#    - Retains noncurrent object versions for a defined period (e.g., 30 days, configurable in `terraform.tfvars`).
-#    - Automatically aborts incomplete multipart uploads to reduce storage costs.
+#    - Retains noncurrent object versions for a defined period to optimize costs.
+#    - Automatically aborts incomplete multipart uploads to reduce storage usage.
 #
 # 3. **Replication Configuration**:
 #    - Dynamically creates IAM roles and policies for replication if `enable_s3_replication = true`.
-#    
+#    - Grants replication permissions dynamically based on the `buckets` variable.
+#    - Ensure that the replication role exists before enabling policies.
+#
 # 4. **CORS Rules**:
 #    - Applied to the `wordpress_media` bucket if `enable_cors = true`.
-#    - Restricts allowed headers and methods for security, while enabling cross-origin requests for WordPress media.
+#    - Restricts allowed headers and methods for security, while enabling cross-origin requests.
 #
-# 5. **Dynamic Bucket Policies**:
-#    - All policies and configurations adapt based on the `buckets` variable in `terraform.tfvars`.
+# 5. **Dynamic Configuration**:
+#    - Buckets are dynamically managed via the `buckets` variable.
 #    - Simply adding a new bucket to `buckets` automatically includes it in relevant policies and rules.
+#    - Ensure consistency in naming and regional settings across environments.
 #
 # 6. **Logging Configuration**:
-#    - Grants the S3 logging service (`logging.s3.amazonaws.com`) permissions to write logs to the logging bucket.
-#    - Includes additional permissions for ALB logging (`elasticloadbalancing.amazonaws.com`) and WAF logging (`waf.amazonaws.com`).
-#    - Log files are stored in dedicated prefixes (`alb-logs/` and `waf-logs/`) within the logging bucket.
+#    - Grants the S3 logging service permissions to write logs to the logging bucket.
+#    - Includes additional permissions for ALB and WAF logs.
+#
+# 7. **Troubleshooting Tips**:
+#    - Check IAM policies and bucket policies if replication fails.
+#    - Ensure that the replication role has appropriate permissions for cross-region replication.
+#    - Review bucket configurations and permissions for correct integration.

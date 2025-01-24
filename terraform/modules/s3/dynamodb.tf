@@ -4,7 +4,7 @@
 
 resource "aws_dynamodb_table" "terraform_locks" {
   # Create the table only if the remote backend, S3 bucket for state, and DynamoDB are enabled.
-  count = var.enable_terraform_state_bucket && var.enable_dynamodb ? 1 : 0
+  count = var.buckets["terraform_state"] && var.enable_dynamodb ? 1 : 0
 
   # --- Table Name --- #
   # Construct the table name dynamically using a project-specific prefix and a random suffix for uniqueness.
@@ -78,7 +78,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
 # --- Notes --- #
 # 1. **Creation Logic**:
-#    - The DynamoDB table is created only if `enable_terraform_state_bucket`, and `enable_dynamodb` are all set to `true`.
+#    - The DynamoDB table is created only if `terraform_state` bucket enabled in `buckets`, and `enable_dynamodb` are all set to `true`.
 # 2. **Purpose**:
 #    - This DynamoDB table is designed exclusively for Terraform state locking.
 # 3. **Best Practices**:
