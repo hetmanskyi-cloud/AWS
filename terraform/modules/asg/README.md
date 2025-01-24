@@ -80,7 +80,6 @@ This module creates and manages ASG instances and associated resources in AWS. I
 | `instance_private_ips`     | Private IPs of instances.                        |
 | `instance_ids`             | IDs of instances in the Auto Scaling Group.      |
 | `asg_security_group_id`    | Security Group ID for ASG instances.             |
-| `default_security_group_id`| The ID of the default security group for the VPC.|
 
 ---
 

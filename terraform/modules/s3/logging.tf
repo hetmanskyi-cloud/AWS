@@ -22,16 +22,24 @@ resource "aws_s3_bucket_logging" "bucket_logging" {
   depends_on = [aws_s3_bucket.logging]
 }
 
-# --- Optional Logging for the Logging Bucket --- #
-# Uncomment this block if you need to log activities for the logging bucket itself.
-# Ensure that log delivery permissions are properly configured for recursive logs.
+# --- Logging for Logging Bucket --- #
+# AWS best practices do not recommend enabling logging for the logging bucket itself.
+# Enabling logging on this bucket can lead to recursive logging, excessive costs, and unnecessary data growth.
+# 
+# If logging for the logging bucket is required for auditing purposes, 
+# it is recommended to send logs to a separate dedicated bucket (e.g., "audit-logs") to avoid recursion.
+#
+# Example configuration if needed in the future:
+#
 # resource "aws_s3_bucket_logging" "logging_for_logging_bucket" {
 #   bucket        = aws_s3_bucket.logging.id
-#   target_bucket = aws_s3_bucket.logging.id
-#   target_prefix = "${var.name_prefix}/${local.bucket_prefixes["logging"]}"
+#   target_bucket = aws_s3_bucket.buckets["audit-logs"].id  # Use a separate bucket for logging
+#   target_prefix = "${var.name_prefix}/logging/"
 # }
+# Ensure appropriate IAM policies are applied for log delivery.
 
 # --- Notes and Best Practices --- #
+
 # 1. **Purpose of Logging**:
 #    - Tracks access and operations for debugging, compliance, and audits.
 #    - Centralizes logs in a single bucket with organized prefixes for each source.

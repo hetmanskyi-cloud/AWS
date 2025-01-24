@@ -152,6 +152,13 @@ output "dynamodb_endpoint_id" {
   value       = aws_vpc_endpoint.dynamodb.id
 }
 
+# --- Default Security Group --- #
+# Output the ID of the Default Security Group
+output "default_security_group_id" {
+  description = "The ID of the default security group for the VPC"
+  value       = aws_default_security_group.default.id
+}
+
 # --- Notes --- #
 # 1. Outputs are organized to provide all necessary IDs and CIDR blocks for subnets, route tables, and endpoints.
 # 2. These outputs can be used by other modules to dynamically reference VPC resources.

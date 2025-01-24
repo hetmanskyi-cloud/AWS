@@ -93,6 +93,22 @@ resource "aws_subnet" "private_subnet_3" {
   }
 }
 
+# --- Default Security Group Restrictions --- #
+# Restrict all inbound and outbound traffic for the default security group in the VPC.
+# This ensures that no unintended traffic is allowed.
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.vpc.id # Associate with the created VPC
+
+  # Remove all inbound and outbound rules to fully restrict traffic.
+  ingress = []
+  egress  = []
+
+  tags = {
+    Name        = "${var.name_prefix}-default-sg"
+    Environment = var.environment
+  }
+}
+
 # --- Notes --- #
 # 1. The VPC is configured with both public and private subnets to support various workloads.
 # 2. Public subnets allow internet access through the Internet Gateway (IGW).
@@ -100,3 +116,6 @@ resource "aws_subnet" "private_subnet_3" {
 #    providing a secure environment for sensitive resources (e.g., databases).
 # 4. All subnets and resources are tagged with a consistent naming convention for easy management.
 # 5. Ensure `map_public_ip_on_launch` is enabled only for public subnets.
+# 6. Default Security Group:
+#    - The default security group for the VPC is restricted to avoid unintended access.
+#    - It is recommended to use custom security groups for precise control over instance access.

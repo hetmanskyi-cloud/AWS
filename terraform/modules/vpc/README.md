@@ -81,6 +81,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `vpc_flow_logs_role_arn`         | ARN of the IAM Role for VPC Flow Logs.                               |
 | `s3_endpoint_id`                 | ID of the S3 Gateway Endpoint.                                       |
 | `dynamodb_endpoint_id`           | ID of the DynamoDB Gateway Endpoint.                                 |
+| `default_security_group_id`      | The ID of the default security group for the VPC.                    |
 
 ---
 

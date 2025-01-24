@@ -92,6 +92,17 @@ output "replication_bucket_name" {
   value       = lookup(var.buckets, "replication", false) ? aws_s3_bucket.replication[0].bucket : null
 }
 
+# --- Encryption Status --- #
+output "s3_encryption_status" {
+  value = {
+    for bucket_name, enabled in var.buckets :
+    bucket_name => enabled ? try(
+      aws_s3_bucket_server_side_encryption_configuration.encryption[bucket_name].rule[0].apply_server_side_encryption_by_default.sse_algorithm,
+      "Not Encrypted"
+    ) : "Not Encrypted"
+  }
+}
+
 # --- Aggregated Bucket Outputs --- #
 
 # Dynamically generates outputs for all buckets defined in the `buckets` variable.

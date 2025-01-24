@@ -65,12 +65,6 @@ output "asg_security_group_id" {
   value       = aws_security_group.asg_security_group.id
 }
 
-# Default Security Group ID
-output "default_security_group_id" {
-  description = "The ID of the default security group for the VPC"
-  value       = aws_default_security_group.default.id
-}
-
 # --- Scaling Policy Outputs --- #
 
 # ARN of the Scale-Out Policy to increase ASG capacity when utilization exceeds threshold.

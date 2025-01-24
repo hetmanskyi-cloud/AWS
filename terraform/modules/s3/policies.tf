@@ -155,6 +155,34 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
       days_after_initiation = 7
     }
   }
+
+  # Additional rule for 'scripts' bucket to delete old versions only
+  dynamic "rule" {
+    for_each = each.key == "scripts" ? [1] : []
+
+    content {
+      id     = "scripts-delete-old-versions"
+      status = "Enabled"
+
+      noncurrent_version_expiration {
+        noncurrent_days = 30 # Delete old versions after 30 days
+      }
+    }
+  }
+
+  # Additional rule for 'logging' bucket to delete old logs
+  dynamic "rule" {
+    for_each = each.key == "logging" ? [1] : []
+
+    content {
+      id     = "delete-old-logs"
+      status = "Enabled"
+
+      expiration {
+        days = 30 # Delete logs after 30 days
+      }
+    }
+  }
 }
 
 # --- Replication Configuration --- #
@@ -332,6 +360,8 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 # 2. **Lifecycle Management**:
 #    - Retains noncurrent object versions for a defined period to optimize costs.
 #    - Automatically aborts incomplete multipart uploads to reduce storage usage.
+#    - In production, additional lifecycle policies may be introduced to automatically delete temporary files 
+#      (e.g., logs, intermediate CI/CD artifacts) to optimize storage and cost.
 #
 # 3. **Replication Configuration**:
 #    - Dynamically creates IAM roles and policies for replication if `enable_s3_replication = true`.

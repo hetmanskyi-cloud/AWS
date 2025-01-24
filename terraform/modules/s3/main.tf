@@ -186,34 +186,6 @@ resource "aws_s3_bucket" "replication" {
   }
 }
 
-# --- S3 Bucket Notifications --- #
-# This resource configures S3 bucket notifications for the specified buckets.
-# Notifications are sent to the specified SNS topic for events like object creation or deletion.
-# Only buckets enabled and present in the `buckets` variable are included in this configuration.
-# Disabled buckets are ignored automatically via `for_each` logic.
-resource "aws_s3_bucket_notification" "bucket_notifications" {
-  # Filter buckets dynamically using buckets map
-  for_each = tomap({
-    for key, enabled in var.buckets : key => aws_s3_bucket.buckets[key]
-    if enabled && lookup(aws_s3_bucket.buckets, key, null) != null
-  })
-
-  bucket = each.value.id
-
-  topic {
-    topic_arn = var.sns_topic_arn # Notifications are configured for object creation and deletion events using SNS.
-    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
-  }
-
-  # --- Notes --- #
-  # 1. In the production environment, consider adding filters to minimize unnecessary notifications and reduce costs.
-  #    Example filters to optimize event notifications:
-  #    - `prefix = "uploads/"` for tracking uploaded media files only.
-  #    - `suffix = ".jpg"` for processing specific image file types.
-  #    - `prefix = "backups/"` for detecting critical backups.
-  #    - `prefix = "logs/"` for monitoring log files storage.
-}
-
 # --- Replication Configuration for Source Buckets --- #
 # This resource configures cross-region replication for selected buckets.
 # Replication is enabled only when `enable_s3_replication` is `true`.
@@ -253,6 +225,34 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
   # 2. Ensure that the `replication` destination bucket is accessible and properly configured for cross-region replication.
   # 3. Any misconfigured or inaccessible source or destination buckets may cause Terraform to fail during the apply phase.
   # Ensure that all buckets referenced in this configuration are created and accessible.
+}
+
+# --- S3 Bucket Notifications --- #
+# This resource configures S3 bucket notifications for the specified buckets.
+# Notifications are sent to the specified SNS topic for events like object creation or deletion.
+# Only buckets enabled and present in the `buckets` variable are included in this configuration.
+# Disabled buckets are ignored automatically via `for_each` logic.
+resource "aws_s3_bucket_notification" "bucket_notifications" {
+  # Filter buckets dynamically using buckets map
+  for_each = tomap({
+    for key, enabled in var.buckets : key => aws_s3_bucket.buckets[key]
+    if enabled && lookup(aws_s3_bucket.buckets, key, null) != null
+  })
+
+  bucket = each.value.id
+
+  topic {
+    topic_arn = var.sns_topic_arn # Notifications are configured for object creation and deletion events using SNS.
+    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+  }
+
+  # --- Notes --- #
+  # 1. In the production environment, consider adding filters to minimize unnecessary notifications and reduce costs.
+  #    Example filters to optimize event notifications:
+  #    - `prefix = "uploads/"` for tracking uploaded media files only.
+  #    - `suffix = ".jpg"` for processing specific image file types.
+  #    - `prefix = "backups/"` for detecting critical backups.
+  #    - `prefix = "logs/"` for monitoring log files storage.
 }
 
 # --- Random String Configuration --- #
