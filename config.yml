@@ -1,9 +1,12 @@
-skip-checks:
+---
+  skip-checks:
   # Checkov issue: CKV_AWS_240 - "Ensure Kinesis Firehose delivery stream is encrypted with CMK"
   # In the test environment, using an AWS-managed KMS key (SSE-S3) is sufficient for security needs.
   # A customer-managed CMK will be implemented in production for enhanced security and access control.
   - id: "CKV_AWS_240"
-    reason: "AWS-managed KMS key (SSE-S3) is sufficient for the test environment; CMK will be implemented in production."
+    reason: >-
+      "AWS-managed KMS key (SSE-S3) is sufficient for the test environment;
+      CMK will be implemented in production."
     paths:
       - "modules/alb/firehose.tf"
 
@@ -12,7 +15,9 @@ skip-checks:
   # is not required in the test environment. We are using SSE-S3 encryption, which is sufficient 
   # for now. CMK encryption will be considered for production to ensure fine-grained control.
   - id: "CKV_AWS_241"
-    reason: "Kinesis Firehose CMK encryption is not required in the test environment. Using SSE-S3 encryption instead."
+    reason: >-
+      "Kinesis Firehose CMK encryption is not required in the test environment.
+      Using SSE-S3 encryption instead."
     paths:
       - "modules/alb/firehose.tf"
 
@@ -20,7 +25,9 @@ skip-checks:
   # In the test environment, HTTP is used temporarily because an SSL certificate is not yet available.
   # HTTPS with a valid certificate will be configured in production to ensure secure communication.
   - id: "CKV_AWS_2"
-    reason: "HTTP is used in the test environment until an SSL certificate is available. HTTPS will be implemented in production."
+    reason: >-
+      "HTTP is used in the test environment until an SSL certificate is available.
+      HTTPS will be implemented in production."
     paths:
       - "modules/alb/main.tf"
 
@@ -28,7 +35,9 @@ skip-checks:
   # Allowing all outbound traffic is acceptable in the test environment to ensure connectivity and debugging.
   # In production, specific AWS service prefixes or IP ranges will be used to restrict outbound access.
   - id: "CKV_AWS_382"
-    reason: "Unrestricted outbound traffic is allowed in the test environment for debugging and connectivity testing."
+    reason: >-
+      "Unrestricted outbound traffic is allowed in the test environment
+      for debugging and connectivity testing."
     paths:
       - "modules/alb/security_group.tf"
       - "modules/elasticache/security_group.tf"
@@ -39,7 +48,9 @@ skip-checks:
   # HTTP traffic is allowed from all IPs in the test environment to facilitate website accessibility.
   # In production, port 80 will be used only for redirection to HTTPS (port 443) after obtaining an SSL certificate.
   - id: "CKV_AWS_260"
-    reason: "HTTP traffic is allowed in the test environment to ensure website availability. HTTPS will be enforced in production."
+    reason: >-
+      "HTTP traffic is allowed in the test environment to ensure website availability.
+      HTTPS will be enforced in production."
     paths:
       - "modules/alb/security_group.tf"
 
@@ -47,7 +58,9 @@ skip-checks:
   # Encryption in transit is enabled to secure data transmission. The auth token is omitted for the test environment
   # to simplify access and testing. In production, an auth token may be implemented if required for security compliance.
   - id: "CKV_AWS_31"
-    reason: "Auth token is not required in the test environment. Encryption in transit is enabled for security."
+    reason: >-
+      "Auth token is not required in the test environment.
+      Encryption in transit is enabled for security."
     paths:
       - "modules/elasticache/main.tf"
 
@@ -55,7 +68,9 @@ skip-checks:
   # Multi-AZ is not required in the test environment to reduce costs and simplify deployment.
   # It will be enabled in production to ensure high availability.
   - id: "CKV_AWS_157"
-    reason: "Multi-AZ is not required in the test environment to minimize costs. It will be enabled in production."
+    reason: >-
+      "Multi-AZ is not required in the test environment to minimize costs.
+      It will be enabled in production."
     paths:
       - "modules/rds/main.tf"
 
@@ -63,7 +78,9 @@ skip-checks:
   # Code signing validation is not required in the test environment as the function code is controlled internally.
   # In production, a code-signing configuration will be implemented to enhance security and ensure integrity.
   - id: "CKV_AWS_272"
-    reason: "Code signing is not required in the test environment. It will be implemented in production to enhance security."
+    reason: >-
+      "Code signing is not required in the test environment.
+      It will be implemented in production to enhance security."
     paths:
       - "modules/s3/lambda.tf"
 
@@ -71,7 +88,9 @@ skip-checks:
   # AWS X-Ray tracing is not required for the WordPress site, as it adds unnecessary overhead.
   # The application does not require distributed tracing, and CloudWatch logs provide sufficient monitoring.
   - id: "CKV_AWS_50"
-    reason: "X-Ray tracing is not required for the WordPress site. CloudWatch logs provide adequate monitoring."
+    reason: >-
+      "X-Ray tracing is not required for the WordPress site.
+      CloudWatch logs provide adequate monitoring."
     paths:
       - "modules/s3/lambda.tf"
 
@@ -79,14 +98,17 @@ skip-checks:
   # Public subnets in this project intentionally assign public IPs for accessibility.
   # This is acceptable for test environments; production might require a stricter policy.
   - id: "CKV_AWS_130"
-    reason: "Public subnets require automatic public IP assignment for accessibility in the test environment."
+    reason: >-
+      "Public subnets require automatic public IP assignment for accessibility in the test environment."
     paths:
       - "modules/vpc/main.tf"
 
   # Checkov issue: CKV_AWS_231 - "Ensure no NACL allow ingress from 0.0.0.0/0 to port 3389"
   # Allowing ephemeral ports for testing purposes; in production, this will be restricted.
   - id: "CKV_AWS_231"
-    reason: "Ephemeral port range is allowed in the test environment for connectivity; it will be restricted in production."
+    reason: >-
+      "Ephemeral port range is allowed in the test environment for connectivity.
+      It will be restricted in production."
     paths:
       - "modules/vpc/nacl.tf"
 
@@ -96,7 +118,10 @@ skip-checks:
   # This allows fine-grained control and the ability to enable versioning selectively per bucket.
   # Versioning will be enabled in production environments where compliance and data recovery are critical.
   - id: "CKV_AWS_21"
-    reason: "Versioning is disabled in the test environment to minimize costs and complexity. It is managed individually for each bucket via the enable_versioning variable and will be enabled in production as needed."
+    reason: >-
+      "Versioning is disabled in the test environment to minimize costs and complexity.
+      It is managed individually for each bucket via the enable_versioning variable
+      and will be enabled in production as needed."
     paths:
       - "modules/s3/versioning.tf"
 
@@ -114,7 +139,8 @@ skip-checks:
   # All other enabled buckets have access logging configured automatically.
   # Future adjustments can be made based on security and compliance requirements.
   - id: "CKV_AWS_18"
-    reason: "Access logging is dynamically enabled for all S3 buckets except the logging bucket to avoid recursion."
+    reason: >-
+      "Access logging is dynamically enabled for all S3 buckets except the logging bucket to avoid recursion."
     paths:
       - "modules/s3/logging.tf"
 
@@ -125,9 +151,10 @@ skip-checks:
   # Private NACL is associated with private subnets, enhancing security for internal services.
   # No action required as Terraform configuration is correct.
   - id: "CKV2_AWS_1"
-    reason: "Public and private NACLs are properly associated with subnets as verified by Terraform plan output."
+    reason: >-
+      "Public and private NACLs are properly associated with subnets as verified by Terraform plan output."
     paths:
-      - "modules/vpc/nacl.tf"
+    - "modules/vpc/nacl.tf"
 
   # Checkov issue: CKV_AWS_145 - "Ensure that S3 buckets are encrypted with KMS by default"
   # Explanation:
@@ -140,7 +167,9 @@ skip-checks:
   # - In production environments, ensure that all necessary buckets are enabled and encrypted by setting the appropriate values in `terraform.tfvars`.
   # - If needed, additional security policies can be applied via AWS Config rules for continuous monitoring.
   - id: "CKV_AWS_145"
-    reason: "S3 bucket encryption is dynamically enabled based on the 'buckets' variable. If buckets are disabled, encryption resources are not required."
+    reason: >-
+      "S3 bucket encryption is dynamically enabled based on the 'buckets' variable.
+      If buckets are disabled, encryption resources are not required."
     paths:
       - "modules/s3/encryption.tf"
       - "modules/s3/policies.tf"
@@ -151,7 +180,8 @@ skip-checks:
   # - If replication is disabled, the replication bucket is created without replication rules.
   # This approach ensures flexibility and avoids unnecessary resources.
   - id: "CKV_AWS_144"
-    reason: "Replication is dynamically managed based on the `enable_s3_replication` variable to avoid unnecessary resources."
+    reason: >-
+      "Replication is dynamically managed based on the `enable_s3_replication` variable to avoid unnecessary resources."
     paths:
       - "modules/s3/main.tf"
 
@@ -162,7 +192,9 @@ skip-checks:
   # - If HTTPS is enabled, HTTP traffic will be redirected to HTTPS (port 443) with an HTTP 301 status code.
   # - If HTTPS is disabled, HTTP traffic is forwarded directly to the target group for testing purposes.
   - id: "CKV_AWS_378"
-    reason: "HTTP is used in the test environment for simplicity; HTTPS with SSL and redirect configuration will be implemented in production."
+    reason: >-
+      "HTTP is used in the test environment for simplicity;
+      HTTPS with SSL and redirect configuration will be implemented in production."
     paths:
       - "modules/alb/main.tf"
 
@@ -174,7 +206,8 @@ skip-checks:
   # - Restricting bucket-level public access entirely.
   # These settings align with AWS security best practices, ensuring no accidental public exposure.
   - id: "CKV2_AWS_6"
-    reason: "Public access is restricted for all S3 buckets via Terraform configuration in s3/access.tf."
+    reason: >-
+      "Public access is restricted for all S3 buckets via Terraform configuration in s3/access.tf."
     paths:
       - "modules/s3/access.tf"
 
@@ -186,6 +219,8 @@ skip-checks:
   # - Additional lifecycle rules such as log retention and temporary file cleanup can be added in production.
   # These settings are sufficient for the test environment and can be extended for production with more granular rules for transitions and expiration.
   - id: "CKV2_AWS_61"
-    reason: "Lifecycle rules are already implemented in Terraform to optimize storage costs, clean up incomplete uploads, and control object versions."
+    reason: >-
+      "Lifecycle rules are already implemented in Terraform to optimize storage costs,
+      clean up incomplete uploads, and control object versions."
     paths:
-      - "modules/s3/policies.tf"
+    - "modules/s3/policies.tf"
