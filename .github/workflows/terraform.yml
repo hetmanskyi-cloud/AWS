@@ -62,8 +62,10 @@ jobs:
 
       - name: Install tfsec
         run: |
-          sudo apt-get update
-          sudo apt-get install -y tfsec
+          # Скачиваем и запускаем официальный скрипт установки tfsec
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          # Переносим бинарник tfsec в /usr/local/bin
+          sudo mv tfsec /usr/local/bin/
 
       - name: Run tfsec
         run: |
