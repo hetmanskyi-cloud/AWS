@@ -7,6 +7,13 @@ output "kms_key_arn" {
   value       = aws_kms_key.general_encryption_key.arn
 }
 
+# --- KMS Key ID --- #
+# Always available. Represents the ID of the main encryption key.
+output "kms_key_id" {
+  description = "ID of the KMS encryption key for other resources to use"
+  value       = aws_kms_key.general_encryption_key.id
+}
+
 # --- Enable KMS Role --- #
 # Indicates whether the IAM role and policy for KMS interaction are created.
 output "enable_kms_role" {

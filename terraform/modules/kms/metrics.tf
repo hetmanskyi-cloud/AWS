@@ -17,7 +17,6 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   # Example: With `evaluation_periods = 3` and `datapoints_to_alarm = 2`,
   # the alarm triggers only if 2 out of 3 evaluation periods exceed the threshold.
 
-
   # Metric name and namespace to monitor KMS decrypt operations
   metric_name = "DecryptCount"
   namespace   = "AWS/KMS"
@@ -42,8 +41,16 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   # Actions to perform when the alarm state changes
   alarm_actions = var.sns_topic_arn != "" ? [var.sns_topic_arn] : [] # Avoid errors if sns_topic_arn is empty
 
+  # Actions to perform when the alarm state returns to OK
+  ok_actions = var.sns_topic_arn != "" ? [var.sns_topic_arn] : [] # Avoid errors if sns_topic_arn is empty
+
   # Treat missing data as missing (default behavior)
   treat_missing_data = "notBreaching"
+
+  tags = {
+    Name        = "${var.name_prefix}-kms-decrypt-usage-high"
+    Environment = var.environment
+  }
 
   # --- Comments for clarity --- #
   # This alarm monitors high usage of the Decrypt operation on the KMS key.

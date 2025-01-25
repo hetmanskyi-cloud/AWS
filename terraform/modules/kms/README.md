@@ -16,13 +16,24 @@ This module creates and manages a KMS (Key Management Service) key in AWS. The k
 ## Features
 
 - **Creates a KMS Key**:
-  - Designed for encrypting CloudWatch Logs, S3 buckets, and other AWS resources.
-  - Includes a flexible policy that grants permissions to the root account, AWS services, and additional principals.
-  - Supports automatic key rotation for enhanced security.
+  - Designed for encrypting various AWS resources including:
+    - CloudWatch Logs
+    - S3 buckets
+    - RDS
+    - ElastiCache
+    - VPC Flow Logs
+    - SSM
+    - EC2
+    - Optional support for:
+      - DynamoDB
+      - Lambda
+      - Kinesis Firehose
+      - WAF Logging
 
 - **Customizable Access Policies**:
-  - Base permissions provide full access to the root account and encryption services like CloudWatch Logs, ElastiCache, ALB Access Logs, and S3.
+  - Base permissions provide full access to the root account and encryption services.
   - Additional permissions can be dynamically configured for other AWS principals (e.g., IAM roles, services) via the `additional_principals` variable.
+  - Flexible S3 bucket permissions through the `buckets` variable.
 
 - **Optional IAM Role for Key Management**:
   - Conditional creation of an IAM role and associated policy for administrative management of the KMS key.
@@ -58,11 +69,17 @@ This module creates and manages a KMS (Key Management Service) key in AWS. The k
 | `aws_region`            | `string`       | AWS Region where the resources are created.                            | **Required**          |
 | `name_prefix`           | `string`       | Name prefix for all resources.                                         | **Required**          |
 | `environment`           | `string`       | Environment for the resources (e.g., dev, stage, prod).                | **Required**          |
+| `enable_key_rotation`   | `bool`         | Enable or disable automatic key rotation for the KMS key.              | `true` (Optional)     |
 | `additional_principals` | `list(string)` | Additional AWS principals to grant access to the KMS key.              | `[]` (Optional)       |
 | `enable_kms_role`       | `bool`         | Enable or disable the creation of an IAM role for KMS management.      | `false` (Optional)    |
 | `enable_key_monitoring` | `bool`         | Enable or disable CloudWatch Alarms for monitoring KMS key usage.      | `false` (Optional)    |
 | `key_decrypt_threshold` | `number`       | Threshold for KMS decrypt operations to trigger an alarm.              | `100` (Optional)      |
-| `sns_topic_arn`         | `string`       | ARN of the SNS Topic for sending CloudWatch alarm notifications.       | **Required**          |
+| `sns_topic_arn`         | `string`       | ARN of the SNS Topic for sending CloudWatch alarm notifications.       | `""` (Optional)       |
+| `buckets`               | `map(bool)`    | Map to enable or disable S3 buckets.                                   | `{}` (Optional)       |
+| `enable_dynamodb`       | `bool`         | Enable permissions for DynamoDB to use the KMS key.                    | `false` (Optional)    |
+| `enable_lambda`         | `bool`         | Enable permissions for Lambda to use the KMS key.                      | `false` (Optional)    |
+| `enable_firehose`       | `bool`         | Enable permissions for Kinesis Firehose to use the KMS key.            | `false` (Optional)    |
+| `enable_waf_logging`    | `bool`         | Enable permissions for WAF logging to use the KMS key.                 | `false` (Optional)    |
 
 ---
 
@@ -71,6 +88,7 @@ This module creates and manages a KMS (Key Management Service) key in AWS. The k
 | **Name**                    | **Description**                                           |
 |-----------------------------|-----------------------------------------------------------|
 | `kms_key_arn`               | ARN of the KMS encryption key for other resources to use. |
+| `kms_key_id`                | ID of the KMS encryption key for other resources to use.  |
 | `enable_kms_role`           | Indicates if the IAM role for KMS management was created. |
 | `kms_management_role_arn`   | ARN of the IAM role for managing the KMS encryption key.  |
 | `kms_management_policy_arn` | ARN of the KMS management policy for managing the key.    |
@@ -88,24 +106,44 @@ module "kms" {
   aws_account_id        = var.aws_account_id
   environment           = var.environment
   name_prefix           = var.name_prefix
-  additional_principals = var.additional_principals           # List of additional principals
-  enable_key_rotation   = var.enable_key_rotation             # Enable automatic key rotation
-  enable_kms_role       = var.enable_kms_role                 # Activate after initial setup KMS
-  enable_key_monitoring = var.enable_key_monitoring           # Enable CloudWatch Alarms for KMS monitoring
-  key_decrypt_threshold = var.key_decrypt_threshold           # Set a custom threshold for Decrypt operations, adjust as needed
-  sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn # SNS Topic for CloudWatch Alarms
+  
+  # Key configuration
+  enable_key_rotation   = true                    # Enable automatic key rotation
+  additional_principals = ["arn:aws:iam::123456789012:role/example-role"]
+  
+  # IAM role and monitoring
+  enable_kms_role       = true                    # Activate after initial setup KMS
+  enable_key_monitoring = true                    # Enable CloudWatch Alarms for KMS monitoring
+  key_decrypt_threshold = 100                     # Set a custom threshold for Decrypt operations
+  sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn
+  
+  # Optional service integrations
+  enable_dynamodb     = true    # Enable for DynamoDB encryption
+  enable_lambda       = true    # Enable for Lambda function encryption
+  enable_firehose     = false   # Disable Kinesis Firehose integration
+  enable_waf_logging  = true    # Enable for WAF logging encryption
+  
+  # S3 bucket configurations
+  buckets = {
+    "my-bucket-1" = true
+    "my-bucket-2" = false
+  }
 
-  depends_on = [aws_sns_topic.cloudwatch_alarms] # Ensure SNS topic is created before KMS module
+  depends_on = [aws_sns_topic.cloudwatch_alarms]
 }
 
 output "kms_key_arn" {
   value = module.kms.kms_key_arn
 }
+
+output "kms_key_id" {
+  value = module.kms.kms_key_id
+}
 ```
 
 ---
 
-### Initial Setup
+## Initial Setup
 
 During the initial creation of the KMS key, full access is granted to the AWS account root principal to simplify setup and ensure secure key management. However, it is strongly recommended to update the KMS key policy after initial creation to restrict access and adhere to the principle of least privilege.
 
@@ -163,16 +201,29 @@ This step-by-step process ensures secure management of the KMS key while followi
 ## Future Improvements
 
 1. **Deploy Policy Setup**:
-   Provide more detailed control in the `additional_principals` variable to allow specific actions (e.g., `kms:EncryptOnly` or `kms:DecryptOnly`) for certain principals.
+   - Provide more detailed control in the `additional_principals` variable to allow specific actions.
+   - Implement separate policy configurations for each integrated service.
+   - Add support for custom policy conditions per service.
 
 2. **Enhance Monitoring and Notifications**:
-   Introduce additional metrics or thresholds to monitor key usage, such as tracking encryption errors or unusual usage patterns.
+   - Introduce additional metrics for specific services (e.g., S3 encryption operations).
+   - Add support for multiple SNS topics with different notification patterns.
+   - Implement custom metric filters for better anomaly detection.
 
 3. **Environment-Related Enhancements**:
-   Implement stricter key policies for production environments, ensuring tighter access control.
+   - Implement stricter key policies for production environments.
+   - Add support for cross-account access patterns.
+   - Enhance tag management for better resource tracking.
 
-4. **Centralized CloudTrail Integration**:
-   Use a separate module (if needed) for CloudTrail to centralize auditing and logging across all AWS services, including KMS.
+4. **Service Integration**:
+   - Add support for additional AWS services as needed.
+   - Implement service-specific encryption contexts.
+   - Add support for service-linked roles where applicable.
+
+5. **Security Improvements**:
+   - Implement automated key policy rotation.
+   - Add support for key usage quotas.
+   - Enhance logging and audit capabilities.
 
 ---
 
@@ -196,5 +247,3 @@ This module was created following Terraform best practices, emphasizing security
 - [AWS Encryption SDK](https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/what-is.html)
 - [AWS KMS Metrics Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/monitoring-cloudwatch.html)
 - [AWS Backup Documentation](https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html)
-
----
