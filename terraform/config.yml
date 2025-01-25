@@ -1,103 +1,24 @@
 ---
 skip-checks:
-  - CKV_AWS_240:
-      skip_message: "AWS-managed KMS key (SSE-S3) is sufficient for the test environment; CMK will be implemented in production."
-      paths:
-        - "modules/alb/firehose.tf"
-
-  - CKV_AWS_241:
-      skip_message: "Kinesis Firehose CMK encryption is not required in the test environment. Using SSE-S3 encryption instead."
-      paths:
-        - "modules/alb/firehose.tf"
-
-  - CKV_AWS_2:
-      skip_message: "HTTP is used in the test environment until an SSL certificate is available. HTTPS will be implemented in production."
-      paths:
-        - "modules/alb/main.tf"
-
-  - CKV_AWS_382:
-      skip_message: "Unrestricted outbound traffic is allowed in the test environment for debugging and connectivity testing."
-      paths:
-        - "modules/alb/security_group.tf"
-        - "modules/elasticache/security_group.tf"
-        - "modules/endpoints/security_group.tf"
-        - "modules/s3/lambda.tf"
-
-  - CKV_AWS_260:
-      skip_message: "HTTP traffic is allowed in the test environment to ensure website availability. HTTPS will be enforced in production."
-      paths:
-        - "modules/alb/security_group.tf"
-
-  - CKV_AWS_31:
-      skip_message: "Auth token is not required in the test environment. Encryption in transit is enabled for security."
-      paths:
-        - "modules/elasticache/main.tf"
-
-  - CKV_AWS_157:
-      skip_message: "Multi-AZ is not required in the test environment to minimize costs. It will be enabled in production."
-      paths:
-        - "modules/rds/main.tf"
-
-  - CKV_AWS_272:
-      skip_message: "Code signing is not required in the test environment. It will be implemented in production to enhance security."
-      paths:
-        - "modules/s3/lambda.tf"
-
-  - CKV_AWS_50:
-      skip_message: "X-Ray tracing is not required for the WordPress site. CloudWatch logs provide adequate monitoring."
-      paths:
-        - "modules/s3/lambda.tf"
-
-  - CKV_AWS_130:
-      skip_message: "Public subnets require automatic public IP assignment for accessibility in the test environment."
-      paths:
-        - "modules/vpc/main.tf"
-
-  - CKV_AWS_231:
-      skip_message: "Ephemeral port range is allowed in the test environment for connectivity. It will be restricted in production."
-      paths:
-        - "modules/vpc/nacl.tf"
-
-  - CKV_AWS_21:
-      skip_message: "Versioning is disabled in the test environment to minimize costs and complexity. It is managed individually for each bucket via the enable_versioning variable and will be enabled in production as needed."
-      paths:
-        - "modules/s3/versioning.tf"
-
-  - CKV_AWS_18:
-      skip_message: "Access logging is dynamically enabled for all S3 buckets except the logging bucket to avoid recursion."
-      paths:
-        - "modules/s3/logging.tf"
-
-  - CKV2_AWS_1:
-      skip_message: "Public and private NACLs are properly associated with subnets as verified by Terraform plan output."
-      paths:
-        - "modules/vpc/nacl.tf"
-
-  - CKV_AWS_145:
-      skip_message: "S3 bucket encryption is dynamically enabled based on the 'buckets' variable. If buckets are disabled, encryption resources are not required."
-      paths:
-        - "modules/s3/encryption.tf"
-        - "modules/s3/policies.tf"
-
-  - CKV_AWS_144:
-      skip_message: "Replication is dynamically managed based on the `enable_s3_replication` variable to avoid unnecessary resources."
-      paths:
-        - "modules/s3/main.tf"
-
-  - CKV_AWS_378:
-      skip_message: "HTTP is used in the test environment for simplicity; HTTPS with SSL and redirect configuration will be implemented in production."
-      paths:
-        - "modules/alb/main.tf"
-
-  - CKV2_AWS_6:
-      skip_message: "Public access is restricted for all S3 buckets via Terraform configuration in s3/access.tf."
-      paths:
-        - "modules/s3/access.tf"
-
-  - CKV2_AWS_61:
-      skip_message: "Lifecycle rules are already implemented in Terraform to optimize storage costs, clean up incomplete uploads, and control object versions."
-      paths:
-        - "modules/s3/policies.tf"
+  - CKV_AWS_240
+  - CKV_AWS_241
+  - CKV_AWS_2
+  - CKV_AWS_382
+  - CKV_AWS_260
+  - CKV_AWS_31
+  - CKV_AWS_157
+  - CKV_AWS_272
+  - CKV_AWS_50
+  - CKV_AWS_130
+  - CKV_AWS_231
+  - CKV_AWS_21
+  - CKV_AWS_18
+  - CKV2_AWS_1
+  - CKV_AWS_145
+  - CKV_AWS_144
+  - CKV_AWS_378
+  - CKV2_AWS_6
+  - CKV2_AWS_61
 
   # Notes:
   #
