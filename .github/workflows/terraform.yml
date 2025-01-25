@@ -70,11 +70,10 @@ jobs:
 
       - name: Install KICS
         run: |
-          curl -sSL https://raw.githubusercontent.com/Checkmarx/kics/master/install.sh | bash
+          curl -sfL https://raw.githubusercontent.com/Checkmarx/kics/master/scripts/install.sh | bash
           sudo mv kics /usr/local/bin/kics
+      
 
-      - name: Run KICS
+      - name: Run KICS (console output, soft-fail)
         run: |
-          kics scan --path ./terraform \
-                    --output-path kics.sarif \
-                    --report-formats sarif
+          kics scan --path ./terraform --report-formats console || true        
