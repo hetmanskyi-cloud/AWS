@@ -61,11 +61,8 @@ jobs:
         working-directory: ./terraform
 
       - name: Install tfsec
-        run: |
-          # Скачиваем и запускаем официальный скрипт установки tfsec
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-          # Переносим бинарник tfsec в /usr/local/bin
-          sudo mv tfsec /usr/local/bin/
+        run: |          
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash          
 
       - name: Run tfsec
         run: |
