@@ -63,15 +63,19 @@ jobs:
       - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-      
+
       - name: Run tfsec (console output, soft-fail)
-        run: tfsec ./terraform || true
+        run: |
+          tfsec ./terraform || true
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
-      - name: Install KICS
-        run: |
-          curl -sfL https://raw.githubusercontent.com/Checkmarx/kics/master/scripts/install.sh | bash            
+      - name: Install Checkov
+        run: pip install checkov
 
-      - name: Run KICS (console output, soft-fail)
+      - name: Run Checkov (console output, soft-fail)
         run: |
-          kics scan --path ./terraform --report-formats console || true        
+          checkov --directory ./terraform || true
