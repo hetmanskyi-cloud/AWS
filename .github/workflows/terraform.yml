@@ -70,7 +70,8 @@ jobs:
 
       - name: Install KICS
         run: |
-          curl -sfL https://raw.githubusercontent.com/Checkmarx/kics/master/scripts/install.sh | bash    
+          curl -sfL https://raw.githubusercontent.com/Checkmarx/kics/master/scripts/install.sh | bash
+          sudo cp "$HOME/.local/bin/kics" /usr/local/bin/kics   
 
       - name: Run KICS (console output, soft-fail)
         run: |
