@@ -60,6 +60,14 @@ jobs:
         run: tflint
         working-directory: ./terraform
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install Checkov
+        run: pip install checkov
+      
       - name: Run Checkov with config
         run: |
           checkov --directory ./terraform \
