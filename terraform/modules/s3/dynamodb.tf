@@ -60,14 +60,6 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "N" # N: Numeric type (Unix timestamp for TTL).
   }
 
-  # --- Local Secondary Index (LSI) --- #
-  # Adds ExpirationTime as a secondary index for TTL compatibility and future use.
-  local_secondary_index {
-    name            = "LockID-ExpirationTime-Index" # Name of the index.
-    projection_type = "ALL"                         # Includes all attributes in the index.
-    range_key       = "ExpirationTime"              # ExpirationTime serves as the range key.
-  }
-
   # --- Tags --- #
   # Add descriptive tags for resource identification and organization.
   tags = {

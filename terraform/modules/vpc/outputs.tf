@@ -159,6 +159,28 @@ output "default_security_group_id" {
   value       = aws_default_security_group.default.id
 }
 
+# --- NACL Outputs --- #
+
+# Output the ID of the NACL associated with the public subnet
+output "public_subnet_nacl_id" {
+  description = "The ID of the NACL associated with the public subnet"
+  value       = aws_network_acl.public_nacl.id
+}
+
+# Output the ID of the NACL associated with the private subnet
+output "private_subnet_nacl_id" {
+  description = "The ID of the NACL associated with the private subnet"
+  value       = aws_network_acl.private_nacl.id
+}
+
+# --- IGW Outputs --- #
+
+# Output the ID of the Internet Gateway
+output "igw_id" {
+  description = "The ID of the Internet Gateway"
+  value       = aws_internet_gateway.igw.id
+}
+
 # --- Notes --- #
 # 1. Outputs are organized to provide all necessary IDs and CIDR blocks for subnets, route tables, and endpoints.
 # 2. These outputs can be used by other modules to dynamically reference VPC resources.

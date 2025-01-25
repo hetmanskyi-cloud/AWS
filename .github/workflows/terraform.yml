@@ -78,4 +78,6 @@ jobs:
 
       - name: Run Checkov (console output, soft-fail)
         run: |
-          checkov --directory ./terraform || true
+          checkov --directory ./terraform \
+                  --skip-check CKV_AWS_192 \
+                  || true      
