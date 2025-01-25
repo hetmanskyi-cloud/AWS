@@ -60,14 +60,11 @@ jobs:
         run: tflint
         working-directory: ./terraform
 
-      - name: Setup Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: ./terraform
-          config_file: ./terraform/config.yml
-          framework: terraform
-          output_format: sarif   
-          skip_check: CKV_AWS_192
+      - name: Run Checkov with config
+        run: |
+          checkov --directory ./terraform \
+                  --config-file ./terraform/config.yml \
+                  --output sarif      
 
       - name: Terraform Plan
         if: github.event_name == 'pull_request'
