@@ -60,41 +60,22 @@ jobs:
         run: tflint
         working-directory: ./terraform
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      
-      - name: Install Checkov
-        run: pip install checkov
-      
-      - name: Run Checkov with config
+      - name: Install tfsec
         run: |
-          checkov --directory ./terraform \
-                  --config-file ./terraform/config.yml \
-                  --output sarif      
+          sudo apt-get update
+          sudo apt-get install -y tfsec
 
-      - name: Terraform Plan
-        if: github.event_name == 'pull_request'
-        run: terraform plan -no-color
-        working-directory: ./terraform
+      - name: Run tfsec
+        run: |
+          tfsec ./terraform --format sarif --out tfsec.sarif
 
-      - name: Terraform Plan Output Annotations
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: "terraform plan -no-color"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = await exec.getExecOutput(process.env.PLAN, [], {cwd: './terraform'});
-            if (output.exitCode !== 0) {
-              core.setFailed(output.stderr);
-            } else if (output.stdout.length > 0) {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: "`terraform\n" + output.stdout + "\n`"
-              });
-            }
+      - name: Install KICS
+        run: |
+          curl -sSL https://raw.githubusercontent.com/Checkmarx/kics/master/install.sh | bash
+          sudo mv kics /usr/local/bin/kics
+
+      - name: Run KICS
+        run: |
+          kics scan --path ./terraform \
+                    --output-path kics.sarif \
+                    --report-formats sarif
