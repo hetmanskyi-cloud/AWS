@@ -1,130 +1,159 @@
 ---
-  skip-checks:
+skip-checks:
+  - id: CKV_AWS_240
+    reason: '"AWS-managed KMS key (SSE-S3) is sufficient for the test environment;
+      CMK will be implemented in production."'
+    paths:
+      - modules/alb/firehose.tf
+  - id: CKV_AWS_241
+    reason: '"Kinesis Firehose CMK encryption is not required in the test
+      environment. Using SSE-S3 encryption instead."'
+    paths:
+      - modules/alb/firehose.tf
+  - id: CKV_AWS_2
+    reason: '"HTTP is used in the test environment until an SSL certificate is
+      available. HTTPS will be implemented in production."'
+    paths:
+      - modules/alb/main.tf
+  - id: CKV_AWS_382
+    reason: '"Unrestricted outbound traffic is allowed in the test environment for
+      debugging and connectivity testing."'
+    paths:
+      - modules/alb/security_group.tf
+      - modules/elasticache/security_group.tf
+      - modules/endpoints/security_group.tf
+      - modules/s3/lambda.tf
+  - id: CKV_AWS_260
+    reason: '"HTTP traffic is allowed in the test environment to ensure website
+      availability. HTTPS will be enforced in production."'
+    paths:
+      - modules/alb/security_group.tf
+  - id: CKV_AWS_31
+    reason: '"Auth token is not required in the test environment. Encryption in
+      transit is enabled for security."'
+    paths:
+      - modules/elasticache/main.tf
+  - id: CKV_AWS_157
+    reason: '"Multi-AZ is not required in the test environment to minimize costs. It
+      will be enabled in production."'
+    paths:
+      - modules/rds/main.tf
+  - id: CKV_AWS_272
+    reason: '"Code signing is not required in the test environment. It will be
+      implemented in production to enhance security."'
+    paths:
+      - modules/s3/lambda.tf
+  - id: CKV_AWS_50
+    reason: '"X-Ray tracing is not required for the WordPress site. CloudWatch logs
+      provide adequate monitoring."'
+    paths:
+      - modules/s3/lambda.tf
+  - id: CKV_AWS_130
+    reason: '"Public subnets require automatic public IP assignment for
+      accessibility in the test environment."'
+    paths:
+      - modules/vpc/main.tf
+  - id: CKV_AWS_231
+    reason: '"Ephemeral port range is allowed in the test environment for
+      connectivity. It will be restricted in production."'
+    paths:
+      - modules/vpc/nacl.tf
+  - id: CKV_AWS_21
+    reason: '"Versioning is disabled in the test environment to minimize costs and
+      complexity. It is managed individually for each bucket via the
+      enable_versioning variable and will be enabled in production as needed."'
+    paths:
+      - modules/s3/versioning.tf
+  - id: CKV_AWS_18
+    reason: '"Access logging is dynamically enabled for all S3 buckets except the
+      logging bucket to avoid recursion."'
+    paths:
+      - modules/s3/logging.tf
+  - id: CKV2_AWS_1
+    reason: '"Public and private NACLs are properly associated with subnets as
+      verified by Terraform plan output."'
+    paths:
+      - modules/vpc/nacl.tf
+  - id: CKV_AWS_145
+    reason: "\"S3 bucket encryption is dynamically enabled based on the 'buckets'
+      variable. If buckets are disabled, encryption resources are not
+      required.\""
+    paths:
+      - modules/s3/encryption.tf
+      - modules/s3/policies.tf
+  - id: CKV_AWS_144
+    reason: '"Replication is dynamically managed based on the
+      `enable_s3_replication` variable to avoid unnecessary resources."'
+    paths:
+      - modules/s3/main.tf
+  - id: CKV_AWS_378
+    reason: '"HTTP is used in the test environment for simplicity; HTTPS with SSL
+      and redirect configuration will be implemented in production."'
+    paths:
+      - modules/alb/main.tf
+  - id: CKV2_AWS_6
+    reason: '"Public access is restricted for all S3 buckets via Terraform
+      configuration in s3/access.tf."'
+    paths:
+      - modules/s3/access.tf
+  - id: CKV2_AWS_61
+    reason: '"Lifecycle rules are already implemented in Terraform to optimize
+      storage costs, clean up incomplete uploads, and control object versions."'
+    paths:
+      - modules/s3/policies.tf
+
+  # Notes:
+  #
   # Checkov issue: CKV_AWS_240 - "Ensure Kinesis Firehose delivery stream is encrypted with CMK"
   # In the test environment, using an AWS-managed KMS key (SSE-S3) is sufficient for security needs.
   # A customer-managed CMK will be implemented in production for enhanced security and access control.
-  - id: "CKV_AWS_240"
-    reason: >-
-      "AWS-managed KMS key (SSE-S3) is sufficient for the test environment;
-      CMK will be implemented in production."
-    paths:
-      - "modules/alb/firehose.tf"
-
+  # 
   # Checkov issue: CKV_AWS_241 - "Ensure that Kinesis Firehose Delivery Streams are encrypted with CMK"
   # The following check is skipped because Kinesis Firehose encryption with a customer-managed CMK 
   # is not required in the test environment. We are using SSE-S3 encryption, which is sufficient 
   # for now. CMK encryption will be considered for production to ensure fine-grained control.
-  - id: "CKV_AWS_241"
-    reason: >-
-      "Kinesis Firehose CMK encryption is not required in the test environment.
-      Using SSE-S3 encryption instead."
-    paths:
-      - "modules/alb/firehose.tf"
-
+  #
   # Checkov issue: CKV_AWS_2 - "Ensure ALB protocol is HTTPS"
   # In the test environment, HTTP is used temporarily because an SSL certificate is not yet available.
   # HTTPS with a valid certificate will be configured in production to ensure secure communication.
-  - id: "CKV_AWS_2"
-    reason: >-
-      "HTTP is used in the test environment until an SSL certificate is available.
-      HTTPS will be implemented in production."
-    paths:
-      - "modules/alb/main.tf"
-
+  #
   # Checkov issue: CKV_AWS_382 - "Ensure no security groups allow egress from 0.0.0.0:0 to port -1"
   # Allowing all outbound traffic is acceptable in the test environment to ensure connectivity and debugging.
   # In production, specific AWS service prefixes or IP ranges will be used to restrict outbound access.
-  - id: "CKV_AWS_382"
-    reason: >-
-      "Unrestricted outbound traffic is allowed in the test environment
-      for debugging and connectivity testing."
-    paths:
-      - "modules/alb/security_group.tf"
-      - "modules/elasticache/security_group.tf"
-      - "modules/endpoints/security_group.tf"
-      - "modules/s3/lambda.tf"
-
+  #
   # Checkov issue: CKV_AWS_260 - "Ensure no security groups allow ingress from 0.0.0.0/0 to port 80"
   # HTTP traffic is allowed from all IPs in the test environment to facilitate website accessibility.
   # In production, port 80 will be used only for redirection to HTTPS (port 443) after obtaining an SSL certificate.
-  - id: "CKV_AWS_260"
-    reason: >-
-      "HTTP traffic is allowed in the test environment to ensure website availability.
-      HTTPS will be enforced in production."
-    paths:
-      - "modules/alb/security_group.tf"
-
+  #
   # Checkov issue: CKV_AWS_31 - "Ensure all data stored in the ElastiCache Replication Group is securely encrypted at transit and has auth token"
   # Encryption in transit is enabled to secure data transmission. The auth token is omitted for the test environment
   # to simplify access and testing. In production, an auth token may be implemented if required for security compliance.
-  - id: "CKV_AWS_31"
-    reason: >-
-      "Auth token is not required in the test environment.
-      Encryption in transit is enabled for security."
-    paths:
-      - "modules/elasticache/main.tf"
-
+  #
   # Checkov issue: CKV_AWS_157 - "Ensure that RDS instances have Multi-AZ enabled"
   # Multi-AZ is not required in the test environment to reduce costs and simplify deployment.
   # It will be enabled in production to ensure high availability.
-  - id: "CKV_AWS_157"
-    reason: >-
-      "Multi-AZ is not required in the test environment to minimize costs.
-      It will be enabled in production."
-    paths:
-      - "modules/rds/main.tf"
-
+  #
   # Checkov issue: CKV_AWS_272 - "Ensure AWS Lambda function is configured to validate code-signing"
   # Code signing validation is not required in the test environment as the function code is controlled internally.
   # In production, a code-signing configuration will be implemented to enhance security and ensure integrity.
-  - id: "CKV_AWS_272"
-    reason: >-
-      "Code signing is not required in the test environment.
-      It will be implemented in production to enhance security."
-    paths:
-      - "modules/s3/lambda.tf"
-
+  #
   # Checkov issue: CKV_AWS_50 - "X-Ray tracing is enabled for Lambda"
   # AWS X-Ray tracing is not required for the WordPress site, as it adds unnecessary overhead.
   # The application does not require distributed tracing, and CloudWatch logs provide sufficient monitoring.
-  - id: "CKV_AWS_50"
-    reason: >-
-      "X-Ray tracing is not required for the WordPress site.
-      CloudWatch logs provide adequate monitoring."
-    paths:
-      - "modules/s3/lambda.tf"
-
+  #
   # Checkov issue: CKV_AWS_130 - "Ensure VPC subnets do not assign public IP by default"
   # Public subnets in this project intentionally assign public IPs for accessibility.
   # This is acceptable for test environments; production might require a stricter policy.
-  - id: "CKV_AWS_130"
-    reason: >-
-      "Public subnets require automatic public IP assignment for accessibility in the test environment."
-    paths:
-      - "modules/vpc/main.tf"
-
+  #
   # Checkov issue: CKV_AWS_231 - "Ensure no NACL allow ingress from 0.0.0.0/0 to port 3389"
   # Allowing ephemeral ports for testing purposes; in production, this will be restricted.
-  - id: "CKV_AWS_231"
-    reason: >-
-      "Ephemeral port range is allowed in the test environment for connectivity.
-      It will be restricted in production."
-    paths:
-      - "modules/vpc/nacl.tf"
-
+  #
   # Checkov issue: CKV_AWS_21 - "Ensure all data stored in the S3 bucket have versioning enabled"
   # Versioning is intentionally disabled in the test environment to reduce storage costs and simplify management.
   # Each bucket has its own versioning configuration controlled via the `enable_versioning` variable in terraform.tfvars.
   # This allows fine-grained control and the ability to enable versioning selectively per bucket.
   # Versioning will be enabled in production environments where compliance and data recovery are critical.
-  - id: "CKV_AWS_21"
-    reason: >-
-      "Versioning is disabled in the test environment to minimize costs and complexity.
-      It is managed individually for each bucket via the enable_versioning variable
-      and will be enabled in production as needed."
-    paths:
-      - "modules/s3/versioning.tf"
-
+  #
   # Checkov issue: CKV_AWS_18 - "Ensure the S3 bucket has access logging enabled"
   # Access logging is dynamically enabled for all S3 buckets that are enabled in the `buckets` variable.
   # The logging configuration is managed in `logging.tf` to ensure logs are stored in the central logging bucket.
@@ -138,24 +167,14 @@
   # Logging is disabled only for the `logging` bucket itself to prevent recursion issues.
   # All other enabled buckets have access logging configured automatically.
   # Future adjustments can be made based on security and compliance requirements.
-  - id: "CKV_AWS_18"
-    reason: >-
-      "Access logging is dynamically enabled for all S3 buckets except the logging bucket to avoid recursion."
-    paths:
-      - "modules/s3/logging.tf"
-
+  #
   # Checkov issue: CKV2_AWS_1 - "Ensure that all NACL are attached to subnets"
   # Both public and private NACLs are correctly associated with their respective subnets.
   # This has been verified through Terraform plan output, confirming the proper attachment.
   # Public NACL is attached to public subnets, ensuring appropriate traffic filtering for public-facing resources.
   # Private NACL is associated with private subnets, enhancing security for internal services.
   # No action required as Terraform configuration is correct.
-  - id: "CKV2_AWS_1"
-    reason: >-
-      "Public and private NACLs are properly associated with subnets as verified by Terraform plan output."
-    paths:
-    - "modules/vpc/nacl.tf"
-
+  #
   # Checkov issue: CKV_AWS_145 - "Ensure that S3 buckets are encrypted with KMS by default"
   # Explanation:
   # - Our Terraform configuration dynamically enables encryption for S3 buckets using AWS KMS based on the `buckets` variable.
@@ -166,38 +185,20 @@
   # Action Plan:
   # - In production environments, ensure that all necessary buckets are enabled and encrypted by setting the appropriate values in `terraform.tfvars`.
   # - If needed, additional security policies can be applied via AWS Config rules for continuous monitoring.
-  - id: "CKV_AWS_145"
-    reason: >-
-      "S3 bucket encryption is dynamically enabled based on the 'buckets' variable.
-      If buckets are disabled, encryption resources are not required."
-    paths:
-      - "modules/s3/encryption.tf"
-      - "modules/s3/policies.tf"
-
+  #
   # Checkov issue: CKV_AWS_144 - "Ensure that S3 bucket has cross-region replication enabled"
   # Cross-region replication is configured dynamically based on the `enable_s3_replication` flag.
   # - If replication is enabled, only the necessary resources are created.
   # - If replication is disabled, the replication bucket is created without replication rules.
   # This approach ensures flexibility and avoids unnecessary resources.
-  - id: "CKV_AWS_144"
-    reason: >-
-      "Replication is dynamically managed based on the `enable_s3_replication` variable to avoid unnecessary resources."
-    paths:
-      - "modules/s3/main.tf"
-
+  #
   # Checkov issue: CKV_AWS_378 - "Ensure AWS Load Balancer doesn't use HTTP protocol"
   # In the test environment, the ALB target group uses HTTP (port 80) to simplify setup and avoid SSL certificate complexities.
   # - In production, HTTPS with an SSL certificate will be configured.
   # - An HTTP listener is configured to redirect traffic to HTTPS if `enable_https_listener` is set to true.
   # - If HTTPS is enabled, HTTP traffic will be redirected to HTTPS (port 443) with an HTTP 301 status code.
   # - If HTTPS is disabled, HTTP traffic is forwarded directly to the target group for testing purposes.
-  - id: "CKV_AWS_378"
-    reason: >-
-      "HTTP is used in the test environment for simplicity;
-      HTTPS with SSL and redirect configuration will be implemented in production."
-    paths:
-      - "modules/alb/main.tf"
-
+  #
   # Checkov issue: CKV2_AWS_6 - "Ensure that S3 bucket has a Public Access block"
   # All S3 buckets in the infrastructure have public access blocks enforced through Terraform.
   # The configuration is defined in `s3/access.tf`, which includes:
@@ -205,12 +206,7 @@
   # - Ignoring any existing public ACLs.
   # - Restricting bucket-level public access entirely.
   # These settings align with AWS security best practices, ensuring no accidental public exposure.
-  - id: "CKV2_AWS_6"
-    reason: >-
-      "Public access is restricted for all S3 buckets via Terraform configuration in s3/access.tf."
-    paths:
-      - "modules/s3/access.tf"
-
+  #
   # Checkov issue: CKV2_AWS_61 - "Ensure that an S3 bucket has a lifecycle configuration"
   # The lifecycle configuration for all enabled S3 buckets is managed through Terraform.
   # The current lifecycle settings include:
@@ -218,9 +214,3 @@
   # - Cleanup of incomplete multipart uploads after 7 days to optimize storage costs.
   # - Additional lifecycle rules such as log retention and temporary file cleanup can be added in production.
   # These settings are sufficient for the test environment and can be extended for production with more granular rules for transitions and expiration.
-  - id: "CKV2_AWS_61"
-    reason: >-
-      "Lifecycle rules are already implemented in Terraform to optimize storage costs,
-      clean up incomplete uploads, and control object versions."
-    paths:
-    - "modules/s3/policies.tf"
