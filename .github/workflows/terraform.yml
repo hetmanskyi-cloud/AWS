@@ -64,14 +64,11 @@ jobs:
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: ./terraform
+          config_file: ./terraform/config.yml
           framework: terraform
-          output_format: sarif          
+          output_format: sarif   
           skip_check: CKV_AWS_192
 
-      - name: Run Checkov with custom config
-        run: |
-          checkov --directory ./terraform --config-file ./terraform/config.yml
-            
       - name: Terraform Plan
         if: github.event_name == 'pull_request'
         run: terraform plan -no-color
