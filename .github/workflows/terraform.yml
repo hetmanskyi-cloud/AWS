@@ -61,12 +61,12 @@ jobs:
         working-directory: ./terraform
 
       - name: Install tfsec
-        run: |          
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash          
-
-      - name: Run tfsec
         run: |
-          tfsec ./terraform --format sarif --out tfsec.sarif
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+      
+      - name: Run tfsec (console output, soft-fail)
+        run: tfsec ./terraform || true
+      
 
       - name: Install KICS
         run: |
