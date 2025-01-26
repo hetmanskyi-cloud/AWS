@@ -98,7 +98,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     }
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "PreventXSS"
+      metric_name                = "PreventSQLInjection"
       sampled_requests_enabled   = true
     }
 

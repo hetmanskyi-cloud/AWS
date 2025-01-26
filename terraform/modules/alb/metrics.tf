@@ -6,6 +6,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   count = var.enable_high_request_alarm ? 1 : 0 # Controlled by the variable `enable_high_request_alarm`
 
   alarm_name          = "${var.name_prefix}-alb-high-request-count"
+  alarm_description   = "Triggers when the number of requests exceeds the defined threshold. This may indicate unexpected traffic patterns or potential DDoS attacks."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "RequestCount"
@@ -13,6 +14,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   period              = 300
   statistic           = "Sum"
   threshold           = var.alb_request_count_threshold
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
   ok_actions          = [var.sns_topic_arn]
   dimensions = {
@@ -27,6 +29,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   count = var.enable_5xx_alarm ? 1 : 0 # Controlled by the variable `enable_5xx_alarm`
 
   alarm_name          = "${var.name_prefix}-alb-5xx-errors"
+  alarm_description   = "Monitors HTTP 5XX errors which indicate server-side issues. High error rates may signal application problems or infrastructure issues."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "HTTPCode_Target_5XX_Count"
@@ -34,6 +37,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   period              = 300
   statistic           = "Sum"
   threshold           = var.alb_5xx_threshold
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
   ok_actions          = [var.sns_topic_arn]
   dimensions = {
@@ -48,6 +52,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   count = var.enable_target_response_time_alarm ? 1 : 0 # Controlled by the variable `enable_target_response_time_alarm`
 
   alarm_name          = "${var.name_prefix}-alb-target-response-time"
+  alarm_description   = "Alerts when the average response time from targets exceeds 1 second, which may indicate performance degradation."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "TargetResponseTime"
@@ -55,6 +60,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   period              = 300
   statistic           = "Average"
   threshold           = 1.0 # Example threshold in seconds
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn]
   ok_actions          = [var.sns_topic_arn]
   dimensions = {
@@ -69,13 +75,15 @@ resource "aws_cloudwatch_metric_alarm" "alb_health_check_failed" {
   count = var.enable_health_check_failed_alarm ? 1 : 0 # Controlled by the variable
 
   alarm_name          = "${var.name_prefix}-alb-health-check-failed"
+  alarm_description   = "Monitors failed health checks which may indicate problems with target instances or application availability."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "HealthHostCount"
   namespace           = "AWS/ApplicationELB"
   period              = 300
   statistic           = "Average"
-  threshold           = 0                   # Triggered if at least one health check fails
+  threshold           = 0 # Triggered if at least one health check fails
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
   ok_actions          = [var.sns_topic_arn]
   dimensions = {
@@ -90,13 +98,15 @@ resource "aws_cloudwatch_metric_alarm" "alb_health_check_failed" {
 # Explanation: Triggers if any target in the group is unhealthy. Helps in quick debugging.
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
   alarm_name          = "${var.name_prefix}-alb-unhealthy-targets"
+  alarm_description   = "Alerts when any target becomes unhealthy, helping to quickly identify and resolve application or infrastructure issues."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "UnHealthyHostCount"
   namespace           = "AWS/ApplicationELB"
   period              = 300
   statistic           = "Average"
-  threshold           = 0                   # Triggered if at least one unhealthy target
+  threshold           = 0 # Triggered if at least one unhealthy target
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled
   ok_actions          = [var.sns_topic_arn]
   dimensions = {

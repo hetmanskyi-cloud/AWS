@@ -21,7 +21,7 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 ## Features
 
 - **Application Load Balancer**:
-  - Handles HTTP and HTTPS traffic with cross-zone load balancing enabled.
+  - Handles HTTP and HTTPS traffic (cross-zone load balancing enabled by default).
   - Deletion protection to prevent accidental deletion.
   - Configurable idle timeout and IP address type.
   - Automatically drops invalid HTTP headers for better security (drop_invalid_header_fields = true).
@@ -59,30 +59,30 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 
 ## **Input Variables**
 
-| **Name**                            | **Type**       | **Description**                                                                        | **Default/Required**  |
-|-------------------------------------|----------------|----------------------------------------------------------------------------------------|-----------------------|
-| `name_prefix`                       | `string`       | Prefix for naming resources for easier organization.                                   | Required              |
-| `environment`                       | `string`       | Environment for the resources (e.g., dev, stage, prod).                                | Required              |
-| `public_subnets`                    | `list(string)` | List of public subnet IDs for ALB placement.                                           | Required              |
-| `vpc_id`                            | `string`       | VPC ID for the ALB and target group.                                                   | Required              |
-| `logging_bucket`                    | `string`       | S3 bucket name for storing ALB access logs.                                            | Required              |
-| `logging_bucket_arn`                | `string`       | ARN of the S3 bucket for ALB logs.                                                     | Required              |
-| `kms_key_arn`                       | `string`       | KMS key ARN for log encryption.                                                        | Required              |
-| `target_group_port`                 | `number`       | Port for the target group (default: 80).                                               | `80`                  |
-| `certificate_arn`                   | `string`       | ARN of the SSL certificate for HTTPS listener.                                         | Optional              |
-| `alb_request_count_threshold`       | `number`       | Threshold for high request count on ALB.                                               | `1000`                |
-| `alb_5xx_threshold`                 | `number`       | Threshold for 5XX errors on ALB.                                                       | `50`                  |
-| `sns_topic_arn`                     | `string`       | ARN of the SNS topic for CloudWatch alarm notifications.                               | Required              |
-| `enable_https_listener`             | `bool`         | Enable or disable the creation of the HTTPS listener.                                  | `false`               |
-| `enable_alb_access_logs`            | `bool`         | Enable or disable ALB access logs.                                                     | `false`               |
-| `enable_waf`                        | `bool`         | Enable or disable WAF for ALB.                                                         | `false`               |
-| `enable_waf_logging`                | `bool`         | Enable or disable WAF logging. Requires Firehose to be enabled.                        | `false`               |
-| `enable_firehose`                   | `bool`         | Enable or disable Firehose and related resources.                                      | `false`               |
-| `enable_high_request_alarm`         | `bool`         | Enable or disable CloudWatch alarm for high request count.                             | `false`               |
-| `enable_5xx_alarm`                  | `bool`         | Enable or disable CloudWatch alarm for HTTP 5xx errors.                                | `false`               |
-| `enable_health_check_failed_alarm`  | `bool`         | Enable or disable CloudWatch alarm for ALB health check failures.                      | `false`               |
-| `enable_target_response_time_alarm` | `bool`         | Enable or disable CloudWatch alarm for Target Response Time.                           | `false`               |
-| `alb_enable_deletion_protection`    | `bool`         | Enable or disable deletion protection for ALB.                                         | `false`               |
+| **Name**                            | **Type**       | **Description**                                                                          | **Default/Required**|
+|-------------------------------------|----------------|------------------------------------------------------------------------------------------|---------------------|
+| `name_prefix`                       | `string`       | Prefix for naming resources for easier organization (max 24 characters).                 | Required            |
+| `environment`                       | `string`       | Environment for the resources (must be dev, stage, or prod).                             | Required            |
+| `public_subnets`                    | `list(string)` | List of public subnet IDs for ALB placement.                                             | Required            |
+| `vpc_id`                            | `string`       | VPC ID for the ALB and target group.                                                     | Required            |
+| `logging_bucket`                    | `string`       | S3 bucket name for storing ALB access logs.                                              | Required            |
+| `logging_bucket_arn`                | `string`       | ARN of the S3 bucket for ALB logs.                                                       | Required            |
+| `kms_key_arn`                       | `string`       | KMS key ARN for log encryption.                                                          | Required            |
+| `target_group_port`                 | `number`       | Port for the target group (default: 80).                                                 | `80`                |
+| `certificate_arn`                   | `string`       | ARN of the SSL certificate for HTTPS listener (required if enable_https_listener = true).| Optional            |
+| `alb_request_count_threshold`       | `number`       | Threshold for high request count on ALB.                                                 | `1000`              |
+| `alb_5xx_threshold`                 | `number`       | Threshold for 5XX errors on ALB.                                                         | `50`                |
+| `sns_topic_arn`                     | `string`       | ARN of the SNS topic for CloudWatch alarm notifications.                                 | Required            |
+| `enable_https_listener`             | `bool`         | Enable or disable the creation of the HTTPS listener.                                    | `false`             |
+| `enable_alb_access_logs`            | `bool`         | Enable or disable ALB access logs.                                                       | `false`             |
+| `enable_waf`                        | `bool`         | Enable or disable WAF for ALB.                                                           | `false`             |
+| `enable_waf_logging`                | `bool`         | Enable or disable WAF logging. Requires Firehose to be enabled.                          | `false`             |
+| `enable_firehose`                   | `bool`         | Enable or disable Firehose and related resources.                                        | `false`             |
+| `enable_high_request_alarm`         | `bool`         | Enable or disable CloudWatch alarm for high request count.                               | `false`             |
+| `enable_5xx_alarm`                  | `bool`         | Enable or disable CloudWatch alarm for HTTP 5xx errors.                                  | `false`             |
+| `enable_health_check_failed_alarm`  | `bool`         | Enable or disable CloudWatch alarm for ALB health check failures.                        | `false`             |
+| `enable_target_response_time_alarm` | `bool`         | Enable or disable CloudWatch alarm for Target Response Time.                             | `false`             |
+| `alb_enable_deletion_protection`    | `bool`         | Enable or disable deletion protection for ALB.                                           | `false`             |
 
 ---
 
@@ -103,7 +103,6 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 | `alb_health_check_failed_alarm_arn` | ARN of the CloudWatch alarm for health check failures.|
 | `alb_unhealthy_host_count_alarm_arn`| ARN of the CloudWatch alarm for unhealthy targets.    |
 
-
 ---
 
 ## Usage Example
@@ -121,8 +120,8 @@ module "alb" {
   certificate_arn                    = "arn:aws:acm:eu-west-1:123456789012:certificate/example"
   alb_request_count_threshold        = 5000
   alb_5xx_threshold                  = 100
-  enable_target_response_time_alarm  = 300
-  enable_health_check_failed_alarm   = 300
+  enable_target_response_time_alarm  = true
+  enable_health_check_failed_alarm   = true
   sns_topic_arn                      = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   enable_https_listener              = true
   enable_alb_access_logs             = true
@@ -149,9 +148,11 @@ output "alb_arn" {
 3. **Monitoring**:
    - Configure CloudWatch alarms to detect anomalies and performance issues.
    - Set up SNS notifications for proactive issue resolution.
+   - All alarms use treat_missing_data = "notBreaching" to avoid false positives.
+   - Unhealthy host count alarm is always enabled for critical health monitoring.
 4. **IAM Policies**:
-   - Use least privilege principles for Firehose and KMS roles.
-   - Regularly audit IAM policies for unnecessary permissions.
+   - Use least privilege principle for all IAM roles and policies.
+   - Regularly review and audit IAM permissions.
 
 ---
 
@@ -175,8 +176,24 @@ output "alb_arn" {
 
 ---
 
-### Useful Resources
+## Useful Resources
 
-- [Amazon ALB Documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
-- [AWS WAF Documentation](https://docs.aws.amazon.com/waf/index.html)
+### AWS Documentation
+- [Application Load Balancer Documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
+- [ALB Best Practices](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancer-best-practices.html)
+- [WAF Protection for ALB](https://docs.aws.amazon.com/waf/latest/developerguide/waf-chapter.html)
 - [CloudWatch Metrics for ALB](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-cloudwatch-metrics.html)
+
+### Security & Compliance
+- [AWS Security Best Practices](https://docs.aws.amazon.com/security/latest/best-practices-guide/security-best-practices.html)
+- [ALB Access Logging](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html)
+- [AWS WAF Managed Rules](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups.html)
+
+### Monitoring & Troubleshooting
+- [Troubleshooting ALB](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-troubleshooting.html)
+- [CloudWatch Alarms Guide](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)
+- [Kinesis Firehose for Logging](https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)
+
+### WordPress Specific
+- [WordPress on AWS Best Practices](https://aws.amazon.com/blogs/architecture/wordpress-best-practices-on-aws/)
+- [Securing WordPress on AWS](https://aws.amazon.com/blogs/architecture/wordpress-best-practices-on-aws-security/)

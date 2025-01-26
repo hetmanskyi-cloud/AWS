@@ -86,11 +86,10 @@ output "alb_health_check_failed_alarm_arn" {
 
 # Unhealthy host count alarm
 output "alb_unhealthy_host_count_alarm_arn" {
-  description = "ARN of the CloudWatch Alarm for unhealthy targets in the ALB target group."
+  description = "ARN of the CloudWatch Alarm for unhealthy targets in the ALB target group. This alarm is always created as it's critical for monitoring."
   value       = aws_cloudwatch_metric_alarm.alb_unhealthy_host_count.arn
 }
 
 # --- Notes --- #
 # 1. These outputs help other modules (e.g., ASG) to integrate with ALB.
 # 2. Access Logs outputs provide flexibility for further log analysis or processing.
-# 3. Duplicate security group outputs ensure compatibility where specific names are required.

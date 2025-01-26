@@ -3,6 +3,10 @@
 variable "name_prefix" {
   description = "Prefix for naming resources for easier organization"
   type        = string
+  validation {
+    condition     = length(var.name_prefix) <= 24
+    error_message = "The name_prefix must be 24 characters or less to ensure resource names don't exceed AWS limits."
+  }
 }
 
 # Environment label (e.g., dev, stage, prod) for tagging and organizing resources.

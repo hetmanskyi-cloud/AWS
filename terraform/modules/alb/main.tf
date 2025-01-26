@@ -9,12 +9,13 @@ resource "aws_lb" "application" {
 
   # Deletion protection to prevent accidental deletion
   enable_deletion_protection = var.alb_enable_deletion_protection
-  # Enable cross-zone load balancing for improved distribution
-  enable_cross_zone_load_balancing = true
+
   # To enhance security, enable header dropping for ALB
   drop_invalid_header_fields = true
+
   # The amount of time (in seconds) that ALB will keep the connection open if no data is being transferred.
   idle_timeout = 60
+
   # The type of IP addresses used by ALB
   ip_address_type = "ipv4"
 
@@ -70,6 +71,10 @@ resource "aws_lb_target_group" "wordpress" {
     cookie_duration = 86400       # Duration of the cookie (1 day)
   }
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   # --- Tags --- #
   tags = {
     Name        = "${var.name_prefix}-wordpress-tg" # Name tag for resource identification
@@ -80,24 +85,30 @@ resource "aws_lb_target_group" "wordpress" {
 # --- ALB Listener Configuration for HTTP --- #
 # HTTP traffic is redirected to HTTPS only if enable_https_listener is set to true.
 resource "aws_lb_listener" "http" {
-  count = 1 # Always create an HTTP listener for handling traffic.
-
   load_balancer_arn = aws_lb.application.arn
   port              = 80
   protocol          = "HTTP"
 
-  default_action {
-    type = var.enable_https_listener ? "redirect" : "forward"
-
-    # Redirect HTTP to HTTPS if HTTPS listener is active.
-    redirect {
-      protocol    = "HTTPS"
-      port        = "443"
-      status_code = "HTTP_301"
+  # Default action: Redirect HTTP traffic to HTTPS
+  dynamic "default_action" {
+    for_each = var.enable_https_listener ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        protocol    = "HTTPS"
+        port        = "443"
+        status_code = "HTTP_301"
+      }
     }
+  }
 
-    # Forward traffic to the target group if HTTPS listener is not active.
-    target_group_arn = var.enable_https_listener ? null : aws_lb_target_group.wordpress.arn
+  # Default action: Forward traffic to the target group
+  dynamic "default_action" {
+    for_each = !var.enable_https_listener ? [1] : []
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.wordpress.arn
+    }
   }
 }
 
@@ -131,7 +142,6 @@ resource "aws_lb_listener" "https" {
 #   - SSL Certificate ARN must be provided when enabling the HTTPS Listener.
 
 # Key Features:
-# - Cross-zone load balancing ensures even traffic distribution across AZs.
 # - Access logs: Controlled by the `var.enable_alb_access_logs` variable.
 # - Health checks monitor target availability and ensure stable traffic routing.
 # - Secure traffic:
