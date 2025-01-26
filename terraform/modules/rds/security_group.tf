@@ -24,27 +24,22 @@ resource "aws_security_group" "rds_sg" {
   }
 
   # --- Egress Rules (Outbound Traffic) --- #
-  # 1. Allows outbound traffic within the VPC for internal communication.
-  # 2. Grants outbound access to S3 and CloudWatch Logs over HTTPS (port 443) for backups and monitoring.
-  #    - Note: Access to S3 and CloudWatch is restricted to HTTPS (port 443) to enhance security.
+  # The egress block is typically NOT needed for RDS within a VPC.
 
-  # Outbound traffic within the VPC
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"                 # Allows all protocols
-    cidr_blocks = [var.vpc_cidr_block] # Restricts traffic to the VPC CIDR block
-    description = "Allow outbound traffic within VPC"
-  }
-
-  # Outbound traffic to S3 and CloudWatch Logs (restricted to HTTPS)
-  egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"         # HTTPS traffic only
-    cidr_blocks = ["0.0.0.0/0"] # Allows access to external resources (S3 and CloudWatch Logs)
-    description = "Allow outbound traffic to S3 and CloudWatch Logs over HTTPS"
-  }
+  # Explanation:
+  # 1. By default, Security Groups ALLOW ALL OUTBOUND TRAFFIC within the VPC.
+  # 2. For RDS backups and logs:
+  #    - Use VPC Endpoints for S3 and CloudWatch Logs to keep traffic private
+  #    - Traffic through VPC Endpoints NEVER leaves the VPC
+  #    - No explicit egress rules needed when using VPC Endpoints
+  # 3. For test environments:
+  #    - Default outbound rules are sufficient
+  #    - Explicit egress rules add unnecessary complexity
+  #
+  # Note: For production environments where strict network control is required:
+  # - Use VPC Endpoints for AWS services (S3, CloudWatch)
+  # - If VPC Endpoints are not used, configure egress rules with specific
+  #   AWS service IP ranges instead of 0.0.0.0/0
 
   # --- Tags for Resource Identification --- #
   tags = {
@@ -55,14 +50,13 @@ resource "aws_security_group" "rds_sg" {
 
 # --- Notes --- #
 # 1. **Ingress Rules**:
-#    - Restrict access to the RDS instance by allowing inbound traffic only from the specified ASG Security Group.
-#    - The 'db_port' variable defines the database port (e.g., 3306 for MySQL) and is passed dynamically.
+#    - Restrict access to the RDS instance by allowing inbound traffic only from the specified ASG Security Group
+#    - The 'db_port' variable defines the database port (e.g., 3306 for MySQL) and is passed dynamically
 
-# 2. **Egress Rules**:
-#    - Allow outbound traffic within the VPC for internal communication, restricted to the VPC CIDR block.
-#    - Allow outbound HTTPS traffic to S3 and CloudWatch Logs for backups and monitoring. Only HTTPS (port 443) is allowed to enhance security.
-#    - **Important**: The current code allows traffic to `0.0.0.0/0` on port 443 for S3 and CloudWatch Logs. This is acceptable for a test environment but not for production.
-#      - For production environments, consider using `aws_ip_ranges` to restrict access to the specific IP ranges of AWS services (e.g., S3 and CloudWatch Logs).
+# 2. **Security Best Practices**:
+#    - Use VPC Endpoints for AWS services to keep traffic private
+#    - Regularly audit Security Group rules
+#    - Follow the principle of least privilege for network access
 
 # 3. **Lifecycle Configuration**:
 #    - Ensures the Security Group is replaced without downtime by creating the new one before destroying the old one.

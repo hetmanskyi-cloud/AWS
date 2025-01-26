@@ -88,6 +88,7 @@ variable "db_port" {
 variable "multi_az" {
   description = "Enable Multi-AZ deployment for RDS high availability"
   type        = bool
+  default     = false # Default to false for test environment
   validation {
     condition     = var.multi_az == true || var.multi_az == false
     error_message = "Multi-AZ deployment must be a boolean value."

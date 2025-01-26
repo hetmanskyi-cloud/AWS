@@ -7,13 +7,6 @@ output "db_name" {
   value       = var.db_name
 }
 
-# --- Master Username --- #
-# Outputs the master username for managing the RDS instance.
-output "db_username" {
-  description = "The master username for the RDS database"
-  value       = var.db_username
-}
-
 # --- Security Group ID --- #
 # Outputs the ID of the Security Group created for RDS to control access.
 output "rds_security_group_id" {
@@ -46,7 +39,7 @@ output "db_endpoint" {
 # Outputs the ARN of the IAM role used for RDS Enhanced Monitoring.
 output "rds_monitoring_role_arn" {
   description = "The ARN of the IAM role for RDS Enhanced Monitoring"
-  value       = length(aws_iam_role.rds_monitoring_role) > 0 ? aws_iam_role.rds_monitoring_role[0].arn : null
+  value       = try(aws_iam_role.rds_monitoring_role[0].arn, null)
 }
 
 # --- Read Replicas Identifiers --- #
@@ -64,6 +57,28 @@ output "rds_read_replicas_ids" {
 output "db_instance_identifier" {
   description = "The identifier of the RDS instance"
   value       = aws_db_instance.db.id
+}
+
+# --- Read Replicas Endpoints --- #
+# Outputs a list of endpoints for all RDS read replicas.
+# Note: Returns an empty list if no read replicas are configured.
+output "rds_read_replicas_endpoints" {
+  description = "Endpoints of the RDS read replicas"
+  value       = [for replica in aws_db_instance.read_replica : replica.endpoint]
+}
+
+# --- RDS Instance ARN --- #
+# Outputs the ARN of the RDS instance.
+output "db_arn" {
+  description = "The ARN of the RDS instance"
+  value       = aws_db_instance.db.arn
+}
+
+# --- RDS Instance Status --- #
+# Outputs the current status of the RDS instance.
+output "db_status" {
+  description = "The current status of the RDS instance"
+  value       = aws_db_instance.db.status
 }
 
 # --- Notes --- #
