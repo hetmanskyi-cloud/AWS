@@ -40,6 +40,10 @@ resource "aws_elasticache_replication_group" "redis" {
   at_rest_encryption_enabled = true # Encrypts data at rest using KMS.
   transit_encryption_enabled = true # Encrypts data in transit between nodes.
 
+  lifecycle {
+    prevent_destroy = false # Prevent accidental deletion
+  }
+
   # Tags for resource identification.
   tags = {
     Name        = "${var.name_prefix}-redis-replication-group"
@@ -48,11 +52,12 @@ resource "aws_elasticache_replication_group" "redis" {
 }
 
 # --- ElastiCache Parameter Group --- #
-# Creates a custom parameter group for Redis 7.x to manage Redis-specific settings.
+# Creates a custom parameter group for Redis with version-specific family.
+# Uses default AWS parameters which are well-optimized for most use cases.
 resource "aws_elasticache_parameter_group" "redis_params" {
   name        = "${var.name_prefix}-redis-params"
-  family      = "redis7" # Specifies Redis version family.
-  description = "Default parameter group for Redis 7.x"
+  family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
+  description = "Parameter group for Redis ${var.redis_version} with default settings"
 
   tags = {
     Name        = "${var.name_prefix}-redis-params"
@@ -64,6 +69,6 @@ resource "aws_elasticache_parameter_group" "redis_params" {
 # 1. The ElastiCache Subnet Group ensures Redis is deployed in the specified private subnets.
 # 2. The Replication Group includes encryption at rest and in transit for enhanced security.
 # 3. Backups are retained for the configured number of days (snapshot_retention_limit).
-# 4. Automatic failover is enabled when replicas are configured to ensure high availability.
-# 5. Tags are applied to all resources for identification and management across environments.
-# 6. The Parameter Group uses the Redis 7.x family and can be extended to customize Redis settings.
+# 4. Automatic failover is enabled when replicas are configured for high availability.
+# 5. Parameter Group uses dynamic Redis family based on the specified version.
+# 6. All resources use consistent tagging for proper resource management.

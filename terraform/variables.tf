@@ -587,6 +587,18 @@ variable "enable_redis_replication_bytes_alarm" {
   }
 }
 
+variable "redis_evictions_threshold" {
+  description = "Threshold for Redis evictions alarm (number of evictions)"
+  type        = number
+  default     = 1
+}
+
+variable "redis_cpu_credits_threshold" {
+  description = "Threshold for Redis CPU credits alarm. Relevant for burstable instances."
+  type        = number
+  default     = 5
+}
+
 # --- Threshold for Replication Bytes Used Alarm --- #
 # Threshold for triggering the replication bytes used alarm.
 variable "redis_replication_bytes_threshold" {

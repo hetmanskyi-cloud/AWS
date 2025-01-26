@@ -21,7 +21,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_memory" {
 }
 
 # --- High CPU Utilization Alarm --- #
-# Monitors CPU usage to detect performance issues.
+# Monitors CPU usage. Uses 3 evaluation periods to reduce false alarms
+# from temporary CPU spikes which are normal for Redis operations.
 resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
   count                     = var.enable_redis_high_cpu_alarm ? 1 : 0
   alarm_name                = "${var.name_prefix}-redis-high-cpu"
@@ -52,7 +53,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
   namespace                 = "AWS/ElastiCache"
   period                    = 300
   statistic                 = "Sum"
-  threshold                 = 1 # Triggers alarm on any eviction
+  threshold                 = var.redis_evictions_threshold # Default can be 1
   alarm_actions             = [var.sns_topic_arn]
   ok_actions                = [var.sns_topic_arn]
   insufficient_data_actions = [var.sns_topic_arn]
@@ -93,7 +94,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
   namespace                 = "AWS/ElastiCache"
   period                    = 300
   statistic                 = "Average"
-  threshold                 = 5 # Alarm triggers if CPU credits fall below 5
+  threshold                 = var.redis_cpu_credits_threshold # Default can be 5
   alarm_actions             = [var.sns_topic_arn]
   ok_actions                = [var.sns_topic_arn]
   insufficient_data_actions = [var.sns_topic_arn]

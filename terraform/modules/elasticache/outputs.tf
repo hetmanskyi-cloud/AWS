@@ -28,14 +28,33 @@ output "redis_replication_group_id" {
   value       = aws_elasticache_replication_group.redis.id
 }
 
+# --- Redis Reader Endpoint --- #
+# Outputs the reader endpoint for read replicas when available
+output "redis_reader_endpoint" {
+  description = "The reader endpoint for Redis read replicas. Only available when replicas are configured."
+  value       = aws_elasticache_replication_group.redis.reader_endpoint_address
+}
+
+# --- Redis ARN --- #
+output "redis_arn" {
+  description = "The ARN of the Redis replication group. Useful for IAM policies."
+  value       = aws_elasticache_replication_group.redis.arn
+}
+
 # Failover status for Redis replication group
 output "failover_status" {
-  description = "Indicates if failover is enabled for Redis replication group."
+  description = "Indicates if automatic failover is enabled for the Redis replication group. True when replicas exist and failover is configured."
   value       = aws_elasticache_replication_group.redis.automatic_failover_enabled
 }
 
 # --- Notes --- #
-# 1. These outputs provide essential details for connecting to and managing the Redis replication group.
-# 2. The 'redis_endpoint' is the primary connection point for applications and clients.
-# 3. The 'redis_port' allows clients to determine the correct port for Redis connections.
-# 4. The 'redis_security_group_id' can be referenced to manage access rules or integrate with other modules.
+# 1. Connection Information:
+#    - 'redis_endpoint': Primary endpoint for write operations
+#    - 'redis_reader_endpoint': Endpoint for read operations when replicas exist
+#    - 'redis_port': Port number for client connections
+# 2. Status and Configuration:
+#    - 'failover_status': Automatic failover configuration
+# 3. Integration Points:
+#    - 'redis_security_group_id': For security group management
+#    - 'redis_arn': For IAM policies and permissions
+#    - 'redis_replication_group_id': For monitoring and management

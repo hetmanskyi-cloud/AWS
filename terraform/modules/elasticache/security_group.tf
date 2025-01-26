@@ -24,16 +24,20 @@ resource "aws_security_group" "redis_sg" {
     description     = "Allow inbound Redis traffic from ASG instances"
   }
 
-  # --- Egress Rule (Outbound Traffic) --- #
-  # Allows all outbound traffic to ensure connectivity with external services or clients.
-  # In production, carefully review requirements before restricting outbound traffic.
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"          # Allows all protocols.
-    cidr_blocks = ["0.0.0.0/0"] # Allows traffic to any destination.
-    description = "Allow all outbound traffic from ElastiCache"
-  }
+  # --- Egress Rule --- #
+
+  # The egress block is typically NOT needed for ElastiCache within a VPC.
+
+  # Explanation:
+  # 1. By default, Security Groups ALLOW ALL OUTBOUND TRAFFIC within the VPC.
+  # 2. ElastiCache instances only RESPOND to requests initiated by clients within the VPC.
+  # 3. Therefore, no explicit egress rules are needed for standard ElastiCache operation.
+  #
+  # For Production Environments (rare cases where outbound restrictions are needed):
+  # If your ElastiCache cluster needs to connect to resources OUTSIDE your VPC
+  # (e.g., specific external services), ONLY THEN should you add an egress rule.
+  # In such cases, restrict the egress rule to ONLY the necessary destination IP
+  # addresses or CIDR blocks and the required ports.
 
   # --- Tags for Resource Identification --- #
   tags = {
@@ -44,6 +48,6 @@ resource "aws_security_group" "redis_sg" {
 
 # --- Notes --- #
 # 1. The Security Group restricts inbound traffic to Redis (port 6379) from ASG instances specified by the 'asg_security_group_id'.
-# 2. The egress rule allows unrestricted outbound traffic to enable connectivity as needed.
+# 2. No explicit egress rules are needed as ElastiCache only responds to client requests within the VPC.
 # 3. Tags ensure the Security Group is identifiable and manageable across environments.
 # 4. Adjust 'redis_port' via input variables to match the Redis configuration if different from the default (6379).

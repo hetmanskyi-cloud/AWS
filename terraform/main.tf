@@ -341,6 +341,8 @@ module "elasticache" {
   enable_redis_replication_bytes_alarm = var.enable_redis_replication_bytes_alarm
   redis_replication_bytes_threshold    = var.redis_replication_bytes_threshold
   enable_redis_low_cpu_credits_alarm   = var.enable_redis_low_cpu_credits_alarm
+  redis_evictions_threshold            = var.redis_evictions_threshold
+  redis_cpu_credits_threshold          = var.redis_cpu_credits_threshold
 
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
