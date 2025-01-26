@@ -17,9 +17,11 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 ## Features
 
 - **Creates VPC Interface Endpoints**:
-  - **SSM Endpoint**: Provides access to AWS Systems Manager for instances in private subnets.
+  - **SSM Endpoint**: Provides access to AWS Systems Manager.
   - **SSM Messages Endpoint**: Facilitates communication for the Systems Manager Agent.
-  - **ASG Messages Endpoint**: Enables Systems Manager operations for ASG instances.
+  - **ASG Messages Endpoint**: Enables Systems Manager operations.
+  - All endpoints are configured with private DNS enabled for seamless integration.
+  - Can be deployed in both private and public subnets based on requirements.
 
 - **Optional CloudWatch Logs Integration**:
   - Creates a CloudWatch Log Group for monitoring VPC Endpoint traffic.
@@ -27,7 +29,7 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 
 - **Security Group Configuration**:
   - Creates a dedicated Security Group for VPC Endpoints.
-  - Ingress rules allow HTTPS access (port 443) from specified private subnets.
+  - Ingress rules allow HTTPS access (port 443) from specified private and public subnets.
   - Egress rules permit unrestricted outbound traffic for seamless communication with AWS services (not recommended for production environments).
 
 - **Environment-Specific Tags**:
@@ -58,9 +60,11 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 | `vpc_id`                              | `string`       | VPC ID for endpoint creation.                | **Required**                                                  |
 | `private_subnet_ids`                  | `list(string)` | Private subnet IDs for Interface Endpoints.  | **Required**                                                  |
 | `private_subnet_cidr_blocks`          | `list(string)` | CIDRs for subnets, must match subnet IDs.    | **Required**                                                  |
+| `public_subnet_ids`                   | `list(string)` | Public subnet IDs for Interface Endpoints.   | `[]` (Optional)                                               |
+| `public_subnet_cidr_blocks`           | `list(string)` | CIDRs for public subnets.                    | `[]` (Optional)                                               |
 | `kms_key_arn`                         | `string`       | KMS key ARN for log encryption.              | **Required** if `enable_cloudwatch_logs_for_endpoints` = true |
 | `enable_cloudwatch_logs_for_endpoints`| `bool`         | Enable CloudWatch Logs for VPC Endpoints.    | `false` (Optional)                                            |
-| `endpoints_log_retention_in_days`     | `number`       | Retention period for logs (days).            | `7` (Optional)                                               |
+| `endpoints_log_retention_in_days`     | `number`       | Retention period for logs (days).            | `7` (Optional)                                                |
 
 **Note:**
 - `kms_key_arn` is required only when `enable_cloudwatch_logs_for_endpoints` is set to `true`.
@@ -70,14 +74,18 @@ This module creates and manages VPC Interface Endpoints for AWS Systems Manager 
 
 ## Outputs
 
-| **Name**                    | **Description**                                           |
-|-----------------------------|-----------------------------------------------------------|
-| `ssm_endpoint_id`           | The ID of the SSM Interface Endpoint.                     |
-| `ssm_messages_endpoint_id`  | The ID of the SSM Messages Interface Endpoint.            |
-| `asg_messages_endpoint_id`  | The ID of the ASG Messages Interface Endpoint.            |
-| `endpoint_security_group_id`| ID of the Security Group for VPC Endpoints.               |
-| `log_group_arn`             | ARN of the CloudWatch Log Group for VPC Endpoints.        |
-| `log_group_name`            | Name of the CloudWatch Log Group for VPC Endpoints.       |
+| **Name**                         | **Description**                                           |
+|----------------------------------|-----------------------------------------------------------|
+| `ssm_endpoint_id`                | The ID of the SSM Interface Endpoint.                     |
+| `ssm_messages_endpoint_id`       | The ID of the SSM Messages Interface Endpoint.            |
+| `asg_messages_endpoint_id`       | The ID of the ASG Messages Interface Endpoint.            |
+| `endpoint_security_group_id`     | ID of the Security Group for VPC Endpoints.               |
+| `endpoints_log_group_arn`        | ARN of the CloudWatch Log Group for VPC Endpoints.        |
+| `endpoints_log_group_name`       | Name of the CloudWatch Log Group for VPC Endpoints.       |
+| `ssm_endpoint_dns_names`         | DNS names for the SSM Interface Endpoint.                 |
+| `ssm_messages_endpoint_dns_names`| DNS names for the SSM Messages Interface Endpoint.        |
+| `asg_messages_endpoint_dns_names`| DNS names for the ASG Messages Interface Endpoint.        |
+| `endpoints_state`                | State of all VPC endpoints.                               |
 
 ---
 
@@ -94,6 +102,8 @@ module "vpc_endpoints" {
   vpc_id                     = var.vpc_id
   private_subnet_ids         = var.private_subnet_ids
   private_subnet_cidr_blocks = var.private_subnet_cidr_blocks
+  public_subnet_ids          = var.public_subnet_ids
+  public_subnet_cidr_blocks  = var.public_subnet_cidr_blocks
   kms_key_arn                = module.kms.kms_key_arn # Reference to KMS module's output
 
   enable_cloudwatch_logs_for_endpoints = true
@@ -117,6 +127,10 @@ output "vpc_endpoints_security_group_id" {
 - Restrict egress rules to necessary IP addresses and ports to improve security in production environments.
 - Avoid using `0.0.0.0/0` in production unless strictly required.
 
+### Testing Environment Note
+- Current configuration allows all outbound traffic (`0.0.0.0/0`) for testing purposes.
+- This is acceptable for testing but must be reviewed and restricted before production use.
+
 ### CloudWatch Logs
 - Enable CloudWatch Logs for detailed monitoring and troubleshooting.
 - Use a dedicated KMS key for log encryption and ensure key rotation is enabled.
@@ -131,7 +145,8 @@ output "vpc_endpoints_security_group_id" {
 
 - Add CloudWatch Logs configuration for ASG Messages and SSM Messages endpoints (if needed).
 - Introduce granular IAM policies for CloudWatch Logs to limit permissions.
-- Improve egress rule configuration to better align with production security practices.
+- Implement more restrictive egress rules for production environments.
+- Add support for custom endpoint policies.
 - Expand the documentation with advanced configurations, such as multi-environment setups and integration with centralized logging solutions.
 
 ---

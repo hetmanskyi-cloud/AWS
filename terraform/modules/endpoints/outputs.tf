@@ -4,21 +4,43 @@
 # Outputs the ID of the Interface Endpoint for AWS Systems Manager (SSM).
 output "ssm_endpoint_id" {
   description = "The ID of the SSM Interface Endpoint"
-  value       = aws_vpc_endpoint.ssm.id
+  value       = try(aws_vpc_endpoint.ssm.id, null)
 }
 
 # --- SSM Messages Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for SSM Messages, used by the Systems Manager Agent.
 output "ssm_messages_endpoint_id" {
   description = "The ID of the SSM Messages Interface Endpoint"
-  value       = aws_vpc_endpoint.ssm_messages.id
+  value       = try(aws_vpc_endpoint.ssm_messages.id, null)
+}
+
+# --- SSM Messages Interface Endpoint DNS Names --- #
+output "ssm_messages_endpoint_dns_names" {
+  description = "DNS names for the SSM Messages Interface Endpoint"
+  value       = [for entry in aws_vpc_endpoint.ssm_messages.dns_entry : entry.dns_name]
+}
+
+# --- ASG Messages Interface Endpoint DNS Names --- #
+output "asg_messages_endpoint_dns_names" {
+  description = "DNS names for the ASG Messages Interface Endpoint"
+  value       = [for entry in aws_vpc_endpoint.asg_messages.dns_entry : entry.dns_name]
+}
+
+# --- Endpoint States --- #
+output "endpoints_state" {
+  description = "State of all VPC endpoints"
+  value = {
+    ssm          = aws_vpc_endpoint.ssm.state
+    ssm_messages = aws_vpc_endpoint.ssm_messages.state
+    asg_messages = aws_vpc_endpoint.asg_messages.state
+  }
 }
 
 # --- ASG Messages Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for ASG Messages, used for Systems Manager communications.
 output "asg_messages_endpoint_id" {
   description = "The ID of the ASG Messages Interface Endpoint"
-  value       = aws_vpc_endpoint.asg_messages.id
+  value       = try(aws_vpc_endpoint.asg_messages.id, null)
 }
 
 # --- Endpoint Security Group ID --- #
@@ -36,15 +58,21 @@ output "ssm_endpoint_dns_names" {
 }
 
 # Output ARN of the CloudWatch Log Group for VPC Endpoints
-output "log_group_arn" {
-  description = "ARN of the CloudWatch Log Group for VPC Endpoints"
-  value       = length(aws_cloudwatch_log_group.endpoint_logs) > 0 ? aws_cloudwatch_log_group.endpoint_logs[0].arn : null
+output "endpoints_log_group_arn" {
+  description = <<-EOT
+    ARN of the CloudWatch Log Group for VPC Endpoints.
+    Returns null if CloudWatch logging is not enabled.
+  EOT
+  value       = try(aws_cloudwatch_log_group.endpoint_logs[0].arn, null)
 }
 
 # Output name of the CloudWatch Log Group for VPC Endpoints
-output "log_group_name" {
-  description = "Name of the CloudWatch Log Group for VPC Endpoints"
-  value       = length(aws_cloudwatch_log_group.endpoint_logs) > 0 ? aws_cloudwatch_log_group.endpoint_logs[0].name : null
+output "endpoints_log_group_name" {
+  description = <<-EOT
+    Name of the CloudWatch Log Group for VPC Endpoints.
+    Returns null if CloudWatch logging is not enabled.
+  EOT
+  value       = try(aws_cloudwatch_log_group.endpoint_logs[0].name, null)
 }
 
 # --- Notes --- #

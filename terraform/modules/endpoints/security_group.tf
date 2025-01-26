@@ -14,10 +14,9 @@ resource "aws_security_group" "endpoints_sg" {
     create_before_destroy = true
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-endpoints-security-group"
-    Environment = var.environment
-  }
+  tags = merge(local.tags, {
+    Name = "${var.name_prefix}-endpoints-security-group"
+  })
 }
 
 # --- Ingress Rules (Inbound Traffic) --- #
@@ -45,12 +44,12 @@ resource "aws_security_group_rule" "all_outbound" {
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
   description       = "Allow all outbound traffic"
-  # Note: In production, restrict egress traffic to the minimal required set of IP addresses and ports.
-  # Using 0.0.0.0/0 is strongly discouraged in production environments.
+  # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
+  # This configuration simplifies testing but should be reviewed before production use.
 }
 
 # --- Notes --- #
 # 1. This Security Group is used exclusively for Interface VPC Endpoints (SSM, SSM Messages, ASG Messages).
-# 2. Ingress rules allow HTTPS (port 443) traffic only from private subnet CIDR blocks.
+# 2. Ingress rules allow HTTPS (port 443) traffic from both private and public subnet CIDR blocks.
 # 3. Egress rules permit unrestricted outbound traffic for Endpoint communication.
 # 4. Tags are applied to ensure easy identification and management of the Security Group.

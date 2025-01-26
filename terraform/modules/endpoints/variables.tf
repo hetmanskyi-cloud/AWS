@@ -44,6 +44,11 @@ variable "vpc_id" {
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for interface endpoints"
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for id in var.private_subnet_ids : can(regex("^subnet-[a-f0-9]{8,17}$", id))])
+    error_message = "All subnet IDs must be valid AWS subnet IDs."
+  }
 }
 
 # --- Private Subnet CIDR Blocks --- #
@@ -51,6 +56,11 @@ variable "private_subnet_ids" {
 variable "private_subnet_cidr_blocks" {
   description = "CIDR blocks for private subnets"
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for cidr in var.private_subnet_cidr_blocks : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))])
+    error_message = "All CIDR blocks must be in valid format (e.g., '10.0.0.0/24')."
+  }
 }
 
 # --- Public Subnet IDs --- #
