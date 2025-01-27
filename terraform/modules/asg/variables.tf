@@ -64,17 +64,32 @@ variable "enable_public_ip" {
 variable "autoscaling_min" {
   description = "Minimum number of instances in the Auto Scaling Group"
   type        = number
+
+  validation {
+    condition     = var.autoscaling_min >= 0
+    error_message = "The minimum number of instances must be greater than or equal to 0."
+  }
 }
 
 variable "autoscaling_max" {
   description = "Maximum number of instances in the Auto Scaling Group"
   type        = number
+
+  validation {
+    condition     = var.autoscaling_max >= 0
+    error_message = "The maximum number of instances must be greater than or equal to 0."
+  }
 }
 
 variable "desired_capacity" {
   description = "Desired number of instances in the Auto Scaling Group; null for dynamic adjustment"
   type        = number
   default     = null
+
+  validation {
+    condition     = var.desired_capacity == null ? true : var.desired_capacity >= 0
+    error_message = "The desired capacity must be greater than or equal to 0 or null for dynamic adjustment."
+  }
 }
 
 variable "enable_scaling_policies" {
@@ -87,13 +102,23 @@ variable "enable_scaling_policies" {
 # Parameters related to CPU and network usage for scaling decisions.
 
 variable "scale_out_cpu_threshold" {
-  description = "CPU utilization threshold for scaling out (increasing instance count)"
+  description = "CPU utilization threshold (percentage) for scaling out (increasing instance count)"
   type        = number
+
+  validation {
+    condition     = var.scale_out_cpu_threshold > 0 && var.scale_out_cpu_threshold <= 100
+    error_message = "The CPU threshold must be between 1 and 100 percent."
+  }
 }
 
 variable "scale_in_cpu_threshold" {
-  description = "CPU utilization threshold for scaling in (decreasing instance count)"
+  description = "CPU utilization threshold (percentage) for scaling in (decreasing instance count)"
   type        = number
+
+  validation {
+    condition     = var.scale_in_cpu_threshold > 0 && var.scale_in_cpu_threshold <= 100
+    error_message = "The CPU threshold must be between 1 and 100 percent."
+  }
 }
 
 variable "network_in_threshold" {
@@ -317,12 +342,20 @@ variable "enable_data_source" {
 }
 
 # --- Notes --- #
+
 # 1. **Variable Grouping:**
-#    - Variables are grouped by functionality to simplify management.
+#    - Variables are grouped by functionality for easier management.
 #
 # 2. **Sensitive Data Handling:**
 #    - The `db_password` variable is marked as sensitive to avoid exposing secrets.
+#    - Ensure proper encryption and secure handling of sensitive values.
 #
-# 3. **Best Practices:**
-#    - Use different values for `ssh_allowed_cidr` in production to restrict access.
-#    - Ensure proper values are set for autoscaling thresholds based on traffic patterns.
+# 3. **Validation Rules:**
+#    - Autoscaling values have logical constraints (min >= 0, max > 0).
+#    - CPU thresholds must be between 1 and 100 percent.
+#    - Volume types are restricted to supported AWS EBS types.
+#
+# 4. **Best Practices:**
+#    - Use different values for `ssh_allowed_cidr` in production.
+#    - Set appropriate autoscaling thresholds based on traffic patterns.
+#    - Consider enabling EBS encryption in production environments.

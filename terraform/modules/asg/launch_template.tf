@@ -58,7 +58,7 @@ resource "aws_launch_template" "asg_launch_template" {
   metadata_options {
     http_endpoint               = "enabled"  # Enable instance metadata endpoint
     http_tokens                 = "required" # Enforce IMDSv2 for metadata security
-    http_put_response_hop_limit = 1          # # Consider the route through ALB
+    http_put_response_hop_limit = 2          # # Consider the route through ALB
     instance_metadata_tags      = "enabled"  # Enable instance metadata tags for better tracking.
   }
 
@@ -78,6 +78,7 @@ resource "aws_launch_template" "asg_launch_template" {
   # --- Network Interface Configuration --- #
   # Deny public IPs and set security groups for instance networking.
   network_interfaces {
+    device_index                = 0
     associate_public_ip_address = var.enable_public_ip                       # Enable/Disable public IPs
     delete_on_termination       = true                                       # Delete interface on termination
     security_groups             = [aws_security_group.asg_security_group.id] # Security groups for networking
@@ -93,6 +94,12 @@ resource "aws_launch_template" "asg_launch_template" {
       Environment = var.environment                   # Environment tag (e.g., dev, stage, prod)
     }
   }
+
+  # --- Dependency and Error Handling --- #
+  depends_on = [
+    aws_iam_instance_profile.asg_instance_profile,
+    aws_security_group.asg_security_group
+  ]
 
   # --- User Data --- #
   # Provides an installation and configuration script for WordPress.

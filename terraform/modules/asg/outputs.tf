@@ -7,7 +7,6 @@
 output "asg_id" {
   description = "The ID of the Auto Scaling Group"
   value       = aws_autoscaling_group.asg.id
-  depends_on  = [aws_autoscaling_group.asg]
 }
 
 # The name of the Auto Scaling Group for tracking and referencing purposes.
@@ -35,12 +34,6 @@ output "instance_public_ips" {
 output "instance_private_ips" {
   description = "The private IPs of instances in the Auto Scaling Group"
   value       = var.enable_data_source ? try(data.aws_instances.asg_instances[0].private_ips, []) : []
-}
-
-# The instance IDs of ASG instances managed via AWS Systems Manager (SSM).
-output "ssm_managed_instance_ids" {
-  description = "The instance IDs of ASG instances managed via SSM"
-  value       = var.enable_data_source ? try(data.aws_instances.asg_instances[0].ids, []) : []
 }
 
 # --- Launch Template Details --- #
@@ -81,23 +74,22 @@ output "scale_in_policy_arn" {
 
 # --- Output Notes --- #
 # 1. **ASG Outputs:**
-#    - The `asg_id` can be used for tracking and referencing ASG instances in other modules.
+#    - `asg_id` and `asg_name` provide core identifiers for the Auto Scaling Group.
 #
-# 2. **Instance IPs and IDs:**
-#    - Public/private IPs and instance IDs are available if the `enable_data_source` variable is enabled.
+# 2. **Instance Details:**
+#    - Instance IDs, public IPs, and private IPs are available when `enable_data_source = true`.
+#    - Instance IDs can be used for both general management and SSM operations.
 #
 # 3. **Launch Template:**
-#    - Outputs related to the launch template provide control over instance configuration versions.
+#    - `launch_template_id` and version help track instance configurations.
 #
 # 4. **Security Groups:**
-#    - `asg_security_group_id` provides reference for applying additional rules if needed.
+#    - Security group ID enables additional rule management if needed.
 #
 # 5. **Scaling Policies:**
-#    - Scaling policies allow fine-grained control over instance scaling operations.
+#    - Policy ARNs are exposed for CloudWatch Alarm integration.
 #
-# 6. **SSM Integration:**
-#    - Outputs related to SSM allow automation tools to interact with instances securely.
-#
-# 7. **Best Practices:**
-#    - Avoid exposing `instance_public_ips` in production environments for security reasons.
-#    - Regularly review scaling thresholds to optimize resource allocation.
+# 6. **Best Practices:**
+#    - Use private IPs for internal communication in production.
+#    - Monitor scaling policy triggers through CloudWatch.
+#    - Leverage SSM for secure instance management.

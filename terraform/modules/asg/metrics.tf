@@ -10,12 +10,13 @@ resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
   alarm_name          = "${var.name_prefix}-scale-out"
   alarm_description   = "Triggers when CPU utilization exceeds ${var.scale_out_cpu_threshold}% for 5 minutes, causing an additional instance to be added to the ASG."
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
+  evaluation_periods  = 2
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 300
   statistic           = "Average"
   threshold           = var.scale_out_cpu_threshold
+  treat_missing_data  = "notBreaching"
   alarm_actions       = var.enable_scaling_policies ? [aws_autoscaling_policy.scale_out_policy[0].arn] : [] # Trigger the scale-out policy
   ok_actions          = [var.sns_topic_arn]                                                                 # Notify via SNS when the alarm state returns to OK to confirm system stability.
   dimensions = {
@@ -31,14 +32,15 @@ resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
   alarm_name          = "${var.name_prefix}-scale-in"
   alarm_description   = "Triggers when CPU utilization falls below ${var.scale_in_cpu_threshold}% for 5 minutes, causing an instance to be removed from the ASG."
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 1
+  evaluation_periods  = 2
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 300
   statistic           = "Average"
   threshold           = var.scale_in_cpu_threshold
-  alarm_actions       = var.enable_scaling_policies ? [aws_autoscaling_policy.scale_out_policy[0].arn] : [] # Trigger the scale-in policy
-  ok_actions          = [var.sns_topic_arn]                                                                 # Notify via SNS when the alarm state returns to OK to confirm system stability.
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.enable_scaling_policies ? [aws_autoscaling_policy.scale_in_policy[0].arn] : [] # Trigger the scale-in policy
+  ok_actions          = [var.sns_topic_arn]                                                                # Notify via SNS when the alarm state returns to OK to confirm system stability.
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
@@ -59,6 +61,7 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
   period              = 300
   statistic           = "Average"
   threshold           = 1
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [var.sns_topic_arn] # Notify via SNS topic
   ok_actions          = [var.sns_topic_arn] # Notify via SNS when the alarm state returns to OK to confirm system stability.
   dimensions = {
@@ -81,7 +84,9 @@ resource "aws_cloudwatch_metric_alarm" "high_network_in" {
   period              = 300
   statistic           = "Average"
   threshold           = var.network_in_threshold
-  alarm_actions       = [] # No action configured; for monitoring only
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn] # Notify via SNS topic
+  ok_actions          = [var.sns_topic_arn] # Notify via SNS when the alarm state returns to OK to confirm system stability.
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
@@ -103,7 +108,9 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
   period              = 300
   statistic           = "Average"
   threshold           = var.network_out_threshold
-  alarm_actions       = [] # No action configured; for monitoring only
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.sns_topic_arn] # Notify via SNS topic
+  ok_actions          = [var.sns_topic_arn] # Notify via SNS when the alarm state returns to OK to confirm system stability.
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
@@ -113,20 +120,27 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
 
 # 1. **Alarm Logic**:
 #    - Each alarm is enabled or disabled using individual variables (e.g., `enable_scale_out_alarm`).
+#    - All alarms use treat_missing_data = "notBreaching" to prevent false alarms.
 #
 # 2. **Scaling Alarms**:
 #    - `scale_out_alarm`: Scales out (adds instances) when CPU utilization exceeds the threshold.
 #    - `scale_in_alarm`: Scales in (removes instances) when CPU utilization drops below the threshold.
+#    - Both use 2 evaluation periods to avoid reaction to temporary spikes.
 #
 # 3. **Health Monitoring**:
-#    - `asg_status_check_failed`: Ensures all instances in ASG pass AWS health checks.
+#    - `asg_status_check_failed`: Complements ALB health checks with EC2-level monitoring.
+#    - Can work simultaneously with ALB checks for comprehensive health monitoring.
+#    - Disabled by default but can be enabled for additional system-level insights.
 #
 # 4. **Traffic Monitoring**:
 #    - `high_network_in`: Tracks unusually high incoming traffic.
 #    - `high_network_out`: Tracks unusually high outgoing traffic.
+#    - Both use 3 evaluation periods with 2 datapoints to alarm for reliable detection.
 #
 # 5. **SNS Notifications**:
-#    - Critical alarms (e.g., `asg_status_check_failed`) notify via SNS if a topic ARN is provided.
+#    - All alarms send both alarm and OK notifications via SNS if topic ARN is provided.
+#    - Network alarms now include SNS notifications for better visibility.
 #
 # 6. **Scalability**:
 #    - Modular design allows easy addition of new alarms and metrics as needed.
+#    - Each alarm can be independently enabled/disabled based on environment needs.

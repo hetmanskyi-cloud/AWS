@@ -18,7 +18,7 @@ resource "aws_security_group" "asg_security_group" {
   }
 }
 
-# SSH Traffic
+# SSH Traffic (consider using SSM for production environments)
 resource "aws_security_group_rule" "allow_ssh" {
   count = var.enable_asg_ssh_access ? 1 : 0
 
@@ -61,35 +61,19 @@ resource "aws_security_group_rule" "alb_https" {
   description              = "Allow HTTPS traffic from ALB to ASG"
 }
 
-resource "aws_security_group_rule" "rds_access" {
-  security_group_id        = aws_security_group.asg_security_group.id
-  type                     = "ingress"
-  from_port                = 3306
-  to_port                  = 3306
-  protocol                 = "tcp"
-  source_security_group_id = var.rds_security_group_id
-  description              = "Allow MySQL traffic from ASG to RDS"
-}
-
-resource "aws_security_group_rule" "redis_access" {
-  security_group_id        = aws_security_group.asg_security_group.id
-  type                     = "ingress"
-  from_port                = 6379
-  to_port                  = 6379
-  protocol                 = "tcp"
-  source_security_group_id = var.redis_security_group_id
-  description              = "Allow Redis traffic from ASG to Redis"
-}
-
 # --- Egress Rules (Outbound Traffic) --- #
 
 # Allow all outbound traffic
-resource "aws_vpc_security_group_egress_rule" "all_outbound" {
+resource "aws_security_group_rule" "all_outbound" {
   security_group_id = aws_security_group.asg_security_group.id
-  ip_protocol       = "-1"                                           # All protocols
-  cidr_ipv4         = "0.0.0.0/0"                                    # Allow traffic to all destinations
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"                                           # All protocols
+  cidr_blocks       = ["0.0.0.0/0"]                                  # Allow traffic to all destinations
   description       = "Allow all outbound traffic for ASG instances" # Review before production deployment
 
+  # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
 }
 
 # --- Notes --- #

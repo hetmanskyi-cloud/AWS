@@ -115,11 +115,19 @@ module "asg" {
 
 1. **SSH Access:**
    - Restrict SSH in prod using `ssh_allowed_cidr`.
-   - Use Systems Manager (SSM) for secure management without persistent SSH access.
-2. **Scaling Policies:**
-   - Monitor CPU utilization thresholds to optimize scaling and resource usage.
-3. **CloudWatch Alarms:**
+   - Use Systems Manager (SSM) for secure management.
+2. **Encryption:**
+   - Enable KMS encryption for EBS volumes in production.
+   - Use encrypted connections for RDS and Redis.
+3. **Security Groups:**
+   - Review and restrict security group rules.
+   - Ensure proper isolation between components.
+4. **Monitoring:**
+   - Monitor CPU and network thresholds.
+   - Set up SNS notifications for alerts.
    - Use alarms for proactive issue detection.
+5. **Scaling Policies:**
+   - Monitor CPU utilization thresholds to optimize scaling and resource usage.  
 
 ---
 
