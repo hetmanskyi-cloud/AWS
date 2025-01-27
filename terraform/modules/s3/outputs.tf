@@ -4,7 +4,7 @@
 # Scripts Bucket
 output "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket used for WordPress setup scripts"
-  value       = lookup(var.buckets, "scripts", false) ? aws_s3_bucket.buckets["scripts"].arn : null
+  value       = length(aws_s3_bucket.scripts) > 0 ? aws_s3_bucket.scripts[0].arn : null
 }
 
 # Output the Scripts bucket name

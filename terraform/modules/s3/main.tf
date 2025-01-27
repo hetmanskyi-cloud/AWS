@@ -194,7 +194,7 @@ resource "aws_s3_bucket" "replication" {
 resource "aws_s3_bucket_replication_configuration" "replication_config" {
   count = lookup(var.buckets, "replication", false) && var.enable_s3_replication ? 1 : 0
 
-  bucket = aws_s3_bucket.buckets["replication"].id
+  bucket = aws_s3_bucket.replication[0].id
 
   role = length(aws_iam_role.replication_role) > 0 ? aws_iam_role.replication_role[0].arn : null
 

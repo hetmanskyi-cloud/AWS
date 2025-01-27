@@ -106,6 +106,13 @@ variable "enable_cors" {
   default     = false # Set to true in `terraform.tfvars` to enable CORS for the WordPress media bucket
 }
 
+# Allowed origins
+variable "allowed_origins" {
+  description = "List of allowed origins for S3 bucket CORS"
+  type        = list(string)
+  default     = ["https://example.com"]
+}
+
 # --- DynamoDB and Lambda Configuration --- #
 
 # Enable DynamoDB table for Terraform state locking.

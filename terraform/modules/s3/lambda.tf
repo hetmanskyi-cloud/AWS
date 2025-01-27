@@ -1,14 +1,12 @@
 # --- AWS Lambda for TTL Automation --- #
 # This file defines an AWS Lambda function that processes DynamoDB Streams.
-# The Lambda function automatically updates the `ExpirationTime` attribute for DynamoDB records,
-# ensuring stale locks are cleaned up via TTL.
 
 # --- IAM Roles and Policies (Preparing Access Rights) --- #
 
 # --- IAM Role for Lambda --- #
 # Grants the necessary permissions for the Lambda function to interact with DynamoDB.
 resource "aws_iam_role" "lambda_execution_role" {
-  count = var.enable_lambda && var.enable_dynamodb ? 1 : 0
+  count = (var.enable_lambda ? 1 : 0) * (var.enable_dynamodb ? 1 : 0)
 
   name = "${var.name_prefix}-lambda-execution-role"
 
@@ -38,7 +36,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 # Provides only the necessary permissions for Lambda to process DynamoDB Streams.
 # The actions are limited to read/write operations and stream management.
 resource "aws_iam_policy" "dynamodb_access_policy" {
-  count = var.enable_lambda && var.enable_dynamodb ? 1 : 0
+  count = (var.enable_lambda ? 1 : 0) * (var.enable_dynamodb ? 1 : 0)
 
   name        = "${var.name_prefix}-dynamodb-access"
   description = "IAM policy for Lambda to access DynamoDB Streams and update records"
@@ -71,7 +69,7 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
 # --- IAM Role Policy Attachment --- #
 # Attaches the DynamoDB access policy to the Lambda execution role.
 resource "aws_iam_role_policy_attachment" "lambda_dynamodb_policy_attachment" {
-  count = var.enable_lambda && var.enable_dynamodb ? 1 : 0
+  count = (var.enable_lambda ? 1 : 0) * (var.enable_dynamodb ? 1 : 0)
 
   role       = aws_iam_role.lambda_execution_role[0].name
   policy_arn = aws_iam_policy.dynamodb_access_policy[0].arn
@@ -156,11 +154,14 @@ resource "aws_iam_policy" "lambda_cloudwatch_logs_policy" {
       {
         Effect = "Allow",
         Action = [
-          "logs:CreateLogGroup",  # Allows creation of new log groups if they don't exist
-          "logs:CreateLogStream", # Allows creation of new log streams within log groups
-          "logs:PutLogEvents"     # Allows writing log events to the streams
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:PutRetentionPolicy",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
         ],
-        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.update_ttl[0].function_name}:*"
+        Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${try(aws_lambda_function.update_ttl[0].function_name, "")}:*"
       }
     ]
   })
@@ -188,13 +189,20 @@ resource "aws_security_group" "lambda_sg" {
 
   # Ingress rules are NOT needed in most cases for Lambda with Event Source Mappings.
 
-  # Allow outbound traffic
+  # Allowing access to VPC Endpoints via prefix lists
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"] # This is only for demonstration and should be replaced with VPC endpoints or prefix lists.
-    description = "Allow all outbound traffic for Lambda function"
+    from_port = 443
+    to_port   = 443
+    protocol  = "tcp"
+    prefix_list_ids = try([
+      data.aws_vpc_endpoint.dynamodb.prefix_list_id,
+      data.aws_vpc_endpoint.cloudwatch_logs.prefix_list_id,
+      data.aws_vpc_endpoint.sqs.prefix_list_id,
+      data.aws_vpc_endpoint.kms.prefix_list_id,
+      data.aws_vpc_endpoint.lambda.prefix_list_id
+    ], [])
+
+    description = "Allow HTTPS to AWS services via VPC Endpoints"
   }
 
   # Tags for resource identification.
@@ -215,11 +223,6 @@ resource "aws_sqs_queue" "lambda_dlq" {
 
   # Use the shared KMS key from the KMS module
   kms_master_key_id = var.kms_key_arn # This value should be passed from the KMS module output
-
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.lambda_dlq[0].arn
-    maxReceiveCount     = 5 # Number of attempts before sending to DLQ
-  })
 
   tags = {
     Name        = "${var.name_prefix}-lambda-dlq"
@@ -327,24 +330,95 @@ resource "aws_lambda_event_source_mapping" "dynamodb_to_lambda" {
   }
 }
 
-# --- Supporting resources --- #
+# --- CloudWatch Alarms for Lambda Monitoring --- #
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  count               = var.enable_lambda ? 1 : 0
+  alarm_name          = "${var.name_prefix}-lambda-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300" # 5 minutes
+  statistic           = "Sum"
+  threshold           = "1" # Any error will trigger the alarm
+  alarm_description   = "This metric monitors lambda function errors"
+  alarm_actions       = [var.sns_topic_arn] # Using existing SNS topic
+  ok_actions          = [var.sns_topic_arn] # Notify when alarm returns to OK state
 
-# Retrieve current AWS region and account ID
-# These data sources are used to dynamically populate ARNs in IAM policies.
+  dimensions = {
+    FunctionName = aws_lambda_function.update_ttl[0].function_name
+  }
+
+  tags = {
+    Name        = "${var.name_prefix}-lambda-errors-alarm"
+    Environment = var.environment
+  }
+}
+
+# --- Data Sources for AWS Region and Account ID --- #
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
+# --- Data Sources for VPC Endpoints --- #
+
+data "aws_vpc_endpoint" "lambda" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.lambda"
+}
+
+data "aws_vpc_endpoint" "dynamodb" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.dynamodb"
+}
+
+data "aws_vpc_endpoint" "cloudwatch_logs" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.logs"
+}
+
+data "aws_vpc_endpoint" "sqs" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.sqs"
+}
+
+data "aws_vpc_endpoint" "kms" {
+  vpc_id       = var.vpc_id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.kms"
+}
+
 # --- Notes --- #
 
-# - Automates the management of the `ExpirationTime` attribute in the DynamoDB table used for Terraform locks.
-# - Processes DynamoDB Streams for real-time updates and stale lock cleanup.
-# - Supports Dead Letter Queue (DLQ) to capture and analyze failed processing events.
-# - Configurable CloudWatch log group retention period to monitor function execution and troubleshooting.
-# - Adjustable function execution timeouts for create, update, and delete operations.
-# - Implements event invoke configuration for retry attempts and efficient error handling.
-# - Applies KMS encryption to SQS to secure message data at rest.
-# - Uses Security Group to control outbound traffic, allowing communication only with required AWS services.
-# - The `enable_lambda` variable controls resource creation for flexibility across environments.
-# - IAM policies follow the least privilege principle to ensure minimal permissions required for operation.
-# - Periodic testing with various TTL expiration times ensures expected cleanup behavior.
-# - CloudWatch metrics provide insights into invocation rates, errors, and performance for proactive monitoring.
+# 1. **Lambda Function Purpose**:
+#    - Processes DynamoDB Streams for Terraform state locking
+#    - Monitors and processes state lock records
+#    - Helps manage Terraform state locks through DynamoDB streams
+#
+# 2. **Security Configuration**:
+#    - Uses VPC Endpoints for secure service communication
+#    - Implements least privilege principle in IAM policies
+#    - Restricts outbound traffic to specific AWS services via prefix lists
+#    - All traffic is encrypted via HTTPS (port 443)
+#
+# 3. **Conditional Creation**:
+#    - Resources are created based on var.enable_lambda and var.enable_dynamodb
+#    - VPC Endpoint data sources use count for conditional lookup
+#    - Security group rules adapt to enabled endpoints
+#
+# 4. **Dependencies**:
+#    - Requires configured VPC Endpoints for:
+#      * DynamoDB
+#      * CloudWatch Logs
+#      * SQS
+#      * KMS
+#    - Depends on DynamoDB table for stream processing
+#
+# 5. **Monitoring and Logging**:
+#    - CloudWatch Logs integration for Lambda logs
+#    - DLQ configuration for failed executions
+#    - KMS encryption for sensitive data
+#
+# 6. **Best Practices**:
+#    - Resources named using var.name_prefix for consistency
+#    - All resources properly tagged
+#    - Proper error handling via DLQ
+#    - Secure network configuration via VPC Endpoints

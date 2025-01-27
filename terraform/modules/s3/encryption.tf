@@ -8,7 +8,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
   for_each = { for key, value in var.buckets : key => value if value }
 
   # Target bucket
-  bucket = each.key
+  bucket = aws_s3_bucket.buckets[each.key].id
 
   # Server-Side Encryption Configuration
   rule {
@@ -16,6 +16,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
       sse_algorithm     = "aws:kms"       # Use AWS KMS for encryption
       kms_master_key_id = var.kms_key_arn # KMS key for encrypting data
     }
+    bucket_key_enabled = true # Optimizes costs for data encryption
   }
 
   lifecycle {

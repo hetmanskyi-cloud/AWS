@@ -55,11 +55,6 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "S" # S: String type.
   }
 
-  attribute {
-    name = "ExpirationTime"
-    type = "N" # N: Numeric type (Unix timestamp for TTL).
-  }
-
   # --- Tags --- #
   # Add descriptive tags for resource identification and organization.
   tags = {

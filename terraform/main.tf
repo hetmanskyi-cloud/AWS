@@ -125,6 +125,7 @@ module "s3" {
   enable_lambda                     = var.enable_lambda
   lambda_log_retention_days         = var.lambda_log_retention_days
   enable_cors                       = var.enable_cors
+  allowed_origins                   = var.allowed_origins
   enable_s3_replication             = var.enable_s3_replication
 
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn

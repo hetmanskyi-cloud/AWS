@@ -15,11 +15,9 @@ locals {
 resource "aws_s3_bucket_logging" "bucket_logging" {
   for_each = { for key, value in var.buckets : key => value if value && key != "logging" }
 
-  bucket        = each.key
+  bucket        = aws_s3_bucket.buckets[each.key].id
   target_bucket = aws_s3_bucket.buckets["logging"].id
   target_prefix = "${var.name_prefix}/${local.bucket_prefixes[each.key]}"
-
-  depends_on = [aws_s3_bucket.logging]
 }
 
 # --- Logging for Logging Bucket --- #

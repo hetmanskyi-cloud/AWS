@@ -12,7 +12,7 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
   cors_rule {
     allowed_headers = ["Authorization", "Content-Type"] # Restrict headers to required ones.
     allowed_methods = ["GET", "POST"]                   # Only GET, POST are allowed.
-    allowed_origins = ["*"]                             # Initially allow all origins; restrict in prod if needed.
+    allowed_origins = var.allowed_origins               # Initially allow all origins; restrict in prod if needed.
     max_age_seconds = 3000                              # Cache preflight responses.
   }
 
