@@ -128,6 +128,36 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   })
 }
 
+# --- CloudTrail Configuration --- #
+# This policy allows CloudTrail to write logs to a dedicated prefix in the logging bucket.
+# Modern configuration following latest AWS security recommendations:
+# 1. Uses only necessary permissions (s3:PutObject)
+# 2. Restricts access to specific prefix (/cloudtrail/*)
+# 3. No ACL permissions required with modern bucket ownership settings
+# 4. Works in conjunction with:
+#    - Bucket public access blocks
+#    - Object ownership controls
+#    - KMS encryption
+# Bucket Policy for CloudTrail
+resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
+
+  bucket = aws_s3_bucket.logging[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AWSCloudTrailWrite"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.logging[0].arn}/cloudtrail/*"
+      }
+    ]
+  })
+}
+
 # --- Lifecycle Policies --- #
 
 # General Lifecycle Rules
@@ -379,7 +409,8 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 #
 # 6. **Logging Configuration**:
 #    - Grants the S3 logging service permissions to write logs to the logging bucket.
-#    - Includes additional permissions for ALB and WAF logs.
+#    - CloudTrail uses modern security settings with minimal permissions to write audit logs
+#    - Each service writes to its dedicated prefix for organized log management.
 #
 # 7. **Troubleshooting Tips**:
 #    - Check IAM policies and bucket policies if replication fails.

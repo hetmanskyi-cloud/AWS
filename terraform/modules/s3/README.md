@@ -28,6 +28,12 @@ This module creates and manages S3 buckets for various use cases within a projec
   - Dynamic bucket creation via the `buckets` variable
   - CORS configuration for WordPress media bucket with configurable origins
 
+- **Logging Configuration**:
+  - Centralized logging bucket for all S3 access logs
+  - CloudTrail integration for API activity logging in dedicated 'cloudtrail/' prefix
+  - Bucket policy configured for secure CloudTrail access
+  - Each service writes to its own prefix for organized log management
+
 - **Lifecycle Management**:
   - Configurable versioning per bucket via `enable_versioning`
   - Automatic cleanup of noncurrent versions after specified retention period
