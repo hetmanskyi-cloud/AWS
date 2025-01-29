@@ -12,9 +12,10 @@ resource "aws_cloudwatch_log_group" "endpoint_logs" {
   # Note: Ensure 'kms_key_arn' is valid and configured for CloudWatch Logs encryption.
   # If logs are enabled, this resource provides critical monitoring insights for VPC Endpoints.
 
-  tags = merge(local.tags, {
-    Name = "${var.name_prefix}-endpoint-logs"
-  })
+  tags = {
+    Name        = "${var.name_prefix}-endpoint-logs"
+    Environment = var.environment
+  }
 }
 
 # --- Notes --- #

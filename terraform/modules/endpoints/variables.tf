@@ -37,6 +37,22 @@ variable "environment" {
 variable "vpc_id" {
   description = "The VPC ID where endpoints will be created"
   type        = string
+
+  validation {
+    condition     = can(regex("^vpc-[a-f0-9]{8,17}$", var.vpc_id))
+    error_message = "The VPC ID must be a valid AWS VPC ID."
+  }
+}
+
+# Outputs the CIDR block of the VPC
+variable "vpc_cidr_block" {
+  description = "CIDR block of the VPC"
+  type        = string
+
+  validation {
+    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", var.vpc_cidr_block))
+    error_message = "The VPC CIDR block must be a valid AWS CIDR block."
+  }
 }
 
 # --- Private Subnet IDs --- #
@@ -68,6 +84,11 @@ variable "private_subnet_cidr_blocks" {
 variable "public_subnet_ids" {
   description = "List of public subnet IDs for interface endpoints"
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for id in var.public_subnet_ids : can(regex("^subnet-[a-f0-9]{8,17}$", id))])
+    error_message = "All public subnet IDs must be valid AWS subnet IDs."
+  }
 }
 
 # --- Public Subnet CIDR Blocks --- #
@@ -75,6 +96,11 @@ variable "public_subnet_ids" {
 variable "public_subnet_cidr_blocks" {
   description = "CIDR blocks for public subnets"
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for cidr in var.public_subnet_cidr_blocks : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))])
+    error_message = "All CIDR blocks must be in valid format (e.g., '10.0.0.0/24')."
+  }
 }
 
 # --- Encryption Configuration --- #

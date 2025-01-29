@@ -1,12 +1,13 @@
 # --- Endpoints Security Group Configuration --- #
-# This file defines the Security Group for Interface VPC Endpoints (SSM, ASG Messages, SSM Messages),
-# allowing controlled access to and from private subnets.
+# This file defines the Security Group for multiple Interface VPC Endpoints 
+# (SSM, SSM Messages, ASG Messages, Lambda, CloudWatch Logs, SQS, KMS),
+# allowing controlled access within the VPC.
 
 # --- Security Group for VPC Endpoints --- #
 # Creates a Security Group to control access for Interface Endpoints within the VPC.
 resource "aws_security_group" "endpoints_sg" {
   name_prefix = "${var.name_prefix}-endpoints-sg"
-  description = "Security Group for VPC Endpoints allowing HTTPS access from private subnets"
+  description = "Security Group for VPC Endpoints allowing HTTPS access from VPC CIDR"
   vpc_id      = var.vpc_id # ID of the VPC where the Security Group is created
 
   # Ensures a new Security Group is created before the old one is destroyed to avoid downtime.
@@ -14,42 +15,38 @@ resource "aws_security_group" "endpoints_sg" {
     create_before_destroy = true
   }
 
-  tags = merge(local.tags, {
-    Name = "${var.name_prefix}-endpoints-security-group"
-  })
+  tags = {
+    Name        = "${var.name_prefix}-endpoints-security-group"
+    Environment = var.environment
+  }
 }
 
 # --- Ingress Rules (Inbound Traffic) --- #
-# Allow HTTPS traffic (port 443) to the VPC Endpoints from each private subnet.
+# Allow HTTPS traffic (port 443) to the VPC Endpoints from the entire VPC CIDR.
 resource "aws_security_group_rule" "https_ingress" {
-  for_each = { for cidr in concat(var.private_subnet_cidr_blocks, var.public_subnet_cidr_blocks) : cidr => cidr }
-
   security_group_id = aws_security_group.endpoints_sg.id
   type              = "ingress"
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = [each.key]
-  description       = "Allow HTTPS access from private and public subnets"
+  cidr_blocks       = [var.vpc_cidr_block]
+  description       = "Allow HTTPS access from the entire VPC CIDR"
 }
 
 # --- Egress Rules (Outbound Traffic) --- #
-# Allow all outbound traffic from the VPC Endpoints to external resources.
-# Optional: Use aws_security_group_rule for more granular control of security group rules.
-resource "aws_security_group_rule" "all_outbound" {
+# Allow HTTPS outbound traffic from the VPC Endpoints to all destinations.
+resource "aws_security_group_rule" "https_egress" {
   security_group_id = aws_security_group.endpoints_sg.id
   type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
-  description       = "Allow all outbound traffic"
-  # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
-  # This configuration simplifies testing but should be reviewed before production use.
+  description       = "Allow HTTPS to all destinations"
 }
 
 # --- Notes --- #
-# 1. This Security Group is used exclusively for Interface VPC Endpoints (SSM, SSM Messages, ASG Messages).
-# 2. Ingress rules allow HTTPS (port 443) traffic from both private and public subnet CIDR blocks.
-# 3. Egress rules permit unrestricted outbound traffic for Endpoint communication.
+# 1. This Security Group is used exclusively for Interface VPC Endpoints (SSM, SSM Messages, ASG Messages, Lambda, CloudWatch Logs, SQS, KMS).
+# 2. Ingress rules allow HTTPS (port 443) traffic from entire VPC CIDR block.
+# 3. Egress rules allow HTTPS (port 443) traffic to all AWS services and PrivateLink endpoints.
 # 4. Tags are applied to ensure easy identification and management of the Security Group.

@@ -298,6 +298,7 @@ module "endpoints" {
   name_prefix                          = var.name_prefix
   environment                          = var.environment
   vpc_id                               = module.vpc.vpc_id
+  vpc_cidr_block                       = module.vpc.vpc_cidr_block
   kms_key_arn                          = module.kms.kms_key_arn
   private_subnet_ids                   = local.private_subnet_ids
   private_subnet_cidr_blocks           = local.private_subnet_cidr_blocks

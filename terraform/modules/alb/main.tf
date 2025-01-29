@@ -53,15 +53,15 @@ resource "aws_lb_target_group" "wordpress" {
   health_check {
     path                = "/"       # Health check endpoint (default path, can be customized for app-specific needs).
     interval            = 30        # Time (seconds) between health checks
-    timeout             = 5         # Time to wait for a response before failing
-    healthy_threshold   = 3         # Consecutive successes required to mark healthy
-    unhealthy_threshold = 3         # Consecutive failures required to mark unhealthy
+    timeout             = 10        # Time to wait for a response before failing
+    healthy_threshold   = 2         # Consecutive successes required to mark healthy
+    unhealthy_threshold = 5         # Consecutive failures required to mark unhealthy
     matcher             = "200-299" # Acceptable HTTP codes for successful health checks
   }
 
   # Additional attributes for the target group behavior
   deregistration_delay = 300 # 300 seconds delay before deregistering targets
-  slow_start           = 30  # Gradual traffic increase for new targets over 30 seconds
+  slow_start           = 60  # Gradual traffic increase for new targets over 60 seconds
 
   # --- Stickiness Configuration --- #
   # Ensures clients are routed to the same target for the duration of their session.

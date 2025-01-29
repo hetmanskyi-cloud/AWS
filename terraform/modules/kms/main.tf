@@ -37,6 +37,7 @@ locals {
       "ssmmessages.amazonaws.com",
       "ec2messages.amazonaws.com",
       "vpc-flow-logs.amazonaws.com",
+      "sqs.${var.aws_region}.amazonaws.com",
       "ec2.amazonaws.com"
     ],
     var.enable_dynamodb ? ["dynamodb.${var.aws_region}.amazonaws.com"] : [],

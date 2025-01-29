@@ -13,6 +13,8 @@ locals {
     PHP_FPM_SERVICE = "php${var.php_version}-fpm"
     REDIS_HOST      = var.redis_endpoint # ElastiCache module output for Redis endpoint
     REDIS_PORT      = var.redis_port
+    MAX_RETRIES     = 30 # Maximum number of retries
+    RETRY_INTERVAL  = 10 # Interval between retries in seconds
   }
 
   # Defines the source of the WordPress deployment script (S3 bucket or local path).

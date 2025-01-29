@@ -285,6 +285,14 @@ resource "aws_lambda_function" "update_ttl" {
     delete = "5m" # Allow up to 5 minutes for Lambda deletion
   }
 
+  # Ensure VPC Endpoints are created before Lambda function
+  depends_on = [
+    data.aws_vpc_endpoint.dynamodb,
+    data.aws_vpc_endpoint.cloudwatch_logs,
+    data.aws_vpc_endpoint.sqs,
+    data.aws_vpc_endpoint.kms
+  ]
+
   # Tags for resource identification.
   tags = {
     Name        = "${var.name_prefix}-update-ttl"
