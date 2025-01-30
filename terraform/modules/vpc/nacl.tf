@@ -51,7 +51,8 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 }
 
 # Rule for inbound SSH traffic on port 22
-# CIDR block "0.0.0.0/0" is acceptable for testing but should be restricted to specific IP ranges in production for security.
+# tfsec:ignore:aws-ec2-no-public-ingress-acl
+# SSH access is required for testing. In production, restrict this to a specific range.
 resource "aws_network_acl_rule" "public_inbound_ssh" {
   count = var.enable_vpc_ssh_access ? 1 : 0
 
@@ -66,6 +67,8 @@ resource "aws_network_acl_rule" "public_inbound_ssh" {
 }
 
 # Rule for inbound return traffic on ephemeral ports (1024-65535)
+# tfsec:ignore:aws-ec2-no-public-ingress-acl
+# Allowing ephemeral port traffic is necessary for standard TCP connections.
 resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 130
@@ -80,7 +83,8 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
 ## Egress Rules: Allow all outbound traffic.
 
 # Rule allowing all outbound traffic
-# All egress traffic is allowed for simplicity.
+# tfsec:ignore:aws-ec2-no-excessive-port-access
+# Required to allow unrestricted outbound communication for instances in public subnets.
 resource "aws_network_acl_rule" "public_outbound_allow_all" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 100

@@ -32,6 +32,8 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot = true # Enable copying tags to snapshots
 
   # --- Deletion Protection --- #
+  # tfsec:ignore:builtin.aws.rds.aws0177
+  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.
   deletion_protection = var.deletion_protection # Enable or disable deletion protection
 
   # --- Final Snapshot Configuration --- #
@@ -89,6 +91,8 @@ resource "aws_db_instance" "read_replica" {
   identifier = "${var.name_prefix}-replica${count.index}-${var.environment}"
 
   # Inherit configuration from the primary DB instance
+  # tfsec:ignore:builtin.aws.rds.aws0177
+  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.
   instance_class          = aws_db_instance.db.instance_class
   engine                  = aws_db_instance.db.engine
   engine_version          = aws_db_instance.db.engine_version

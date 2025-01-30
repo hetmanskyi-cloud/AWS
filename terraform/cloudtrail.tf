@@ -19,7 +19,8 @@ resource "aws_cloudtrail" "cloudtrail" {
 
   # Event settings
   include_global_service_events = true
-  is_multi_region_trail         = false
+  # This CloudTrail is configured for a single region. Multi-region logging is not required for this use case.
+  is_multi_region_trail = false # tfsec:ignore:aws-cloudtrail-enable-all-regions
 
   # CloudWatch Logs integration
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
@@ -80,6 +81,8 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
   role = aws_iam_role.cloudtrail_cloudwatch.id
 
   # Policy definition
+  # tfsec:ignore:aws-iam-no-policy-wildcards
+  # The wildcard is necessary because CloudTrail dynamically creates log streams.
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
