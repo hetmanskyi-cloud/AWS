@@ -64,8 +64,8 @@ resource "aws_security_group_rule" "alb_https" {
 # --- Egress Rules (Outbound Traffic) --- #
 
 # Allow all outbound traffic
-# tfsec:ignore:aws-ec2-no-public-egress-sgr
 # ASG instances need unrestricted outbound access for updates, application dependencies, and external communication.
+# tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "all_outbound" {
   security_group_id = aws_security_group.asg_security_group.id
   type              = "egress"

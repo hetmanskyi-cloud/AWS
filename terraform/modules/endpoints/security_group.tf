@@ -35,8 +35,8 @@ resource "aws_security_group_rule" "https_ingress" {
 
 # --- Egress Rules (Outbound Traffic) --- #
 # Allow HTTPS outbound traffic from the VPC Endpoints to all destinations.
-# tfsec:ignore:aws-ec2-no-public-egress-sgr
 # Interface VPC Endpoints must allow outbound HTTPS traffic to reach AWS services and PrivateLink.
+# tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "https_egress" {
   security_group_id = aws_security_group.endpoints_sg.id
   type              = "egress"

@@ -43,8 +43,8 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
 }
 
 # Policy granting minimal permissions for VPC Flow Logs to write logs to CloudWatch.
-# tfsec:ignore:aws-iam-no-policy-wildcards
 # Wildcards are required because VPC Flow Logs dynamically creates log streams.
+# tfsec:ignore:aws-iam-no-policy-wildcards
 data "aws_iam_policy_document" "vpc_flow_logs_cloudwatch_policy" {
   statement {
     effect = "Allow"
