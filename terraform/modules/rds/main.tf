@@ -33,9 +33,8 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot = true # Enable copying tags to snapshots
 
   # --- Deletion Protection --- #  
-  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.
-  # tfsec:ignore:builtin.aws.rds.aws0177  
-  deletion_protection = var.deletion_protection # Enable or disable deletion protection
+  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.    
+  deletion_protection = var.deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
 
   # --- Final Snapshot Configuration --- #
   skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on deletion
@@ -104,10 +103,9 @@ resource "aws_db_instance" "read_replica" {
   kms_key_id              = aws_db_instance.db.kms_key_id
   backup_retention_period = aws_db_instance.db.backup_retention_period
   backup_window           = aws_db_instance.db.backup_window
-  # tfsec:ignore:builtin.aws.rds.aws0177
-  deletion_protection = aws_db_instance.db.deletion_protection
-  monitoring_interval = aws_db_instance.db.monitoring_interval
-  monitoring_role_arn = aws_db_instance.db.monitoring_role_arn
+  deletion_protection     = aws_db_instance.db.deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
+  monitoring_interval     = aws_db_instance.db.monitoring_interval
+  monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
 
   # --- Performance Insights for replicas --- #
   performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
