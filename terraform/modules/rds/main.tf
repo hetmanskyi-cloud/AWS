@@ -1,6 +1,7 @@
 # --- RDS Database Instance Configuration --- #
 
 # Define the primary RDS database instance
+# tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "db" {
   identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
   allocated_storage = var.allocated_storage                      # Storage size in GB
@@ -32,8 +33,7 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot = true # Enable copying tags to snapshots
 
   # --- Deletion Protection --- #  
-  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.
-  # tfsec:ignore:builtin.aws.rds.aws0177
+  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.  
   deletion_protection = var.deletion_protection # Enable or disable deletion protection
 
   # --- Final Snapshot Configuration --- #
@@ -85,6 +85,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 # --- Read Replica Configuration --- #
 
 # Define RDS read replicas
+# tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count
 
@@ -102,7 +103,7 @@ resource "aws_db_instance" "read_replica" {
   kms_key_id              = aws_db_instance.db.kms_key_id
   backup_retention_period = aws_db_instance.db.backup_retention_period
   backup_window           = aws_db_instance.db.backup_window
-  deletion_protection     = aws_db_instance.db.deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
+  deletion_protection     = aws_db_instance.db.deletion_protection
   monitoring_interval     = aws_db_instance.db.monitoring_interval
   monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
 
