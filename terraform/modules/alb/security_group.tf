@@ -11,9 +11,9 @@ resource "aws_security_group" "alb_sg" {
   }
 
   # --- Egress Rules --- #
-  # Allow all outbound traffic.
-  # tfsec:ignore:aws-ec2-no-public-egress-sgr
+  # Allow all outbound traffic. 
   # This is required because the ALB must be able to communicate with external services, including end-users.
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr
   egress {
     from_port   = 0
     to_port     = 0
@@ -33,8 +33,8 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # --- Ingress Rule for HTTP --- #
-# tfsec:ignore:aws-ec2-no-public-ingress-sgr
 # HTTP is required to allow users to access the site. HTTPS is not available in this setup due to the lack of an SSL certificate.
+# tfsec:ignore:aws-ec2-no-public-ingress-sgr
 resource "aws_security_group_rule" "alb_http" {
   type              = "ingress"
   from_port         = 80

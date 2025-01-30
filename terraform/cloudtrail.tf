@@ -6,7 +6,11 @@
 
 # --- Main CloudTrail Configuration --- #
 # Creates the main CloudTrail instance for API activity monitoring
+# Only create CloudTrail if logging bucket is enabled
+# tfsec:ignore:aws-cloudtrail-enable-all-regions
 resource "aws_cloudtrail" "cloudtrail" {
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
+
   # Basic trail configuration
   name           = "${var.name_prefix}-cloudtrail"
   s3_bucket_name = module.s3.logging_bucket_id
@@ -19,12 +23,13 @@ resource "aws_cloudtrail" "cloudtrail" {
 
   # Event settings
   include_global_service_events = true
+
   # This CloudTrail is configured for a single region. Multi-region logging is not required for this use case.
-  is_multi_region_trail = false # tfsec:ignore:aws-cloudtrail-enable-all-regions
+  is_multi_region_trail = false
 
   # CloudWatch Logs integration
-  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
-  cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch.arn
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*"
+  cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch[0].arn
 
   # Resource tags
   tags = {
@@ -36,9 +41,11 @@ resource "aws_cloudtrail" "cloudtrail" {
 # --- CloudWatch Logs Configuration --- #
 # Configures the CloudWatch Log Group for CloudTrail events
 resource "aws_cloudwatch_log_group" "cloudtrail" {
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
+
   # Log group settings
   name              = "/aws/cloudtrail/${var.name_prefix}"
-  retention_in_days = 30
+  retention_in_days = var.cloudtrail_logs_retention_in_days
   kms_key_id        = module.kms.kms_key_arn
 
   # Resource tags
@@ -51,6 +58,8 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
 # --- IAM Configuration for CloudWatch Integration --- #
 # Creates the IAM role that allows CloudTrail to send logs to CloudWatch
 resource "aws_iam_role" "cloudtrail_cloudwatch" {
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
+
   name = "${var.name_prefix}-cloudtrail-cloudwatch"
 
   # Trust relationship policy
@@ -76,12 +85,14 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
 
 # --- IAM Policy for CloudWatch Access --- #
 # Defines permissions for CloudTrail to write to CloudWatch Logs
+# tfsec:ignore:aws-iam-no-policy-wildcards
 resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
-  name = "${var.name_prefix}-cloudtrail-cloudwatch"
-  role = aws_iam_role.cloudtrail_cloudwatch.id
+  count = lookup(var.buckets, "logging", false) ? 1 : 0
 
-  # Policy definition
-  # tfsec:ignore:aws-iam-no-policy-wildcards
+  name = "${var.name_prefix}-cloudtrail-cloudwatch"
+  role = aws_iam_role.cloudtrail_cloudwatch[0].id
+
+  # Policy definition  
   # The wildcard is necessary because CloudTrail dynamically creates log streams.
   policy = jsonencode({
     Version = "2012-10-17"
@@ -92,8 +103,39 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
+        Resource = "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*"
       }
     ]
   })
 }
+
+# --- Notes --- #
+# 1. **CloudTrail Logging:** 
+#    - Logs API activity to an S3 bucket (`logging bucket`) if enabled.
+#    - Uses KMS encryption to secure logs at rest.
+#    - Validates log integrity to detect unauthorized changes.
+#
+# 2. **Conditional Creation:** 
+#    - The CloudTrail instance, IAM roles, and CloudWatch Log Group are **only created if the logging bucket exists**.
+#    - This prevents errors in environments where CloudTrail logging is not required.
+#
+# 3. **CloudWatch Integration:** 
+#    - Logs are sent to CloudWatch for real-time monitoring.
+#    - Requires an IAM role (`cloudtrail_cloudwatch`) with permissions to write logs.
+#
+# 4. **IAM Policies:**
+#    - `aws_iam_role_policy.cloudtrail_cloudwatch` allows CloudTrail to send logs to CloudWatch.
+#    - The `tfsec:ignore` directive is used to suppress wildcard warnings because CloudTrail dynamically creates log streams.
+#
+# 5. **Multi-Region Logging:**
+#    - Disabled (`is_multi_region_trail = false`) because this CloudTrail is only needed in the current AWS region.
+#    - In production, enable multi-region logging if needed for security compliance.
+#
+# 6. **Retention & Security:**
+#    - CloudWatch logs are retained for **30 days**.
+#    - The log group is **KMS-encrypted** for additional security.
+#
+# 7. **Best Practices:**
+#    - Enable **multi-region logging** in production environments.
+#    - Use **restricted IAM permissions** for better security.
+#    - Regularly **audit CloudTrail logs** for unusual activity.

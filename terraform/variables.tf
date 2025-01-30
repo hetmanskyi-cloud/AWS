@@ -778,3 +778,10 @@ variable "lambda_log_retention_days" {
   type        = number
   default     = 30
 }
+
+# --- CloudTrail Logs Retention Period --- #
+variable "cloudtrail_logs_retention_in_days" {
+  description = "Retention period (in days) for CloudTrail logs in CloudWatch"
+  type        = number
+  default     = 30
+}

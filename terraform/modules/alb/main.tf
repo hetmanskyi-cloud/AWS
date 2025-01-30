@@ -1,10 +1,10 @@
 # --- Application Load Balancer --- #
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
+# tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "application" {
   name     = "${var.name_prefix}-alb" # ALB name
   internal = false                    # ALB is public-facing
 
-  # tfsec:ignore:aws-elb-alb-not-public
   # The ALB must be public since it is handling incoming traffic for a public WordPress website.
   # A private ALB is not suitable for this use case.
   load_balancer_type = "application"                  # Application Load Balancer type
@@ -88,11 +88,11 @@ resource "aws_lb_target_group" "wordpress" {
 
 # --- ALB Listener Configuration for HTTP --- #
 # HTTP traffic is redirected to HTTPS only if enable_https_listener is set to true.
+# tfsec:ignore:aws-elb-http-not-used
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.application.arn
   port              = 80
 
-  # tfsec:ignore:aws-elb-http-not-used
   # HTTPS is not used because there is no SSL certificate available.
   protocol = "HTTP"
 

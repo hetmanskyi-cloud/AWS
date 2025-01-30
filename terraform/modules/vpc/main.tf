@@ -16,8 +16,8 @@ resource "aws_vpc" "vpc" {
 # Define three public subnets, each with public IP assignment enabled for instances.
 
 # Public Subnet 1
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
+# tfsec:ignore:aws-ec2-no-public-ip-subnet
 resource "aws_subnet" "public_subnet_1" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_1
@@ -31,8 +31,8 @@ resource "aws_subnet" "public_subnet_1" {
 }
 
 # Public Subnet 2
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
+# tfsec:ignore:aws-ec2-no-public-ip-subnet
 resource "aws_subnet" "public_subnet_2" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_2
@@ -46,8 +46,8 @@ resource "aws_subnet" "public_subnet_2" {
 }
 
 # Public Subnet 3
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
+# tfsec:ignore:aws-ec2-no-public-ip-subnet
 resource "aws_subnet" "public_subnet_3" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_3

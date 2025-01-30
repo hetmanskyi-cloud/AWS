@@ -2,7 +2,7 @@
 # This file defines Network ACLs (NACLs) for controlling traffic in public and private subnets.
 # NACLs are stateless packet filters that control inbound and outbound traffic at the subnet level.
 
-# --- Public Network ACL Configuration ---
+# --- Public Network ACL Configuration --- #
 # Definition of the public NACL for controlling inbound and outbound traffic in public subnets.
 
 resource "aws_network_acl" "public_nacl" {
@@ -23,6 +23,7 @@ resource "aws_network_acl" "public_nacl" {
 ## Ingress Rules: Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
 
 # Rule for inbound HTTP traffic on port 80
+# tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_http" {
   count = var.enable_public_nacl_http ? 1 : 0
 
@@ -51,8 +52,8 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 }
 
 # Rule for inbound SSH traffic on port 22
-# tfsec:ignore:aws-ec2-no-public-ingress-acl
 # SSH access is required for testing. In production, restrict this to a specific range.
+# tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_ssh" {
   count = var.enable_vpc_ssh_access ? 1 : 0
 
@@ -67,8 +68,8 @@ resource "aws_network_acl_rule" "public_inbound_ssh" {
 }
 
 # Rule for inbound return traffic on ephemeral ports (1024-65535)
-# tfsec:ignore:aws-ec2-no-public-ingress-acl
 # Allowing ephemeral port traffic is necessary for standard TCP connections.
+# tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 130
@@ -83,8 +84,8 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
 ## Egress Rules: Allow all outbound traffic.
 
 # Rule allowing all outbound traffic
-# tfsec:ignore:aws-ec2-no-excessive-port-access
 # Required to allow unrestricted outbound communication for instances in public subnets.
+# tfsec:ignore:aws-ec2-no-excessive-port-access
 resource "aws_network_acl_rule" "public_outbound_allow_all" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 100
