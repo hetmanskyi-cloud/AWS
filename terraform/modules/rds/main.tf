@@ -1,7 +1,6 @@
 # --- RDS Database Instance Configuration --- #
 
 # Define the primary RDS database instance
-# tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "db" {
   identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
   allocated_storage = var.allocated_storage                      # Storage size in GB
@@ -33,7 +32,7 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot = true # Enable copying tags to snapshots
 
   # --- Deletion Protection --- #  
-  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.    
+  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.     
   deletion_protection = var.deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
 
   # --- Final Snapshot Configuration --- #
@@ -85,7 +84,6 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 # --- Read Replica Configuration --- #
 
 # Define RDS read replicas
-# tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count
 
