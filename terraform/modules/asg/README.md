@@ -23,9 +23,11 @@ This module creates and manages ASG instances and associated resources in AWS. I
 - **Security:**
   - Configurable Security Group for HTTP and HTTPS traffic.
   - SSM support for secure, passwordless instance management.
+  - Conditional IAM policies to ensure least privilege access.
 - **S3 Integration:**
-  - Supports fetching deployment scripts from S3.
-  - WordPress media is stored and fetched from S3 if the `wordpress_media_bucket` is enabled.
+  - Optional access to deployment scripts from S3 (if scripts_bucket_arn is provided).
+  - Conditional access to WordPress media bucket (if enabled via buckets variable).
+  - IAM policies are created only when S3 resources are defined.
 - **Tagging and Metadata:**
   - Consistent tagging for all instances to simplify identification and organization.
   - Enforces IMDSv2 for enhanced instance metadata security.
@@ -37,7 +39,7 @@ This module creates and manages ASG instances and associated resources in AWS. I
 | **File**                 | **Description**                                                                    |
 |--------------------------|------------------------------------------------------------------------------------|
 | `main.tf`                | Defines the ASG, scaling policies, and dynamic configurations for stage/prod.      |
-| `iam.tf`                 | Configures IAM roles and policies for ASG instances.                               |
+| `iam.tf`                 | Configures conditional IAM roles and policies for ASG instances.                   |
 | `launch_template.tf`     | Creates a launch template for ASG instances.                                       |
 | `metrics.tf`             | Defines CloudWatch alarms for scaling and monitoring.                              |
 | `security_group.tf`      | Configures the Security Group for ASG instances.                                   |
@@ -48,25 +50,26 @@ This module creates and manages ASG instances and associated resources in AWS. I
 
 ## Input Variables
 
-| **Name**                     | **Type**       | **Description**                                                    | **Default/Required**  |
-|------------------------------|----------------|--------------------------------------------------------------------|-----------------------|
-| `environment`                | `string`       | Environment for the resources (e.g., dev, stage, prod).            | Required              |
-| `name_prefix`                | `string`       | Prefix for naming resources.                                       | Required              |
-| `instance_type`              | `string`       | Instance type (e.g., t2.micro).                                    | Required              |
-| `autoscaling_min`            | `number`       | Minimum number of instances in the Auto Scaling Group.             | Required              |
-| `autoscaling_max`            | `number`       | Maximum number of instances in the Auto Scaling Group.             | Required              |
-| `scale_out_cpu_threshold`    | `number`       | CPU utilization threshold for scaling out.                         | Required              |
-| `scale_in_cpu_threshold`     | `number`       | CPU utilization threshold for scaling in.                          | Required              |
-| `network_in_threshold`       | `number`       | Threshold for high incoming network traffic.                       | Required              |
-| `network_out_threshold`      | `number`       | Threshold for high outgoing network traffic.                       | Required              |
-| `volume_size`                | `number`       | Size of the root EBS volume for ASG instances in GiB.              | Required              |
-| `volume_type`                | `string`       | Type of the root EBS volume (e.g., gp2).                           | Required              |
-| `public_subnet_ids`          | `list(string)` | List of public subnet IDs for deploying instances.                 | Required              |
-| `vpc_id`                     | `string`       | VPC ID where EC2 instances are deployed.                           | Required              |
-| `target_group_arn`           | `string`       | ARN of the ALB target group for routing traffic.                   | Required              |
-| `sns_topic_arn`              | `string`       | ARN of the SNS Topic for CloudWatch alarms.                        | Required              |
-| `wordpress_media_bucket_arn` | `string`       | ARN of the S3 bucket containing media files.                       | Optional              |
-| `scripts_bucket_arn`         | `string`       | ARN of the S3 bucket containing deployment scripts.                | Required              |
+| **Name**                     | **Type**       | **Description**                                                                     | **Default/Required**  |
+|------------------------------|----------------|-------------------------------------------------------------------------------------|-----------------------|
+| `environment`                | `string`       | Environment for the resources (e.g., dev, stage, prod).                             | Required              |
+| `name_prefix`                | `string`       | Prefix for naming resources.                                                        | Required              |
+| `instance_type`              | `string`       | Instance type (e.g., t2.micro).                                                     | Required              |
+| `autoscaling_min`            | `number`       | Minimum number of instances in the Auto Scaling Group.                              | Required              |
+| `autoscaling_max`            | `number`       | Maximum number of instances in the Auto Scaling Group.                              | Required              |
+| `scale_out_cpu_threshold`    | `number`       | CPU utilization threshold for scaling out.                                          | Required              |
+| `scale_in_cpu_threshold`     | `number`       | CPU utilization threshold for scaling in.                                           | Required              |
+| `network_in_threshold`       | `number`       | Threshold for high incoming network traffic.                                        | Required              |
+| `network_out_threshold`      | `number`       | Threshold for high outgoing network traffic.                                        | Required              |
+| `volume_size`                | `number`       | Size of the root EBS volume for ASG instances in GiB.                               | Required              |
+| `volume_type`                | `string`       | Type of the root EBS volume (e.g., gp2).                                            | Required              |
+| `public_subnet_ids`          | `list(string)` | List of public subnet IDs for deploying instances.                                  | Required              |
+| `vpc_id`                     | `string`       | VPC ID where EC2 instances are deployed.                                            | Required              |
+| `target_group_arn`           | `string`       | ARN of the ALB target group for routing traffic.                                    | Required              |
+| `sns_topic_arn`              | `string`       | ARN of the SNS Topic for CloudWatch alarms.                                         | Required              |
+| `wordpress_media_bucket_arn` | `string`       | ARN of the S3 bucket for WordPress media. Only used if enabled in buckets variable. | Optional              |
+| `scripts_bucket_arn`         | `string`       | ARN of the S3 bucket containing deployment scripts.                                 | Optional              |
+| `buckets`                    | `map(bool)`    | Map of bucket features to enable/disable (e.g., wordpress_media).                   | Optional              |
 
 ---
 
@@ -106,6 +109,9 @@ module "asg" {
   target_group_arn        = module.alb.wordpress_tg_arn
   sns_topic_arn           = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   scripts_bucket_name     = "my-scripts-bucket"
+  buckets = {
+    wordpress_media = true
+  }
 }
 ```
 

@@ -308,6 +308,32 @@ variable "enable_ebs_encryption" {
   default     = false
 }
 
+# --- WordPress Configuration --- #
+
+variable "wp_title" {
+  description = "Title of the WordPress site"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin" {
+  description = "Admin username for WordPress"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin_email" {
+  description = "Admin email for WordPress"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin_password" {
+  description = "Admin password for WordPress (stored securely)"
+  type        = string
+  sensitive   = true
+}
+
 # --- RDS Configuration --- #
 
 # Storage size in GB for the RDS instance
@@ -400,6 +426,13 @@ variable "enable_rds_monitoring" {
 variable "php_version" {
   description = "PHP version used for WordPress installation"
   type        = string
+}
+
+# RDS Log Retention Period
+variable "rds_log_retention_days" {
+  description = "Number of days to retain RDS logs in CloudWatch"
+  type        = number
+  default     = 30
 }
 
 # --- RDS Monitoring Variables --- #

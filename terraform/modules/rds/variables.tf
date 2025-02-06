@@ -107,6 +107,14 @@ variable "backup_window" {
   type        = string
 }
 
+# --- CloudWatch Logs Retention --- #
+# Number of days to retain RDS logs in CloudWatch
+variable "rds_log_retention_days" {
+  description = "Number of days to retain RDS logs in CloudWatch"
+  type        = number
+  default     = 30
+}
+
 # --- Performance Insights --- #
 # Toggle for enabling or disabling Performance Insights on RDS.
 variable "performance_insights_enabled" {

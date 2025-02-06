@@ -42,19 +42,19 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
   }
 }
 
-# Policy granting minimal permissions for VPC Flow Logs to write logs to CloudWatch.
-# Wildcards are required because VPC Flow Logs dynamically creates log streams.
-# tfsec:ignore:aws-iam-no-policy-wildcards
+# IAM policy document for CloudWatch Logs permissions
 data "aws_iam_policy_document" "vpc_flow_logs_cloudwatch_policy" {
   statement {
     effect = "Allow"
     actions = [
       "logs:CreateLogStream",
-      "logs:PutLogEvents"
+      "logs:PutLogEvents",
+      "logs:DescribeLogStreams",
+      "logs:DescribeLogGroups"
     ]
     resources = [
-      aws_cloudwatch_log_group.vpc_log_group.arn,
-      "${aws_cloudwatch_log_group.vpc_log_group.arn}:*"
+      "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/vpc/flow-logs/${var.environment}:*",
+      "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/vpc/flow-logs/${var.environment}"
     ]
   }
 }
@@ -66,18 +66,29 @@ resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   policy = data.aws_iam_policy_document.vpc_flow_logs_cloudwatch_policy.json
 }
 
-# --- CloudWatch Log Group for VPC Flow Logs --- #
+# --- VPC Flow Logs Configuration --- #
+# This configuration manages VPC Flow Logs with CloudWatch integration
+# Key components:
+# - IAM roles and policies for secure log delivery
+# - CloudWatch Log Group with KMS encryption
+# - VPC Flow Log with ALL traffic capture
 
-# Create CloudWatch log group to store VPC Flow Logs with specified retention and encryption settings
+# --- CloudWatch Log Group for VPC Flow Logs --- #
+# Create CloudWatch log group with:
+# - Configurable retention period
+# - KMS encryption for security
+# - Automatic cleanup on resource deletion
 resource "aws_cloudwatch_log_group" "vpc_log_group" {
-  name              = "/aws/vpc/flow-logs/${var.name_prefix}"
-  retention_in_days = var.flow_logs_retention_in_days # Set retention policy for log data
-  kms_key_id        = var.kms_key_arn                 # Use KMS key for CloudWatch log encryption
+  name              = "/aws/vpc/flow-logs/${var.environment}"
+  retention_in_days = var.flow_logs_retention_in_days
+  kms_key_id        = var.kms_key_arn
 
   tags = {
     Name        = "${var.name_prefix}-flow-logs"
     Environment = var.environment
   }
+
+  depends_on = [var.kms_key_arn] # Явная зависимость от KMS ключа
 
   # Lifecycle configuration to allow forced deletion
   lifecycle {
@@ -86,8 +97,10 @@ resource "aws_cloudwatch_log_group" "vpc_log_group" {
 }
 
 # --- VPC Flow Log Configuration --- #
-
-# Configure VPC Flow Log to send logs to CloudWatch with the associated IAM role and log group
+# Configure VPC Flow Log to:
+# - Capture ALL traffic types (ACCEPT/REJECT)
+# - Send logs to CloudWatch Logs
+# - Use IAM role for secure delivery
 resource "aws_flow_log" "vpc_flow_log" {
   log_destination      = aws_cloudwatch_log_group.vpc_log_group.arn
   traffic_type         = "ALL"              # Capture all traffic (accepted, rejected, and all)
@@ -111,10 +124,27 @@ resource "aws_flow_log" "vpc_flow_log" {
 }
 
 # --- Notes --- #
-# 1. The IAM Role for VPC Flow Logs is configured with minimal permissions for security,
-#    ensuring only the necessary actions for CloudWatch and KMS are allowed.
-# 2. KMS encryption is used to securely store log data in CloudWatch Logs.
-# 3. The CloudWatch Log Group must exist before the VPC Flow Logs configuration is applied.
-# 4. Lifecycle configuration allows deletion of logs and resources when necessary (`prevent_destroy = false`).
-# 5. The log retention period is configurable via `var.flow_logs_retention_in_days`.
-# 6. Ensure `iam_role_arn` is correctly associated to enable log delivery to CloudWatch.
+# 1. Security and Permissions:
+#    - IAM role uses principle of least privilege
+#    - KMS encryption protects sensitive log data
+#    - CloudWatch permissions are scoped to specific log group
+#
+# 2. Log Configuration:
+#    - Captures ALL traffic (accepted and rejected)
+#    - Retention period is configurable via var.flow_logs_retention_in_days
+#    - Logs are organized by environment for better management
+#
+# 3. Resource Management:
+#    - CloudWatch Log Group is created before Flow Logs
+#    - prevent_destroy = false allows cleanup in test environments
+#    - Resources are properly tagged for cost allocation
+#
+# 4. Best Practices:
+#    - Review log retention periods regularly
+#    - Monitor CloudWatch costs
+#    - Consider sampling in high-traffic environments
+#
+# 5. Dependencies:
+#    - Requires valid KMS key for encryption
+#    - IAM role must be properly configured
+#    - VPC must exist before enabling flow logs

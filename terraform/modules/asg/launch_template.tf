@@ -4,17 +4,21 @@
 
 locals {
   db_config = {
-    DB_NAME         = var.db_name
-    DB_USERNAME     = var.db_username
-    DB_USER         = var.db_username
-    DB_PASSWORD     = var.db_password
-    DB_HOST         = var.db_host
-    PHP_VERSION     = var.php_version
-    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
-    REDIS_HOST      = var.redis_endpoint # ElastiCache module output for Redis endpoint
-    REDIS_PORT      = var.redis_port
-    MAX_RETRIES     = 30 # Maximum number of retries
-    RETRY_INTERVAL  = 10 # Interval between retries in seconds
+    DB_NAME           = var.db_name
+    DB_USERNAME       = var.db_username
+    DB_PASSWORD       = var.db_password
+    DB_HOST           = var.db_host
+    PHP_VERSION       = var.php_version
+    PHP_FPM_SERVICE   = "php${var.php_version}-fpm"
+    REDIS_HOST        = var.redis_endpoint
+    REDIS_PORT        = var.redis_port
+    MAX_RETRIES       = 30
+    RETRY_INTERVAL    = 10
+    AWS_LB_DNS        = var.alb_dns_name
+    WP_TITLE          = var.wp_title
+    WP_ADMIN          = var.wp_admin
+    WP_ADMIN_EMAIL    = var.wp_admin_email
+    WP_ADMIN_PASSWORD = var.wp_admin_password
   }
 
   # Defines the source of the WordPress deployment script (S3 bucket or local path).
@@ -90,10 +94,11 @@ resource "aws_launch_template" "asg_launch_template" {
   # Tags are applied to ASG instances created with this Launch Template.
   # The tag `Name` is specific to instances and does not need to match the Launch Template resource name.
   tag_specifications {
-    resource_type = "instance" # Apply tags to ASG instances created with this template
+    resource_type = "instance"
     tags = {
-      Name        = "${var.name_prefix}-asg-instance" # Instance name tag
-      Environment = var.environment                   # Environment tag (e.g., dev, stage, prod)
+      Name                  = "${var.name_prefix}-asg-instance"
+      Environment           = var.environment
+      WordPressScriptSource = var.enable_s3_script ? "s3" : "local"
     }
   }
 
@@ -105,7 +110,25 @@ resource "aws_launch_template" "asg_launch_template" {
 
   # --- User Data --- #
   # Provides an installation and configuration script for WordPress.
-  user_data = base64encode(templatefile(local.wordpress_script_path, local.db_config))
+  user_data = base64encode(<<-EOF
+#!/bin/bash
+# Export environment variables
+export DB_NAME='${var.db_name}'
+export DB_USERNAME='${var.db_username}'
+export DB_PASSWORD='${var.db_password}'
+export DB_HOST='${var.db_host}'
+export PHP_VERSION='${var.php_version}'
+export REDIS_HOST='${var.redis_endpoint}'
+export REDIS_PORT='${var.redis_port}'
+export AWS_LB_DNS='${var.alb_dns_name}'
+export WP_TITLE='${var.wp_title}'
+export WP_ADMIN='${var.wp_admin}'
+export WP_ADMIN_EMAIL='${var.wp_admin_email}'
+export WP_ADMIN_PASSWORD='${var.wp_admin_password}'
+
+${file("./scripts/deploy_wordpress.sh")}
+EOF
+  )
 }
 
 # --- Notes --- #

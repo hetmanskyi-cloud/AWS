@@ -50,6 +50,13 @@ output "launch_template_latest_version" {
   value       = aws_launch_template.asg_launch_template.latest_version
 }
 
+# User_data
+output "user_data" {
+  description = "Encoded user data script"
+  value       = aws_launch_template.asg_launch_template.user_data
+  sensitive   = true
+}
+
 # --- Security Group Output --- #
 
 # Security Group ID associated with ASG instances.

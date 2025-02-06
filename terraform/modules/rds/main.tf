@@ -1,3 +1,10 @@
+# --- Main Configuration for RDS --- #
+# This configuration includes:
+# - Primary RDS instance with encryption and monitoring
+# - CloudWatch Log Groups for error and slowquery logs
+# - Optional read replicas for high availability
+# - Subnet group for network isolation
+
 # --- RDS Database Instance Configuration --- #
 
 # Define the primary RDS database instance
@@ -55,7 +62,16 @@ resource "aws_db_instance" "db" {
   monitoring_role_arn = var.enable_rds_monitoring ? try(aws_iam_role.rds_monitoring_role[0].arn, null) : null
 
   # --- CloudWatch Logs Configuration --- #
-  enabled_cloudwatch_logs_exports = ["audit", "error", "general", "slowquery"] # Enable CloudWatch logs export
+  # In test environments, we export only essential logs:
+  # - error: for critical issues and crashes
+  # - slowquery: for query optimization during development
+  # For production, consider adding:
+  # - general: for connections, disconnections, and DDL operations
+  # - audit: for security and compliance tracking
+  enabled_cloudwatch_logs_exports = [
+    "error",    # Critical errors and crashes
+    "slowquery" # For query optimization during development
+  ]
 
   # Tags for resource identification
   tags = {
@@ -64,7 +80,28 @@ resource "aws_db_instance" "db" {
   }
 
   # Ensure the security group is created first
-  depends_on = [aws_security_group.rds_sg]
+  depends_on = [aws_security_group.rds_sg, aws_cloudwatch_log_group.rds_log_group]
+}
+
+# --- CloudWatch Log Groups for RDS --- #
+resource "aws_cloudwatch_log_group" "rds_log_group" {
+  for_each = toset([
+    "/aws/rds/instance/${var.name_prefix}-db-${var.environment}/error",
+    "/aws/rds/instance/${var.name_prefix}-db-${var.environment}/slowquery"
+  ])
+
+  name              = each.key
+  retention_in_days = var.rds_log_retention_days
+  kms_key_id        = var.kms_key_arn
+
+  tags = {
+    Name        = "${var.name_prefix}-rds-logs"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # --- RDS Subnet Group Configuration --- #
@@ -134,8 +171,27 @@ resource "aws_db_instance" "read_replica" {
 }
 
 # --- Notes --- #
-# 1. The primary RDS instance includes encryption at rest and in transit for enhanced security.
-# 2. Read replicas are optional and provide high availability and load distribution.
-# 3. Backup retention, final snapshots, and deletion protection settings are configurable for production safety.
-# 4. Enhanced Monitoring is enabled conditionally using an IAM role for CloudWatch integration.
-# 5. CloudWatch Logs exports audit, error, general, and slowquery logs to improve observability.
+# 1. Security:
+#    - Encryption at rest and in transit is enabled by default
+#    - KMS keys are used for both storage and log encryption
+#
+# 2. High Availability:
+#    - Read replicas are optional and provide load distribution
+#    - Multi-AZ deployment is configurable via var.multi_az
+#
+# 3. Backup and Protection:
+#    - Backup retention, final snapshots, and deletion protection are configurable
+#    - Enhanced Monitoring is enabled conditionally using an IAM role
+#
+# 4. Logging Strategy:
+#    - Test Environment:
+#      * Error logs for critical issues
+#      * Slowquery logs for performance optimization
+#    - Production Recommendations:
+#      * Add general logs for comprehensive activity monitoring
+#      * Consider audit logs for compliance requirements
+#
+# 5. Best Practices:
+#    - Review log retention periods regularly
+#    - Monitor CloudWatch costs, especially in production
+#    - Use tags consistently for resource management

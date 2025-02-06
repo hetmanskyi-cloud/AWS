@@ -1,115 +1,280 @@
 #!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
 
-# --- Log file setup --- #
+# --- ПРОВЕРКА И УСТАНОВКА ПЕРЕМЕННЫХ --- #
+# Переменные из Launch Template
+: "${DB_NAME:?Variable not set}"
+: "${DB_USERNAME:?Variable not set}"
+: "${DB_PASSWORD:?Variable not set}"
+: "${DB_HOST:?Variable not set}"
+: "${PHP_VERSION:=8.3}"
+: "${REDIS_HOST:=}"
+: "${REDIS_PORT:=6379}"
+: "${AWS_LB_DNS:?Variable not set}"
+: "${WP_TITLE:?Variable not set}"
+: "${WP_ADMIN:?Variable not set}"
+: "${WP_ADMIN_EMAIL:?Variable not set}"
+: "${WP_ADMIN_PASSWORD:?Variable not set}"
+
+# --- ОБЩИЕ НАСТРОЙКИ --- #
+WORDPRESS_PATH="/var/www/html/wordpress"
 LOG_FILE="/var/log/wordpress_install.log"
-sudo touch "$LOG_FILE"
-sudo chmod 644 "$LOG_FILE"
-exec > >(sudo tee -a "$LOG_FILE") 2>&1
+NGINX_CONFIG="/etc/nginx/sites-available/wordpress"
 
-echo "Starting WordPress installation..."
-
-# --- System update (without upgrade at this stage) --- #
-echo "Updating system repositories..."
-sudo apt-get update && sleep 2
-
-# --- Install required packages --- #
-echo "Installing required packages..."
-sudo apt-get install -y nginx mysql-client php-fpm php-mysql php-xml php-mbstring php-curl unzip build-essential tcl libssl-dev || {
-  echo "Package installation failed. Please check the connection and package availability."
-  exit 1
+# --- ФУНКЦИИ --- #
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# Ensure PHP-FPM is installed and enabled
-PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
+error() {
+    log "ERROR: $1"
+    exit 1
+}
 
-if ! systemctl list-units --full -all | grep -q "${PHP_FPM_SERVICE}"; then
-  echo "Installing PHP-FPM for PHP version (${PHP_VERSION})..."
-  sudo apt-get install -y "${PHP_FPM_SERVICE}" || { echo "Failed to install PHP-FPM."; exit 1; }
-fi
+# Функция для установки пакетов
+install_packages() {
+    local packages=("$@")
+    log "Устанавливаем пакеты: ${packages[*]}"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" || error "Ошибка установки пакетов"
+    
+    # Проверка установки
+    for package in "${packages[@]}"; do
+        # Проверяем статус установки через apt
+        if ! apt list --installed 2>/dev/null | grep -q "^${package}/"; then
+            # Для PHP-пакетов пробуем проверить без версии
+            if [[ "$package" == php* ]] && apt list --installed 2>/dev/null | grep -q "^${package#php${PHP_VERSION}}"; then
+                continue
+            fi
+            error "Пакет $package не установлен!"
+        fi
+    done
+}
 
-sudo systemctl enable --now "${PHP_FPM_SERVICE}"
+# Функция для проверки сервисов
+check_service() {
+    local service=$1
+    systemctl is-active --quiet "$service" || error "Сервис $service не запущен!"
+}
 
-# --- Clean up unneeded packages and cache --- #
-echo "Cleaning up unused packages and cache..."
-sudo apt-get autoremove -y
-sudo apt-get clean
+# Функция для проверки подключения к базе данных
+check_mysql() {
+    log "Проверяем подключение к MySQL..."
+    mysql -h"${DB_HOST}" -u"${DB_USERNAME}" --password="${DB_PASSWORD}" -e "SELECT 1" &>/dev/null || 
+        error "Ошибка подключения к MySQL!"
+}
 
-# --- Download and install WordPress --- #
-echo "Downloading and installing WordPress..."
-cd /tmp || exit
-curl -O https://wordpress.org/latest.zip || { echo "Failed to download WordPress package."; exit 1; }
-unzip -o latest.zip || { echo "Failed to unzip WordPress package."; exit 1; }
+# Функция для настройки WordPress
+configure_wordpress() {
+    log "Настраиваем WordPress..."
+    cd "$WORDPRESS_PATH"
+    
+    # Настройка wp-config.php
+    sudo -u www-data wp config create \
+        --dbname="${DB_NAME}" \
+        --dbuser="${DB_USERNAME}" \
+        --dbpass="${DB_PASSWORD}" \
+        --dbhost="${DB_HOST}" \
+        --force || error "Ошибка создания wp-config.php"
+        
+    # Дополнительные настройки WordPress
+    local wp_configs=(
+        "WP_DEBUG false --raw"
+        "WP_AUTO_UPDATE_CORE minor --raw"
+        "DISALLOW_FILE_EDIT true --raw"
+    )
+    
+    # Если есть Redis, добавляем его настройки
+    if [[ -n "${REDIS_HOST}" ]]; then
+        wp_configs+=(
+            "WP_REDIS_HOST '${REDIS_HOST}' --raw"
+            "WP_REDIS_PORT ${REDIS_PORT} --raw"
+            "WP_REDIS_TIMEOUT 1 --raw"
+            "WP_REDIS_READ_TIMEOUT 1 --raw"
+            "WP_REDIS_DATABASE 0 --raw"
+        )
+    fi
+    
+    # Применяем все настройки
+    for config in "${wp_configs[@]}"; do
+        sudo -u www-data wp config set $config
+    done
+}
 
-sudo rm -rf /var/www/html/wordpress
-sudo mv wordpress /var/www/html/wordpress
-rm latest.zip
-
-sudo cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php || { echo "Failed to copy WordPress config file."; exit 1; }
-
-# --- Configure wp-config.php --- #
-echo "Configuring wp-config.php..."
-sudo sed -i "s/database_name_here/${DB_NAME}/" /var/www/html/wordpress/wp-config.php
-sudo sed -i "s/username_here/${DB_USERNAME}/" /var/www/html/wordpress/wp-config.php
-sudo sed -i "s/password_here/${DB_PASSWORD}/" /var/www/html/wordpress/wp-config.php
-sudo sed -i "s/localhost/${DB_HOST}/" /var/www/html/wordpress/wp-config.php
-
-# --- Set permissions for WordPress files --- #
-echo "Setting permissions for WordPress files..."
-sudo chown -R www-data:www-data /var/www/html/wordpress
-sudo chmod -R 750 /var/www/html/wordpress
-sudo chmod 640 /var/www/html/wordpress/wp-config.php
-
-# --- Install WP-CLI --- #
-echo "Installing WP-CLI..."
-curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar || { echo "Failed to download WP-CLI."; exit 1; }
-chmod +x wp-cli.phar
-sudo mv wp-cli.phar /usr/local/bin/wp
-
-# --- Configure Nginx for WordPress --- #
-echo "Configuring Nginx for WordPress..."
-if [[ -f /etc/nginx/sites-enabled/default ]]; then
-  sudo rm /etc/nginx/sites-enabled/default
-fi
-
-sudo tee /etc/nginx/sites-available/wordpress > /dev/null <<EOL
+# --- ОСНОВНОЙ СКРИПТ --- #
+main() {
+    # Подготовка системы
+    log "Начало установки WordPress"
+    touch "$LOG_FILE"
+    chmod 644 "$LOG_FILE"
+    
+    # Обновление системы
+    apt-get update -y || error "Ошибка обновления пакетов"
+    
+    # Установка необходимых пакетов
+    install_packages nginx mysql-client "php${PHP_VERSION}-fpm" php-mysql php-xml \
+                    php-mbstring php-curl php-redis unzip netcat-openbsd curl
+    
+    # Настройка Nginx
+    log "Настраиваем Nginx..."
+    
+    # Удаляем дефолтный конфиг перед созданием нового
+    rm -f /etc/nginx/sites-enabled/default
+    
+    cat > "$NGINX_CONFIG" << 'EOF'
 server {
     listen 80 default_server;
-    server_name _;
-
+    listen [::]:80 default_server;
+    
     root /var/www/html/wordpress;
-    index index.php index.html index.htm;
-
+    index index.php index.html;
+    server_name _;
+    
+    # Логи для отладки
+    access_log /var/log/nginx/wordpress_access.log;
+    error_log /var/log/nginx/wordpress_error.log;
+    
     location / {
-        try_files \$uri \$uri/ /index.php?\$args;
+        try_files $uri $uri/ /index.php?$args;
     }
-
-    location ~ \.php\$ {
+    
+    location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
     }
-
-    location ~ /\.ht {
+    
+    location = /healthcheck.php {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        allow all;
+    }
+    
+    # Запрещаем доступ к скрытым файлам
+    location ~ /\. {
         deny all;
     }
 }
-EOL
+EOF
+    
+    sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" "$NGINX_CONFIG"
+    
+    # Проверяем наличие каталога и создаем символическую ссылку
+    if [ ! -d "/etc/nginx/sites-enabled" ]; then
+        mkdir -p /etc/nginx/sites-enabled
+    fi
+    
+    ln -sf "$NGINX_CONFIG" /etc/nginx/sites-enabled/wordpress
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Проверяем конфигурацию
+    nginx -t || error "Ошибка в конфигурации Nginx"
+    
+    # Перезапускаем Nginx для применения изменений
+    systemctl restart nginx || error "Ошибка перезапуска Nginx"
+    
+    # Проверяем статус Nginx после перезапуска
+    if ! systemctl is-active --quiet nginx; then
+        error "Nginx не запустился после настройки"
+    fi
+    
+    # Установка WordPress
+    log "Устанавливаем WordPress..."
+    curl -O https://wordpress.org/latest.zip || error "Ошибка загрузки WordPress"
+    unzip -q latest.zip || error "Ошибка распаковки WordPress"
+    rm -rf "$WORDPRESS_PATH"
+    mkdir -p "$WORDPRESS_PATH"
+    cp -r wordpress/* "$WORDPRESS_PATH/"
+    rm -rf wordpress latest.zip
+    
+    # Настройка прав доступа
+    log "Настраиваем права доступа..."
+    chown -R www-data:www-data "$WORDPRESS_PATH"
+    find "$WORDPRESS_PATH" -type d -exec chmod 755 {} \;
+    find "$WORDPRESS_PATH" -type f -exec chmod 644 {} \;
+    
+    # Создаем директорию для загрузок
+    mkdir -p "$WORDPRESS_PATH/wp-content/uploads"
+    chown -R www-data:www-data "$WORDPRESS_PATH/wp-content"
+    chmod -R 755 "$WORDPRESS_PATH/wp-content/uploads"
+    
+    # Проверяем наличие файлов WordPress
+    if [ ! -f "$WORDPRESS_PATH/wp-load.php" ]; then
+        error "WordPress файлы отсутствуют в $WORDPRESS_PATH"
+    fi
+    
+    # Создаем тестовый PHP файл для проверки
+    echo "<?php phpinfo(); ?>" > "$WORDPRESS_PATH/test.php"
+    chown www-data:www-data "$WORDPRESS_PATH/test.php"
+    chmod 644 "$WORDPRESS_PATH/test.php"
+    
+    # Проверяем работу PHP через curl
+    if ! curl -s "http://localhost/test.php" | grep -q "PHP Version"; then
+        error "PHP не работает корректно через Nginx"
+    fi
+    
+    # Удаляем тестовый файл
+    rm -f "$WORDPRESS_PATH/test.php"
+    
+    log "Nginx и WordPress настроены корректно"
+    
+    # Создаем файл для проверки здоровья
+    echo '<?php echo "OK"; ?>' > "$WORDPRESS_PATH/healthcheck.php"
+    chown www-data:www-data "$WORDPRESS_PATH/healthcheck.php"
+    chmod 644 "$WORDPRESS_PATH/healthcheck.php"
+    
+    # Установка WP-CLI
+    if ! command -v wp &> /dev/null; then
+        curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        chmod +x wp-cli.phar
+        mv wp-cli.phar /usr/local/bin/wp
+    fi
+    
+    # Настройка WordPress
+    configure_wordpress
+    
+    # Установка WordPress если еще не установлен
+    if ! HTTP_HOST=localhost sudo -u www-data wp core is-installed --path="$WORDPRESS_PATH"; then
+        log "Устанавливаем WordPress core..."
+        HTTP_HOST=localhost sudo -u www-data wp core install \
+            --path="$WORDPRESS_PATH" \
+            --url="http://${AWS_LB_DNS}" \
+            --title="${WP_TITLE}" \
+            --admin_user="${WP_ADMIN}" \
+            --admin_password="${WP_ADMIN_PASSWORD}" \
+            --admin_email="${WP_ADMIN_EMAIL}" \
+            --skip-email || error "Ошибка установки WordPress"
+            
+        log "WordPress успешно установлен"
+    else
+        log "WordPress уже установлен"
+    fi
+    
+    # Проверяем успешность установки
+    if ! HTTP_HOST=localhost sudo -u www-data wp core is-installed --path="$WORDPRESS_PATH"; then
+        error "Ошибка: WordPress не установлен после попытки установки"
+    fi
+    
+    # Настройка Redis если доступен
+    if [[ -n "${REDIS_HOST}" ]] && nc -z -w5 "${REDIS_HOST}" "${REDIS_PORT}"; then
+        log "Настраиваем Redis..."
+        sudo -u www-data wp plugin install redis-cache --activate
+        sudo -u www-data wp redis enable
+    fi
+    
+    # Перезапуск сервисов
+    systemctl restart nginx php${PHP_VERSION}-fpm
+    
+    # Проверка работоспособности
+    check_service nginx
+    check_service "php${PHP_VERSION}-fpm"
+    check_mysql
+    
+    log "Установка WordPress успешно завершена!"
+}
 
-sudo ln -sf /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
-sudo systemctl restart nginx || { echo "Failed to restart Nginx."; exit 1; }
-
-sudo systemctl enable nginx
-
-# --- Configure UFW firewall if active --- #
-if sudo ufw status | grep -qw "active"; then
-  echo "Configuring UFW firewall for Nginx..."
-  sudo ufw allow 'Nginx Full'
-  sudo ufw reload
-fi
-
-# --- Upgrade system and apply final updates --- #
-echo "Upgrading system and applying final updates..."
-sudo apt-get upgrade -y
-sudo apt-get autoremove -y
-sudo apt-get clean
-
-echo "WordPress installation and configuration completed successfully."
+# Запуск основного скрипта
+main "$@"

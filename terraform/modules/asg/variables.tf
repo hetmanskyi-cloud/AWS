@@ -236,6 +236,37 @@ variable "php_fpm_service" {
   type        = string
 }
 
+# --- WordPress Configuration --- #
+
+variable "wp_title" {
+  description = "Title of the WordPress site"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin" {
+  description = "Admin username for WordPress"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin_email" {
+  description = "Admin email for WordPress"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin_password" {
+  description = "Admin password for WordPress (stored securely)"
+  type        = string
+  sensitive   = true
+}
+
+variable "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  type        = string
+}
+
 # --- S3 Configuration --- #
 # S3 bucket configuration for storing media and scripts.
 

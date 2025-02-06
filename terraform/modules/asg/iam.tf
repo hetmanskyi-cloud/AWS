@@ -1,6 +1,6 @@
 # --- IAM Configuration for ASG Instances --- #
 # This file defines the IAM role and policies for ASG instances, including:
-# - S3 WordPress media bucket access (conditional).
+# - Conditional S3 access (WordPress media and deployment scripts).
 # - CloudWatch logging.
 # - Systems Manager (SSM) for management without SSH.
 # - KMS decryption for S3 and EBS encryption.
@@ -32,9 +32,10 @@ resource "aws_iam_role" "asg_role" {
 }
 
 # --- Local Variables --- #
-# Define reusable variables for S3 resources based on the enablement flag.
+# Define S3 resources array that combines WordPress media bucket (if enabled)
+# and scripts bucket (if provided) ARNs with their object paths (/*).
 locals {
-  # Combine S3 resources for WordPress media (conditionally) and scripts bucket (always required)
+  # Combine S3 resources for WordPress media (conditional) and scripts bucket (if provided)
   asg_s3_resources = concat(
     lookup(var.buckets, "wordpress_media", false) && var.wordpress_media_bucket_arn != null ?
     ["${var.wordpress_media_bucket_arn}", "${var.wordpress_media_bucket_arn}/*"] : [],
@@ -44,29 +45,35 @@ locals {
 }
 
 # --- S3 Access Policy --- #
-# Defines the IAM policy for accessing the WordPress media bucket (if enabled) and deployment scripts.
 resource "aws_iam_policy" "s3_access_policy" {
+  count = length(local.asg_s3_resources) > 0 ? 1 : 0
+
   name        = "${var.name_prefix}-asg-s3-access-policy"
   description = "S3 access policy for WordPress media (if enabled) and deployment scripts"
 
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [
-      # Access to WordPress Media bucket (if enabled) and Scripts bucket (always enabled)
       {
-        Effect   = "Allow",
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
         Resource = local.asg_s3_resources
       }
     ]
   })
 }
 
-# --- Attach S3 Policy --- #
-# Attaches the S3 access policy to the ASG role.
-resource "aws_iam_role_policy_attachment" "s3_access_attachment" {
+# Attach S3 access policy to the role only if policy was created
+resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
+  count = length(local.asg_s3_resources) > 0 ? 1 : 0
+
   role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.s3_access_policy.arn
+  policy_arn = aws_iam_policy.s3_access_policy[0].arn
 }
 
 # --- CloudWatch Access Policy --- #
@@ -129,8 +136,9 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
 #    - Accessible through IMDSv2 with a validity of 1 hour (rotated automatically).
 #
 # 2. S3 access:
-#    - Access to the WordPress media bucket is conditional, controlled by `buckets`.
-#    - Access to Scripts bucket is always enabled.
+#    - S3 access policy is created only if there are valid S3 resources defined.
+#    - WordPress media bucket access is conditional, based on `buckets` variable.
+#    - Scripts bucket access depends on scripts_bucket_arn being provided.
 #
 # 3. SSM policy:
 #    - Provides secure management of ASG instances without requiring SSH access.
@@ -150,5 +158,6 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
 #    - Rotate IAM roles periodically to comply with security standards.
 #
 # 8. Security considerations:
+#    - Use conditional policy creation to avoid empty resource lists.
 #    - Ensure fine-grained access to avoid privilege escalation.
 #    - Enable CloudTrail logging for IAM actions to track access.

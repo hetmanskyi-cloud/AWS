@@ -1,6 +1,6 @@
 # VPC Endpoints Module for Terraform
 
-This module creates and manages VPC Interface Endpoints for various AWS services within a specified VPC. It also configures optional CloudWatch Logs for monitoring VPC Endpoint traffic and sets up the necessary Security Groups to control access. Gateway Endpoints (S3 and DynamoDB) are managed by the `vpc` module.
+This module creates and manages VPC Interface Endpoints for various AWS services within a specified VPC. Each endpoint is placed in a different private subnet to ensure high availability and prevent the DuplicateSubnetsInSameZone error. It also configures optional CloudWatch Logs for monitoring VPC Endpoint traffic and sets up the necessary Security Groups to control access. Gateway Endpoints (S3 and DynamoDB) are managed by the `vpc` module.
 
 ---
 
@@ -10,7 +10,7 @@ This module creates and manages VPC Interface Endpoints for various AWS services
   Ensure that the `aws` provider is configured with the appropriate region and credentials.
 
 - **Existing VPC and Subnets**:
-  The module requires an existing VPC and subnets where the Interface Endpoints will be deployed.
+  The module requires an existing VPC and at least three private subnets in different Availability Zones where the Interface Endpoints will be deployed.
 
 - **KMS Key**:
   A KMS key is required if CloudWatch Logs are enabled.
@@ -21,14 +21,20 @@ This module creates and manages VPC Interface Endpoints for various AWS services
 
 - **Creates VPC Interface Endpoints**:
   - **SSM Endpoints**: 
-    - SSM Endpoint for AWS Systems Manager
-    - SSM Messages Endpoint for Systems Manager Agent
-    - ASG Messages Endpoint for EC2 instance communications
+    - SSM Endpoint (placed in the first private subnet)
+    - SSM Messages Endpoint (placed in the second private subnet)
+    - ASG Messages Endpoint (placed in the third private subnet)
   - **Lambda Endpoint**: For serverless function integration
   - **CloudWatch Logs Endpoint**: For log delivery
   - **SQS Endpoint**: For message queue access
   - **KMS Endpoint**: For encryption operations
   - All endpoints are configured with private DNS enabled
+  - Each endpoint is placed in a different subnet for high availability
+
+- **High Availability Design**:
+  - Endpoints are distributed across different Availability Zones
+  - Each endpoint uses a dedicated subnet to prevent conflicts
+  - Automatic distribution ensures redundancy and fault tolerance
 
 - **Optional CloudWatch Logs Integration**:
   - Creates a CloudWatch Log Group for monitoring VPC Endpoint traffic
@@ -69,7 +75,7 @@ This module creates and manages VPC Interface Endpoints for various AWS services
 | `environment`                         | `string`       | Environment label (dev, stage, prod).        | **Required**                                                  |
 | `vpc_id`                              | `string`       | VPC ID for endpoint creation.                | **Required**                                                  |
 | `vpc_cidr_block`                      | `string`       | CIDR block of the VPC.                       | **Required**                                                  |
-| `private_subnet_ids`                  | `list(string)` | Private subnet IDs for Interface Endpoints.  | **Required**                                                  |
+| `private_subnet_ids`                  | `list(string)` | List of private subnet IDs in different AZs. | **Required**                                                  |
 | `public_subnet_ids`                   | `list(string)` | Public subnet IDs for Interface Endpoints.   | `[]` (Optional)                                               |
 | `kms_key_arn`                         | `string`       | KMS key ARN for log encryption.              | **Required** if `enable_cloudwatch_logs_for_endpoints` = true |
 | `enable_cloudwatch_logs_for_endpoints`| `bool`         | Enable CloudWatch Logs for VPC Endpoints.    | `false` (Optional)                                            |

@@ -4,6 +4,30 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 
 ---
 
+## **Architecture Overview**
+
+```plaintext
+                                   Internet Gateway
+                                         │
+                                         │
+                     ┌─────────────┬─────┴─────┬───────────┐
+                     │             │           │           │
+               Public Subnet  Public Subnet Public Subnet  │
+                  (AZ-1)        (AZ-2)       (AZ-3)        │
+                     │             │           │           │
+                     │             │           │           │
+              Private Subnet  Private Subnet Private Subnet│
+                  (AZ-1)        (AZ-2)       (AZ-3)        │
+                     │             │           │           │
+                     └─────────────┼───────────┘           │
+                                   │                       │
+                         Gateway Endpoints                 │
+                         (S3 & DynamoDB)                   │
+                                                           │
+                                VPC Flow Logs ─────────────┘
+                            (CloudWatch Logs)
+```
+
 ## **Features**
 
 - **VPC Creation**:
@@ -21,10 +45,22 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
     - Private NACL: Allows MySQL, Redis, DNS, and ephemeral traffic within the VPC.
   - NACLs operate at the subnet level, while Security Groups (SG) restrict traffic at the instance level.
 - **VPC Flow Logs**:
-  - Logs VPC traffic to CloudWatch Logs with KMS encryption
-  - Configurable retention period for logs
-  - Creates IAM role with minimal required permissions
-  - Supports monitoring of all traffic types (ACCEPT/REJECT)
+  - **Log Configuration**:
+    - Captures ALL traffic types (ACCEPT/REJECT)
+    - Logs are organized by environment
+    - Configurable retention period via `flow_logs_retention_in_days`
+  - **Security**:
+    - KMS encryption for sensitive log data
+    - IAM roles follow principle of least privilege
+    - CloudWatch permissions scoped to specific log groups
+  - **Resource Management**:
+    - Automatic cleanup support in test environments
+    - Proper resource tagging for cost allocation
+    - Structured log organization by environment
+  - **Best Practices**:
+    - Regular review of retention periods
+    - Cost monitoring recommendations
+    - Traffic sampling options for high-traffic environments
 - **Gateway Endpoints**:
   - Configurable S3 and DynamoDB endpoints for private access without requiring a NAT Gateway.
 - **Flexible Access Control**:
@@ -33,6 +69,73 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
   - Consistent tagging for resource tracking and cost allocation.
 
 ---
+
+## **Security**
+
+1. **Network ACLs (NACLs)**:
+   - Public subnets:
+     - HTTP/HTTPS access can be conditionally enabled (`enable_public_nacl_http`, `enable_public_nacl_https`)
+     - SSH access is configurable with CIDR restrictions
+     - Ephemeral ports open for return traffic
+   - Private subnets:
+     - Allow only necessary ports (MySQL, Redis, DNS)
+     - Restricted to VPC CIDR for internal communication
+   
+2. **Flow Logs Security**:
+   - KMS encryption for all log data
+   - IAM roles follow principle of least privilege
+   - CloudWatch Logs permissions scoped to specific log groups
+
+3. **Security Considerations**:
+   - Public IP assignment is restricted to public subnets only
+   - Gateway Endpoints provide secure access to AWS services
+   - NACL rules are stateless and provide additional security layer
+
+> Note: Some tfsec rules are intentionally ignored with proper documentation (e.g., public IP assignment in public subnets).
+
+## **Cost Management**
+
+1. **VPC Components**:
+   - VPC itself - no cost
+   - Internet Gateway - no cost
+   - Gateway Endpoints - no cost
+   - Route Tables - no cost
+
+2. **Flow Logs Costs**:
+   - CloudWatch Logs ingestion and storage fees apply
+   - Costs vary by region and log volume
+   - Example cost calculation:
+     ```
+     1GB logs/day * 30 days * $0.50/GB = $15/month
+     ```
+
+3. **Cost Optimization**:
+   - Use log retention policies
+   - Consider sampling for high-traffic environments
+   - Monitor CloudWatch Logs usage
+
+## **Troubleshooting Guide**
+
+1. **Common Issues**:
+   - NACL blocking traffic
+   - Flow Logs delivery failures
+   - Subnet capacity issues
+
+2. **NACL Debugging**:
+   ```shell
+   # Check NACL rules
+   aws ec2 describe-network-acls --network-acl-id <nacl-id>
+   
+   # View Flow Logs
+   aws logs tail <log-group-name> --follow
+   ```
+
+3. **Flow Logs Analysis**:
+   - Example log format:
+     ```
+     <version> <account-id> <interface-id> <srcaddr> <dstaddr> <srcport> <dstport> <protocol> <packets> <bytes> <start> <end> <action> <log-status>
+     ```
+   - Common fields explanation provided in CloudWatch
 
 ## **File Structure**
 
@@ -68,8 +171,8 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `availability_zone_private_1`    | `string`       | Availability zone for the first private subnet.     | **Required**               |
 | `availability_zone_private_2`    | `string`       | Availability zone for the second private subnet.    | **Required**               |
 | `availability_zone_private_3`    | `string`       | Availability zone for the third private subnet.     | **Required**               |
-| `kms_key_arn`                    | `string`       | ARN of the KMS key for encrypting CloudWatch Logs.  | **Required**               |
-| `flow_logs_retention_in_days`    | `number`       | Retention period for VPC Flow Logs in CloudWatch.   | **Required**               |
+| `kms_key_arn`                    | `string`       | ARN of KMS key for Flow Logs encryption             | **Required**               |
+| `flow_logs_retention_in_days`    | `number`       | Number of days to retain VPC Flow Logs              | **Required**               |
 | `enable_vpc_ssh_access`          | `bool`         | Enable or disable SSH access (public NACL rule).    | `false` (Optional)         |
 | `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.         | `["0.0.0.0/0"]` (Optional) |
 | `enable_public_nacl_http`        | `bool`         | Enable or disable HTTP access (public NACL rule).   | `false` (Optional)         |
@@ -117,78 +220,110 @@ module "vpc" {
   aws_account_id                = "123456789012"
   vpc_cidr_block                = "10.0.0.0/16"
   name_prefix                   = "dev"
-  environment                   = "dev"
+  environment                   = "development"  # Must be dev, stage, or prod
+
+  # Subnet Configuration
   public_subnet_cidr_block_1    = "10.0.1.0/24"
   public_subnet_cidr_block_2    = "10.0.2.0/24"
   public_subnet_cidr_block_3    = "10.0.3.0/24"
   private_subnet_cidr_block_1   = "10.0.4.0/24"
   private_subnet_cidr_block_2   = "10.0.5.0/24"
   private_subnet_cidr_block_3   = "10.0.6.0/24"
-  kms_key_arn                   = "arn:aws:kms:eu-west-1:123456789012:key/example"
-  flow_logs_retention_in_days   = 7
-  enable_vpc_ssh_access         = true
-  ssh_allowed_cidr              = ["10.0.0.0/16"]
-  enable_public_nacl_http       = true
-  enable_public_nacl_https      = true
+
+  # Availability Zones - spread across three AZs for high availability
+  availability_zone_public_1    = "eu-west-1a"
+  availability_zone_public_2    = "eu-west-1b"
+  availability_zone_public_3    = "eu-west-1c"
+  availability_zone_private_1   = "eu-west-1a"
+  availability_zone_private_2   = "eu-west-1b"
+  availability_zone_private_3   = "eu-west-1c"
+
+  # Security Configuration
+  enable_vpc_ssh_access        = true
+  ssh_allowed_cidr            = ["10.0.0.0/8"]  # Restrict SSH access
+  enable_public_nacl_http     = true   # Enable if direct HTTP access needed
+  enable_public_nacl_https    = true   # Enable if direct HTTPS access needed
+
+  # Flow Logs Configuration
+  kms_key_arn                 = aws_kms_key.vpc_logs_key.arn
+  flow_logs_retention_in_days = 30     # Adjust based on requirements
 }
 
-output "vpc_id" {
-  value = module.vpc.vpc_id
+# KMS key for Flow Logs encryption
+resource "aws_kms_key" "vpc_logs_key" {
+  description             = "KMS key for VPC Flow Logs encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name        = "dev-vpc-logs-key"
+    Environment = "development"
+  }
 }
+```
 
-output "public_subnets" {
-  value = module.vpc.public_subnets
-}
+## **Best Practices**
 
-output "private_subnets" {
-  value = module.vpc.private_subnets
-}
+1. **Network Design**:
+   - Use all available AZs for high availability
+   - Separate public and private subnets
+   - Plan CIDR ranges for future growth
 
----
+2. **Security**:
+   - Review NACL rules regularly
+   - Monitor Flow Logs for suspicious activity
+   - Use KMS encryption for sensitive data
 
-## **Notes**
-
-1. **Flow Logs**:
-   - Configured to log all traffic (accepted, rejected, and all) to CloudWatch Logs.
-   - KMS encryption ensures secure log storage.
-   - Automatically creates an IAM role with minimal permissions for CloudWatch.
-2. **Gateway Endpoints**:
-   - S3 and DynamoDB Gateway Endpoints are configured for both public and private route tables
-   - Allows instances without public IPs to access S3 and DynamoDB privately
-   - Reduces data transfer costs by keeping traffic within AWS network
-3. **Security**:
-   - Public subnets support direct internet access, controlled by NACL and route table configurations.
-   - SSH, HTTP, and HTTPS access can be dynamically enabled or disabled via input variables.
-
----
+3. **Monitoring**:
+   - Set up CloudWatch Alarms
+   - Review Flow Logs regularly
+   - Monitor subnet IP usage
 
 ## **Future Improvements**
 
-1. **Implement Data Validation for Input Variables**:
-  - Introduce validations for input variables, such as CIDR blocks, to ensure correctness and prevent configuration errors.
-Example:
-  - Validate that all CIDR blocks are in proper format (e.g., 10.0.0.0/16).
-  - Check that subnet CIDR blocks are subsets of the VPC CIDR block.
-Benefit:
-  - Simplifies debugging by providing clear error messages for invalid inputs.
-  - Reduces the risk of misconfigurations affecting infrastructure deployment.
-2. **Enhanced Monitoring**:
-   - Add support for additional CloudWatch metrics
-   - Implement custom metric filters for Flow Logs
-   - Add support for S3 as an alternative Flow Logs destination
+1. **VPC Flow Logs Enhancement**:
+   - Add support for custom log formats
+   - Implement Athena integration for log analysis
+   - Add option for S3 as alternative log destination
+   - Create default CloudWatch Alarms for common scenarios
+
+2. **Network Configuration**:
+   - Add support for Transit Gateway integration
+   - Implement VPC peering configuration
+   - Add option for custom route table configurations
+   - Support for additional Gateway Endpoints
+
+3. **Security Enhancements**:
+   - Implement more granular NACL rules
+   - Add support for VPC endpoints for additional AWS services
+   - Enhanced security group configurations
+   - Implement network firewall integration
+
+4. **Monitoring and Maintenance**:
+   - Add automated log analysis and reporting
+   - Implement cost optimization recommendations
+   - Add support for automated backup and recovery
+   - Create default CloudWatch dashboards
+
+5. **Documentation and Examples**:
+   - Add more usage examples for different scenarios
+   - Create architecture diagrams
+   - Add troubleshooting guide
+   - Include cost estimation guidelines
 
 ---
 
-## Authors
+## **Authors**
 
 This module was developed following Terraform best practices, ensuring flexibility, scalability, and security. Contributions and feedback are highly appreciated!
 
 ---
 
-## Useful Resources
+## **Useful Resources**
 
 - [AWS VPC Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html)
 - [Terraform VPC Module Guide](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest)
 - [AWS Network ACLs Overview](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-network-acls.html)
-
----
+- [VPC Flow Logs Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)
+- [CloudWatch Logs Pricing](https://aws.amazon.com/cloudwatch/pricing/)
+- [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)

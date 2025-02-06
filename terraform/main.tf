@@ -145,6 +145,8 @@ module "s3" {
     aws             = aws
     aws.replication = aws.replication
   }
+
+  depends_on = [module.endpoints]
 }
 
 # --- ASG Module Configuration --- #
@@ -223,6 +225,13 @@ module "asg" {
   redis_endpoint = module.elasticache.redis_endpoint
   redis_port     = var.redis_port
 
+  # WordPress Configuration
+  wp_title          = var.wp_title
+  wp_admin          = var.wp_admin
+  wp_admin_email    = var.wp_admin_email
+  wp_admin_password = var.wp_admin_password
+  alb_dns_name      = module.alb.alb_dns_name
+
   depends_on = [module.vpc]
 }
 
@@ -276,6 +285,9 @@ module "rds" {
   enable_low_storage_alarm      = var.enable_low_storage_alarm
   enable_high_cpu_alarm         = var.enable_high_cpu_alarm
   enable_high_connections_alarm = var.enable_high_connections_alarm
+
+  # Logging configuration
+  rds_log_retention_days = var.rds_log_retention_days
 
   # Read Replica Configuration
   read_replicas_count = var.read_replicas_count

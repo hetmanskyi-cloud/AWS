@@ -54,18 +54,23 @@ resource "aws_lb_target_group" "wordpress" {
   # Consider stricter criteria for critical applications:
   # - Lower `timeout` and `interval` values for faster detection of failures.
   # - Higher `healthy_threshold` to ensure stability before marking targets as healthy.
+  # 
+  # During WordPress installation:
+  # - Higher unhealthy_threshold to be more tolerant of temporary failures
+  # - Shorter interval for more frequent checks
+  # - Quicker healthy_threshold to start serving traffic sooner
   health_check {
-    path                = "/"       # Health check endpoint (default path, can be customized for app-specific needs).
-    interval            = 30        # Time (seconds) between health checks
-    timeout             = 10        # Time to wait for a response before failing
-    healthy_threshold   = 2         # Consecutive successes required to mark healthy
-    unhealthy_threshold = 5         # Consecutive failures required to mark unhealthy
-    matcher             = "200-299" # Acceptable HTTP codes for successful health checks
+    path                = "/healthcheck.php" # Health check endpoint
+    interval            = 60                 # Time (seconds) between health checks
+    timeout             = 15                 # Time to wait for a response before failing
+    healthy_threshold   = 3                  # Consecutive successes required to mark healthy
+    unhealthy_threshold = 5                  # Higher threshold during installation phase
+    matcher             = "200-299"          # Acceptable HTTP codes for successful health checks
   }
 
   # Additional attributes for the target group behavior
-  deregistration_delay = 300 # 300 seconds delay before deregistering targets
-  slow_start           = 60  # Gradual traffic increase for new targets over 60 seconds
+  deregistration_delay = 300 # 5 minutes delay before deregistering targets (increased for installation)
+  slow_start           = 300 # Gradual traffic increase for new targets over 5 minutes
 
   # --- Stickiness Configuration --- #
   # Ensures clients are routed to the same target for the duration of their session.

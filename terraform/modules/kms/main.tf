@@ -5,17 +5,17 @@
 # Define a KMS key resource to encrypt CloudWatch logs, S3 buckets, and other resources
 resource "aws_kms_key" "general_encryption_key" {
   description         = "General KMS key for encrypting CloudWatch logs, S3 buckets, and other resources"
-  enable_key_rotation = var.enable_key_rotation # Enable automatic key rotation for added security
+  enable_key_rotation = var.enable_key_rotation
 
   tags = {
-    Name        = "${var.name_prefix}-general-encryption-key-${var.environment}" # Dynamic name for the encryption key
-    Environment = var.environment                                                # Environment tag for tracking
+    Name        = "${var.name_prefix}-general-encryption-key-${var.environment}"
+    Environment = var.environment
   }
 }
 
 # --- Local Variables --- #
-# Define common KMS actions for reuse across policies
 locals {
+  # Common KMS actions for additional principals
   kms_actions = [
     "kms:Encrypt",
     "kms:Decrypt",
@@ -25,115 +25,110 @@ locals {
     "kms:DescribeKey"
   ]
 
-  # Dynamically include services based on module configuration
-  kms_services = concat(
+  # Base AWS services that require KMS access
+  kms_services = distinct(concat(
     [
-      "logs.${var.aws_region}.amazonaws.com",
-      "rds.amazonaws.com",
-      "elasticache.amazonaws.com",
-      "delivery.logs.amazonaws.com",
-      "s3.amazonaws.com",
-      "ssm.amazonaws.com",
-      "ssmmessages.amazonaws.com",
-      "ec2messages.amazonaws.com",
-      "vpc-flow-logs.amazonaws.com",
-      "sqs.${var.aws_region}.amazonaws.com",
-      "ec2.amazonaws.com"
+      "logs.${var.aws_region}.amazonaws.com", # CloudWatch Logs
+      "rds.amazonaws.com",                    # RDS encryption
+      "elasticache.amazonaws.com",            # ElastiCache encryption
+      "s3.amazonaws.com",                     # S3 bucket encryption
+      "ssm.${var.aws_region}.amazonaws.com",  # Systems Manager
+      "ec2.${var.aws_region}.amazonaws.com",  # EBS encryption
+      "wafv2.amazonaws.com",                  # WAF configuration
+      "vpc-flow-logs.amazonaws.com"           # VPC Flow Logs
     ],
+    # Optional services enabled by feature flags
     lookup(var.buckets, "logging", false) ? ["cloudtrail.amazonaws.com"] : [],
     var.enable_dynamodb ? ["dynamodb.${var.aws_region}.amazonaws.com"] : [],
     var.enable_lambda ? ["lambda.${var.aws_region}.amazonaws.com"] : [],
     var.enable_firehose ? ["firehose.${var.aws_region}.amazonaws.com"] : [],
-    var.enable_waf_logging ? ["wafv2.amazonaws.com"] : []
-  )
+    var.enable_waf_logging ? ["waf.${var.aws_region}.amazonaws.com"] : []
+  ))
 
-  # Extract bucket names from the buckets map for KMS policy
+  # Additional principals that need KMS access (IAM roles and users)
+  additional_principals = distinct(var.additional_principals)
+
+  # Extract bucket names from the buckets map
+  # Used for conditional CloudTrail service access
   s3_bucket_names = keys(var.buckets)
 }
 
 # --- Policy for KMS Key --- #
 # Note: Root access is granted temporarily for key creation.
-# After successful setup, ensure to manually remove root access
-# from the key policy to adhere to security best practices.
+# After successful setup:
+# 1. Create IAM role using key.tf (set enable_kms_role = true)
+# 2. Remove the "Enable IAM User Permissions" statement below
+# 3. Apply the changes to enforce least privilege
 resource "aws_kms_key_policy" "general_encryption_key_policy" {
   key_id = aws_kms_key.general_encryption_key.id
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = concat(
-      [
-        # 1. Root account access (temporarily for initial setup)
-        {
-          Effect = "Allow",
-          Principal = {
-            AWS = "arn:aws:iam::${var.aws_account_id}:root"
-          },
-          Action   = "kms:*",
-          Resource = aws_kms_key.general_encryption_key.arn
+    Version = "2012-10-17"
+    Id      = "key-policy-1"
+    Statement = concat([
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.aws_account_id}:root"
         }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudWatch Logs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${var.aws_region}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+      }
       ],
-      [
-        # 2. AWS service permissions (dynamically generated)
-        for service in local.kms_services : {
-          Effect    = "Allow",
-          Principal = { Service = service },
-          Action    = local.kms_actions,
-          Resource  = aws_kms_key.general_encryption_key.arn
+      # Add statement for additional principals if any exist
+      length(local.additional_principals) > 0 ? [{
+        Sid    = "Allow Additional Principals"
+        Effect = "Allow"
+        Principal = {
+          AWS = local.additional_principals
         }
-      ],
-      [
-        # 3. S3-specific permissions
-        {
-          Effect    = "Allow",
-          Principal = "*",
-          Action = [
-            "s3:PutObject",
-            "s3:GetObject",
-            "s3:DeleteObject"
-          ],
-          Resource = [
-            for bucket_name in local.s3_bucket_names : "arn:aws:s3:::${bucket_name}/*"
-          ]
-        }
-      ],
-      [
-        # 4. Additional principals (user-defined via variables)
-        for principal in var.additional_principals : {
-          Effect    = "Allow",
-          Principal = { AWS = principal },
-          Action    = local.kms_actions,
-          Resource  = aws_kms_key.general_encryption_key.arn
-        }
-      ]
-    )
+        Action   = local.kms_actions
+        Resource = "*"
+    }] : [])
   })
-
-  # Notes:
-  # - Root access is granted temporarily and must be removed post-setup.
-  # - AWS services are dynamically added based on enabled features to ensure least privilege.
-  # - Additional principals allow fine-grained access control for specific accounts or roles.
 }
 
 # --- Notes --- #
 # 1. Dynamic Service Permissions:
-#    - The `kms_services` list dynamically includes AWS services that require access to the KMS key based on enabled features.
-#    - Examples include:
-#      - `enable_firehose` for Amazon Kinesis Firehose.
-#      - `enable_waf_logging` for WAF logging.
-#      - `enable_dynamodb` for DynamoDB.
-#      - `enable_lambda` for AWS Lambda.
-#    - This ensures the KMS key grants permissions only to the services actively used in the configuration, adhering to the principle of least privilege.
+#    - Base services (logs, rds, etc.) are always included
+#    - Additional services added via feature flags
+#    - Cross-account access via additional_account_ids (e.g., "123456789012")
+#    - Custom IAM roles via additional_principals (e.g., "arn:aws:iam::123456789012:role/example")
 #
-# 2. Root Access:
-#    - Initial root account access is included for key management during setup.
-#    - For production, consider removing root access and replacing it with tightly scoped IAM roles.
+# 2. Root Access Removal Process:
+#    - Initial root access required for setup
+#    - After setup:
+#      a. Set enable_kms_role = true in terraform.tfvars
+#      b. Apply to create the IAM role (key.tf)
+#      c. Remove root access statement
+#      d. Apply changes for least privilege
 #
 # 3. Key Rotation:
-#    - Automatic key rotation is enabled via the `enable_key_rotation` variable for enhanced security.
+#    - Automatic key rotation via enable_key_rotation
+#    - AWS rotates key annually
+#    - Old versions retained for decryption
+#    - New data encrypted with latest version
 #
-# 4. Monitoring and Auditing:
-#    - Use AWS CloudTrail to monitor key usage and track encryption/decryption operations for compliance.
-#
-# 5. Additional Principals:
-#    - The `additional_principals` variable allows for custom roles or accounts to be granted KMS permissions as needed.
-#    - Ensure any additional principals follow the principle of least privilege.
+# 4. Monitoring and Security:
+#    - CloudTrail tracks key usage
+#    - CloudWatch Logs encrypted
+#    - Consider CloudWatch Alarms for:
+#      * Failed operations
+#      * Unusual usage patterns
+#      * Access denials

@@ -39,7 +39,14 @@ This module provisions and manages an RDS (Relational Database Service) instance
   - Keeps all traffic within AWS network
   - Improves security by eliminating need for internet access
 - **CloudWatch Logs**:
-  - Exports audit, error, general, and slowquery logs to CloudWatch for enhanced observability
+  - Test Environment Configuration:
+    - Exports error logs for critical issues and crashes
+    - Includes slowquery logs for performance optimization during development
+  - Production Environment Recommendations:
+    - Add general logs for comprehensive activity monitoring (connections, DDL operations)
+    - Consider audit logs for security and compliance requirements
+  - Configurable log retention period via `rds_log_retention_days` variable
+  - Log encryption using KMS for enhanced security
 
 ---
 
@@ -87,6 +94,7 @@ This module provisions and manages an RDS (Relational Database Service) instance
 | `rds_connections_threshold`          | `number`       | Threshold for high number of database connections.                            | Required              |
 | `sns_topic_arn`                      | `string`       | ARN of the SNS Topic for CloudWatch alarms.                                   | Required              |
 | `read_replicas_count`                | `number`       | Number of read replicas for the RDS instance.                                 | Required              |
+| `rds_log_retention_days`             | `number`       | Number of days to retain RDS logs in CloudWatch                               | Required              |
 
 ---
 
@@ -105,6 +113,27 @@ This module provisions and manages an RDS (Relational Database Service) instance
 | `db_instance_identifier`        | Identifier of the primary RDS database instance       |
 | `db_arn`                        | The ARN of the RDS instance                           |
 | `db_status`                     | The current status of the RDS instance                |
+
+---
+
+## Best Practices
+
+### Logging and Monitoring
+
+1. **Log Management**:
+   - Review and adjust log retention periods based on compliance requirements
+   - Monitor CloudWatch costs, especially when enabling additional log types
+   - Consider enabling general and audit logs in production for comprehensive monitoring
+
+2. **Performance Monitoring**:
+   - Use slowquery logs during development to identify and optimize problematic queries
+   - Set up CloudWatch Alarms for critical metrics
+   - Enable Enhanced Monitoring for detailed performance insights
+
+3. **Security**:
+   - Ensure KMS keys are properly managed for log encryption
+   - Regularly review security group rules
+   - Follow the principle of least privilege for IAM roles
 
 ---
 
@@ -137,6 +166,7 @@ module "rds" {
   rds_connections_threshold = 100
   sns_topic_arn           = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   read_replicas_count     = 0
+  rds_log_retention_days  = 30
 }
 
 output "rds_endpoint" {
