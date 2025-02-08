@@ -127,3 +127,17 @@ output "redis_port" {
   description = "The port of the Redis replication group"
   value       = module.elasticache.redis_port
 }
+
+# --- Secrets Manager Outputs --- #
+
+# Output the ARN of the WordPress secrets
+output "secret_arn" {
+  description = "ARN of the WordPress secrets in AWS Secrets Manager"
+  value       = aws_secretsmanager_secret.wp_secrets.arn
+}
+
+# Output the name of the secret
+output "secret_name" {
+  description = "Name of the secret in AWS Secrets Manager"
+  value       = aws_secretsmanager_secret.wp_secrets.name
+}

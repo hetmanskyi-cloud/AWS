@@ -3,26 +3,43 @@
 # using a standard AMI and the deploy_wordpress.sh script to install and configure WordPress.
 
 locals {
-  db_config = {
-    DB_NAME           = var.db_name
-    DB_USERNAME       = var.db_username
-    DB_PASSWORD       = var.db_password
-    DB_HOST           = var.db_host
-    PHP_VERSION       = var.php_version
-    PHP_FPM_SERVICE   = "php${var.php_version}-fpm"
-    REDIS_HOST        = var.redis_endpoint
-    REDIS_PORT        = var.redis_port
-    MAX_RETRIES       = 30
-    RETRY_INTERVAL    = 10
-    AWS_LB_DNS        = var.alb_dns_name
-    WP_TITLE          = var.wp_title
-    WP_ADMIN          = var.wp_admin
-    WP_ADMIN_EMAIL    = var.wp_admin_email
-    WP_ADMIN_PASSWORD = var.wp_admin_password
+  # WordPress configuration
+  wp_config = {
+    DB_HOST         = var.db_host
+    WP_TITLE        = var.wp_title
+    PHP_VERSION     = var.php_version
+    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
+    REDIS_HOST      = var.redis_endpoint
+    REDIS_PORT      = var.redis_port
+    AWS_LB_DNS      = var.alb_dns_name
+    SECRET_NAME     = var.wordpress_secret_name # Add secret name for WordPress credentials
   }
 
-  # Defines the source of the WordPress deployment script (S3 bucket or local path).
+  # Retry configuration for service checks
+  retry_config = {
+    MAX_RETRIES    = 30 # Maximum number of retry attempts
+    RETRY_INTERVAL = 10 # Interval between retries in seconds
+  }
+
+  # Defines the source of the WordPress deployment script
   wordpress_script_path = var.enable_s3_script ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
+
+  # --- Script Content --- #
+  # If `enable_s3_script` is true, use the script from S3. Otherwise, use the local script.
+  script_content = var.enable_s3_script ? "" : file("${path.root}/scripts/deploy_wordpress.sh")
+
+  # Rendered user data
+  rendered_user_data = templatefile(
+    # Path to the user data template
+    "${path.module}/../../templates/user_data.sh.tpl",
+    {
+      wp_config             = local.wp_config
+      aws_region            = var.aws_region
+      enable_s3_script      = var.enable_s3_script
+      wordpress_script_path = local.wordpress_script_path
+      script_content        = local.script_content
+    }
+  )
 }
 
 # --- ASG Launch Template for ASG --- #
@@ -37,6 +54,9 @@ resource "aws_launch_template" "asg_launch_template" {
   lifecycle {
     create_before_destroy = true # Ensure no downtime during template updates
   }
+
+  # Create new version on each update
+  update_default_version = true
 
   # --- Instance Specifications --- #
   # Define the AMI ID and instance type.
@@ -78,7 +98,7 @@ resource "aws_launch_template" "asg_launch_template" {
   # --- IAM Instance Profile --- #
   # Attach an IAM instance profile to manage permissions for the instance.
   iam_instance_profile {
-    name = aws_iam_instance_profile.asg_instance_profile.name # IAM instance profile from asg/iam.tf
+    arn = aws_iam_instance_profile.asg_instance_profile.arn # IAM instance profile from asg/iam.tf
   }
 
   # --- Network Interface Configuration --- #
@@ -110,25 +130,7 @@ resource "aws_launch_template" "asg_launch_template" {
 
   # --- User Data --- #
   # Provides an installation and configuration script for WordPress.
-  user_data = base64encode(<<-EOF
-#!/bin/bash
-# Export environment variables
-export DB_NAME='${var.db_name}'
-export DB_USERNAME='${var.db_username}'
-export DB_PASSWORD='${var.db_password}'
-export DB_HOST='${var.db_host}'
-export PHP_VERSION='${var.php_version}'
-export REDIS_HOST='${var.redis_endpoint}'
-export REDIS_PORT='${var.redis_port}'
-export AWS_LB_DNS='${var.alb_dns_name}'
-export WP_TITLE='${var.wp_title}'
-export WP_ADMIN='${var.wp_admin}'
-export WP_ADMIN_EMAIL='${var.wp_admin_email}'
-export WP_ADMIN_PASSWORD='${var.wp_admin_password}'
-
-${file("./scripts/deploy_wordpress.sh")}
-EOF
-  )
+  user_data = base64encode(local.rendered_user_data)
 }
 
 # --- Notes --- #

@@ -22,6 +22,11 @@ variable "kms_key_arn" {
   type        = string
 }
 
+variable "aws_region" {
+  description = "AWS region where resources will be created"
+  type        = string
+}
+
 # --- ASG Instance Configuration --- #
 # Parameters related to instance type, AMI ID, and SSH settings.
 
@@ -204,22 +209,6 @@ variable "db_host" {
   type        = string
 }
 
-variable "db_name" {
-  description = "Name of the RDS database"
-  type        = string
-}
-
-variable "db_username" {
-  description = "Master username for RDS"
-  type        = string
-}
-
-variable "db_password" {
-  description = "Master password for RDS"
-  type        = string
-  sensitive   = true
-}
-
 variable "db_endpoint" {
   description = "The RDS database endpoint for other configurations"
   type        = string
@@ -244,26 +233,13 @@ variable "wp_title" {
   sensitive   = true
 }
 
-variable "wp_admin" {
-  description = "Admin username for WordPress"
-  type        = string
-  sensitive   = true
-}
-
-variable "wp_admin_email" {
-  description = "Admin email for WordPress"
-  type        = string
-  sensitive   = true
-}
-
-variable "wp_admin_password" {
-  description = "Admin password for WordPress (stored securely)"
-  type        = string
-  sensitive   = true
-}
-
 variable "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
+  type        = string
+}
+
+variable "wordpress_secret_name" {
+  description = "Name of the secret in AWS Secrets Manager containing WordPress credentials"
   type        = string
 }
 

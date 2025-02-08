@@ -65,6 +65,20 @@ output "asg_security_group_id" {
   value       = aws_security_group.asg_security_group.id
 }
 
+# --- IAM Role Details --- #
+
+# The ID of the IAM role attached to ASG instances.
+output "instance_role_id" {
+  description = "The ID of the IAM role attached to ASG instances"
+  value       = aws_iam_role.asg_role.id
+}
+
+# The ARN of the IAM role attached to ASG instances.
+output "instance_profile_arn" {
+  description = "The ARN of the instance profile for ASG instances"
+  value       = aws_iam_instance_profile.asg_instance_profile.arn
+}
+
 # --- Scaling Policy Outputs --- #
 
 # ARN of the Scale-Out Policy to increase ASG capacity when utilization exceeds threshold.

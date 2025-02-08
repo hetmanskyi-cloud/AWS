@@ -156,6 +156,7 @@ module "asg" {
   # General naming and environment configuration
   name_prefix = var.name_prefix
   environment = var.environment
+  aws_region  = var.aws_region
 
   kms_key_arn = module.kms.kms_key_arn
 
@@ -212,25 +213,20 @@ module "asg" {
   scripts_bucket_name        = module.s3.scripts_bucket_name
   scripts_bucket_arn         = module.s3.scripts_bucket_arn
 
-  # Pass RDS host and endpoint for WordPress configuration
-  db_name         = var.db_name
-  db_username     = var.db_username
-  db_password     = var.db_password
-  db_host         = module.rds.db_host
-  db_endpoint     = module.rds.db_endpoint
-  php_version     = var.php_version
-  php_fpm_service = "php${var.php_version}-fpm"
-
-  # Pass Redis host and endpoint for WordPress configuration
-  redis_endpoint = module.elasticache.redis_endpoint
-  redis_port     = var.redis_port
+  # Database Configuration (non-sensitive)  
+  db_host     = module.rds.db_host
+  db_endpoint = module.rds.db_endpoint
 
   # WordPress Configuration
-  wp_title          = var.wp_title
-  wp_admin          = var.wp_admin
-  wp_admin_email    = var.wp_admin_email
-  wp_admin_password = var.wp_admin_password
-  alb_dns_name      = module.alb.alb_dns_name
+  wp_title        = var.wp_title
+  alb_dns_name    = module.alb.alb_dns_name
+  php_version     = var.php_version
+  php_fpm_service = "php${var.php_version}-fpm"
+  redis_endpoint  = module.elasticache.redis_endpoint
+  redis_port      = var.redis_port
+
+  # Secrets Configuration
+  wordpress_secret_name = aws_secretsmanager_secret.wp_secrets.name
 
   depends_on = [module.vpc]
 }

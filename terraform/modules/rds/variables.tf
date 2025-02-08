@@ -66,6 +66,7 @@ variable "engine_version" {
 variable "db_username" {
   description = "Master username for RDS"
   type        = string
+  sensitive   = true
 }
 
 variable "db_password" {
@@ -77,6 +78,7 @@ variable "db_password" {
 variable "db_name" {
   description = "Initial database name"
   type        = string
+  sensitive   = true
 }
 
 variable "db_port" {

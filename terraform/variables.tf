@@ -364,6 +364,7 @@ variable "engine_version" {
 variable "db_username" {
   description = "Master username for RDS"
   type        = string
+  sensitive   = true
 }
 
 # Master password for RDS
@@ -377,6 +378,7 @@ variable "db_password" {
 variable "db_name" {
   description = "Initial database name"
   type        = string
+  sensitive   = true
 }
 
 # Database port for RDS (e.g., 3306 for MySQL)

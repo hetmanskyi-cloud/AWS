@@ -84,4 +84,7 @@ check_resources "Lambda Functions" "aws lambda list-functions" "Functions[*].Fun
 check_resources "Lambda Permissions" "aws lambda get-policy --function-name \$(aws lambda list-functions --query 'Functions[*].FunctionName' --output text)" "Policy"
 check_resources "Lambda Event Source Mappings" "aws lambda list-event-source-mappings" "EventSourceMappings[*].UUID"
 
+### === SECRETS MANAGER === ###
+check_resources "AWS Secrets Manager Secrets" "aws secretsmanager list-secrets" "SecretList[*].Name"
+
 echo "=== AWS resource check completed. ==="

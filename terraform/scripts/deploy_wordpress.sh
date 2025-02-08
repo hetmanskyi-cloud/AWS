@@ -1,280 +1,233 @@
 #!/bin/bash
-set -euo pipefail
-IFS=$'\n\t'
+set -e
 
-# --- ПРОВЕРКА И УСТАНОВКА ПЕРЕМЕННЫХ --- #
-# Переменные из Launch Template
-: "${DB_NAME:?Variable not set}"
-: "${DB_USERNAME:?Variable not set}"
-: "${DB_PASSWORD:?Variable not set}"
-: "${DB_HOST:?Variable not set}"
-: "${PHP_VERSION:=8.3}"
-: "${REDIS_HOST:=}"
-: "${REDIS_PORT:=6379}"
-: "${AWS_LB_DNS:?Variable not set}"
-: "${WP_TITLE:?Variable not set}"
-: "${WP_ADMIN:?Variable not set}"
-: "${WP_ADMIN_EMAIL:?Variable not set}"
-: "${WP_ADMIN_PASSWORD:?Variable not set}"
+# -----------------------------------------------------------------------------
+# Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
+exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting WordPress installation..."
 
-# --- ОБЩИЕ НАСТРОЙКИ --- #
-WORDPRESS_PATH="/var/www/html/wordpress"
-LOG_FILE="/var/log/wordpress_install.log"
-NGINX_CONFIG="/etc/nginx/sites-available/wordpress"
+# -----------------------------------------------------------------------------
+# 1. Install base packages (jq, curl, netcat-openbsd, etc.)
+#    - jq: for JSON parsing
+#    - curl: for fetching remote files
+#    - netcat-openbsd (nc): for checking DB connectivity
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing base packages..."
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  jq \
+  curl \
+  netcat-openbsd
 
-# --- ФУНКЦИИ --- #
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
+# -----------------------------------------------------------------------------
+# 2. Wait for MySQL (RDS) to become available (up to 60 seconds)
+#    - This helps avoid race conditions if the DB is not fully ready.
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking if MySQL is ready on host: ${DB_HOST}..."
+for i in {1..12}; do
+  if nc -z "${DB_HOST}" 3306; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] MySQL is reachable!"
+    break
+  fi
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] MySQL not ready yet. Waiting 5 seconds..."
+  sleep 5
+done
 
-error() {
-    log "ERROR: $1"
+# Final check after loop
+if ! nc -z "${DB_HOST}" 3306; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: MySQL not available after 60s. Exiting."
+  exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# 3. Retrieve secrets from AWS Secrets Manager
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Retrieving secrets from AWS Secrets Manager..."
+SECRETS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_NAME}" --query 'SecretString' --output text)
+
+# Verify secrets retrieval
+if [ -z "$SECRETS" ]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to retrieve secrets from AWS Secrets Manager"
+  exit 1
+fi
+
+# Extract values from the JSON
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing secrets..."
+DB_NAME=$(echo "$SECRETS" | jq -r '.db_name')
+DB_USERNAME=$(echo "$SECRETS" | jq -r '.db_username')
+DB_PASSWORD=$(echo "$SECRETS" | jq -r '.db_password')
+WP_ADMIN=$(echo "$SECRETS" | jq -r '.admin_user')
+WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.admin_email')
+WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.admin_password')
+
+# Verify all required values are present
+for VAR in DB_NAME DB_USERNAME DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD; do
+  if [ -z "${!VAR}" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Required secret variable $VAR is empty."
     exit 1
-}
+  fi
+done
 
-# Функция для установки пакетов
-install_packages() {
-    local packages=("$@")
-    log "Устанавливаем пакеты: ${packages[*]}"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" || error "Ошибка установки пакетов"
-    
-    # Проверка установки
-    for package in "${packages[@]}"; do
-        # Проверяем статус установки через apt
-        if ! apt list --installed 2>/dev/null | grep -q "^${package}/"; then
-            # Для PHP-пакетов пробуем проверить без версии
-            if [[ "$package" == php* ]] && apt list --installed 2>/dev/null | grep -q "^${package#php${PHP_VERSION}}"; then
-                continue
-            fi
-            error "Пакет $package не установлен!"
-        fi
-    done
-}
+# -----------------------------------------------------------------------------
+# 4. Install WordPress dependencies (Nginx, PHP, MySQL client, etc.)
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WordPress dependencies..."
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  nginx \
+  php${PHP_VERSION}-fpm \
+  php${PHP_VERSION}-mysql \
+  php${PHP_VERSION}-redis \
+  php${PHP_VERSION}-xml \
+  php${PHP_VERSION}-mbstring \
+  php${PHP_VERSION}-curl \
+  php${PHP_VERSION}-zip \
+  mysql-client \
+  unzip
 
-# Функция для проверки сервисов
-check_service() {
-    local service=$1
-    systemctl is-active --quiet "$service" || error "Сервис $service не запущен!"
-}
-
-# Функция для проверки подключения к базе данных
-check_mysql() {
-    log "Проверяем подключение к MySQL..."
-    mysql -h"${DB_HOST}" -u"${DB_USERNAME}" --password="${DB_PASSWORD}" -e "SELECT 1" &>/dev/null || 
-        error "Ошибка подключения к MySQL!"
-}
-
-# Функция для настройки WordPress
-configure_wordpress() {
-    log "Настраиваем WordPress..."
-    cd "$WORDPRESS_PATH"
-    
-    # Настройка wp-config.php
-    sudo -u www-data wp config create \
-        --dbname="${DB_NAME}" \
-        --dbuser="${DB_USERNAME}" \
-        --dbpass="${DB_PASSWORD}" \
-        --dbhost="${DB_HOST}" \
-        --force || error "Ошибка создания wp-config.php"
-        
-    # Дополнительные настройки WordPress
-    local wp_configs=(
-        "WP_DEBUG false --raw"
-        "WP_AUTO_UPDATE_CORE minor --raw"
-        "DISALLOW_FILE_EDIT true --raw"
-    )
-    
-    # Если есть Redis, добавляем его настройки
-    if [[ -n "${REDIS_HOST}" ]]; then
-        wp_configs+=(
-            "WP_REDIS_HOST '${REDIS_HOST}' --raw"
-            "WP_REDIS_PORT ${REDIS_PORT} --raw"
-            "WP_REDIS_TIMEOUT 1 --raw"
-            "WP_REDIS_READ_TIMEOUT 1 --raw"
-            "WP_REDIS_DATABASE 0 --raw"
-        )
-    fi
-    
-    # Применяем все настройки
-    for config in "${wp_configs[@]}"; do
-        sudo -u www-data wp config set $config
-    done
-}
-
-# --- ОСНОВНОЙ СКРИПТ --- #
-main() {
-    # Подготовка системы
-    log "Начало установки WordPress"
-    touch "$LOG_FILE"
-    chmod 644 "$LOG_FILE"
-    
-    # Обновление системы
-    apt-get update -y || error "Ошибка обновления пакетов"
-    
-    # Установка необходимых пакетов
-    install_packages nginx mysql-client "php${PHP_VERSION}-fpm" php-mysql php-xml \
-                    php-mbstring php-curl php-redis unzip netcat-openbsd curl
-    
-    # Настройка Nginx
-    log "Настраиваем Nginx..."
-    
-    # Удаляем дефолтный конфиг перед созданием нового
-    rm -f /etc/nginx/sites-enabled/default
-    
-    cat > "$NGINX_CONFIG" << 'EOF'
+# -----------------------------------------------------------------------------
+# 5. Configure Nginx
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring Nginx..."
+cat > /etc/nginx/sites-available/wordpress << 'EOF'
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    
+    listen 80;
     root /var/www/html/wordpress;
-    index index.php index.html;
+    index index.php;
     server_name _;
-    
-    # Логи для отладки
-    access_log /var/log/nginx/wordpress_access.log;
-    error_log /var/log/nginx/wordpress_error.log;
-    
+
+    # ALB Support
+    set_real_ip_from 10.0.0.0/16;
+    real_ip_header X-Forwarded-For;
+
+    # SSL configuration for ALB
+    set $https off;
+    if ($http_x_forwarded_proto = "https") {
+        set $https on;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$args;
     }
-    
+
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-    
-    location = /healthcheck.php {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-        allow all;
-    }
-    
-    # Запрещаем доступ к скрытым файлам
-    location ~ /\. {
-        deny all;
+        # Pass ALB headers to PHP
+        fastcgi_param HTTPS $https;
+        fastcgi_param HTTP_X_FORWARDED_PROTO $http_x_forwarded_proto;
     }
 }
 EOF
-    
-    sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" "$NGINX_CONFIG"
-    
-    # Проверяем наличие каталога и создаем символическую ссылку
-    if [ ! -d "/etc/nginx/sites-enabled" ]; then
-        mkdir -p /etc/nginx/sites-enabled
-    fi
-    
-    ln -sf "$NGINX_CONFIG" /etc/nginx/sites-enabled/wordpress
-    rm -f /etc/nginx/sites-enabled/default
-    
-    # Проверяем конфигурацию
-    nginx -t || error "Ошибка в конфигурации Nginx"
-    
-    # Перезапускаем Nginx для применения изменений
-    systemctl restart nginx || error "Ошибка перезапуска Nginx"
-    
-    # Проверяем статус Nginx после перезапуска
-    if ! systemctl is-active --quiet nginx; then
-        error "Nginx не запустился после настройки"
-    fi
-    
-    # Установка WordPress
-    log "Устанавливаем WordPress..."
-    curl -O https://wordpress.org/latest.zip || error "Ошибка загрузки WordPress"
-    unzip -q latest.zip || error "Ошибка распаковки WordPress"
-    rm -rf "$WORDPRESS_PATH"
-    mkdir -p "$WORDPRESS_PATH"
-    cp -r wordpress/* "$WORDPRESS_PATH/"
-    rm -rf wordpress latest.zip
-    
-    # Настройка прав доступа
-    log "Настраиваем права доступа..."
-    chown -R www-data:www-data "$WORDPRESS_PATH"
-    find "$WORDPRESS_PATH" -type d -exec chmod 755 {} \;
-    find "$WORDPRESS_PATH" -type f -exec chmod 644 {} \;
-    
-    # Создаем директорию для загрузок
-    mkdir -p "$WORDPRESS_PATH/wp-content/uploads"
-    chown -R www-data:www-data "$WORDPRESS_PATH/wp-content"
-    chmod -R 755 "$WORDPRESS_PATH/wp-content/uploads"
-    
-    # Проверяем наличие файлов WordPress
-    if [ ! -f "$WORDPRESS_PATH/wp-load.php" ]; then
-        error "WordPress файлы отсутствуют в $WORDPRESS_PATH"
-    fi
-    
-    # Создаем тестовый PHP файл для проверки
-    echo "<?php phpinfo(); ?>" > "$WORDPRESS_PATH/test.php"
-    chown www-data:www-data "$WORDPRESS_PATH/test.php"
-    chmod 644 "$WORDPRESS_PATH/test.php"
-    
-    # Проверяем работу PHP через curl
-    if ! curl -s "http://localhost/test.php" | grep -q "PHP Version"; then
-        error "PHP не работает корректно через Nginx"
-    fi
-    
-    # Удаляем тестовый файл
-    rm -f "$WORDPRESS_PATH/test.php"
-    
-    log "Nginx и WordPress настроены корректно"
-    
-    # Создаем файл для проверки здоровья
-    echo '<?php echo "OK"; ?>' > "$WORDPRESS_PATH/healthcheck.php"
-    chown www-data:www-data "$WORDPRESS_PATH/healthcheck.php"
-    chmod 644 "$WORDPRESS_PATH/healthcheck.php"
-    
-    # Установка WP-CLI
-    if ! command -v wp &> /dev/null; then
-        curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-        chmod +x wp-cli.phar
-        mv wp-cli.phar /usr/local/bin/wp
-    fi
-    
-    # Настройка WordPress
-    configure_wordpress
-    
-    # Установка WordPress если еще не установлен
-    if ! HTTP_HOST=localhost sudo -u www-data wp core is-installed --path="$WORDPRESS_PATH"; then
-        log "Устанавливаем WordPress core..."
-        HTTP_HOST=localhost sudo -u www-data wp core install \
-            --path="$WORDPRESS_PATH" \
-            --url="http://${AWS_LB_DNS}" \
-            --title="${WP_TITLE}" \
-            --admin_user="${WP_ADMIN}" \
-            --admin_password="${WP_ADMIN_PASSWORD}" \
-            --admin_email="${WP_ADMIN_EMAIL}" \
-            --skip-email || error "Ошибка установки WordPress"
-            
-        log "WordPress успешно установлен"
-    else
-        log "WordPress уже установлен"
-    fi
-    
-    # Проверяем успешность установки
-    if ! HTTP_HOST=localhost sudo -u www-data wp core is-installed --path="$WORDPRESS_PATH"; then
-        error "Ошибка: WordPress не установлен после попытки установки"
-    fi
-    
-    # Настройка Redis если доступен
-    if [[ -n "${REDIS_HOST}" ]] && nc -z -w5 "${REDIS_HOST}" "${REDIS_PORT}"; then
-        log "Настраиваем Redis..."
-        sudo -u www-data wp plugin install redis-cache --activate
-        sudo -u www-data wp redis enable
-    fi
-    
-    # Перезапуск сервисов
-    systemctl restart nginx php${PHP_VERSION}-fpm
-    
-    # Проверка работоспособности
-    check_service nginx
-    check_service "php${PHP_VERSION}-fpm"
-    check_mysql
-    
-    log "Установка WordPress успешно завершена!"
-}
 
-# Запуск основного скрипта
-main "$@"
+# Enable WordPress site and disable the default site
+ln -sf /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+systemctl restart nginx
+
+# -----------------------------------------------------------------------------
+# 6. Download and install WordPress
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading and installing WordPress..."
+cd /tmp
+curl -O https://wordpress.org/latest.zip
+unzip -q latest.zip
+rm -rf /var/www/html/wordpress
+mv wordpress /var/www/html/wordpress
+rm latest.zip
+
+# -----------------------------------------------------------------------------
+# 7. Configure WordPress (wp-config.php) for DB, ALB, Redis
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring WordPress..."
+cd /var/www/html/wordpress
+cp wp-config-sample.php wp-config.php
+sed -i "s/database_name_here/$DB_NAME/" wp-config.php
+sed -i "s/username_here/$DB_USERNAME/" wp-config.php
+sed -i "s/password_here/$DB_PASSWORD/" wp-config.php
+sed -i "s/localhost/$DB_HOST/" wp-config.php
+
+cat >> wp-config.php << EOF
+
+/* ALB and HTTPS Support */
+if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    \$_SERVER['HTTPS'] = 'on';
+}
+define('WP_HOME', 'http://${AWS_LB_DNS}');
+define('WP_SITEURL', 'http://${AWS_LB_DNS}');
+
+/* WordPress Updates Configuration */
+define('WP_AUTO_UPDATE_CORE', false);
+define('AUTOMATIC_UPDATER_DISABLED', true);
+
+/* Redis Configuration */
+define('WP_REDIS_HOST', '${REDIS_HOST}');
+define('WP_REDIS_PORT', ${REDIS_PORT});
+define('WP_REDIS_DATABASE', 0);
+define('WP_CACHE', true);
+
+/* Security Keys - these should be unique for each installation */
+define('AUTH_KEY',         '$(openssl rand -base64 48)');
+define('SECURE_AUTH_KEY',  '$(openssl rand -base64 48)');
+define('LOGGED_IN_KEY',    '$(openssl rand -base64 48)');
+define('NONCE_KEY',        '$(openssl rand -base64 48)');
+define('AUTH_SALT',        '$(openssl rand -base64 48)');
+define('SECURE_AUTH_SALT', '$(openssl rand -base64 48)');
+define('LOGGED_IN_SALT',   '$(openssl rand -base64 48)');
+define('NONCE_SALT',       '$(openssl rand -base64 48)');
+EOF
+
+# -----------------------------------------------------------------------------
+# 8. Set correct file permissions
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting WordPress file permissions..."
+chown -R www-data:www-data /var/www/html/wordpress
+find /var/www/html/wordpress -type d -exec chmod 755 {} \;
+find /var/www/html/wordpress -type f -exec chmod 644 {} \;
+
+# -----------------------------------------------------------------------------
+# 9. Install WP-CLI and run initial WordPress setup
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WP-CLI..."
+curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+chmod +x wp-cli.phar
+mv wp-cli.phar /usr/local/bin/wp
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running WordPress core installation..."
+cd /var/www/html/wordpress
+sudo -u www-data wp core install \
+  --url="http://${AWS_LB_DNS}" \
+  --title="${WP_TITLE}" \
+  --admin_user="${WP_ADMIN}" \
+  --admin_password="${WP_ADMIN_PASSWORD}" \
+  --admin_email="${WP_ADMIN_EMAIL}" \
+  --skip-email
+
+# -----------------------------------------------------------------------------
+# 10. Configure and enable Redis Object Cache
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up Redis Object Cache..."
+sudo -u www-data wp plugin install redis-cache --activate
+sudo -u www-data wp redis enable
+
+# -----------------------------------------------------------------------------
+# 11. System upgrade and cleanup
+# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating system packages..."
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y
+apt-get autoremove -y
+apt-get clean
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation and system update completed successfully!"
+
+# -----------------------------------------------------------------------------
+# Notes:
+#  - This script expects the following environment variables to be set:
+#       SECRET_NAME, DB_HOST, AWS_LB_DNS, WP_TITLE, WP_ADMIN, WP_ADMIN_PASSWORD, WP_ADMIN_EMAIL,
+#       REDIS_HOST, REDIS_PORT, PHP_VERSION, etc.
+#  - A wait-loop is performed to ensure the MySQL (RDS) service is available before proceeding.
+#  - 'aws secretsmanager get-secret-value' is called, so 'awscli' must be installed.
+#  - Logging is sent to /var/log/wordpress_install.log and the console via 'tee'.
+#  - WP-CLI is installed to /usr/local/bin/wp for automated WordPress setup.
+#  - If you are using Amazon Linux 2023 or a different distro, adapt 'apt-get' commands as needed.
+# -----------------------------------------------------------------------------
