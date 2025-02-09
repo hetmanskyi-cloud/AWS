@@ -5,23 +5,40 @@ set -e
 exec 1> >(tee -a /var/log/user-data.log) 2>&1
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting user-data script..."
 
-# Ensure AWS CLI is installed (for Secrets Manager or S3 access), unless already present
+# -----------------------------------------------------------------------------
+# 1) Ensure AWS CLI (v2) is installed, if not already
+# -----------------------------------------------------------------------------
 if ! command -v aws >/dev/null 2>&1; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing awscli..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing AWS CLI v2..."
+
+  # Install 'unzip' and 'curl' if not present
   if command -v yum >/dev/null 2>&1; then
-    yum install -y awscli
+    yum install -y unzip curl
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y unzip curl
   elif command -v apt-get >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y awscli
+    apt-get install -y unzip curl
   else
-    echo "[ERROR] Unable to install awscli. Unknown package manager."
+    echo "[ERROR] Unknown package manager. Cannot install dependencies for AWS CLI."
     exit 1
   fi
+
+  # Download AWS CLI v2 zip archive
+  cd /tmp
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip -q awscliv2.zip
+
+  # Install (or update) AWS CLI
+  sudo ./aws/install --update
+
 else
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] awscli is already installed."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] AWS CLI is already installed."
 fi
 
-# Export WordPress configuration variables
+# -----------------------------------------------------------------------------
+# 2) Export WordPress-related environment variables
+# -----------------------------------------------------------------------------
 %{ for key, value in wp_config }
 export ${key}="${value}"
 %{ endfor }
@@ -29,7 +46,9 @@ export ${key}="${value}"
 # Export AWS region for Secrets Manager
 export AWS_DEFAULT_REGION="${aws_region}"
 
-# Decide how to get the WordPress deployment script
+# -----------------------------------------------------------------------------
+# 3) Retrieve or embed the WordPress deployment script
+# -----------------------------------------------------------------------------
 %{ if enable_s3_script }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading script from S3: ${wordpress_script_path}"
   aws s3 cp "${wordpress_script_path}" /tmp/deploy_wordpress.sh
@@ -40,16 +59,23 @@ ${script_content}
 END_SCRIPT
 %{ endif }
 
-# Make the script executable and run it
+# -----------------------------------------------------------------------------
+# 4) Execute the deployment script
+# -----------------------------------------------------------------------------
 chmod +x /tmp/deploy_wordpress.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running /tmp/deploy_wordpress.sh..."
 /tmp/deploy_wordpress.sh
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] User-data script completed!"
 
+# -----------------------------------------------------------------------------
 # Notes:
-# 1. AWS CLI is installed here if not already present (for both Secrets Manager and S3 usage).
-# 2. If 'enable_s3_script' is true, the WordPress deployment script is downloaded from S3.
-# 3. If 'enable_s3_script' is false, the script content is embedded directly via user_data.
-# 4. WordPress environment variables and AWS region are exported before running the script.
-# 5. Ensure that your AMI or package manager (yum/apt-get) is available for installing awscli if needed.
+# 1. We install AWS CLI v2 if not already present. We use the official zip-based
+#    installation method recommended by AWS documentation.
+# 2. If 'enable_s3_script' is true, we download the WordPress deployment script
+#    from an S3 bucket.
+# 3. Otherwise, we embed the script content directly in user_data.
+# 4. We set environment variables (DB_HOST, WP_TITLE, etc.) before running the script.
+# 5. Logs are written to /var/log/user-data.log.
+# 6. Make sure your AMI can install 'unzip' and 'curl' (via yum/dnf/apt-get) successfully.
+# -----------------------------------------------------------------------------

@@ -165,7 +165,7 @@ resource "aws_network_acl_rule" "private_outbound_mysql" {
 # Rule for Redis (ElastiCache)
 resource "aws_network_acl_rule" "private_outbound_elasticache" {
   network_acl_id = aws_network_acl.private_nacl.id
-  rule_number    = 210 # Changed to a unique number
+  rule_number    = 210
   egress         = true
   protocol       = "tcp"
   from_port      = 6379

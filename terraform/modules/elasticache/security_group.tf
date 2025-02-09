@@ -20,8 +20,8 @@ resource "aws_security_group" "redis_sg" {
     from_port       = var.redis_port
     to_port         = var.redis_port
     protocol        = "tcp"
-    security_groups = [var.asg_security_group_id] # Reference to the ASG Security Group passed via variable.
-    description     = "Allow inbound Redis traffic from ASG instances"
+    security_groups = [var.asg_security_group_id] # Reference the ASG Security Group.
+    description     = "Allow Redis access from ASG instances"
   }
 
   # --- Egress Rule --- #

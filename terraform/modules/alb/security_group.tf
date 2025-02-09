@@ -58,7 +58,8 @@ resource "aws_security_group_rule" "alb_https" {
   description       = "Allow HTTPS traffic (enabled only if HTTPS listener is active)"
 
   # Note: Ensure the SSL certificate provided via `certificate_arn` is valid and properly configured.
-  # The HTTPS listener depends on a valid SSL certificate to function correctly.  
+  # The HTTPS listener depends on a valid SSL certificate to function correctly.
+  # If SSL certificate is missing, var.enable_https_listener variable should be set to false
 }
 
 # --- Notes --- #

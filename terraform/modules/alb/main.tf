@@ -61,10 +61,10 @@ resource "aws_lb_target_group" "wordpress" {
   # - Quicker healthy_threshold to start serving traffic sooner
   health_check {
     path                = "/healthcheck.php" # Health check endpoint
-    interval            = 60                 # Time (seconds) between health checks
-    timeout             = 15                 # Time to wait for a response before failing
-    healthy_threshold   = 3                  # Consecutive successes required to mark healthy
-    unhealthy_threshold = 5                  # Higher threshold during installation phase
+    interval            = 10                 # Time (seconds) between health checks
+    timeout             = 3                  # Time to wait for a response before failing
+    healthy_threshold   = 2                  # Consecutive successes required to mark healthy
+    unhealthy_threshold = 3                  # Higher threshold during installation phase
     matcher             = "200-299"          # Acceptable HTTP codes for successful health checks
   }
 
