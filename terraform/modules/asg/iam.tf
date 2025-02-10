@@ -143,7 +143,9 @@ resource "aws_iam_policy" "elasticache_access_policy" {
         Effect = "Allow"
         Action = [
           "elasticache:DescribeReplicationGroups",
-          "elasticache:DescribeCacheClusters"
+          "elasticache:DescribeCacheClusters",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetHealth"
         ]
         Resource = "*"
       }

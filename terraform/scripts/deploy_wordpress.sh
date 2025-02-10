@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -e # Exit script if any command fails
 
 # -----------------------------------------------------------------------------
 # Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
@@ -84,7 +84,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   php${PHP_VERSION}-curl \
   php${PHP_VERSION}-zip \
   mysql-client \
-  redis-tools
+  redis-tools \
+  redis
 
 # -----------------------------------------------------------------------------
 # 5. Configure Nginx (renaming '$https' to '$forwarded_https')
@@ -209,8 +210,8 @@ sudo -u www-data wp core install \
 # 10. Configure and enable Redis Object Cache
 # -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up Redis Object Cache..."
-sudo -u www-data wp plugin install redis-cache --activate  # Install and activate Redis Object Cache plugin
-sudo -u www-data wp redis enable  # Enable Redis caching in WordPress
+sudo -u www-data wp plugin install redis-cache --activate # Install and activate Redis Object Cache plugin
+sudo -u www-data wp redis enable || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to enable Redis caching."; exit 1; }  # Enable Redis caching in WordPress
 
 # -----------------------------------------------------------------------------
 # 11. System upgrade and cleanup

@@ -64,6 +64,8 @@ resource "aws_launch_template" "asg_launch_template" {
   instance_type = var.instance_type # Instance type (e.g., t2.micro for AWS Free Tier)
   key_name      = var.ssh_key_name  # SSH key pair name for secure instance access (optional)
 
+  vpc_security_group_ids = [aws_security_group.asg_security_group.id] # Security groups for networking
+
   # --- Block Device Mappings --- #
   # Configure the root EBS volume with encryption enabled if enabled via `enable_ebs_encryption`.
   block_device_mappings {
@@ -105,9 +107,8 @@ resource "aws_launch_template" "asg_launch_template" {
   # Deny public IPs and set security groups for instance networking.
   network_interfaces {
     device_index                = 0
-    associate_public_ip_address = var.enable_public_ip                       # Enable/Disable public IPs
-    delete_on_termination       = true                                       # Delete interface on termination
-    security_groups             = [aws_security_group.asg_security_group.id] # Security groups for networking
+    associate_public_ip_address = var.enable_public_ip # Enable/Disable public IPs
+    delete_on_termination       = true                 # Delete interface on termination    
   }
 
   # --- Tag Specifications --- #
