@@ -188,13 +188,17 @@ chown -R www-data:www-data /var/www/html/wordpress
 find /var/www/html/wordpress -type d -exec chmod 755 {} \;
 find /var/www/html/wordpress -type f -exec chmod 644 {} \;
 
-# -----------------------------------------------------------------------------
-# 9. Install WP-CLI and run initial WordPress setup
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------- 
+# 9. Install WP-CLI and run initial WordPress setup 
+# ----------------------------------------------------------------------------- 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WP-CLI..."
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x wp-cli.phar
 mv wp-cli.phar /usr/local/bin/wp
+
+# --- WP-CLI Cache Setup ---
+mkdir -p /tmp/wp-cli-cache
+export WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running WordPress core installation..."
 cd /var/www/html/wordpress
@@ -225,23 +229,40 @@ apt-get clean  # Clean up package cache to free disk space
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation and system update completed successfully!"
 
 # -----------------------------------------------------------------------------
-# 12. Create health check endpoint for ALB
+# 12. Create ALB health check endpoint using provided content
 # -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating ALB health check endpoint..."
-echo "<?php http_response_code(200); ?>" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null  # Create a simple health check file
-sudo chown www-data:www-data /var/www/html/wordpress/healthcheck.php  # Set correct ownership
-sudo chmod 644 /var/www/html/wordpress/healthcheck.php  # Set correct permissions
+if [ -n "${HEALTHCHECK_CONTENT}" ]; then
+  echo "${HEALTHCHECK_CONTENT}" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
+else
+  echo "<?php http_response_code(200); ?>" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
+fi
+sudo chown www-data:www-data /var/www/html/wordpress/healthcheck.php
+sudo chmod 644 /var/www/html/wordpress/healthcheck.php
 
 # -----------------------------------------------------------------------------
 # Notes:
-#  - This script expects the following environment variables:
+#  - This script expects several environment variables to be set, including:
 #      SECRET_NAME, DB_HOST, AWS_LB_DNS, WP_TITLE, WP_ADMIN, WP_ADMIN_PASSWORD,
 #      WP_ADMIN_EMAIL, REDIS_HOST, REDIS_PORT, PHP_VERSION, etc.
-#  - A wait-loop ensures that MySQL (RDS) is available before installation.
-#  - AWS Secrets Manager is used for credentials, requiring AWS CLI to be installed.
-#  - Logs are written to /var/log/wordpress_install.log (via 'tee').
-#  - WP-CLI is installed at /usr/local/bin/wp.
-#  - Redis Object Cache plugin is installed and enabled for performance improvements.
-#  - A simple health check endpoint (healthcheck.php) is created for ALB monitoring.
-#  - If using Amazon Linux 2023 or a different distro, replace 'apt-get' with 'yum' or 'dnf'.
+#
+#  - A wait-loop ensures that MySQL (RDS) is available before proceeding with the installation.
+#
+#  - AWS Secrets Manager is used to securely retrieve credentials, which requires AWS CLI to be installed.
+#
+#  - Logs are written to /var/log/wordpress_install.log (using 'tee').
+#
+#  - WP-CLI is installed at /usr/local/bin/wp to facilitate WordPress management.
+#
+#  - The Redis Object Cache plugin is installed and activated to improve performance.
+#
+#  - The ALB health check endpoint is created at /var/www/html/wordpress/healthcheck.php using the content
+#    provided via the HEALTHCHECK_CONTENT environment variable. This content is generated from one of two
+#    healthcheck files (either healthcheck-1.0.php for a basic check or healthcheck-2.0.php for an extended check),
+#    which is determined by the Terraform variable "healthcheck_version".
+#
+#  - If HEALTHCHECK_CONTENT is empty, a default PHP snippet returning HTTP 200 is used.
+#
+#  - For distributions other than the one originally targeted (e.g., Amazon Linux 2023),
+#    adjust package management commands (apt-get, yum, or dnf) as necessary.
 # -----------------------------------------------------------------------------

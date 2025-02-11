@@ -12,13 +12,19 @@ locals {
     REDIS_HOST      = var.redis_endpoint
     REDIS_PORT      = var.redis_port
     AWS_LB_DNS      = var.alb_dns_name
-    SECRET_NAME     = var.wordpress_secret_name # Add secret name for WordPress credentials
+    SECRET_NAME     = var.wordpress_secret_name # Add secret name for WordPress credentials    
   }
+
+  # Health check file selection based on healthcheck_version variable
+  healthcheck_file = var.healthcheck_version == "2.0" ? "healthcheck-2.0.php" : "healthcheck-1.0.php"
+
+  # Read the content of the selected healthcheck file from the scripts directory
+  healthcheck_content = file("${path.root}/scripts/${local.healthcheck_file}")
 
   # Retry configuration for service checks
   retry_config = {
     MAX_RETRIES    = 30 # Maximum number of retry attempts
-    RETRY_INTERVAL = 10 # Interval between retries in seconds
+    RETRY_INTERVAL = 10 # Interval between retries in seconds        
   }
 
   # Defines the source of the WordPress deployment script
@@ -28,7 +34,7 @@ locals {
   # If `enable_s3_script` is true, use the script from S3. Otherwise, use the local script.
   script_content = var.enable_s3_script ? "" : file("${path.root}/scripts/deploy_wordpress.sh")
 
-  # Rendered user data
+  # Rendered user data, passing all necessary variables to the user_data template.
   rendered_user_data = templatefile(
     # Path to the user data template
     "${path.module}/../../templates/user_data.sh.tpl",
@@ -38,6 +44,10 @@ locals {
       enable_s3_script      = var.enable_s3_script
       wordpress_script_path = local.wordpress_script_path
       script_content        = local.script_content
+      retry_max_retries     = local.retry_config.MAX_RETRIES
+      retry_retry_interval  = local.retry_config.RETRY_INTERVAL
+      healthcheck_file      = local.healthcheck_file
+      healthcheck_content   = local.healthcheck_content
     }
   )
 }
@@ -58,13 +68,15 @@ resource "aws_launch_template" "asg_launch_template" {
   # Create new version on each update
   update_default_version = true
 
+  # --- Security Group --- #
+  # Reference the ASG Security Group.
+  vpc_security_group_ids = [aws_security_group.asg_security_group.id] # Security groups for networking
+
   # --- Instance Specifications --- #
   # Define the AMI ID and instance type.
   image_id      = var.ami_id        # AMI ID specified in terraform.tfvars
   instance_type = var.instance_type # Instance type (e.g., t2.micro for AWS Free Tier)
   key_name      = var.ssh_key_name  # SSH key pair name for secure instance access (optional)
-
-  vpc_security_group_ids = [aws_security_group.asg_security_group.id] # Security groups for networking
 
   # --- Block Device Mappings --- #
   # Configure the root EBS volume with encryption enabled if enabled via `enable_ebs_encryption`.
@@ -103,14 +115,6 @@ resource "aws_launch_template" "asg_launch_template" {
     arn = aws_iam_instance_profile.asg_instance_profile.arn # IAM instance profile from asg/iam.tf
   }
 
-  # --- Network Interface Configuration --- #
-  # Deny public IPs and set security groups for instance networking.
-  network_interfaces {
-    device_index                = 0
-    associate_public_ip_address = var.enable_public_ip # Enable/Disable public IPs
-    delete_on_termination       = true                 # Delete interface on termination    
-  }
-
   # --- Tag Specifications --- #
   # Tags are applied to ASG instances created with this Launch Template.
   # The tag `Name` is specific to instances and does not need to match the Launch Template resource name.
@@ -135,30 +139,34 @@ resource "aws_launch_template" "asg_launch_template" {
 }
 
 # --- Notes --- #
-
+#
 # 1. **AMI Selection**:
 #    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via the script.
-#    - AMI ID must be specified in terraform.tfvars.
+#    - The AMI ID must be specified in terraform.tfvars.
 #
 # 2. **User Data**:
 #    - The deploy_wordpress.sh script configures the instance with Nginx, PHP, and WordPress.
-#    - User data is passed encoded to ensure correct processing.
+#    - User data is passed encoded (using base64) to ensure correct processing.
 #
-# 3. **Public IPs**:
-#    - For increased security, public IP addresses can be disabled for all ASG instances.
+# 3. **SSH Access**:
+#    - Temporary SSH access can be enabled for debugging or maintenance using the `enable_ssh_access` variable in terraform.tfvars.
+#    - For better control in production, restrict SSH access to specific IP ranges via the ASG security group settings.
 #
-# 4. **SSH Access**:
-#    - Temporary SSH access can be enabled for debugging or maintenance using the `enable_ssh_access` variable in `terraform.tfvars`.
-#    - For better control, restrict SSH to specific IP ranges in prod via `asg/security_group.tf`.
-#
-# 5. **SSM Management**:
+# 4. **SSM Management**:
 #    - All instances are fully manageable via AWS Systems Manager (SSM), eliminating the need for persistent SSH access.
 #
-# 6. **Monitoring and Optimization**:
+# 5. **Monitoring and Optimization**:
 #    - CloudWatch monitoring and EBS optimization are enabled for better performance and visibility.
 #
-# 7. **Automation**:
+# 6. **Automation**:
 #    - To automate updates, configure an EventBridge rule or include this step in your CI/CD pipeline.
 #
+# 7. **Healthcheck Integration**:
+#    - The variable `healthcheck_version` determines which healthcheck file is used.
+#    - The chosen file’s name is stored in `healthcheck_file`.
+#    - The content of the healthcheck file is read into `healthcheck_content` from the scripts directory.
+#    - Both variables are passed to the user_data template, so that the deploy_wordpress.sh script
+#      can create the proper ALB health check endpoint.
+#
 # 8. **Critical Considerations**:
-#    - Ensure all variables in the deploy_wordpress.sh script are passed correctly via templatefile function.
+#    - Ensure all variables required by the deploy_wordpress.sh script are passed correctly via the templatefile function.

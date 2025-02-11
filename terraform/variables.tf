@@ -183,12 +183,6 @@ variable "enable_s3_script" {
   default     = false
 }
 
-variable "enable_public_ip" {
-  description = "Enable public IP for ASG instances"
-  type        = bool
-  default     = false
-}
-
 variable "enable_asg_ssh_access" {
   description = "Allow SSH access to ASG instances"
   type        = bool
@@ -332,6 +326,12 @@ variable "wp_admin_password" {
   description = "Admin password for WordPress (stored securely)"
   type        = string
   sensitive   = true
+}
+
+variable "healthcheck_version" {
+  description = "Healthcheck version to deploy (1.0 or 2.0)"
+  type        = string
+  default     = "1.0"
 }
 
 # --- RDS Configuration --- #

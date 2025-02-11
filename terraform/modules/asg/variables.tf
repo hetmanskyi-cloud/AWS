@@ -57,12 +57,6 @@ variable "ssh_allowed_cidr" {
   default     = ["0.0.0.0/0"] # Open for development, restrict for production
 }
 
-variable "enable_public_ip" {
-  description = "Enable public IP for ASG instances"
-  type        = bool
-  default     = false
-}
-
 # --- Auto Scaling Configuration --- #
 # Variables controlling the scaling behavior of the ASG.
 
@@ -346,6 +340,12 @@ variable "enable_data_source" {
   description = "Enable or disable the data source for fetching ASG instance details"
   type        = bool
   default     = false
+}
+
+variable "healthcheck_version" {
+  description = "Healthcheck version to deploy (1.0 or 2.0)"
+  type        = string
+  default     = "1.0"
 }
 
 # --- Notes --- #

@@ -162,7 +162,6 @@ module "asg" {
 
   enable_s3_script = var.enable_s3_script
 
-  enable_public_ip      = var.enable_public_ip
   enable_asg_ssh_access = var.enable_asg_ssh_access
   ssh_key_name          = var.ssh_key_name
   ssh_allowed_cidr      = var.ssh_allowed_cidr

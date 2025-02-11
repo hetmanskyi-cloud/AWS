@@ -10,22 +10,7 @@ resource "aws_security_group" "alb_sg" {
     create_before_destroy = true
   }
 
-  # --- Egress Rules --- #
-  # Allow all outbound traffic. 
-  # This is required because the ALB must be able to communicate with external services, including end-users.
-  # tfsec:ignore:aws-ec2-no-public-egress-sgr
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"          # "-1" allows all protocols.
-    cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
-    description = "Allow all outbound traffic"
-
-    # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes. 
-    # For production, replace with AWS service prefixes for improved security.
-  }
-
-  # --- Tags --- #
+  # --- Tags for Resource Identification --- #
   tags = {
     Name        = "${var.name_prefix}-alb-sg"
     Environment = var.environment
@@ -60,6 +45,23 @@ resource "aws_security_group_rule" "alb_https" {
   # Note: Ensure the SSL certificate provided via `certificate_arn` is valid and properly configured.
   # The HTTPS listener depends on a valid SSL certificate to function correctly.
   # If SSL certificate is missing, var.enable_https_listener variable should be set to false
+}
+
+# --- Egress Rule for ALB --- #
+# Allow all outbound traffic. 
+# This is required because the ALB must be able to communicate with external services, including end-users.
+# tfsec:ignore:aws-ec2-no-public-egress-sgr
+resource "aws_security_group_rule" "alb_egress_all" {
+  security_group_id = aws_security_group.alb_sg.id
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"          # "-1" allows all protocols.  
+  cidr_blocks       = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
+  description       = "Allow all outbound traffic for ALB"
+
+  # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes. 
+  # For production, replace with AWS service prefixes for improved security.
 }
 
 # --- Notes --- #

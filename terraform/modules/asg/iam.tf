@@ -130,35 +130,6 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
   policy_arn = aws_iam_policy.kms_decrypt_policy.arn
 }
 
-# --- ElastiCache Access Policy --- #
-# Grants ASG instances permissions to query Redis endpoints
-resource "aws_iam_policy" "elasticache_access_policy" {
-  name        = "${var.name_prefix}-elasticache-access-policy"
-  description = "Allows ASG instances to describe ElastiCache replication groups"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "elasticache:DescribeReplicationGroups",
-          "elasticache:DescribeCacheClusters",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetHealth"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Attach ElastiCache policy to ASG IAM role
-resource "aws_iam_role_policy_attachment" "elasticache_access" {
-  role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.elasticache_access_policy.arn
-}
-
 # --- Notes --- #
 # 1. Temporary credentials:
 #    - Automatically managed via AWS IAM.

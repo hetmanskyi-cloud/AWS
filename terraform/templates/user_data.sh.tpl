@@ -43,6 +43,12 @@ fi
 export ${key}="${value}"
 %{ endfor }
 
+# Export healthcheck content
+cat <<'EOF' > /tmp/healthcheck_content.txt
+${healthcheck_content}
+EOF
+export HEALTHCHECK_CONTENT="$(cat /tmp/healthcheck_content.txt)"
+
 # Export AWS region for Secrets Manager
 export AWS_DEFAULT_REGION="${aws_region}"
 
@@ -70,12 +76,17 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] User-data script completed!"
 
 # -----------------------------------------------------------------------------
 # Notes:
-# 1. We install AWS CLI v2 if not already present. We use the official zip-based
-#    installation method recommended by AWS documentation.
-# 2. If 'enable_s3_script' is true, we download the WordPress deployment script
-#    from an S3 bucket.
-# 3. Otherwise, we embed the script content directly in user_data.
-# 4. We set environment variables (DB_HOST, WP_TITLE, etc.) before running the script.
-# 5. Logs are written to /var/log/user-data.log.
-# 6. Make sure your AMI can install 'unzip' and 'curl' (via yum/dnf/apt-get) successfully.
+# 1. AWS CLI v2 is installed if not already present, using the official zip-based
+#    installation method recommended by AWS.
+# 2. If 'enable_s3_script' is true, the WordPress deployment script is downloaded
+#    from an S3 bucket; otherwise, the local script content is embedded directly.
+# 3. Environment variables (e.g. DB_HOST, WP_TITLE, etc.) are exported before
+#    executing the deployment script.
+# 4. The HEALTHCHECK_CONTENT variable is exported, containing the contents of the
+#    chosen healthcheck file (either healthcheck-1.0.php or healthcheck-2.0.php)
+#    read from the scripts directory. This variable is used by the deployment
+#    script to create the ALB health check endpoint.
+# 5. All logs are written to /var/log/user-data.log.
+# 6. Ensure that your AMI can install 'unzip' and 'curl' using the appropriate
+#    package manager (yum, dnf, or apt-get).
 # -----------------------------------------------------------------------------
