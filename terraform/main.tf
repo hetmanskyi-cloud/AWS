@@ -217,12 +217,19 @@ module "asg" {
   db_endpoint = module.rds.db_endpoint
 
   # WordPress Configuration
-  wp_title        = var.wp_title
-  alb_dns_name    = module.alb.alb_dns_name
-  php_version     = var.php_version
-  php_fpm_service = "php${var.php_version}-fpm"
-  redis_endpoint  = module.elasticache.redis_endpoint
-  redis_port      = var.redis_port
+  db_name           = var.db_name
+  db_port           = var.db_port
+  db_username       = var.db_username
+  db_password       = var.db_password
+  wp_title          = var.wp_title
+  wp_admin_user     = var.wp_admin_user
+  wp_admin_password = var.wp_admin_password
+  wp_admin_email    = var.wp_admin_email
+  alb_dns_name      = module.alb.alb_dns_name
+  php_version       = var.php_version
+  php_fpm_service   = "php${var.php_version}-fpm"
+  redis_endpoint    = module.elasticache.redis_endpoint
+  redis_port        = var.redis_port
 
   # Secrets Configuration
   wordpress_secret_name = aws_secretsmanager_secret.wp_secrets.name

@@ -5,14 +5,21 @@
 locals {
   # WordPress configuration
   wp_config = {
-    DB_HOST         = var.db_host
-    WP_TITLE        = var.wp_title
-    PHP_VERSION     = var.php_version
-    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
-    REDIS_HOST      = var.redis_endpoint
-    REDIS_PORT      = var.redis_port
-    AWS_LB_DNS      = var.alb_dns_name
-    SECRET_NAME     = var.wordpress_secret_name # Add secret name for WordPress credentials    
+    DB_HOST           = var.db_host
+    DB_PORT           = var.db_port
+    DB_NAME           = var.db_name
+    DB_USER           = var.db_username
+    DB_PASSWORD       = var.db_password
+    WP_TITLE          = var.wp_title
+    WP_ADMIN          = var.wp_admin_user
+    WP_ADMIN_PASSWORD = var.wp_admin_password
+    WP_ADMIN_EMAIL    = var.wp_admin_email
+    PHP_VERSION       = var.php_version
+    PHP_FPM_SERVICE   = "php${var.php_version}-fpm"
+    REDIS_HOST        = var.redis_endpoint
+    REDIS_PORT        = var.redis_port
+    AWS_LB_DNS        = var.alb_dns_name
+    SECRET_NAME       = var.wordpress_secret_name
   }
 
   # Health check file selection based on healthcheck_version variable

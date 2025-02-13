@@ -66,33 +66,33 @@ echo " 🔍 Checking database connection..."
 WP_CONFIG="/var/www/html/wordpress/wp-config.php"
 if [[ -f "$WP_CONFIG" ]]; then
   # Extract database connection details from wp-config.php
-  DB_HOST=$(grep "DB_HOST" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g")
-  DB_NAME=$(grep "DB_NAME" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g")
-  DB_USER=$(grep "DB_USER" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g")
-  DB_PASSWORD=$(grep "DB_PASSWORD" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g")
+  DB_HOST=$(grep "DB_HOST" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
+  DB_NAME=$(grep "DB_NAME" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
+  DB_USER=$(grep "DB_USER" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
+  DB_PASSWORD=$(grep "DB_PASSWORD" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
 
   if [[ -n "$DB_HOST" ]]; then
     # --- Check DNS resolution ---
-    echo "  - Checking DNS resolution for DB_HOST..."
+    echo "  - Checking DNS resolution for database host..."
     if dig +short "$DB_HOST" &>/dev/null; then
-      echo "  ✅ DNS resolution OK for $DB_HOST"
+      echo "  ✅ DNS resolution OK for database host: $DB_HOST"
     else
-      echo "  ❌ DNS resolution FAILED for $DB_HOST!"
-      echo "    Please check if DB_HOST is correctly configured and DNS is working."
+      echo "  ❌ DNS resolution FAILED for database host: $DB_HOST"
+      echo "    Please check if the database hostname is correctly configured and DNS is working."
     fi
 
     # --- Check VPC reachability (ping) ---
-    echo "  - Checking VPC reachability to DB_HOST (ping)..."
+    echo "  - Checking VPC reachability to database host (ping)..."
     if ping -c 3 -W "$PING_TIMEOUT" "$DB_HOST" &>/dev/null; then
-      echo "  ✅ VPC reachability OK (ping to $DB_HOST is successful)"
+      echo "  ✅ VPC reachability OK (ping to database host is successful)"
     else
-      echo "  ❌ VPC reachability FAILED (ping to $DB_HOST is unsuccessful)!"
+      echo "  ❌ VPC reachability FAILED (ping to database host is unsuccessful)!"
       echo "    Please check network connectivity to the RDS instance from this EC2 instance."
     fi
 
 
     # --- Check MySQL port ---
-    if nc -z -w "$MYSQL_TIMEOUT" "$DB_HOST" 3306; then
+    if timeout "$MYSQL_TIMEOUT" nc -zv "$DB_HOST" 3306 2>/dev/null; then
       echo " ✅ Database port is accessible"
       # Try to connect to database
       if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SELECT 1" &>/dev/null; then
@@ -138,11 +138,12 @@ fi
 
 # --- Check Nginx Configuration ---
 echo " 🔍 Checking Nginx Configuration..."
-if nginx -t &>/dev/null; then
+NGINX_TEST=$(nginx -t 2>&1)
+if echo "$NGINX_TEST" | grep -q "successful"; then
   echo " ✅ Nginx configuration is valid"
 else
   echo " ❌ Nginx configuration is invalid!"
-  echo "   Please check Nginx configuration files for syntax errors (use 'nginx -t' for details)."
+  echo "   $(echo "$NGINX_TEST" | grep -v "nginx: ")"
 fi
 
 

@@ -208,6 +208,47 @@ variable "db_endpoint" {
   type        = string
 }
 
+# --- WordPress Database Configuration --- #
+variable "db_name" {
+  description = "Name of the WordPress database"
+  type        = string
+}
+
+variable "db_port" {
+  description = "Database port"
+  type        = number
+}
+
+variable "db_username" {
+  description = "Username for the WordPress database"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Password for the WordPress database"
+  type        = string
+  sensitive   = true
+}
+
+# --- WordPress Admin Configuration --- #
+variable "wp_admin_user" {
+  description = "WordPress admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "wp_admin_password" {
+  description = "WordPress admin password"
+  type        = string
+  sensitive   = true
+}
+
+variable "wp_admin_email" {
+  description = "WordPress admin email"
+  type        = string
+  default     = "admin@example.com"
+}
+
 # --- PHP configuration for WordPress setup --- #
 variable "php_version" {
   description = "PHP version used for WordPress installation"

@@ -50,10 +50,9 @@ output "launch_template_latest_version" {
   value       = aws_launch_template.asg_launch_template.latest_version
 }
 
-# User_data
-output "user_data" {
-  description = "Encoded user data script"
-  value       = aws_launch_template.asg_launch_template.user_data
+output "rendered_user_data" {
+  value       = local.rendered_user_data
+  description = "Rendered user_data script passed to EC2 instances."
   sensitive   = true
 }
 

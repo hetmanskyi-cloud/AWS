@@ -334,6 +334,31 @@ variable "healthcheck_version" {
   default     = "1.0"
 }
 
+# --- WordPress Database Configuration --- #
+variable "db_name" {
+  description = "Name of the WordPress database"
+  type        = string
+  default     = "wordpress"
+}
+
+variable "db_username" {
+  description = "Username for the WordPress database"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Password for the WordPress database"
+  type        = string
+  sensitive   = true
+}
+
+# --- WordPress Admin Configuration --- #
+variable "wp_admin_user" {
+  description = "WordPress admin username"
+  type        = string
+  default     = "admin"
+}
+
 # --- RDS Configuration --- #
 
 # Storage size in GB for the RDS instance
@@ -358,27 +383,6 @@ variable "engine" {
 variable "engine_version" {
   description = "Database engine version"
   type        = string
-}
-
-# Master username for RDS
-variable "db_username" {
-  description = "Master username for RDS"
-  type        = string
-  sensitive   = true
-}
-
-# Master password for RDS
-variable "db_password" {
-  description = "Master password for RDS"
-  type        = string
-  sensitive   = true
-}
-
-# Initial database name
-variable "db_name" {
-  description = "Initial database name"
-  type        = string
-  sensitive   = true
 }
 
 # Database port for RDS (e.g., 3306 for MySQL)

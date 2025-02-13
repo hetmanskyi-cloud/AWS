@@ -90,6 +90,33 @@ resource "aws_iam_role_policy_attachment" "ssm_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# --- WordPress Instance Access Policy --- #
+# Allows ASG instances to retrieve database credentials from AWS Secrets Manager.
+resource "aws_iam_policy" "wordpress_instance_policy" {
+  name        = "${var.name_prefix}-wordpress-instance-policy"
+  description = "Allows WordPress instances to retrieve database credentials from AWS Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.wordpress_secret_name}"
+      }
+    ]
+  })
+}
+
+# Attach WordPress instance policy to the role
+resource "aws_iam_role_policy_attachment" "wordpress_instance_policy_attachment" {
+  role       = aws_iam_role.asg_role.name
+  policy_arn = aws_iam_policy.wordpress_instance_policy.arn
+}
+
 # --- IAM Instance Profile --- #
 # Links the IAM role to ASG instances for accessing AWS services.
 resource "aws_iam_instance_profile" "asg_instance_profile" {
@@ -129,6 +156,10 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
   role       = aws_iam_role.asg_role.name
   policy_arn = aws_iam_policy.kms_decrypt_policy.arn
 }
+
+# Add data sources for current region and account ID
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 # --- Notes --- #
 # 1. Temporary credentials:

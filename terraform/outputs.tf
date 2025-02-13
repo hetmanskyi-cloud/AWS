@@ -51,6 +51,22 @@ output "kms_key_arn" {
   value       = module.kms.kms_key_arn
 }
 
+# --- RDS Outputs ---
+output "db_host" {
+  description = "The hostname of the RDS instance"
+  value       = module.rds.db_host
+}
+
+output "db_endpoint" {
+  description = "The endpoint of the RDS instance"
+  value       = module.rds.db_endpoint
+}
+
+output "db_port" {
+  description = "The port of the RDS instance"
+  value       = module.rds.db_port
+}
+
 # --- ASG Outputs ---
 output "asg_id" {
   description = "The ID of the Auto Scaling Group"
@@ -87,17 +103,10 @@ output "ec2_security_group_id" {
   value       = try(module.asg[0].asg_security_group_id, null)
 }
 
-# Exports the RDS database host to be used by the ASG instance running WordPress
-# Outputs the RDS database host address (hostname only) for application configurations
-output "db_host" {
-  value       = module.rds.db_host
-  description = "The host address of the RDS instance, used for database connection."
-}
-
-# Outputs the full RDS database endpoint (including host and port) for application configurations
-output "db_endpoint" {
-  value       = module.rds.db_endpoint
-  description = "The full endpoint of the RDS instance, including both host and port, for comprehensive database connection settings."
+output "rendered_user_data" {
+  value       = module.asg.rendered_user_data
+  description = "Rendered user_data script passed to EC2 instances."
+  sensitive   = true
 }
 
 # --- S3 Outputs --- #
@@ -122,10 +131,20 @@ output "redis_endpoint" {
   value       = module.elasticache.redis_endpoint
 }
 
-# Output Redis port from the elasticache module (если нужен порт)
 output "redis_port" {
   description = "The port of the Redis replication group"
   value       = module.elasticache.redis_port
+}
+
+# --- ALB Outputs ---
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = module.alb.alb_dns_name
+}
+
+output "alb_security_group_id" {
+  description = "The security group ID of the ALB"
+  value       = module.alb.alb_security_group_id
 }
 
 # --- Secrets Manager Outputs --- #

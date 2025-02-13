@@ -1,32 +1,21 @@
 #!/bin/bash
 set -e # Exit script if any command fails
 
-# -----------------------------------------------------------------------------
 # Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
 exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting WordPress installation..."
 
-# -----------------------------------------------------------------------------
-# 1. Install base packages needed for WordPress, minus curl/unzip
-#    (which are installed in user_data.sh.tpl).
-#
-#    - jq: for JSON parsing
-#    - netcat-openbsd (nc): for checking DB connectivity
-#    - Others: python3, etc., if needed
-# -----------------------------------------------------------------------------
+# 1. Install base packages needed for WordPress, minus curl/unzip (which are installed in user_data.sh.tpl).
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing base packages..."
-apt-get update
+apt-get update -q
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   jq \
   netcat-openbsd
 
-# -----------------------------------------------------------------------------
 # 2. Wait for MySQL (RDS) to become available (up to 60 seconds)
-#    - This helps avoid race conditions if the DB is not fully ready.
-# -----------------------------------------------------------------------------
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking if MySQL is ready on host: ${DB_HOST}..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking if MySQL is ready on host: ${DB_HOST}, port: ${DB_PORT}..."
 for i in {1..12}; do
-  if nc -z "${DB_HOST}" 3306; then
+  if nc -z "${DB_HOST}" "${DB_PORT}"; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] MySQL is reachable!"
     break
   fi
@@ -35,14 +24,18 @@ for i in {1..12}; do
 done
 
 # Final check after loop
-if ! nc -z "${DB_HOST}" 3306; then
+if ! nc -z "${DB_HOST}" "${DB_PORT}"; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: MySQL not available after 60s. Exiting."
   exit 1
 fi
 
-# -----------------------------------------------------------------------------
 # 3. Retrieve secrets from AWS Secrets Manager
-# -----------------------------------------------------------------------------
+# Ensure AWS CLI is installed before attempting to retrieve secrets
+if ! command -v aws &> /dev/null; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: AWS CLI is not installed."
+    exit 1
+fi
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Retrieving secrets from AWS Secrets Manager..."
 SECRETS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_NAME}" --query 'SecretString' --output text)
 
@@ -51,6 +44,8 @@ if [ -z "$SECRETS" ]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to retrieve secrets from AWS Secrets Manager"
   exit 1
 fi
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Secrets retrieved successfully."
 
 # Extract values from the JSON
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing secrets..."
@@ -69,10 +64,7 @@ for VAR in DB_NAME DB_USERNAME DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASS
   fi
 done
 
-# -----------------------------------------------------------------------------
 # 4. Install WordPress dependencies (Nginx, PHP, MySQL client, etc.)
-#    - curl/unzip are removed here, as they're installed in user_data.tpl
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WordPress dependencies..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   nginx \
@@ -87,22 +79,32 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   redis-tools \
   redis
 
-# -----------------------------------------------------------------------------
-# 5. Configure Nginx (renaming '$https' to '$forwarded_https')
-# -----------------------------------------------------------------------------
+# 5. Configure Nginx
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring Nginx..."
-cat > /etc/nginx/sites-available/wordpress <<EOF
+
+# Detect correct PHP socket path dynamically
+PHP_SOCK=$(find /run /var/run -name "php${PHP_VERSION}-fpm.sock" 2>/dev/null | head -n 1)
+if [ -z "$PHP_SOCK" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: PHP-FPM socket not found!"
+    exit 1
+fi
+
+# Configure Nginx
+cat <<EOL > /etc/nginx/sites-available/wordpress
 server {
     listen 80;
+    listen [::]:80;
+
     root /var/www/html/wordpress;
-    index index.php;
+    index index.php index.html index.htm;
+
     server_name _;
 
-    # ALB Support
-    set_real_ip_from 10.0.0.0/16;
+    # ALB Support (Handle forwarded IPs)
+    set_real_ip_from 0.0.0.0/0;
     real_ip_header X-Forwarded-For;
 
-    # SSL configuration for ALB
+    # Support HTTPS via ALB
     set \$forwarded_https off;
     if (\$http_x_forwarded_proto = "https") {
         set \$forwarded_https on;
@@ -112,43 +114,75 @@ server {
         try_files \$uri \$uri/ /index.php?\$args;
     }
 
-    location ~ \\.php\$ {
+    # Process PHP files
+    location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        # Pass ALB headers to PHP
+        fastcgi_pass unix:$PHP_SOCK;
         fastcgi_param HTTPS \$forwarded_https;
-        fastcgi_param HTTP_X_FORWARDED_PROTO \$http_x_forwarded_proto;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+    }
+
+    location ~ /\.ht {
+        deny all;
     }
 }
-EOF
+EOL
 
 # Enable WordPress site and disable the default site
 ln -sf /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 systemctl restart nginx
 
-# -----------------------------------------------------------------------------
 # 6. Download and install WordPress
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading and installing WordPress..."
 cd /tmp
 curl -O https://wordpress.org/latest.zip
 unzip -q latest.zip
-rm -rf /var/www/html/wordpress
-mv wordpress /var/www/html/wordpress
-rm latest.zip
+# Ensure /var/www/html exists
+mkdir -p /var/www/html
+# Remove old WordPress files if they exist
+rm -rf /var/www/html/*
+# Move WordPress to correct directory
+mv wordpress /var/www/html/wordpress || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to move WordPress!"; exit 1; }
+# Remove temporary files
+rm -rf latest.zip
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation completed successfully!"
 
-# -----------------------------------------------------------------------------
 # 7. Configure WordPress (wp-config.php) for DB, ALB, Redis
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring WordPress..."
-cd /var/www/html/wordpress
-cp wp-config-sample.php wp-config.php
-sed -i "s/database_name_here/$DB_NAME/" wp-config.php
-sed -i "s/username_here/$DB_USERNAME/" wp-config.php
-sed -i "s/password_here/$DB_PASSWORD/" wp-config.php
-sed -i "s/localhost/$DB_HOST/" wp-config.php
 
+# Ensure WordPress directory exists, if not, re-download WordPress
+if [ ! -d "/var/www/html" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: WordPress directory /var/www/html not found! Re-downloading WordPress..."
+    mkdir -p /var/www/html
+    cd /tmp
+    curl -O https://wordpress.org/latest.zip
+    unzip -q latest.zip
+    mv wordpress/* /var/www/html/
+    rm -rf wordpress latest.zip
+fi
+
+# Ensure /var/www/html/ exists before proceeding
+cd /var/www/html || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Cannot access /var/www/html!"; exit 1; }
+
+# Ensure wp-config-sample.php exists, if not, download it again
+if [ ! -f "wp-config-sample.php" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: wp-config-sample.php not found! Downloading..."
+    curl -O https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
+fi
+
+# Ensure wp-config.php exists before modifying it
+if [ ! -f "wp-config.php" ]; then
+    cp wp-config-sample.php wp-config.php
+fi
+
+# Update wp-config.php with database and other configuration
+sed -i "s/database_name_here/${DB_NAME}/" wp-config.php
+sed -i "s/username_here/${DB_USERNAME}/" wp-config.php
+sed -i "s/password_here/${DB_PASSWORD}/" wp-config.php
+sed -i "s/localhost/${DB_HOST}/" wp-config.php
+
+# Append additional WordPress configurations
 cat >> wp-config.php <<EOF
 
 /* ALB and HTTPS Support */
@@ -180,17 +214,15 @@ defined('LOGGED_IN_SALT') or define('LOGGED_IN_SALT', '$(openssl rand -base64 48
 defined('NONCE_SALT') or define('NONCE_SALT', '$(openssl rand -base64 48)');
 EOF
 
-# -----------------------------------------------------------------------------
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress configuration completed successfully!"
+
 # 8. Set correct file permissions
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting WordPress file permissions..."
 chown -R www-data:www-data /var/www/html/wordpress
 find /var/www/html/wordpress -type d -exec chmod 755 {} \;
 find /var/www/html/wordpress -type f -exec chmod 644 {} \;
 
-# ----------------------------------------------------------------------------- 
-# 9. Install WP-CLI and run initial WordPress setup 
-# ----------------------------------------------------------------------------- 
+# 9. Install WP-CLI and run initial WordPress setup
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WP-CLI..."
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x wp-cli.phar
@@ -210,27 +242,23 @@ sudo -u www-data wp core install \
   --admin_email="${WP_ADMIN_EMAIL}" \
   --skip-email
 
-# -----------------------------------------------------------------------------
 # 10. Configure and enable Redis Object Cache
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up Redis Object Cache..."
-sudo -u www-data wp plugin install redis-cache --activate # Install and activate Redis Object Cache plugin
+sudo -u www-data wp plugin install redis-cache --activate  # Install and activate Redis Object Cache plugin
 sudo -u www-data wp redis enable || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to enable Redis caching."; exit 1; }  # Enable Redis caching in WordPress
 
-# -----------------------------------------------------------------------------
-# 11. System upgrade and cleanup
-# -----------------------------------------------------------------------------
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating system packages..."
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y  # Upgrade installed packages
-DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y  # Perform a full distribution upgrade
-apt-get autoremove -y  # Remove unnecessary packages
-apt-get clean  # Clean up package cache to free disk space
+# 11. Safe system update and cleanup
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Performing safe system update..."
+DEBIAN_FRONTEND=noninteractive apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --only-upgrade
+DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y --no-install-recommends
+# Remove unused packages only if they are no longer needed
+apt-get autoremove -y --purge
+# Clean package cache to free up space
+apt-get clean
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] System update and cleanup completed successfully!"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation and system update completed successfully!"
-
-# -----------------------------------------------------------------------------
 # 12. Create ALB health check endpoint using provided content
-# -----------------------------------------------------------------------------
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating ALB health check endpoint..."
 if [ -n "${HEALTHCHECK_CONTENT}" ]; then
   echo "${HEALTHCHECK_CONTENT}" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
@@ -239,30 +267,3 @@ else
 fi
 sudo chown www-data:www-data /var/www/html/wordpress/healthcheck.php
 sudo chmod 644 /var/www/html/wordpress/healthcheck.php
-
-# -----------------------------------------------------------------------------
-# Notes:
-#  - This script expects several environment variables to be set, including:
-#      SECRET_NAME, DB_HOST, AWS_LB_DNS, WP_TITLE, WP_ADMIN, WP_ADMIN_PASSWORD,
-#      WP_ADMIN_EMAIL, REDIS_HOST, REDIS_PORT, PHP_VERSION, etc.
-#
-#  - A wait-loop ensures that MySQL (RDS) is available before proceeding with the installation.
-#
-#  - AWS Secrets Manager is used to securely retrieve credentials, which requires AWS CLI to be installed.
-#
-#  - Logs are written to /var/log/wordpress_install.log (using 'tee').
-#
-#  - WP-CLI is installed at /usr/local/bin/wp to facilitate WordPress management.
-#
-#  - The Redis Object Cache plugin is installed and activated to improve performance.
-#
-#  - The ALB health check endpoint is created at /var/www/html/wordpress/healthcheck.php using the content
-#    provided via the HEALTHCHECK_CONTENT environment variable. This content is generated from one of two
-#    healthcheck files (either healthcheck-1.0.php for a basic check or healthcheck-2.0.php for an extended check),
-#    which is determined by the Terraform variable "healthcheck_version".
-#
-#  - If HEALTHCHECK_CONTENT is empty, a default PHP snippet returning HTTP 200 is used.
-#
-#  - For distributions other than the one originally targeted (e.g., Amazon Linux 2023),
-#    adjust package management commands (apt-get, yum, or dnf) as necessary.
-# -----------------------------------------------------------------------------
