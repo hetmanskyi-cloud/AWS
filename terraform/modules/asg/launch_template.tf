@@ -28,6 +28,9 @@ locals {
   # Read the content of the selected healthcheck file from the scripts directory
   healthcheck_content = file("${path.root}/scripts/${local.healthcheck_file}")
 
+  # Base64 encode the healthcheck content
+  healthcheck_b64 = base64encode(local.healthcheck_content)
+
   # Retry configuration for service checks
   retry_config = {
     MAX_RETRIES    = 30 # Maximum number of retry attempts
@@ -46,15 +49,15 @@ locals {
     # Path to the user data template
     "${path.module}/../../templates/user_data.sh.tpl",
     {
-      wp_config             = local.wp_config
-      aws_region            = var.aws_region
-      enable_s3_script      = var.enable_s3_script
-      wordpress_script_path = local.wordpress_script_path
-      script_content        = local.script_content
-      retry_max_retries     = local.retry_config.MAX_RETRIES
-      retry_retry_interval  = local.retry_config.RETRY_INTERVAL
-      healthcheck_file      = local.healthcheck_file
-      healthcheck_content   = local.healthcheck_content
+      wp_config               = local.wp_config
+      aws_region              = var.aws_region
+      enable_s3_script        = var.enable_s3_script
+      wordpress_script_path   = local.wordpress_script_path
+      script_content          = local.script_content
+      retry_max_retries       = local.retry_config.MAX_RETRIES
+      retry_retry_interval    = local.retry_config.RETRY_INTERVAL
+      healthcheck_file        = local.healthcheck_file
+      healthcheck_content_b64 = local.healthcheck_b64
     }
   )
 }

@@ -35,7 +35,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Exporting environment variables..."
 %{ for key, value in wp_config }
   echo "export ${key}=\"${value}\""
 %{ endfor }
-  echo "export HEALTHCHECK_CONTENT='${healthcheck_content}'"
+  echo "export HEALTHCHECK_CONTENT_B64='${healthcheck_content_b64}'"
   echo "export AWS_DEFAULT_REGION=\"${aws_region}\""
 } | sudo tee -a /etc/environment > /dev/null
 

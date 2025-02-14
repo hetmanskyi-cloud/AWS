@@ -260,8 +260,8 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] System update and cleanup completed success
 
 # 12. Create ALB health check endpoint using provided content
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating ALB health check endpoint..."
-if [ -n "${HEALTHCHECK_CONTENT}" ]; then
-  echo "${HEALTHCHECK_CONTENT}" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
+if [ -n "${HEALTHCHECK_CONTENT_B64}" ]; then
+  echo "${HEALTHCHECK_CONTENT_B64}" | base64 --decode | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
 else
   echo "<?php http_response_code(200); ?>" | sudo tee /var/www/html/wordpress/healthcheck.php > /dev/null
 fi
