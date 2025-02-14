@@ -267,3 +267,5 @@ else
 fi
 sudo chown www-data:www-data /var/www/html/wordpress/healthcheck.php
 sudo chmod 644 /var/www/html/wordpress/healthcheck.php
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB health check endpoint created successfully!"

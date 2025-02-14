@@ -1,28 +1,54 @@
 <?php
 header("Content-Type: text/plain");
 
+// Function to retrieve an environment variable with a fallback to /etc/environment
+function get_env_var($key) {
+    $value = getenv($key);
+    if ($value === false || $value === '') {
+        $contents = @file_get_contents('/etc/environment');
+        if ($contents !== false && preg_match('/' . preg_quote($key, '/') . '="([^"]+)"/', $contents, $matches)) {
+            $value = $matches[1];
+        }
+    }
+    return $value;
+}
+
 // PHP Check
 echo "PHP OK\n";
 
 // MySQL Check
-$db_host = getenv("DB_HOST");
-$db_user = getenv("DB_USER");
-$db_pass = getenv("DB_PASSWORD");
-$db_name = getenv("DB_NAME");
+$db_host = get_env_var("DB_HOST");
+$db_user = get_env_var("DB_USER");
+$db_pass = get_env_var("DB_PASSWORD");
+$db_name = get_env_var("DB_NAME");
 
-// MySQL Connection
-$conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
-if (!$conn) {
+if (!$db_host) {
     http_response_code(500);
-    echo "MySQL ERROR\n";
+    echo "DB_HOST environment variable is not set.\n";
     exit;
 }
-echo "MySQL OK\n";
-mysqli_close($conn);
+
+// Enable MySQLi exceptions
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+try {
+    $conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+    echo "MySQL OK\n";
+    mysqli_close($conn);
+} catch (mysqli_sql_exception $e) {
+    http_response_code(500);
+    echo "MySQL ERROR: " . $e->getMessage() . "\n";
+    exit;
+}
 
 // Redis Check
-$redis_host = getenv("REDIS_HOST");
-$redis_port = getenv("REDIS_PORT");
+$redis_host = get_env_var("REDIS_HOST");
+$redis_port = get_env_var("REDIS_PORT");
+
+if (!$redis_host) {
+    http_response_code(500);
+    echo "REDIS_HOST environment variable is not set.\n";
+    exit;
+}
 
 $redis = new Redis();
 if (!$redis->connect($redis_host, $redis_port)) {

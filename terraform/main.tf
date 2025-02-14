@@ -231,6 +231,8 @@ module "asg" {
   redis_endpoint    = module.elasticache.redis_endpoint
   redis_port        = var.redis_port
 
+  healthcheck_version = var.healthcheck_version
+
   # Secrets Configuration
   wordpress_secret_name = aws_secretsmanager_secret.wp_secrets.name
 

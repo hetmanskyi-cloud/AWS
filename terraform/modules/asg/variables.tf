@@ -384,9 +384,9 @@ variable "enable_data_source" {
 }
 
 variable "healthcheck_version" {
-  description = "Healthcheck version to deploy (1.0 or 2.0)"
   type        = string
   default     = "1.0"
+  description = "Determines which healthcheck file to use (1.0 or 2.0)."
 }
 
 # --- Notes --- #
