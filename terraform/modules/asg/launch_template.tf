@@ -3,7 +3,7 @@
 # using a standard AMI and the deploy_wordpress.sh script to install and configure WordPress.
 
 locals {
-  # WordPress configuration
+  # WordPress configuration parameters
   wp_config = {
     DB_HOST           = var.db_host
     DB_PORT           = var.db_port
@@ -25,6 +25,11 @@ locals {
   # Health check file selection based on healthcheck_version variable
   healthcheck_file = var.healthcheck_version == "2.0" ? "healthcheck-2.0.php" : "healthcheck-1.0.php"
 
+  # Health check file selection based on var.enable_s3_script:
+  # In the user_data.sh.tpl template, if var.enable_s3_script is true the HEALTHCHECK_S3_PATH
+  # (this S3 URL) will be used to download the healthcheck file; otherwise, the local file will be used.
+  healthcheck_s3_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/${local.healthcheck_file}" : ""
+
   # Read the content of the selected healthcheck file from the scripts directory
   healthcheck_content = file("${path.root}/scripts/${local.healthcheck_file}")
 
@@ -34,20 +39,23 @@ locals {
   # Retry configuration for service checks
   retry_config = {
     MAX_RETRIES    = 30 # Maximum number of retry attempts
-    RETRY_INTERVAL = 10 # Interval between retries in seconds        
+    RETRY_INTERVAL = 10 # Interval between retries in seconds
   }
 
-  # Defines the source of the WordPress deployment script
-  wordpress_script_path = var.enable_s3_script ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
+  # Defines the source of the WordPress deployment script.
+  # If var.enable_s3_script is true and var.scripts_bucket_name is defined (not null or empty),
+  # the script is fetched from S3 using the bucket name; otherwise, the local script is used.
+  wordpress_script_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
 
   # --- Script Content --- #
-  # If `enable_s3_script` is true, use the script from S3. Otherwise, use the local script.
+  # When enable_s3_script is true, we assume the script is retrieved from S3, so we set script_content to an empty string.
+  # Otherwise, we read the local deploy_wordpress.sh file.
   script_content = var.enable_s3_script ? "" : file("${path.root}/scripts/deploy_wordpress.sh")
 
   # Rendered user data, passing all necessary variables to the user_data template.
   rendered_user_data = templatefile(
     # Path to the user data template
-    "${path.module}/../../templates/user_data.sh.tpl",
+    "${path.module}/../../templates/user_data.sh.tpl", # Path to the user_data template.
     {
       wp_config               = local.wp_config
       aws_region              = var.aws_region
@@ -58,6 +66,7 @@ locals {
       retry_retry_interval    = local.retry_config.RETRY_INTERVAL
       healthcheck_file        = local.healthcheck_file
       healthcheck_content_b64 = local.healthcheck_b64
+      healthcheck_s3_path     = local.healthcheck_s3_path
     }
   )
 }

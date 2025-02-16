@@ -31,22 +31,17 @@ resource "aws_iam_role" "asg_role" {
   }
 }
 
-# --- Local Variables --- #
-# Define S3 resources array that combines WordPress media bucket (if enabled)
-# and scripts bucket (if provided) ARNs with their object paths (/*).
+# --- Local Variables ---
+# Define a flag indicating whether any S3 bucket is enabled.
+# This flag is set to true if either the WordPress media bucket or the scripts bucket
+# is enabled in the 'buckets' map from terraform.tfvars.
 locals {
-  # Combine S3 resources for WordPress media (conditional) and scripts bucket (if provided)
-  asg_s3_resources = concat(
-    lookup(var.buckets, "wordpress_media", false) && var.wordpress_media_bucket_arn != null ?
-    ["${var.wordpress_media_bucket_arn}", "${var.wordpress_media_bucket_arn}/*"] : [],
-    var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ?
-    ["${var.scripts_bucket_arn}", "${var.scripts_bucket_arn}/*"] : []
-  )
+  s3_enabled = lookup(var.buckets, "wordpress_media", false) || lookup(var.buckets, "scripts", false)
 }
 
 # --- S3 Access Policy --- #
 resource "aws_iam_policy" "s3_access_policy" {
-  count = length(local.asg_s3_resources) > 0 ? 1 : 0
+  count = local.s3_enabled ? 1 : 0
 
   name        = "${var.name_prefix}-asg-s3-access-policy"
   description = "S3 access policy for WordPress media (if enabled) and deployment scripts"
@@ -62,7 +57,7 @@ resource "aws_iam_policy" "s3_access_policy" {
           "s3:DeleteObject",
           "s3:ListBucket"
         ]
-        Resource = local.asg_s3_resources
+        Resource = local.s3_enabled
       }
     ]
   })
@@ -70,7 +65,7 @@ resource "aws_iam_policy" "s3_access_policy" {
 
 # Attach S3 access policy to the role only if policy was created
 resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
-  count = length(local.asg_s3_resources) > 0 ? 1 : 0
+  count = local.s3_enabled ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
   policy_arn = aws_iam_policy.s3_access_policy[0].arn

@@ -127,6 +127,8 @@ module "s3" {
   enable_cors                       = var.enable_cors
   allowed_origins                   = var.allowed_origins
   enable_s3_replication             = var.enable_s3_replication
+  enable_s3_script                  = var.enable_s3_script
+  s3_scripts                        = var.s3_scripts
 
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 

@@ -183,6 +183,12 @@ variable "enable_s3_script" {
   default     = false
 }
 
+variable "s3_scripts" {
+  description = "Map of files to be uploaded to the scripts bucket when enable_s3_script is true"
+  type        = map(string)
+  default     = {} # Пустое значение по умолчанию, если не задано
+}
+
 variable "enable_asg_ssh_access" {
   description = "Allow SSH access to ASG instances"
   type        = bool

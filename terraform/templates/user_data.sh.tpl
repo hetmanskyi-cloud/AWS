@@ -55,6 +55,15 @@ ${script_content}
 END_SCRIPT
 %{ endif }
 
+# 4.1 Retrieve or embed the healthcheck file
+%{ if enable_s3_script }
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading healthcheck file from S3: ${healthcheck_s3_path}"
+  aws s3 cp "${healthcheck_s3_path}" /var/www/html/wordpress/healthcheck.php
+%{ else }
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Embedding local healthcheck content..."
+  echo "${healthcheck_content_b64}" | base64 --decode > /var/www/html/wordpress/healthcheck.php
+%{ endif }
+
 # 5. Execute the deployment script
 chmod +x /tmp/deploy_wordpress.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running /tmp/deploy_wordpress.sh..."

@@ -77,31 +77,45 @@ resource "aws_s3_object" "wordpress_folder" {
   # 2. While S3 has no true folders, the trailing slash creates a logical directory structure.
 }
 
-# --- Deploy WordPress Script --- #
-resource "aws_s3_object" "deploy_wordpress_script" {
-  count = lookup(var.buckets, "scripts", false) ? 1 : 0
+# --- Deploy WordPress Scripts to S3 --- #
+resource "aws_s3_object" "deploy_wordpress_scripts_files" {
+  # Use for_each to create an S3 object for each file defined in the s3_scripts variable.
+  # Objects are only created if both:
+  #   1. enable_s3_script is true (i.e., script uploading is enabled), and
+  #   2. The "scripts" bucket is enabled in var.buckets.
+  for_each = (var.enable_s3_script && lookup(var.buckets, "scripts", false)) ? var.s3_scripts : {}
 
-  bucket       = aws_s3_bucket.scripts[0].bucket            # The bucket where the script will be stored
-  key          = "wordpress/deploy_wordpress.sh"            # The path and name of the script in the bucket
-  source       = "${path.root}/scripts/deploy_wordpress.sh" # Path to the local script
-  content_type = "text/x-shellscript"                       # MIME type for shell scripts
+  bucket = aws_s3_bucket.scripts[0].bucket # The bucket where the files will be stored.
 
-  # Ensure the scripts bucket is created first
+  key    = each.key   # The key (path and filename) inside the bucket (e.g., "wordpress/deploy_wordpress.sh").
+  source = each.value # The local path to the file (e.g., "scripts/deploy_wordpress.sh").
+
+  # Define the MIME type based on the file extension.
+  # If the extension is not found, default to "text/plain".
+  content_type = lookup({
+    ".sh"  = "text/x-shellscript",
+    ".php" = "text/php",
+    ".tpl" = "text/x-shellscript"
+  }, substr(each.key, length(each.key) - 3, 4), "text/plain")
+
+  # Ensure the scripts bucket is created before uploading objects.
   depends_on = [aws_s3_bucket.scripts]
 
-  # Tags to track the script version
+  # Tags to help track the file version and environment.
   tags = {
     Name        = "Deploy WordPress Script"
     Environment = var.environment
   }
 
   # --- Notes --- #
-  # 1. This resource uploads the WordPress deployment script to the `scripts` bucket.
-  # 2. The `source` attribute points to the local script file to be uploaded.
-  # 3. This script is placed under the `wordpress/` folder in the bucket.
-  # 4. Terraform does not validate the existence of the `deploy_wordpress.sh` file during the plan phase.
-  # 5. Ensure that the file exists at the specified local path (`scripts/deploy_wordpress.sh`) before running `terraform apply`.
-  # 6. Missing or incorrect file paths will cause the S3 object upload to fail during the apply phase.
+  # 1. This resource uploads multiple WordPress-related files to the `scripts` bucket.
+  # 2. The for_each construct iterates over the files defined in the s3_scripts variable,
+  #    but objects are only created if both enable_s3_script is true and the "scripts" bucket is enabled in var.buckets.
+  # 3. The key attribute determines the path and filename in the bucket (e.g., under the "wordpress/" folder).
+  # 4. The source attribute specifies the local file path to be uploaded.
+  # 5. Terraform does not validate the existence of the specified files during the plan phase.
+  # 6. Ensure that each file exists at its specified local path before running terraform apply.
+  # 7. Missing or incorrect file paths will cause the S3 object upload to fail during the apply phase.
 }
 
 # --- Logging S3 Bucket --- #

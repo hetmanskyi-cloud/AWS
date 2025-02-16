@@ -19,9 +19,13 @@ output "logging_bucket_arn" {
   value       = length(aws_s3_bucket.logging) > 0 ? aws_s3_bucket.logging[0].arn : null
 }
 
-output "deploy_wordpress_script_etag" {
-  value       = length(aws_s3_object.deploy_wordpress_script) > 0 ? aws_s3_object.deploy_wordpress_script[0].etag : null
-  description = "The ETag of the Deploy WordPress Script object in S3."
+# Output: S3 ETags for the deployed WordPress script files.
+# ETags uniquely identify an object's version in S3.
+# For non-multipart uploads, an ETag is typically the MD5 hash of the file.
+# This map can be used to verify file integrity and track changes.
+output "deploy_wordpress_scripts_files_etags_map" {
+  value       = { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag }
+  description = "Map of S3 object keys to their corresponding ETags for WordPress scripts."
 }
 
 # Output the ID of the logging bucket

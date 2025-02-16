@@ -79,6 +79,20 @@ variable "buckets" {
   default     = {}
 }
 
+# Flag to enable uploading scripts to S3
+variable "enable_s3_script" {
+  description = "Flag to enable uploading scripts to S3"
+  type        = bool
+  default     = false
+}
+
+# Map of files to be uploaded to the scripts bucket
+variable "s3_scripts" {
+  description = "Map of files to be uploaded to the scripts bucket"
+  type        = map(string)
+  default     = {}
+}
+
 # Versioning settings are managed in the `terraform.tfvars` file.
 variable "enable_versioning" {
   description = "Map of bucket names to enable or disable versioning."

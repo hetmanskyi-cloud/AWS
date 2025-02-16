@@ -291,13 +291,13 @@ variable "buckets" {
 variable "wordpress_media_bucket_arn" {
   description = "The ARN of the S3 bucket for WordPress media"
   type        = string
-  default     = null
+  default     = ""
 }
 
 variable "wordpress_media_bucket_name" {
   description = "The name of the S3 bucket for WordPress media"
   type        = string
-  default     = null
+  default     = ""
 }
 
 variable "scripts_bucket_name" {
