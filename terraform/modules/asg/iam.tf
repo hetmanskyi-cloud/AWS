@@ -31,33 +31,36 @@ resource "aws_iam_role" "asg_role" {
   }
 }
 
-# --- Local Variables ---
-# Define a flag indicating whether any S3 bucket is enabled.
-# This flag is set to true if either the WordPress media bucket or the scripts bucket
-# is enabled in the 'buckets' map from terraform.tfvars.
-locals {
-  s3_enabled = var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled
-}
-
 # --- S3 Access Policy --- #
 resource "aws_iam_policy" "s3_access_policy" {
-  count = local.s3_enabled ? 1 : 0
+  count = can(var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled) ? 1 : 0
 
   name        = "${var.name_prefix}-asg-s3-access-policy"
   description = "S3 access policy for WordPress media (if enabled) and deployment scripts"
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Action = [
           "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject",
-          "s3:ListBucket"
-        ]
-        Resource = local.s3_enabled
+          "s3:ListBucket",
+          "s3:GetBucket"
+        ],
+        Resource = flatten([
+          can(var.buckets["wordpress_media"].enabled) ? (
+            var.wordpress_media_bucket_arn != null ? [var.wordpress_media_bucket_arn] : []
+          ) : [],
+          can(var.buckets["wordpress_media"].enabled) ? (
+            var.wordpress_media_bucket_arn != null ? ["${var.wordpress_media_bucket_arn}/*"] : []
+          ) : [],
+          can(var.buckets["scripts"].enabled) ? (
+            var.scripts_bucket_arn != null ? ["${var.scripts_bucket_arn}/*"] : []
+          ) : []
+        ])
       }
     ]
   })
@@ -65,7 +68,7 @@ resource "aws_iam_policy" "s3_access_policy" {
 
 # Attach S3 access policy to the role only if policy was created
 resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
-  count = local.s3_enabled ? 1 : 0
+  count = can(var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled) ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
   policy_arn = aws_iam_policy.s3_access_policy[0].arn

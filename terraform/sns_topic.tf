@@ -4,15 +4,23 @@ resource "aws_sns_topic" "cloudwatch_alarms" {
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 }
 
-# Allow CloudWatch to publish messages to the topic
+# Allow CloudWatch and S3 to publish messages to the topic
 resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
   arn = aws_sns_topic.cloudwatch_alarms.arn
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
+        Sid       = "AllowCloudWatchToPublish",
         Effect    = "Allow",
         Principal = { Service = "cloudwatch.amazonaws.com" },
+        Action    = "SNS:Publish",
+        Resource  = aws_sns_topic.cloudwatch_alarms.arn
+      },
+      {
+        Sid       = "AllowS3ToPublish",
+        Effect    = "Allow",
+        Principal = { Service = "s3.amazonaws.com" },
         Action    = "SNS:Publish",
         Resource  = aws_sns_topic.cloudwatch_alarms.arn
       }

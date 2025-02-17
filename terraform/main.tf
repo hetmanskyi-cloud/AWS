@@ -207,10 +207,11 @@ module "asg" {
   enable_https_listener = module.alb.enable_https_listener
 
   # S3 bucket configurations
-  buckets                    = var.buckets
-  wordpress_media_bucket_arn = module.s3.wordpress_media_bucket_arn
-  scripts_bucket_name        = module.s3.scripts_bucket_name
-  scripts_bucket_arn         = module.s3.scripts_bucket_arn
+  buckets                     = var.buckets
+  wordpress_media_bucket_name = module.s3.wordpress_media_bucket_name
+  wordpress_media_bucket_arn  = module.s3.wordpress_media_bucket_arn
+  scripts_bucket_name         = module.s3.scripts_bucket_name
+  scripts_bucket_arn          = module.s3.scripts_bucket_arn
 
   # Database Configuration (non-sensitive)  
   db_host     = module.rds.db_host

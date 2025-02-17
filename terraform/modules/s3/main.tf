@@ -45,7 +45,10 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
 
   bucket = aws_s3_bucket.buckets["scripts"].id
   key    = each.key
-  source = each.value
+  source = "${path.root}/${each.value}"
+
+  server_side_encryption = "aws:kms"
+  kms_key_id             = var.kms_key_arn
 
   content_type = lookup({
     ".sh"  = "text/x-shellscript",
@@ -105,12 +108,11 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 
 # --- S3 Bucket Notifications --- #
 resource "aws_s3_bucket_notification" "bucket_notifications" {
-  for_each = tomap({
-    for key, value in var.buckets : key => aws_s3_bucket.buckets[key]
-    if value.enabled && lookup(aws_s3_bucket.buckets, key, null) != null
-  })
+  for_each = {
+    for key, value in var.buckets : key => value if value.enabled
+  }
 
-  bucket = each.value.id
+  bucket = aws_s3_bucket.buckets[each.key].id
 
   topic {
     topic_arn = var.sns_topic_arn

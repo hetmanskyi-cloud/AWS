@@ -305,13 +305,14 @@ variable "wordpress_media_bucket_name" {
   default     = ""
 }
 
-variable "scripts_bucket_name" {
-  description = "Name of the S3 bucket containing deployment scripts"
-  type        = string
-}
-
 variable "scripts_bucket_arn" {
   description = "The ARN of the S3 bucket for deployment scripts"
+  type        = string
+  default     = ""
+}
+
+variable "scripts_bucket_name" {
+  description = "Name of the S3 bucket containing deployment scripts"
   type        = string
   default     = ""
 }

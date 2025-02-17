@@ -38,13 +38,21 @@ resource "aws_iam_role_policy" "replication_policy" {
         Effect = "Allow",
         Action = [
           "s3:GetReplicationConfiguration",
-          "s3:ListBucket",
+          "s3:ListBucket"
+        ],
+        Resource = [
+          for key, value in var.buckets : aws_s3_bucket.buckets[key].arn if value.enabled && lookup(value, "replication", false)
+        ]
+      },
+      {
+        Effect = "Allow",
+        Action = [
           "s3:GetObjectVersion",
           "s3:GetObjectVersionAcl",
           "s3:GetObjectVersionTagging"
         ],
         Resource = [
-          for key, value in var.buckets : aws_s3_bucket.buckets[key].arn if value.enabled && value.replication # Iterate only through enabled and replication-enabled buckets
+          for key, value in var.buckets : "${aws_s3_bucket.buckets[key].arn}/*" if value.enabled && lookup(value, "replication", false)
         ]
       },
       {
@@ -54,7 +62,14 @@ resource "aws_iam_role_policy" "replication_policy" {
           "s3:ReplicateDelete",
           "s3:ReplicateTags"
         ],
-        Resource = aws_s3_bucket.buckets["replication"].arn # Directly use the ARN of the replication bucket. No need for conditional check as count already handles it.
+        Resource = [
+          for key, value in var.buckets : aws_s3_bucket.buckets[key].arn if value.enabled && lookup(value, "replication", false) || (key == "replication" && var.buckets["replication"] != null && var.buckets["replication"].enabled)
+        ]
+      },
+      {
+        Effect   = "Allow",
+        Action   = "s3:PutObject",
+        Resource = "${aws_s3_bucket.buckets["replication"].arn}/*"
       }
     ]
   })

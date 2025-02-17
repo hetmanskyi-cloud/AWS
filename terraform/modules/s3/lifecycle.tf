@@ -9,6 +9,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   bucket = aws_s3_bucket.buckets[each.key].id
 
   # Rule to manage noncurrent object versions for cost control.
+  # "scripts-retain-versions" rule: Provides the base retention policy.
+  # It ensures that all noncurrent object versions are retained for 30 days, allowing for recovery if needed.
   rule {
     id     = "${each.key}-retain-versions"
     status = "Enabled"
@@ -28,7 +30,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     }
   }
 
-  # Additional rule for 'scripts' bucket to delete old versions only
+  # Additional safeguard rule: "scripts-delete-old-versions".
+  # This rule acts as an extra measure to guarantee that any noncurrent versions
+  # exceeding 30 days are deleted, reducing the risk of accumulating outdated versions.
+  # It is applied only to the "scripts" bucket to delete old versions only.
   dynamic "rule" {
     for_each = each.key == "scripts" ? [1] : []
 

@@ -34,7 +34,7 @@ output "private_subnet_3_id" {
   value       = module.vpc.private_subnet_3_id
 }
 
-# --- Flow Logs Outputs ---
+# --- Flow Logs Outputs --- #
 output "vpc_flow_logs_log_group_name" {
   description = "Name of the CloudWatch Log Group for VPC Flow Logs"
   value       = module.vpc.vpc_flow_logs_log_group_name
@@ -45,13 +45,13 @@ output "vpc_flow_logs_role_arn" {
   value       = module.vpc.vpc_flow_logs_role_arn
 }
 
-# --- KMS Outputs ---
+# --- KMS Outputs --- #
 output "kms_key_arn" {
   description = "KMS key ARN created for encrypting resources"
   value       = module.kms.kms_key_arn
 }
 
-# --- RDS Outputs ---
+# --- RDS Outputs --- #
 output "db_host" {
   description = "The hostname of the RDS instance"
   value       = module.rds.db_host
@@ -67,7 +67,7 @@ output "db_port" {
   value       = module.rds.db_port
 }
 
-# --- ASG Outputs ---
+# --- ASG Outputs --- #
 output "asg_id" {
   description = "The ID of the Auto Scaling Group"
   value       = try(module.asg[0].asg_id, null)
@@ -136,7 +136,7 @@ output "redis_port" {
   value       = module.elasticache.redis_port
 }
 
-# --- ALB Outputs ---
+# --- ALB Outputs --- #
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
   value       = module.alb.alb_dns_name
@@ -159,4 +159,11 @@ output "secret_arn" {
 output "secret_name" {
   description = "Name of the secret in AWS Secrets Manager"
   value       = aws_secretsmanager_secret.wp_secrets.name
+}
+
+# --- SNS Topic Outputs --- #
+
+output "sns_topic_arn" {
+  value       = aws_sns_topic.cloudwatch_alarms.arn
+  description = "ARN of the SNS topic"
 }

@@ -2,7 +2,7 @@
 set -e
 
 # Redirect all logs to /var/log/user-data.log and console
-exec 1> >(tee -a /var/log/user-data.log) 2>&1
+exec 1> >(tee -a /var/log/user-data.log| tee /dev/tty) 2>&1
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting user-data script..."
 
 # 1. Ensure AWS CLI (v2) is installed, if not already
@@ -47,7 +47,11 @@ env | grep DB_  # Debugging step
 # 4. Retrieve or embed the WordPress deployment script
 %{ if enable_s3_script }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading script from S3: ${wordpress_script_path}"
-  aws s3 cp "${wordpress_script_path}" /tmp/deploy_wordpress.sh
+  aws s3 cp "${wordpress_script_path}" /tmp/deploy_wordpress.sh --region ${aws_region}
+  if [ $? -ne 0 ]; then
+    echo "[ERROR] Failed to download script from S3: ${wordpress_script_path}"
+    exit 1
+  fi
 %{ else }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Embedding local script into /tmp/deploy_wordpress.sh..."
   cat <<'END_SCRIPT' > /tmp/deploy_wordpress.sh
@@ -58,7 +62,11 @@ END_SCRIPT
 # 4.1 Retrieve or embed the healthcheck file
 %{ if enable_s3_script }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading healthcheck file from S3: ${healthcheck_s3_path}"
-  aws s3 cp "${healthcheck_s3_path}" /var/www/html/wordpress/healthcheck.php
+  aws s3 cp "${healthcheck_s3_path}" /var/www/html/wordpress/healthcheck.php --region ${aws_region}
+  if [ $? -ne 0 ]; then
+    echo "[ERROR] Failed to download healthcheck file from S3: ${healthcheck_s3_path}"
+    exit 1
+  fi
 %{ else }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Embedding local healthcheck content..."
   echo "${healthcheck_content_b64}" | base64 --decode > /var/www/html/wordpress/healthcheck.php
