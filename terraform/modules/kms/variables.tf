@@ -48,11 +48,15 @@ variable "environment" {
   }
 }
 
-# S3 buckets variable
 variable "buckets" {
-  description = "Map to enable or disable S3 buckets"
-  type        = map(bool)
-  default     = {}
+  description = "Map to configure S3 buckets."
+  type = map(object({
+    enabled     = bool
+    versioning  = optional(bool)
+    replication = optional(bool)
+    logging     = optional(bool)
+  }))
+  default = {}
 }
 
 # Enable Key Rotation

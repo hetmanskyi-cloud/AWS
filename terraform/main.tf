@@ -119,14 +119,12 @@ module "s3" {
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
   name_prefix                       = var.name_prefix
-  enable_versioning                 = var.enable_versioning
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_dynamodb                   = var.enable_dynamodb
   enable_lambda                     = var.enable_lambda
   lambda_log_retention_days         = var.lambda_log_retention_days
   enable_cors                       = var.enable_cors
   allowed_origins                   = var.allowed_origins
-  enable_s3_replication             = var.enable_s3_replication
   enable_s3_script                  = var.enable_s3_script
   s3_scripts                        = var.s3_scripts
 
@@ -238,7 +236,9 @@ module "asg" {
   # Secrets Configuration
   wordpress_secret_name = aws_secretsmanager_secret.wp_secrets.name
 
-  depends_on = [module.vpc]
+  depends_on = [module.vpc,
+    module.s3
+  ]
 }
 
 # --- RDS Module Configuration --- #
@@ -376,7 +376,7 @@ module "alb" {
   environment        = var.environment
   kms_key_arn        = module.kms.kms_key_arn
   public_subnets     = module.vpc.public_subnets
-  logging_bucket     = module.s3.logging_bucket_id
+  logging_bucket     = module.s3.logging_bucket_name
   logging_bucket_arn = module.s3.logging_bucket_arn
   vpc_id             = module.vpc.vpc_id
   sns_topic_arn      = aws_sns_topic.cloudwatch_alarms.arn

@@ -4,7 +4,7 @@
 
 resource "aws_dynamodb_table" "terraform_locks" {
   # Create the table only if the remote backend, S3 bucket for state, and DynamoDB are enabled.
-  count = var.buckets["terraform_state"] && var.enable_dynamodb ? 1 : 0
+  count = var.buckets["terraform_state"].enabled && var.enable_dynamodb ? 1 : 0
 
   # --- Table Name --- #
   # Construct the table name dynamically using a project-specific prefix and a random suffix for uniqueness.

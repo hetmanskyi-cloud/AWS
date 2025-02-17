@@ -72,11 +72,15 @@ variable "sns_topic_arn" {
 
 # --- Bucket Configuration Variables --- #
 
-# Map to enable or disable S3 buckets dynamically.
 variable "buckets" {
-  description = "Map to enable or disable S3 buckets dynamically."
-  type        = map(bool)
-  default     = {}
+  description = "Map to configure S3 buckets."
+  type = map(object({
+    enabled     = bool
+    versioning  = optional(bool)
+    replication = optional(bool)
+    logging     = optional(bool)
+  }))
+  default = {}
 }
 
 # Flag to enable uploading scripts to S3
@@ -91,26 +95,6 @@ variable "s3_scripts" {
   description = "Map of files to be uploaded to the scripts bucket"
   type        = map(string)
   default     = {}
-}
-
-# Versioning settings are managed in the `terraform.tfvars` file.
-variable "enable_versioning" {
-  description = "Map of bucket names to enable or disable versioning."
-  type        = map(bool)
-  default     = {}
-
-  validation {
-    condition     = alltrue([for key in keys(var.enable_versioning) : contains(keys(var.buckets), key) if lookup(var.enable_versioning, key, false)])
-    error_message = "All keys in enable_versioning must exist in buckets."
-  }
-}
-
-# --- Enable Replication Variable --- #
-# Enable cross-region replication for S3 buckets.
-variable "enable_s3_replication" {
-  description = "Enable cross-region replication for S3 buckets."
-  type        = bool
-  default     = false
 }
 
 # Enable CORS configuration for the WordPress media bucket
@@ -181,25 +165,26 @@ variable "private_subnet_cidr_blocks" {
 }
 
 # --- Notes --- #
-# 1. **Dynamic Bucket Management**:
-#    - The `buckets` variable determines which S3 buckets are created.
-#    - The `enable_versioning` map controls versioning settings.
-#
-# 2. **Security Considerations**:
-#    - KMS encryption is used for data protection.
-#    - IAM policies ensure restricted access to S3 buckets.
-#
-# 3. **DynamoDB and Lambda**:
-#    - DynamoDB is enabled for Terraform state locking only when needed.
-#    - Lambda automates the cleanup of expired state locks.
-#
-# 4. **Replication Configuration**:
-#    - Buckets can be replicated across regions based on `enable_s3_replication`.
-#    - Ensure IAM policies allow replication when enabled.
-#
-# 5. **CORS Handling**:
-#    - If `enable_cors` is set to true, CORS policies are applied to WordPress media buckets.
-#
-# 6. **Best Practices**:
-#    - Set appropriate lifecycle rules for cost efficiency.
-#    - Use meaningful prefixes and tags for tracking resources.
+# 1. Bucket Configuration:
+#    - The 'buckets' map controls which S3 buckets are created and their properties (versioning, replication, logging).
+# 2. Security:
+#    - KMS encryption ('kms_key_arn') is used for data at rest.
+#    - Bucket policies enforce access restrictions.
+#    - HTTPS is enforced for all buckets.
+# 3. Replication:
+#    - Cross-region replication is configured using 'replication_region'.
+#    - Ensure appropriate IAM permissions are in place for replication.
+# 4. WordPress Integration:
+#    - CORS can be enabled for the 'wordpress_media' bucket using 'enable_cors' and 'allowed_origins'.
+#    - WordPress scripts can be uploaded to the 'scripts' bucket using 'enable_s3_script' and 's3_scripts'.
+# 5. Logging:
+#    - Centralized logging is enabled for configured buckets.
+# 6. Lifecycle Management:
+#    - Noncurrent version retention is configured using 'noncurrent_version_retention_days'.
+# 7. Notifications:
+#    - Bucket notifications are sent to the SNS topic specified by 'sns_topic_arn'.
+# 8. DynamoDB and Lambda (Optional):
+#    - DynamoDB ('enable_dynamodb') can be used for Terraform state locking.
+#    - Lambda ('enable_lambda') can automate DynamoDB TTL cleanup (requires DynamoDB to be enabled).
+# 9. Lambda VPC Configuration (Optional):
+#    - VPC settings ('vpc_id', 'private_subnet_ids', 'private_subnet_cidr_blocks') are required if Lambda is deployed within a VPC.

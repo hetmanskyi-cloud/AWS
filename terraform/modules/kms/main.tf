@@ -38,7 +38,7 @@ locals {
       "vpc-flow-logs.amazonaws.com"           # VPC Flow Logs
     ],
     # Optional services enabled by feature flags
-    lookup(var.buckets, "logging", false) ? ["cloudtrail.amazonaws.com"] : [],
+    var.buckets["logging"].enabled ? ["cloudtrail.amazonaws.com"] : [],
     var.enable_dynamodb ? ["dynamodb.${var.aws_region}.amazonaws.com"] : [],
     var.enable_lambda ? ["lambda.${var.aws_region}.amazonaws.com"] : [],
     var.enable_firehose ? ["firehose.${var.aws_region}.amazonaws.com"] : [],

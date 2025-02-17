@@ -36,7 +36,7 @@ resource "aws_iam_role" "asg_role" {
 # This flag is set to true if either the WordPress media bucket or the scripts bucket
 # is enabled in the 'buckets' map from terraform.tfvars.
 locals {
-  s3_enabled = lookup(var.buckets, "wordpress_media", false) || lookup(var.buckets, "scripts", false)
+  s3_enabled = var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled
 }
 
 # --- S3 Access Policy --- #

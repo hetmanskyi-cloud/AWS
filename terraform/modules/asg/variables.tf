@@ -283,9 +283,14 @@ variable "wordpress_secret_name" {
 
 # Enable Buckets
 variable "buckets" {
-  description = "Map to enable or disable S3 buckets"
-  type        = map(bool)
-  default     = {}
+  description = "Map to configure S3 buckets."
+  type = map(object({
+    enabled     = bool
+    versioning  = optional(bool)
+    replication = optional(bool)
+    logging     = optional(bool)
+  }))
+  default = {}
 }
 
 variable "wordpress_media_bucket_arn" {
