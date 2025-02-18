@@ -103,7 +103,7 @@ resource "aws_iam_policy" "wordpress_instance_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.wordpress_secret_name}"
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.wordpress_secret_name}"
       }
     ]
   })

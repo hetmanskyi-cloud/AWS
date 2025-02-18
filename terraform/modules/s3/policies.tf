@@ -23,8 +23,8 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Bucket Policies --- #
 
-# Deny Public Access
-resource "aws_s3_bucket_policy" "deny_public_access" {
+# Enforce HTTPS Policy
+resource "aws_s3_bucket_policy" "enforce_https_policy" {
   for_each = tomap({
     for key, value in var.buckets : key => value if value.enabled
   })
@@ -32,47 +32,17 @@ resource "aws_s3_bucket_policy" "deny_public_access" {
   bucket = aws_s3_bucket.buckets[each.key].id
 
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "DenyPublicAccess",
-        Effect    = "Deny",
-        Principal = "*",
-        Action    = "s3:*",
+        Sid       = "EnforceHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
         Resource = [
           aws_s3_bucket.buckets[each.key].arn,
           "${aws_s3_bucket.buckets[each.key].arn}/*"
-        ],
-        Condition = {
-          Bool = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      }
-    ]
-  })
-}
-
-# Enforce HTTPS
-resource "aws_s3_bucket_policy" "force_https" {
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value.enabled
-  })
-
-  bucket = aws_s3_bucket.buckets[each.key].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "EnforceTLS",
-        Effect    = "Deny",
-        Principal = "*",
-        Action    = "s3:*",
-        Resource = [
-          aws_s3_bucket.buckets[each.key].arn,
-          "${aws_s3_bucket.buckets[each.key].arn}/*"
-        ],
+        ]
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
@@ -245,7 +215,6 @@ resource "aws_s3_bucket_policy" "enforce_encryption" {
 
 # --- Notes --- #
 # 1. Security Policies:
-#    - Denies all public access.
 #    - Enforces HTTPS-only access.
 #    - Grants replication role write access to the replication bucket.
 #    - Grants replication role read access to source buckets (for replication).

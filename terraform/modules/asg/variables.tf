@@ -3,6 +3,17 @@
 
 # --- General Configuration --- #
 # Naming prefix and environment settings for better organization.
+
+variable "aws_account_id" {
+  description = "AWS Account ID"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region where resources will be created"
+  type        = string
+}
+
 variable "name_prefix" {
   description = "Prefix for naming resources for easier organization"
   type        = string
@@ -19,11 +30,6 @@ variable "environment" {
 
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting S3 bucket objects"
-  type        = string
-}
-
-variable "aws_region" {
-  description = "AWS region where resources will be created"
   type        = string
 }
 
@@ -274,7 +280,7 @@ variable "alb_dns_name" {
 }
 
 variable "wordpress_secret_name" {
-  description = "Name of the secret in AWS Secrets Manager containing WordPress credentials"
+  description = "The name of the Secrets Manager secret for WordPress credentials"
   type        = string
 }
 

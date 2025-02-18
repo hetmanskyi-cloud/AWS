@@ -2,8 +2,6 @@
 # Stores sensitive credentials for database and admin access
 
 locals {
-  # Constructs a unique secret name by combining environment and prefix.
-  secret_name = "${var.environment}-${var.name_prefix}-wp-secrets"
 
   # Configuration values for the secret, split into database and WordPress credentials.
   secret_values = {
@@ -26,7 +24,7 @@ locals {
 # Create AWS Secrets Manager secret
 # This resource represents the secret container (metadata).
 resource "aws_secretsmanager_secret" "wp_secrets" {
-  name        = local.secret_name
+  name        = var.wordpress_secret_name
   description = "WordPress credentials for ${var.environment} environment"
 
   # Recommended: Add recovery window (e.g., 7 days)
@@ -73,7 +71,7 @@ data "aws_iam_policy_document" "secrets_access" {
 # Attach the policy to the ASG (EC2) instance role.
 # Ensures that WordPress instances can fetch the secret at runtime.
 resource "aws_iam_role_policy" "secrets_access" {
-  name   = "${local.secret_name}-access"
+  name   = "${var.wordpress_secret_name}-access"
   role   = module.asg.instance_role_id
   policy = data.aws_iam_policy_document.secrets_access.json
 }

@@ -154,9 +154,10 @@ module "asg" {
   source = "./modules/asg" # Path to module ASG
 
   # General naming and environment configuration
-  name_prefix = var.name_prefix
-  environment = var.environment
-  aws_region  = var.aws_region
+  name_prefix    = var.name_prefix
+  environment    = var.environment
+  aws_region     = var.aws_region
+  aws_account_id = var.aws_account_id
 
   kms_key_arn = module.kms.kms_key_arn
 
@@ -235,7 +236,7 @@ module "asg" {
   healthcheck_version = var.healthcheck_version
 
   # Secrets Configuration
-  wordpress_secret_name = aws_secretsmanager_secret.wp_secrets.name
+  wordpress_secret_name = var.wordpress_secret_name
 
   depends_on = [module.vpc,
     module.s3

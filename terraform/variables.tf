@@ -334,6 +334,11 @@ variable "wp_admin_password" {
   sensitive   = true
 }
 
+variable "wordpress_secret_name" {
+  description = "The name of the Secrets Manager secret for WordPress credentials"
+  type        = string
+}
+
 variable "healthcheck_version" {
   description = "Healthcheck version to deploy (1.0 or 2.0)"
   type        = string
@@ -746,13 +751,6 @@ variable "enable_firehose" {
 
 # --- S3 Bucket Configuration Variables --- #
 
-# Versioning settings are managed in the `terraform.tfvars` file for dev environment.
-variable "enable_versioning" {
-  description = "Map of bucket names to enable or disable versioning."
-  type        = map(bool)
-  default     = {}
-}
-
 variable "buckets" {
   description = "Map to configure S3 buckets."
   type = map(object({
@@ -762,14 +760,6 @@ variable "buckets" {
     logging     = optional(bool)
   }))
   default = {}
-}
-
-# --- Enable Replication Variable --- #
-# Enable cross-region replication for S3 buckets.
-variable "enable_s3_replication" {
-  description = "Enable cross-region replication for S3 buckets."
-  type        = bool
-  default     = false
 }
 
 # Enable CORS configuration for the WordPress media bucket
