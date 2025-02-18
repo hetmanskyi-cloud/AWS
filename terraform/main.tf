@@ -281,9 +281,9 @@ module "rds" {
   multi_az                     = var.multi_az
   performance_insights_enabled = var.performance_insights_enabled
 
-  deletion_protection   = var.enable_deletion_protection
-  skip_final_snapshot   = var.skip_final_snapshot
-  enable_rds_monitoring = var.enable_rds_monitoring
+  rds_deletion_protection = var.rds_deletion_protection
+  skip_final_snapshot     = var.skip_final_snapshot
+  enable_rds_monitoring   = var.enable_rds_monitoring
 
   # RDS Alarm Thresholds
   rds_cpu_threshold_high    = var.rds_cpu_threshold_high

@@ -23,6 +23,8 @@ locals {
 
 # Create AWS Secrets Manager secret
 # This resource represents the secret container (metadata).
+# Using default AWS managed key for simplicity in this test project.
+# In production, Customer Managed Keys (CMK) are recommended for better control and security.
 resource "aws_secretsmanager_secret" "wp_secrets" {
   name        = var.wordpress_secret_name
   description = "WordPress credentials for ${var.environment} environment"
@@ -40,7 +42,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
   lifecycle {
     prevent_destroy = false # Set to true in production to prevent accidental deletion
   }
-}
+} # tfsec:ignore:aws-ssm-secret-use-customer-key
 
 # Store the actual secret values (JSON) in the secret.
 # Merges both database and WordPress credentials into a single JSON string.

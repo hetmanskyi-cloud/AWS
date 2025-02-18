@@ -421,7 +421,7 @@ variable "multi_az" {
 }
 
 # Enable or disable deletion protection for RDS instance
-variable "enable_deletion_protection" {
+variable "rds_deletion_protection" {
   description = "Enable or disable deletion protection for RDS instance"
   type        = bool
 }

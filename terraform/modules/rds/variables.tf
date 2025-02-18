@@ -125,7 +125,7 @@ variable "performance_insights_enabled" {
 }
 
 # --- Deletion Protection and Final Snapshot --- #
-variable "deletion_protection" {
+variable "rds_deletion_protection" {
   description = "Enable or disable deletion protection for RDS instance"
   type        = bool
 }
