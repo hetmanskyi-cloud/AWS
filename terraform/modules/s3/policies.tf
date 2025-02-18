@@ -23,8 +23,9 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Bucket Policies --- #
 
-# Enforce HTTPS Policy
-resource "aws_s3_bucket_policy" "enforce_https_policy" {
+# Bucket Policy to Enforce HTTPS and KMS Encryption
+# Ensures that only HTTPS connections are allowed and objects are encrypted with KMS.
+resource "aws_s3_bucket_policy" "enforce_https_and_encryption_policy" {
   for_each = tomap({
     for key, value in var.buckets : key => value if value.enabled
   })
@@ -35,22 +36,33 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "EnforceHTTPS"
+        Sid       = "DenyInsecureTransport"
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource = [
-          aws_s3_bucket.buckets[each.key].arn,
-          "${aws_s3_bucket.buckets[each.key].arn}/*"
-        ]
+        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*"
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
           }
         }
+      },
+      {
+        Sid       = "DenyUnencryptedUploads"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*"
+        Condition = {
+          StringNotEqualsIfExists = {
+            "s3:x-amz-server-side-encryption" = "aws:kms"
+          }
+        }
       }
     ]
   })
+
+  depends_on = [aws_s3_bucket.buckets]
 }
 
 # Logging Bucket Policy
@@ -122,7 +134,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
 # Grants the replication role permissions to write objects to the replication bucket.
 
 resource "aws_s3_bucket_policy" "replication_bucket_policy" {
-  count = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) ? 1 : 0
+  count = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) && length(aws_iam_role.replication_role) > 0 ? 1 : 0
 
   bucket = aws_s3_bucket.buckets["replication"].id
 
@@ -184,50 +196,24 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
   })
 }
 
-# --- Bucket Policy to Enforce Encryption --- #
-# Ensures that only encrypted objects can be uploaded to the selected buckets.
-
-resource "aws_s3_bucket_policy" "enforce_encryption" {
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value.enabled
-  })
-
-  bucket = aws_s3_bucket.buckets[each.key].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "DenyUnencryptedUploads",
-        Effect    = "Deny",
-        Principal = "*",
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*",
-        Condition = {
-          StringNotEquals = {
-            "s3:x-amz-server-side-encryption" = "aws:kms"
-          }
-        }
-      }
-    ]
-  })
-}
-
 # --- Notes --- #
 # 1. Security Policies:
-#    - Enforces HTTPS-only access.
-#    - Grants replication role write access to the replication bucket.
-#    - Grants replication role read access to source buckets (for replication).
-#    - Enforces server-side encryption for all buckets.
+#    - Enforces HTTPS-only access for all buckets.
+#    - Denies unencrypted object uploads (only KMS encryption is allowed).
+#    - Policies are dynamically applied to each bucket if enabled.
+#
 # 2. CORS Configuration:
-#    - Configured for the 'wordpress_media' bucket (if enabled and CORS is enabled).
-#    - 'allowed_origins' should be restricted in production.
-# 3. Dynamic Configuration:
-#    - Buckets are managed via 'var.buckets' in terraform.tfvars.
-#    - Policies are dynamically applied based on bucket configuration.
-# 4. Logging Configuration:
-#    - Grants logging service write access to the logging bucket.
-#    - Grants CloudTrail write access to the logging bucket (under /cloudtrail/ prefix).
-# 5. Replication:
-#    - Policies for replication are created only if replication is enabled.
-#    - Ensure source and destination buckets exist and are configured.
+#    - Configured only for the `wordpress_media` bucket if `enable_cors` is `true`.
+#    - `allowed_origins` is configurable but should be restricted in production.
+#    - Supports `GET` and `POST` methods only (consider further restrictions if necessary).
+#
+# 3. Logging & Compliance:
+#    - Grants logging service (`logging.s3.amazonaws.com`) write access to the `logging` bucket.
+#    - Grants CloudTrail write access to `/cloudtrail/` inside the logging bucket.
+#    - Allows ALB, WAF, and delivery logs to be written to specific prefixes.
+#
+# 4. Replication:
+#    - Replication policies are only created if replication is explicitly enabled.
+#    - The replication bucket policy ensures objects can be written to the destination.
+#    - The source bucket replication policy grants the IAM role read permissions.
+#    - Uses `length(aws_iam_role.replication_role) > 0` to prevent errors when the role is absent.
