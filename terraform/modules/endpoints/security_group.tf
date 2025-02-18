@@ -24,13 +24,13 @@ resource "aws_security_group" "endpoints_sg" {
 # --- Ingress Rules (Inbound Traffic) --- #
 # Allow HTTPS traffic (port 443) to the VPC Endpoints from the entire VPC CIDR.
 resource "aws_security_group_rule" "https_ingress" {
-  security_group_id = aws_security_group.endpoints_sg.id
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = [var.vpc_cidr_block]
-  description       = "Allow HTTPS access from the entire VPC CIDR"
+  security_group_id        = aws_security_group.endpoints_sg.id
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.source_security_group_id_asg
+  description              = "Allow HTTPS access from the entire VPC CIDR"
 }
 
 # --- Egress Rules (Outbound Traffic) --- #

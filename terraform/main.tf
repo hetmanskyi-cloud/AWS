@@ -145,8 +145,6 @@ module "s3" {
     aws             = aws
     aws.replication = aws.replication
   }
-
-  depends_on = [module.endpoints]
 }
 
 # --- ASG Module Configuration --- #
@@ -326,6 +324,9 @@ module "endpoints" {
   public_subnet_cidr_blocks            = local.public_subnet_cidr_blocks
   enable_cloudwatch_logs_for_endpoints = var.enable_cloudwatch_logs_for_endpoints
   endpoints_log_retention_in_days      = var.endpoints_log_retention_in_days
+
+  # Security Group (from ASG module)
+  source_security_group_id_asg = module.asg.asg_security_group_id
 }
 
 # --- Elasticache Module Configuration --- #

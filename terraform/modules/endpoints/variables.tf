@@ -103,6 +103,13 @@ variable "public_subnet_cidr_blocks" {
   }
 }
 
+# --- Security Group ID of ASG Instances --- #
+# Security Group ID of the ASG instances to allow access to VPC endpoints.
+variable "source_security_group_id_asg" {
+  description = "Security Group ID of the ASG instances to allow access to VPC endpoints"
+  type        = string
+}
+
 # --- Encryption Configuration --- #
 # ARN of the KMS key used for encrypting data.
 variable "kms_key_arn" {

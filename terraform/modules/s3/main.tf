@@ -26,19 +26,6 @@ resource "aws_s3_bucket" "buckets" {
   }
 }
 
-# --- WordPress Folder in Scripts Bucket --- #
-resource "aws_s3_object" "wordpress_folder" {
-  count = var.buckets["scripts"].enabled ? 1 : 0
-
-  bucket = aws_s3_bucket.buckets["scripts"].id
-  key    = "wordpress/"
-
-  depends_on = [aws_s3_bucket.buckets]
-
-  # --- Notes --- #
-  # Creates a 'wordpress/' folder in the 'scripts' bucket.
-}
-
 # --- Deploy WordPress Scripts to S3 --- #
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   for_each = var.buckets["scripts"].enabled && var.enable_s3_script ? var.s3_scripts : {}
@@ -52,8 +39,7 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
 
   content_type = lookup({
     ".sh"  = "text/x-shellscript",
-    ".php" = "text/php",
-    ".tpl" = "text/x-shellscript"
+    ".php" = "text/php"
   }, substr(each.key, length(each.key) - 3, 4), "text/plain")
 
   depends_on = [aws_s3_bucket.buckets]
