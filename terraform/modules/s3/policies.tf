@@ -165,8 +165,8 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
   for_each = {
     for key, value in var.buckets : key => value if(
       value.enabled &&
-      (value.replication != null ? value.replication : false) &&                        # Для value.replication используем условное выражение
-      can(var.buckets["replication"].enabled && var.buckets["replication"].replication) # Для replication используем can()
+      (value.replication != null ? value.replication : false) &&
+      can(var.buckets["replication"].enabled && var.buckets["replication"].replication)
     )
   }
 

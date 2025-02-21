@@ -142,6 +142,43 @@ variable "enable_public_nacl_https" {
   default     = false
 }
 
+# --- Variables for VPC Endpoints Routes --- #
+
+variable "ssm_endpoint_id" {
+  description = "ID of the SSM Interface VPC Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
+variable "ssm_messages_endpoint_id" {
+  description = "ID of the SSM Messages Interface VPC Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
+variable "asg_messages_endpoint_id" {
+  description = "ID of the EC2 ASG Messages Interface Endpoint (ASG Messages) (from interface_endpoints module)"
+  type        = string
+}
+
+variable "lambda_endpoint_id" {
+  description = "ID of the Lambda Interface VPC Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
+variable "cloudwatch_logs_endpoint_id" {
+  description = "ID of the CloudWatch Logs Interface VPC Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
+variable "sqs_endpoint_id" {
+  description = "ID of the SQS Interface Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
+variable "kms_endpoint_id" {
+  description = "ID of the KMS Interface VPC Endpoint (from interface_endpoints module)"
+  type        = string
+}
+
 # --- Notes --- #
 # 1. Variables are structured to allow flexible configuration of the VPC, subnets, and associated resources.
 # 2. Ensure default values for variables are set appropriately for each environment (e.g., dev, prod).

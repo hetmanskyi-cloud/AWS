@@ -164,6 +164,33 @@ variable "private_subnet_cidr_blocks" {
   type        = list(string)
 }
 
+# --- VPC Endpoints --- #
+
+variable "lambda_endpoint_id" {
+  description = "The ID of the Lambda Interface Endpoint"
+  type        = string
+}
+
+variable "dynamodb_endpoint_id" {
+  description = "The ID of the DynamoDB Gateway Endpoint"
+  type        = string
+}
+
+variable "cloudwatch_logs_endpoint_id" {
+  description = "The ID of the CloudWatch Logs Interface Endpoint"
+  type        = string
+}
+
+variable "sqs_endpoint_id" {
+  description = "The ID of the SQS Interface Endpoint"
+  type        = string
+}
+
+variable "kms_endpoint_id" {
+  description = "The ID of the KMS Interface Endpoint"
+  type        = string
+}
+
 # --- Notes --- #
 # 1. Bucket Configuration:
 #    - The 'buckets' map controls which S3 buckets are created and their properties (versioning, replication, logging).

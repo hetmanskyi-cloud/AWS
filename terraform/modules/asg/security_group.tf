@@ -78,6 +78,18 @@ resource "aws_security_group_rule" "all_outbound" {
   # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
 }
 
+# --- Outbound Rule for ASG to VPC Endpoints --- #
+# Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch)
+resource "aws_security_group_rule" "allow_ssm_egress" {
+  security_group_id        = aws_security_group.asg_security_group.id # ASG Security Group
+  type                     = "egress"
+  protocol                 = "tcp"
+  from_port                = 443
+  to_port                  = 443
+  source_security_group_id = var.vpc_endpoint_security_group_id # Security Group of VPC Endpoints
+  description              = "Allow outbound HTTPS traffic from ASG instances to VPC Endpoints"
+}
+
 # --- Notes --- #
 #
 # 1. **Traffic Rules**:

@@ -195,11 +195,11 @@ resource "aws_security_group" "lambda_sg" {
     to_port   = 443
     protocol  = "tcp"
     prefix_list_ids = try([
-      data.aws_vpc_endpoint.dynamodb.prefix_list_id,
-      data.aws_vpc_endpoint.cloudwatch_logs.prefix_list_id,
-      data.aws_vpc_endpoint.sqs.prefix_list_id,
-      data.aws_vpc_endpoint.kms.prefix_list_id,
-      data.aws_vpc_endpoint.lambda.prefix_list_id
+      var.dynamodb_endpoint_id,
+      var.cloudwatch_logs_endpoint_id,
+      var.sqs_endpoint_id,
+      var.kms_endpoint_id,
+      var.lambda_endpoint_id
     ], [])
 
     description = "Allow HTTPS to AWS services via VPC Endpoints"
@@ -287,10 +287,10 @@ resource "aws_lambda_function" "update_ttl" {
 
   # Ensure VPC Endpoints are created before Lambda function
   depends_on = [
-    data.aws_vpc_endpoint.dynamodb,
-    data.aws_vpc_endpoint.cloudwatch_logs,
-    data.aws_vpc_endpoint.sqs,
-    data.aws_vpc_endpoint.kms
+    var.dynamodb_endpoint_id,
+    var.cloudwatch_logs_endpoint_id,
+    var.sqs_endpoint_id,
+    var.kms_endpoint_id
   ]
 
   # Tags for resource identification.
@@ -366,33 +366,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 # --- Data Sources for AWS Region and Account ID --- #
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
-
-# --- Data Sources for VPC Endpoints --- #
-
-data "aws_vpc_endpoint" "lambda" {
-  vpc_id       = var.vpc_id
-  service_name = "com.amazonaws.${data.aws_region.current.name}.lambda"
-}
-
-data "aws_vpc_endpoint" "dynamodb" {
-  vpc_id       = var.vpc_id
-  service_name = "com.amazonaws.${data.aws_region.current.name}.dynamodb"
-}
-
-data "aws_vpc_endpoint" "cloudwatch_logs" {
-  vpc_id       = var.vpc_id
-  service_name = "com.amazonaws.${data.aws_region.current.name}.logs"
-}
-
-data "aws_vpc_endpoint" "sqs" {
-  vpc_id       = var.vpc_id
-  service_name = "com.amazonaws.${data.aws_region.current.name}.sqs"
-}
-
-data "aws_vpc_endpoint" "kms" {
-  vpc_id       = var.vpc_id
-  service_name = "com.amazonaws.${data.aws_region.current.name}.kms"
-}
 
 # --- Notes --- #
 

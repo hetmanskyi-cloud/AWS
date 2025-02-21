@@ -368,6 +368,13 @@ variable "redis_security_group_id" {
   type        = string
 }
 
+# --- VPC Endpoint Security Group ID --- #
+# Used to allow ASG instances to communicate with VPC Endpoints
+variable "vpc_endpoint_security_group_id" {
+  description = "Security Group ID for VPC Endpoints"
+  type        = string
+}
+
 # --- Redis Variables --- #
 
 # Redis endpoint and port for WordPress caching.

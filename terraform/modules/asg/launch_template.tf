@@ -131,7 +131,7 @@ resource "aws_launch_template" "asg_launch_template" {
   # --- IAM Instance Profile --- #
   # Attach an IAM instance profile to manage permissions for the instance.
   iam_instance_profile {
-    arn = aws_iam_instance_profile.asg_instance_profile.arn # IAM instance profile from asg/iam.tf
+    name = aws_iam_instance_profile.asg_instance_profile.name # IAM instance profile from asg/iam.tf
   }
 
   # --- Tag Specifications --- #

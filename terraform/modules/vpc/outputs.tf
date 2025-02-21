@@ -69,6 +69,20 @@ output "private_subnets" {
   ]
 }
 
+# --- Public Subnet IDs Output --- #
+# Outputs a list of public subnet IDs
+output "public_subnet_ids" {
+  description = "List of IDs for public subnets"
+  value       = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id, aws_subnet.public_subnet_3.id]
+}
+
+# --- Private Subnet IDs Output --- #
+# Outputs a list of private subnet IDs
+output "private_subnet_ids" {
+  description = "List of IDs for private subnets"
+  value       = [aws_subnet.private_subnet_1.id, aws_subnet.private_subnet_2.id, aws_subnet.private_subnet_3.id]
+}
+
 # --- Flow Logs Outputs --- #
 
 # Output for CloudWatch Log Group
@@ -173,10 +187,43 @@ output "private_subnet_nacl_id" {
   value       = aws_network_acl.private_nacl.id
 }
 
-# --- IGW Outputs --- #
+# --- Availability Zones for Public Subnets --- #
+# Outputs the availability zones for the public subnets
+output "availability_zone_public_1" {
+  description = "Availability Zone for public subnet 1"
+  value       = aws_subnet.public_subnet_1.availability_zone
+}
 
-# Output the ID of the Internet Gateway
-output "igw_id" {
+output "availability_zone_public_2" {
+  description = "Availability Zone for public subnet 2"
+  value       = aws_subnet.public_subnet_2.availability_zone
+}
+
+output "availability_zone_public_3" {
+  description = "Availability Zone for public subnet 3"
+  value       = aws_subnet.public_subnet_3.availability_zone
+}
+
+# --- Availability Zones for Private Subnets --- #
+# Outputs the availability zones for the private subnets
+output "availability_zone_private_1" {
+  description = "Availability Zone for private subnet 1"
+  value       = aws_subnet.private_subnet_1.availability_zone
+}
+
+output "availability_zone_private_2" {
+  description = "Availability Zone for private subnet 2"
+  value       = aws_subnet.private_subnet_2.availability_zone
+}
+
+output "availability_zone_private_3" {
+  description = "Availability Zone for private subnet 3"
+  value       = aws_subnet.private_subnet_3.availability_zone
+}
+
+# --- Internet Gateway ID --- #
+# Outputs the ID of the Internet Gateway
+output "internet_gateway_id" {
   description = "The ID of the Internet Gateway"
   value       = aws_internet_gateway.igw.id
 }

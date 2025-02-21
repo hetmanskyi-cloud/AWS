@@ -73,6 +73,15 @@ module "vpc" {
 
   enable_public_nacl_http  = var.enable_public_nacl_http
   enable_public_nacl_https = var.enable_public_nacl_https
+
+  # Variables for VPC Endpoints routes
+  ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
+  ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id
+  asg_messages_endpoint_id    = module.interface_endpoints.asg_messages_endpoint_id
+  lambda_endpoint_id          = module.interface_endpoints.lambda_endpoint_id
+  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
+  sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
+  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 }
 
 # --- KMS Module Configuration --- #
@@ -140,6 +149,13 @@ module "s3" {
   private_subnet_ids         = module.vpc.private_subnets
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
 
+  # VPC Endpoints
+  lambda_endpoint_id          = module.interface_endpoints.lambda_endpoint_id
+  dynamodb_endpoint_id        = module.vpc.dynamodb_endpoint_id
+  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
+  sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
+  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
+
   # Pass providers explicitly
   providers = {
     aws             = aws
@@ -193,11 +209,12 @@ module "asg" {
   enable_ebs_encryption = var.enable_ebs_encryption
 
   # Networking and security configurations
-  public_subnet_ids       = module.vpc.public_subnets
-  alb_security_group_id   = module.alb.alb_security_group_id
-  rds_security_group_id   = module.rds.rds_security_group_id
-  redis_security_group_id = module.elasticache.redis_security_group_id
-  vpc_id                  = module.vpc.vpc_id
+  public_subnet_ids              = module.vpc.public_subnets
+  alb_security_group_id          = module.alb.alb_security_group_id
+  rds_security_group_id          = module.rds.rds_security_group_id
+  redis_security_group_id        = module.elasticache.redis_security_group_id
+  vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
+  vpc_id                         = module.vpc.vpc_id
 
   # ALB Target Group ARN for routing traffic to ASG instances
   wordpress_tg_arn = module.alb.wordpress_tg_arn
@@ -308,8 +325,8 @@ module "rds" {
 }
 
 # --- Endpoints Module Configuration --- #
-module "endpoints" {
-  source = "./modules/endpoints" # Path to module Endpoints
+module "interface_endpoints" {
+  source = "./modules/interface_endpoints" # Path to module Interface Endpoints
 
   aws_region                           = var.aws_region
   aws_account_id                       = var.aws_account_id
@@ -324,9 +341,6 @@ module "endpoints" {
   public_subnet_cidr_blocks            = local.public_subnet_cidr_blocks
   enable_cloudwatch_logs_for_endpoints = var.enable_cloudwatch_logs_for_endpoints
   endpoints_log_retention_in_days      = var.endpoints_log_retention_in_days
-
-  # Security Group (from ASG module)
-  source_security_group_id_asg = module.asg.asg_security_group_id
 }
 
 # --- Elasticache Module Configuration --- #

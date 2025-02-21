@@ -210,6 +210,30 @@ resource "aws_network_acl_rule" "private_outbound_ephemeral" {
   rule_action    = "allow"
 }
 
+# Allow inbound HTTPS (port 443) from the entire VPC CIDR
+resource "aws_network_acl_rule" "private_inbound_https_endpoints" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 250
+  egress         = false
+  protocol       = "tcp"
+  from_port      = 443
+  to_port        = 443
+  cidr_block     = aws_vpc.vpc.cidr_block
+  rule_action    = "allow"
+}
+
+# Rule for outbound SSM traffic (port 443) to VPC Endpoint
+resource "aws_network_acl_rule" "private_outbound_ssm" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 260
+  egress         = true
+  protocol       = "tcp"
+  from_port      = 443
+  to_port        = 443
+  cidr_block     = aws_vpc.vpc.cidr_block
+  rule_action    = "allow"
+}
+
 # --- NACL Associations --- #
 # Associate NACLs with the corresponding subnets.
 
