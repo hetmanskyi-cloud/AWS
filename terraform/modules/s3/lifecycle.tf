@@ -8,56 +8,33 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 
   bucket = aws_s3_bucket.buckets[each.key].id
 
-  # Rule to manage noncurrent object versions for cost control.
-  # "scripts-retain-versions" rule: Provides the base retention policy.
-  # It ensures that all noncurrent object versions are retained for 30 days, allowing for recovery if needed.
+  # Delete all objects after 1 day (to allow Terraform to destroy the bucket)
+  rule {
+    id     = "${each.key}-delete-objects"
+    status = "Enabled"
+
+    expiration {
+      days = 1 # Remove all objects after 1 day
+    }
+  }
+
+  # Manage noncurrent object versions (default retention: 30 days)
   rule {
     id     = "${each.key}-retain-versions"
     status = "Enabled"
 
     noncurrent_version_expiration {
-      noncurrent_days = var.noncurrent_version_retention_days # Set in terraform.tfvars
+      noncurrent_days = var.noncurrent_version_retention_days # Defined in terraform.tfvars
     }
   }
 
-  # Rule to automatically abort incomplete multipart uploads.
+  # Abort incomplete multipart uploads after 7 days
   rule {
     id     = "${each.key}-abort-incomplete-uploads"
     status = "Enabled"
 
     abort_incomplete_multipart_upload {
-      days_after_initiation = 7
-    }
-  }
-
-  # Additional safeguard rule: "scripts-delete-old-versions".
-  # This rule acts as an extra measure to guarantee that any noncurrent versions
-  # exceeding 30 days are deleted, reducing the risk of accumulating outdated versions.
-  # It is applied only to the "scripts" bucket to delete old versions only.
-  dynamic "rule" {
-    for_each = each.key == "scripts" ? [1] : []
-
-    content {
-      id     = "scripts-delete-old-versions"
-      status = "Enabled"
-
-      noncurrent_version_expiration {
-        noncurrent_days = 30 # Delete old versions after 30 days
-      }
-    }
-  }
-
-  # Additional rule for 'logging' bucket to delete old logs
-  dynamic "rule" {
-    for_each = each.key == "logging" ? [1] : []
-
-    content {
-      id     = "delete-old-logs"
-      status = "Enabled"
-
-      expiration {
-        days = 30 # Delete logs after 30 days
-      }
+      days_after_initiation = 7 # Cleanup incomplete uploads
     }
   }
 }

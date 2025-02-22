@@ -31,38 +31,69 @@ resource "aws_iam_role" "asg_role" {
   }
 }
 
-# --- S3 Access Policy --- #
+# --- S3 Access Policy ---
 resource "aws_iam_policy" "s3_access_policy" {
+  # The policy is created only if at least one of the buckets (WordPress media or scripts) is enabled
   count = can(var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled) ? 1 : 0
 
   name        = "${var.name_prefix}-asg-s3-access-policy"
-  description = "S3 access policy for WordPress media (if enabled) and deployment scripts"
+  description = "S3 access policy for WordPress media (read/write) and scripts (read-only)"
 
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket",
-          "s3:GetBucket"
-        ],
-        Resource = flatten([
-          can(var.buckets["wordpress_media"].enabled) ? (
-            var.wordpress_media_bucket_arn != null ? [var.wordpress_media_bucket_arn] : []
-          ) : [],
-          can(var.buckets["wordpress_media"].enabled) ? (
-            var.wordpress_media_bucket_arn != null ? ["${var.wordpress_media_bucket_arn}/*"] : []
-          ) : [],
-          can(var.buckets["scripts"].enabled) ? (
-            var.scripts_bucket_arn != null ? ["${var.scripts_bucket_arn}/*"] : []
-          ) : []
-        ])
-      }
-    ]
+    Statement = flatten([
+
+      # 1) WordPress media bucket: read+write
+      var.buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:ListBucket",
+            "s3:GetBucket"
+          ]
+          Resource = [
+            var.wordpress_media_bucket_arn,
+            "${var.wordpress_media_bucket_arn}/*"
+          ]
+        }
+      ]
+      : [],
+
+      # 2) Scripts bucket: read-only
+      var.buckets["scripts"].enabled && var.scripts_bucket_arn != null
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:ListBucket",
+            "s3:GetBucket"
+          ]
+          Resource = [
+            var.scripts_bucket_arn,
+            "${var.scripts_bucket_arn}/*"
+          ]
+        }
+      ]
+      : [],
+      # 3) KMS permissions for S3 uploads (required for encrypted uploads)
+      var.buckets["wordpress_media"].enabled && var.kms_key_arn != null
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Encrypt",
+            "kms:GenerateDataKey",
+            "kms:Decrypt"
+          ]
+          Resource = var.kms_key_arn
+        }
+      ]
+      : []
+    ])
   })
 }
 
@@ -128,31 +159,81 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 }
 
 # --- KMS Decryption Policy --- #
-# Allows ASG instances to decrypt S3 objects and EBS volumes encrypted with KMS.
+# This policy is created only if at least one KMS-based workflow is enabled:
+# - EBS encryption (enable_ebs_encryption = true)
+# - WordPress media (var.buckets["wordpress_media"].enabled = true)
+# - scripts (var.buckets["scripts"].enabled = true) if using SSE-KMS
 resource "aws_iam_policy" "kms_decrypt_policy" {
+  count = (
+    var.enable_ebs_encryption
+    || var.buckets["wordpress_media"].enabled
+    || var.buckets["scripts"].enabled
+  ) ? 1 : 0
+
   name        = "${var.name_prefix}-kms-decrypt-policy"
-  description = "Allows EC2 instances to decrypt S3 objects and EBS volumes encrypted with KMS"
+  description = "Allows EC2 instances to use KMS for decrypting/encrypting data (WordPress media, scripts, EBS)."
 
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [
-      # Grant full decryption and key description permissions for KMS
-      {
-        Effect = "Allow",
-        Action = [
-          "kms:Decrypt",
-          "kms:DescribeKey"
-        ],
-        Resource = var.kms_key_arn
-      }
-    ]
+    Statement = flatten([
+
+      # 1) WordPress media: read/write => need Encrypt/GenerateDataKey/Decrypt/DescribeKey
+      can(var.buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null)
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Encrypt",
+            "kms:GenerateDataKey",
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = var.kms_key_arn
+        }
+      ]
+      : [],
+
+      # 2) scripts (read-only) => typically need only Decrypt/DescribeKey (if scripts bucket is SSE-KMS)
+      can(var.buckets["scripts"].enabled && var.scripts_bucket_arn != null)
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = var.kms_key_arn
+        }
+      ]
+      : [],
+
+      # 3) EBS encryption => typically Decrypt/DescribeKey is enough
+      var.enable_ebs_encryption
+      ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = var.kms_key_arn
+        }
+      ]
+      : []
+    ])
   })
 }
 
 # Attach the KMS decryption policy to the ASG IAM role to allow access to encrypted S3 objects and EBS volumes
 resource "aws_iam_role_policy_attachment" "kms_access" {
+  count = (
+    var.enable_ebs_encryption
+    || var.buckets["wordpress_media"].enabled
+    || var.buckets["scripts"].enabled
+  ) ? 1 : 0
+
   role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.kms_decrypt_policy.arn
+  policy_arn = aws_iam_policy.kms_decrypt_policy[0].arn
 }
 
 # Add data sources for current region and account ID

@@ -25,24 +25,25 @@ locals {
     "kms:DescribeKey"
   ]
 
-  # Base AWS services that require KMS access
+  # Base AWS services that require KMS access (regionless principals)
   kms_services = distinct(concat(
     [
-      "logs.${var.aws_region}.amazonaws.com", # CloudWatch Logs
-      "rds.amazonaws.com",                    # RDS encryption
-      "elasticache.amazonaws.com",            # ElastiCache encryption
-      "s3.amazonaws.com",                     # S3 bucket encryption
-      "ssm.${var.aws_region}.amazonaws.com",  # Systems Manager
-      "ec2.${var.aws_region}.amazonaws.com",  # EBS encryption
-      "wafv2.amazonaws.com",                  # WAF configuration
-      "vpc-flow-logs.amazonaws.com"           # VPC Flow Logs
+      # Regionless service principals:
+      "logs.amazonaws.com",        # CloudWatch Logs
+      "rds.amazonaws.com",         # RDS encryption
+      "elasticache.amazonaws.com", # ElastiCache encryption
+      "s3.amazonaws.com",          # S3 encryption
+      "ssm.amazonaws.com",         # Systems Manager
+      "ec2.amazonaws.com",         # EBS encryption
+      "wafv2.amazonaws.com",       # WAFv2
+      "vpc-flow-logs.amazonaws.com"
     ],
-    # Optional services enabled by feature flags
+    # Conditional services:
     var.buckets["logging"].enabled ? ["cloudtrail.amazonaws.com"] : [],
-    var.enable_dynamodb ? ["dynamodb.${var.aws_region}.amazonaws.com"] : [],
-    var.enable_lambda ? ["lambda.${var.aws_region}.amazonaws.com"] : [],
-    var.enable_firehose ? ["firehose.${var.aws_region}.amazonaws.com"] : [],
-    var.enable_waf_logging ? ["waf.${var.aws_region}.amazonaws.com"] : []
+    var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],
+    var.enable_lambda ? ["lambda.amazonaws.com"] : [],
+    var.enable_firehose ? ["firehose.amazonaws.com"] : [],
+    var.enable_waf_logging ? ["waf.amazonaws.com"] : []
   ))
 
   # Additional principals that need KMS access (IAM roles and users)
@@ -66,6 +67,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
     Version = "2012-10-17"
     Id      = "key-policy-1"
     Statement = concat([
+      # 1) Enable IAM User Permissions (root)
       {
         Sid    = "Enable IAM User Permissions"
         Effect = "Allow"
@@ -75,32 +77,29 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
         Action   = "kms:*"
         Resource = "*"
       },
+      # 2) Allow AWS Services usage (CloudTrail, CloudWatch Logs, EC2, RDS, etc.)
       {
-        Sid    = "Allow CloudWatch Logs"
+        Sid    = "AllowAWSServicesUsage"
         Effect = "Allow"
         Principal = {
-          Service = "logs.${var.aws_region}.amazonaws.com"
-        }
-        Action = [
-          "kms:Encrypt*",
-          "kms:Decrypt*",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:Describe*"
-        ]
-        Resource = "*"
-      }
-      ],
-      # Add statement for additional principals if any exist
-      length(local.additional_principals) > 0 ? [{
-        Sid    = "Allow Additional Principals"
-        Effect = "Allow"
-        Principal = {
-          AWS = local.additional_principals
+          Service = local.kms_services
         }
         Action   = local.kms_actions
         Resource = "*"
-    }] : [])
+      }
+      ],
+      # 3) Optionally allow additional principals (custom roles, etc.)
+      length(local.additional_principals) > 0 ? [
+        {
+          Sid    = "Allow Additional Principals"
+          Effect = "Allow"
+          Principal = {
+            AWS = local.additional_principals
+          }
+          Action   = local.kms_actions
+          Resource = "*"
+        }
+    ] : [])
   })
 }
 

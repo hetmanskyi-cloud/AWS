@@ -18,7 +18,7 @@ resource "aws_s3_bucket" "buckets" {
     for key, value in var.buckets : key => value if value.enabled
   })
 
-  bucket = "${lower(var.name_prefix)}-${each.key}-${random_string.suffix.result}"
+  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}"
 
   tags = {
     Name        = "${var.name_prefix}-${each.key}"

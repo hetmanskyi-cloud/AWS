@@ -23,11 +23,31 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Bucket Policies --- #
 
-# Bucket Policy to Enforce HTTPS and KMS Encryption
-# Ensures that only HTTPS connections are allowed and objects are encrypted with KMS.
-resource "aws_s3_bucket_policy" "enforce_https_and_encryption_policy" {
+# Enables SSE-KMS as the default encryption method for all objects in the bucket.
+# Ensures that any object uploaded (even without explicit --sse) is encrypted with the specified KMS key.
+resource "aws_s3_bucket_server_side_encryption_configuration" "default_encryption" {
   for_each = tomap({
     for key, value in var.buckets : key => value if value.enabled
+  })
+
+  bucket = aws_s3_bucket.buckets[each.key].id
+
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = var.kms_key_arn
+    }
+  }
+}
+
+# Applies a bucket policy that denies non-HTTPS (insecure) access,
+# but does NOT enforce explicit SSE-KMS headers (relying instead on Default Encryption).
+resource "aws_s3_bucket_policy" "enforce_https_policy" {
+  for_each = tomap({
+    for key, value in var.buckets : key => value
+    # apply only if enabled, but exclude "logging"
+    if value.enabled && key != "logging"
   })
 
   bucket = aws_s3_bucket.buckets[each.key].id
@@ -35,6 +55,7 @@ resource "aws_s3_bucket_policy" "enforce_https_and_encryption_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # Denies all traffic that is not over HTTPS (SecureTransport = false).
       {
         Sid       = "DenyInsecureTransport"
         Effect    = "Deny"
@@ -46,18 +67,6 @@ resource "aws_s3_bucket_policy" "enforce_https_and_encryption_policy" {
             "aws:SecureTransport" = "false"
           }
         }
-      },
-      {
-        Sid       = "DenyUnencryptedUploads"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*"
-        Condition = {
-          StringNotEqualsIfExists = {
-            "s3:x-amz-server-side-encryption" = "aws:kms"
-          }
-        }
       }
     ]
   })
@@ -66,9 +75,11 @@ resource "aws_s3_bucket_policy" "enforce_https_and_encryption_policy" {
 }
 
 # Logging Bucket Policy
+# Combines all required permissions for logging services, ALB, WAF, and CloudTrail.
 resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   for_each = tomap({
-    for key, value in var.buckets : key => value if key == "logging" && value.enabled
+    for key, value in var.buckets : key => value
+    if key == "logging" && value.enabled
   })
 
   bucket = aws_s3_bucket.buckets["logging"].id
@@ -76,6 +87,20 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # 1) Deny non-HTTPS
+      {
+        Sid       = "DenyInsecureTransport",
+        Effect    = "Deny",
+        Principal = "*",
+        Action    = "s3:*",
+        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/*",
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+      # 2) S3 Server Access Logging
       {
         Sid       = "AllowLoggingWrite",
         Effect    = "Allow",
@@ -83,6 +108,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets["logging"].arn}/*"
       },
+      # 3) ALB Logging
       {
         Sid       = "AllowALBLogging",
         Effect    = "Allow",
@@ -90,6 +116,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets["logging"].arn}/alb-logs/*"
       },
+      # 4) WAF Logging
       {
         Sid       = "AllowWAFLogging",
         Effect    = "Allow",
@@ -97,34 +124,34 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets["logging"].arn}/waf-logs/*"
       },
+      # 5) Additional ALB logs
       {
         Sid       = "AllowDeliveryLogsWrite",
         Effect    = "Allow",
         Principal = { Service = "delivery.logs.amazonaws.com" },
         Action    = "s3:PutObject",
         Resource  = "${aws_s3_bucket.buckets["logging"].arn}/alb-logs/*"
-      }
-    ]
-  })
-}
-
-# --- CloudTrail Bucket Policy --- #
-# Allows CloudTrail to write logs to the logging bucket under the /cloudtrail/ prefix.
-
-resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
-  count = var.buckets["logging"].enabled ? 1 : 0
-
-  bucket = aws_s3_bucket.buckets["logging"].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
+      },
+      # 6) CloudTrail ACL check
+      {
+        Sid       = "AWSCloudTrailAclCheck",
+        Effect    = "Allow",
+        Principal = { Service = "cloudtrail.amazonaws.com" },
+        Action    = "s3:GetBucketAcl",
+        Resource  = "${aws_s3_bucket.buckets["logging"].arn}"
+      },
+      # 7) CloudTrail write
       {
         Sid       = "AWSCloudTrailWrite",
         Effect    = "Allow",
         Principal = { Service = "cloudtrail.amazonaws.com" },
         Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/cloudtrail/*"
+        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/cloudtrail/AWSLogs/${var.aws_account_id}/*",
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
       }
     ]
   })
