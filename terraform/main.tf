@@ -116,15 +116,15 @@ module "kms" {
   enable_waf_logging = var.enable_waf_logging # Enable KMS permissions for WAF logging
 
   # S3 buckets for KMS permissions
-  buckets = var.buckets
+  default_region_buckets     = var.default_region_buckets
+  replication_region_buckets = var.replication_region_buckets
 }
 
 # --- S3 Module --- #
 module "s3" {
   source = "./modules/s3" # Path to S3 module
 
-  # S3 configuration
-  replication_region                = var.replication_region
+  # S3 configuration  
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
   name_prefix                       = var.name_prefix
@@ -143,7 +143,9 @@ module "s3" {
   kms_key_arn = module.kms.kms_key_arn
 
   # Pass buckets list dynamically
-  buckets = var.buckets
+  default_region_buckets     = var.default_region_buckets
+  replication_region_buckets = var.replication_region_buckets
+
 
   vpc_id                     = module.vpc.vpc_id
   private_subnet_ids         = module.vpc.private_subnets
@@ -156,11 +158,8 @@ module "s3" {
   sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
   kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 
-  # Pass providers explicitly
-  providers = {
-    aws             = aws
-    aws.replication = aws.replication
-  }
+
+  replication_region = var.replication_region
 }
 
 # --- ASG Module Configuration --- #
@@ -223,7 +222,8 @@ module "asg" {
   enable_https_listener = module.alb.enable_https_listener
 
   # S3 bucket configurations
-  buckets                     = var.buckets
+  default_region_buckets      = var.default_region_buckets
+  replication_region_buckets  = var.replication_region_buckets
   wordpress_media_bucket_name = module.s3.wordpress_media_bucket_name
   wordpress_media_bucket_arn  = module.s3.wordpress_media_bucket_arn
   scripts_bucket_name         = module.s3.scripts_bucket_name

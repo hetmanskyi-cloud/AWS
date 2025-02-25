@@ -9,7 +9,7 @@
 # Only create CloudTrail if logging bucket is enabled
 # tfsec:ignore:aws-cloudtrail-enable-all-regions
 resource "aws_cloudtrail" "cloudtrail" {
-  count = var.buckets["logging"].enabled ? 1 : 0
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
   # Basic trail configuration
   name           = "${var.name_prefix}-cloudtrail"
@@ -41,7 +41,7 @@ resource "aws_cloudtrail" "cloudtrail" {
 # --- CloudWatch Logs Configuration --- #
 # Configures the CloudWatch Log Group for CloudTrail events
 resource "aws_cloudwatch_log_group" "cloudtrail" {
-  count = var.buckets["logging"].enabled ? 1 : 0
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
   # Log group settings
   name              = "/aws/cloudtrail/${var.name_prefix}"
@@ -58,7 +58,7 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
 # --- IAM Configuration for CloudWatch Integration --- #
 # Creates the IAM role that allows CloudTrail to send logs to CloudWatch
 resource "aws_iam_role" "cloudtrail_cloudwatch" {
-  count = var.buckets["logging"].enabled ? 1 : 0
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
   name = "${var.name_prefix}-cloudtrail-cloudwatch"
 
@@ -87,7 +87,7 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
 # Defines permissions for CloudTrail to write to CloudWatch Logs
 # tfsec:ignore:aws-iam-no-policy-wildcards
 resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
-  count = var.buckets["logging"].enabled ? 1 : 0
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
   name = "${var.name_prefix}-cloudtrail-cloudwatch"
   role = aws_iam_role.cloudtrail_cloudwatch[0].id

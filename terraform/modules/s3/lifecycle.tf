@@ -1,12 +1,13 @@
 # --- Lifecycle Policies for S3 Buckets --- #
-# Defines lifecycle rules for cost optimization and data management.
 
+# Defines lifecycle rules for cost optimization and data management S3 buckets in the default region.
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value.enabled
-  })
+  for_each = {
+    for key, value in var.default_region_buckets : key => value
+    if value.enabled
+  }
 
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
 
   # Delete all objects after 1 day (to allow Terraform to destroy the bucket)
   rule {
@@ -40,11 +41,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 }
 
 # --- Replication Bucket Lifecycle Rules --- #
-# Defines lifecycle rules for the replication bucket.
+# Defines lifecycle rules for the replication buckets.
 resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
-  count = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) ? 1 : 0
+  for_each = {
+    for key, value in var.replication_region_buckets : key => value
+    if value.enabled
+  }
 
-  bucket = aws_s3_bucket.buckets["replication"].id
+  bucket = aws_s3_bucket.replication_region_buckets[each.key].id
 
   # Retain noncurrent object versions for a defined period
   rule {
@@ -68,11 +72,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
 }
 
 # --- Notes --- #
-# 1. Lifecycle Management:
-#    - Manages object lifecycles for cost optimization.
-#    - Retains noncurrent versions.
-#    - Aborts incomplete uploads.
-#    - Consider additional rules for temporary files in production.
-# 2. Replication Lifecycle:
-#    - Configures lifecycle rules for the replication bucket.
-#    - Created only if replication is enabled.
+# 1. Lifecycle Management (Default Region Buckets):
+#     - Optimizes S3 costs via object lifecycle rules.
+#     - Includes rules for version retention and aborting incomplete uploads.
+#     - **`delete-objects` rule (days=1) is optimized for TEST environments to speed up `terraform destroy`.**
+#       **For PRODUCTION, consider removing/increasing `days` to prevent data loss.**
+#
+# 2. Replication Bucket Lifecycle:
+#     - Configures lifecycle rules for replication buckets (separate resource).
+#     - Dynamically applied via `for_each` to enabled replication buckets.
+#     - Includes version retention and incomplete upload abortion rules.
+#     - **`abort_incomplete_multipart_upload` days are unified (7 days) with default buckets for consistency.**

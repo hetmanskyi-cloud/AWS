@@ -48,15 +48,28 @@ variable "environment" {
   }
 }
 
-variable "buckets" {
-  description = "Map to configure S3 buckets."
+variable "default_region_buckets" {
   type = map(object({
-    enabled     = bool
-    versioning  = optional(bool)
-    replication = optional(bool)
-    logging     = optional(bool)
+    enabled     = optional(bool, true)
+    versioning  = optional(bool, false)
+    replication = optional(bool, false)
+    logging     = optional(bool, false)
+    region      = optional(string, null) # Optional region, defaults to provider region if not set
   }))
-  default = {}
+  description = "Configuration for S3 buckets in the default AWS region."
+  default     = {}
+}
+
+variable "replication_region_buckets" {
+  type = map(object({
+    enabled     = optional(bool, true)
+    versioning  = optional(bool, true)  # Versioning MUST be enabled for replication destinations
+    replication = optional(bool, false) # Replication is not applicable for replication buckets themselves
+    logging     = optional(bool, false)
+    region      = string # AWS region for the replication bucket (REQUIRED)
+  }))
+  description = "Configuration for S3 buckets specifically in the replication AWS region."
+  default     = {}
 }
 
 # Enable Key Rotation

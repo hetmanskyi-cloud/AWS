@@ -17,13 +17,15 @@ terraform {
 
 # Configure the AWS provider and set the default region from a variable
 provider "aws" {
-  region = var.aws_region # AWS region variable is set in terraform.tfvars
+  region  = var.aws_region
+  profile = "default"
 }
 
 # Configure the AWS alias provider and set the region for the replication bucket
 provider "aws" {
-  alias  = "replication"
-  region = var.replication_region # AWS region variable for the replication bucket is set in terraform.tfvars
+  alias   = "replication"
+  region  = var.replication_region
+  profile = "default"
 }
 
 # Define the Random provider for generating random strings if needed

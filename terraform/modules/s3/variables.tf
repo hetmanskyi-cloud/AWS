@@ -6,11 +6,6 @@
 variable "replication_region" {
   description = "Region for the replication bucket"
   type        = string
-
-  validation {
-    condition     = contains(["us-east-1", "eu-west-1"], var.replication_region)
-    error_message = "Replication region must be one of 'us-east-1' or 'eu-west-1'."
-  }
 }
 
 # --- Environment Variable --- #
@@ -70,17 +65,31 @@ variable "sns_topic_arn" {
   type        = string
 }
 
-# --- Bucket Configuration Variables --- #
+# --- S3 Bucket Configuration Variables --- #
+# Defines input variables for configuring S3 buckets in different regions.
 
-variable "buckets" {
-  description = "Map to configure S3 buckets."
+variable "default_region_buckets" {
   type = map(object({
-    enabled     = bool
-    versioning  = optional(bool)
-    replication = optional(bool)
-    logging     = optional(bool)
+    enabled     = optional(bool, true)
+    versioning  = optional(bool, false)
+    replication = optional(bool, false)
+    logging     = optional(bool, false)
+    region      = optional(string, null) # Optional region, defaults to provider region if not set
   }))
-  default = {}
+  description = "Configuration for S3 buckets in the default AWS region."
+  default     = {}
+}
+
+variable "replication_region_buckets" {
+  type = map(object({
+    enabled     = optional(bool, true)
+    versioning  = optional(bool, true)  # Versioning MUST be enabled for replication destinations
+    replication = optional(bool, false) # Replication is not applicable for replication buckets themselves
+    logging     = optional(bool, false)
+    region      = string # AWS region for the replication bucket (REQUIRED)
+  }))
+  description = "Configuration for S3 buckets specifically in the replication AWS region."
+  default     = {}
 }
 
 # Flag to enable uploading scripts to S3
@@ -120,7 +129,7 @@ variable "enable_dynamodb" {
   default     = false
 
   validation {
-    condition     = var.enable_dynamodb ? lookup(var.buckets, "terraform_state", false) : true
+    condition     = var.enable_dynamodb ? lookup(var.default_region_buckets, "terraform_state", false) : true
     error_message = "enable_dynamodb requires buckets[\"terraform_state\"] to be true."
   }
 }

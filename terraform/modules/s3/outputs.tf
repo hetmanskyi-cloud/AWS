@@ -5,60 +5,60 @@
 
 output "scripts_bucket_arn" {
   description = "ARN of the scripts bucket."
-  value       = var.buckets["scripts"].enabled ? aws_s3_bucket.buckets["scripts"].arn : null
+  value       = var.default_region_buckets["scripts"].enabled ? aws_s3_bucket.default_region_buckets["scripts"].arn : null
 }
 
 output "scripts_bucket_name" {
   description = "Name of the scripts bucket."
-  value       = var.buckets["scripts"].enabled ? aws_s3_bucket.buckets["scripts"].bucket : null
+  value       = var.default_region_buckets["scripts"].enabled ? aws_s3_bucket.default_region_buckets["scripts"].bucket : null
 }
 
 # --- Logging Bucket --- #
 
 output "logging_bucket_arn" {
   description = "ARN of the logging bucket."
-  value       = var.buckets["logging"].enabled ? aws_s3_bucket.buckets["logging"].arn : null
+  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].arn : null
 }
 
 output "logging_bucket_name" {
   description = "Name of the logging bucket."
-  value       = var.buckets["logging"].enabled ? aws_s3_bucket.buckets["logging"].bucket : null
+  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].bucket : null
 }
 
 # --- AMI Bucket --- #
 
 output "ami_bucket_arn" {
   description = "ARN of the AMI bucket."
-  value       = var.buckets["ami"].enabled ? aws_s3_bucket.buckets["ami"].arn : null
+  value       = var.default_region_buckets["ami"].enabled ? aws_s3_bucket.default_region_buckets["ami"].arn : null
 }
 
 output "ami_bucket_name" {
   description = "Name of the AMI bucket."
-  value       = var.buckets["ami"].enabled ? aws_s3_bucket.buckets["ami"].bucket : null
+  value       = var.default_region_buckets["ami"].enabled ? aws_s3_bucket.default_region_buckets["ami"].bucket : null
 }
 
 # --- Terraform_state Bucket --- #
 
 output "terraform_state_bucket_arn" {
   description = "ARN of the Terraform state bucket."
-  value       = var.buckets["terraform_state"].enabled ? aws_s3_bucket.buckets["terraform_state"].arn : null
+  value       = var.default_region_buckets["terraform_state"].enabled ? aws_s3_bucket.default_region_buckets["terraform_state"].arn : null
 }
 
 output "terraform_state_bucket_name" {
   description = "Name of the Terraform state bucket."
-  value       = var.buckets["terraform_state"].enabled ? aws_s3_bucket.buckets["terraform_state"].bucket : null
+  value       = var.default_region_buckets["terraform_state"].enabled ? aws_s3_bucket.default_region_buckets["terraform_state"].bucket : null
 }
 
 # --- WordPress_media Bucket --- #
 
 output "wordpress_media_bucket_arn" {
   description = "ARN of the WordPress media bucket."
-  value       = var.buckets["wordpress_media"].enabled ? aws_s3_bucket.buckets["wordpress_media"].arn : null
+  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].arn : null
 }
 
 output "wordpress_media_bucket_name" {
   description = "Name of the WordPress media bucket."
-  value       = var.buckets["wordpress_media"].enabled ? aws_s3_bucket.buckets["wordpress_media"].bucket : null
+  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket : null
 }
 
 # Output: S3 ETags for the deployed WordPress script files.
@@ -66,29 +66,37 @@ output "wordpress_media_bucket_name" {
 # For non-multipart uploads, an ETag is typically the MD5 hash of the file.
 # This map can be used to verify file integrity and track changes.
 output "deploy_wordpress_scripts_files_etags_map" {
-  value       = var.buckets["scripts"].enabled && var.enable_s3_script ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
+  value       = var.default_region_buckets["scripts"].enabled && var.enable_s3_script ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
   description = "Map of script file keys to ETags."
 }
 
 # --- Replication Bucket --- #
 
 output "replication_bucket_arn" {
-  value       = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) ? aws_s3_bucket.buckets["replication"].arn : null
+  value       = var.replication_region_buckets["replication"].enabled ? aws_s3_bucket.replication_region_buckets["replication"].arn : null
   description = "ARN of the replication bucket."
 }
 
 output "replication_bucket_name" {
-  value       = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) ? aws_s3_bucket.buckets["replication"].bucket : null
+  value       = var.replication_region_buckets["replication"].enabled ? aws_s3_bucket.replication_region_buckets["replication"].bucket : null
   description = "Name of the replication bucket."
+}
+
+output "replication_bucket_region" {
+  value = aws_s3_bucket.replication_region_buckets["replication"].region
 }
 
 # --- Encryption Status --- #
 
 output "s3_encryption_status" {
   value = {
-    for bucket_name, bucket_config in var.buckets : bucket_name =>
-    bucket_config.enabled ? try(
-      aws_s3_bucket_server_side_encryption_configuration.encryption[bucket_name].rule[0].apply_server_side_encryption_by_default.sse_algorithm,
+    for each in tomap({
+      for key, value in merge(
+        var.default_region_buckets,
+        var.replication_region_buckets,
+      ) : key => value if value.enabled
+      }) : each.key => each.value.enabled ? try(
+      aws_s3_bucket_server_side_encryption_configuration.all_buckets_encryption[each.key].rule[0].apply_server_side_encryption_by_default.sse_algorithm,
       "Not Encrypted"
     ) : "Not Encrypted"
   }

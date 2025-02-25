@@ -39,7 +39,7 @@ locals {
       "vpc-flow-logs.amazonaws.com"
     ],
     # Conditional services:
-    var.buckets["logging"].enabled ? ["cloudtrail.amazonaws.com"] : [],
+    var.default_region_buckets["logging"].enabled ? ["cloudtrail.amazonaws.com"] : [],
     var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],
     var.enable_lambda ? ["lambda.amazonaws.com"] : [],
     var.enable_firehose ? ["firehose.amazonaws.com"] : [],
@@ -51,7 +51,7 @@ locals {
 
   # Extract bucket names from the buckets map
   # Used for conditional CloudTrail service access
-  s3_bucket_names = keys(var.buckets)
+  s3_bucket_names = keys(merge(var.default_region_buckets, var.replication_region_buckets))
 }
 
 # --- Policy for KMS Key --- #

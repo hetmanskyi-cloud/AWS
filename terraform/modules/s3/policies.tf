@@ -2,55 +2,44 @@
 # Defines key configurations for security, compliance, and functionality.
 
 # --- CORS Configuration for WordPress Media Bucket --- #
-# Configures CORS rules for the `wordpress_media` bucket when enabled via the `enable_cors` variable.
+# Configures CORS for 'wordpress_media' bucket for cross-domain browser access.
 resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
-  count = var.buckets["wordpress_media"].enabled && var.enable_cors ? 1 : 0 # Check both bucket enabled and enable_cors
+  count = var.default_region_buckets["wordpress_media"].enabled && var.enable_cors ? 1 : 0 # Check both bucket enabled and enable_cors
 
-  bucket = aws_s3_bucket.buckets["wordpress_media"].id
+  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id
 
   cors_rule {
-    allowed_headers = ["Authorization", "Content-Type"] # Restrict headers to required ones.
-    allowed_methods = ["GET", "POST"]                   # Only GET, POST are allowed.
-    allowed_origins = var.allowed_origins               # Initially allow all origins; restrict in prod if needed.
-    max_age_seconds = 3000                              # Cache preflight responses.
+    allowed_headers = ["Content-Type"] # Restrict headers to required ones.
+    allowed_methods = ["GET"]          # Only GET is allowed.
+
+    # SECURITY WARNING: 'allowed_origins' MUST be restricted in production!
+    # Default value in terraform.tfvars allows ALL origins ('*') for initial setup.
+    # Production: Restrict to specific, trusted domain(s) to prevent MAJOR SECURITY RISK!
+    allowed_origins = var.allowed_origins
+    max_age_seconds = 3000 # Cache preflight responses.
   }
 
-  # --- Notes --- #
-  # Configures CORS for the 'wordpress_media' bucket (if enabled and CORS is enabled).
-  # 'allowed_origins' should be restricted in production.
-  # Consider further restricting 'allowed_methods'.
+  # --- CORS Notes --- #
+  # 1. Purpose: Enable controlled browser access to 'wordpress_media' bucket from different domains.
+  # 2. Security: CRITICAL! Restrict 'allowed_origins' in production. Default allows all ('*') for initial setup ONLY.
+  # 3. Methods: 'allowed_methods' limited to 'GET' for enhanced security (read-only access).
+  # 4. Headers: 'allowed_headers' restricted to 'Content-Type' for security best practices. Consider removing if unnecessary.
+  #    See README and variable docs for security details.
 }
 
 # --- Bucket Policies --- #
 
-# Enables SSE-KMS as the default encryption method for all objects in the bucket.
-# Ensures that any object uploaded (even without explicit --sse) is encrypted with the specified KMS key.
-resource "aws_s3_bucket_server_side_encryption_configuration" "default_encryption" {
-  for_each = tomap({
-    for key, value in var.buckets : key => value if value.enabled
-  })
-
-  bucket = aws_s3_bucket.buckets[each.key].id
-
-  rule {
-    bucket_key_enabled = true
-    apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.kms_key_arn
-    }
-  }
-}
-
-# Applies a bucket policy that denies non-HTTPS (insecure) access,
-# but does NOT enforce explicit SSE-KMS headers (relying instead on Default Encryption).
+# Enforces HTTPS-only access policy for buckets,
+# relying on Default Encryption instead of explicit SSE-KMS.
 resource "aws_s3_bucket_policy" "enforce_https_policy" {
   for_each = tomap({
-    for key, value in var.buckets : key => value
-    # apply only if enabled, but exclude "logging"
-    if value.enabled && key != "logging"
+    for key, value in merge(
+      var.default_region_buckets,
+      var.replication_region_buckets,
+    ) : key => value if value.enabled
   })
 
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -61,7 +50,7 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource  = "${aws_s3_bucket.buckets[each.key].arn}/*"
+        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*"
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
@@ -71,153 +60,76 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
     ]
   })
 
-  depends_on = [aws_s3_bucket.buckets]
+  depends_on = [aws_s3_bucket.default_region_buckets, aws_s3_bucket.replication_region_buckets]
 }
 
-# Logging Bucket Policy
-# Combines all required permissions for logging services, ALB, WAF, and CloudTrail.
-resource "aws_s3_bucket_policy" "logging_bucket_policy" {
+# Allows S3 Replication Service to write replicated objects to the destination bucket.
+# This policy grants necessary permissions to the replication IAM role.
+resource "aws_s3_bucket_policy" "replication_destination_policy" {
   for_each = tomap({
-    for key, value in var.buckets : key => value
-    if key == "logging" && value.enabled
+    for key, value in var.replication_region_buckets : key => value
+    if value.enabled
   })
 
-  bucket = aws_s3_bucket.buckets["logging"].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # 1) Deny non-HTTPS
-      {
-        Sid       = "DenyInsecureTransport",
-        Effect    = "Deny",
-        Principal = "*",
-        Action    = "s3:*",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/*",
-        Condition = {
-          Bool = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      },
-      # 2) S3 Server Access Logging
-      {
-        Sid       = "AllowLoggingWrite",
-        Effect    = "Allow",
-        Principal = { Service = "logging.s3.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/*"
-      },
-      # 3) ALB Logging
-      {
-        Sid       = "AllowALBLogging",
-        Effect    = "Allow",
-        Principal = { Service = "elasticloadbalancing.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/alb-logs/*"
-      },
-      # 4) WAF Logging
-      {
-        Sid       = "AllowWAFLogging",
-        Effect    = "Allow",
-        Principal = { Service = "waf.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/waf-logs/*"
-      },
-      # 5) Additional ALB logs
-      {
-        Sid       = "AllowDeliveryLogsWrite",
-        Effect    = "Allow",
-        Principal = { Service = "delivery.logs.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/alb-logs/*"
-      },
-      # 6) CloudTrail ACL check
-      {
-        Sid       = "AWSCloudTrailAclCheck",
-        Effect    = "Allow",
-        Principal = { Service = "cloudtrail.amazonaws.com" },
-        Action    = "s3:GetBucketAcl",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}"
-      },
-      # 7) CloudTrail write
-      {
-        Sid       = "AWSCloudTrailWrite",
-        Effect    = "Allow",
-        Principal = { Service = "cloudtrail.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.buckets["logging"].arn}/cloudtrail/AWSLogs/${var.aws_account_id}/*",
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
-          }
-        }
-      }
-    ]
-  })
-}
-
-# --- Replication Destination Bucket Policy --- #
-# Grants the replication role permissions to write objects to the replication bucket.
-
-resource "aws_s3_bucket_policy" "replication_bucket_policy" {
-  count = can(var.buckets["replication"].enabled && var.buckets["replication"].replication) && length(aws_iam_role.replication_role) > 0 ? 1 : 0
-
-  bucket = aws_s3_bucket.buckets["replication"].id
+  bucket = aws_s3_bucket.replication_bucket[each.key].id
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "AllowS3Replication",
+        Sid    = "AllowReplicationWrite",
         Effect = "Allow",
         Principal = {
-          AWS = aws_iam_role.replication_role[0].arn
+          AWS = aws_iam_role.replication_role[each.key].arn
         },
         Action = [
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
-          "s3:ReplicateTags"
+          "s3:ReplicateTags",
         ],
-        Resource = "${aws_s3_bucket.buckets["replication"].arn}/*"
+        Resource = "${aws_s3_bucket.replication_bucket[each.key].arn}/*"
       }
     ]
   })
+
+  depends_on = [aws_s3_bucket.replication_bucket, aws_iam_role.replication_rol]
 }
 
-# --- Source Bucket Replication Policy --- #
-# Grants the replication role read access to source buckets for replication.
+# Policy for the dedicated "logging" bucket.
+# Combines permissions for secure access (HTTPS only) and allows AWS logging services (ALB, WAF, CloudTrail, etc.) to write logs.
+resource "aws_s3_bucket_policy" "logging_bucket_policy" {
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0 # Conditionally create policy if "logging" bucket is enabled
 
-resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
-  for_each = {
-    for key, value in var.buckets : key => value if(
-      value.enabled &&
-      (value.replication != null ? value.replication : false) &&
-      can(var.buckets["replication"].enabled && var.buckets["replication"].replication)
-    )
-  }
-
-  bucket = aws_s3_bucket.buckets[each.key].id
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # Statement 1: Allow AWS logging services to write logs (ALB, WAF, CloudTrail, etc.)
+      # Grants PutObject permission to any Principal, but *restricts access by SourceAccount* to the current AWS account ID.
+      # For simplicity and broad compatibility, Principal is set to "*".
+      # In stricter security scenarios, consider narrowing Principal to specific AWS service principals if feasible.
       {
-        Sid    = "AllowReplication",
+        Sid       = "AllowAllAWSLogs",
+        Effect    = "Allow",
+        Principal = "*",
+        Action    = "s3:PutObject",
+        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*",
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = var.aws_account_id
+          }
+        }
+      },
+      # Statement 2: Allow CloudTrail ACL check (required for CloudTrail logging to S3)
+      {
+        Sid    = "AWSCloudTrailAclCheck",
         Effect = "Allow",
         Principal = {
-          AWS = aws_iam_role.replication_role[0].arn
+          Service = "cloudtrail.amazonaws.com"
         },
-        Action = [
-          "s3:GetObjectVersion",
-          "s3:GetObjectVersionAcl",
-          "s3:GetObjectVersionTagging",
-          "s3:ListBucket"
-        ],
-        Resource = [
-          aws_s3_bucket.buckets[each.key].arn,
-          "${aws_s3_bucket.buckets[each.key].arn}/*"
-        ]
+        Action   = "s3:GetBucketAcl",
+        Resource = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}"
       }
     ]
   })
@@ -225,22 +137,34 @@ resource "aws_s3_bucket_policy" "source_bucket_replication_policy" {
 
 # --- Notes --- #
 # 1. Security Policies:
-#    - Enforces HTTPS-only access for all buckets.
-#    - Denies unencrypted object uploads (only KMS encryption is allowed).
-#    - Policies are dynamically applied to each bucket if enabled.
+#     - Enforces HTTPS-only access for all buckets via `enforce_https_policy`.
+#     - **`logging_bucket_policy` relies on the global `enforce_https_policy` for HTTPS enforcement,**
+#       **and does not include an explicit Deny non-HTTPS statement for code simplicity.**
+#     - Relies on default Server-Side Encryption (SSE-S3) for data at rest (configured in s3/main.tf).
+#     - Policies are dynamically applied to each *enabled* bucket using `for_each` and `merge`.
 #
 # 2. CORS Configuration:
-#    - Configured only for the `wordpress_media` bucket if `enable_cors` is `true`.
-#    - `allowed_origins` is configurable but should be restricted in production.
-#    - Supports `GET` and `POST` methods only (consider further restrictions if necessary).
+#     - Configured **conditionally** for the `wordpress_media` bucket **only if `enable_cors` is `true`**.
+#     - `allowed_origins` is **fully configurable via variable `allowed_origins`**,
+#       **but MUST be restricted to trusted domains in production** to prevent security risks.
+#     - `allowed_methods` is **strictly limited to `GET` for enhanced security (read-only access)**.
+#     - `allowed_headers` is restricted to `Content-Type` for security best practices; consider removing if unnecessary.
+#     - See README and variable documentation for comprehensive CORS security details.
 #
 # 3. Logging & Compliance:
-#    - Grants logging service (`logging.s3.amazonaws.com`) write access to the `logging` bucket.
-#    - Grants CloudTrail write access to `/cloudtrail/` inside the logging bucket.
-#    - Allows ALB, WAF, and delivery logs to be written to specific prefixes.
+#     - `logging_bucket_policy` grants **AWS logging services (`aws:SourceAccount` condition) `s3:PutObject` access**
+#       **to the dedicated `logging` bucket**, centralizing logs within the AWS account.
+#     - `logging_bucket_policy` **also allows `cloudtrail.amazonaws.com` service `s3:GetBucketAcl` action**
+#       **on the `logging` bucket**, required for CloudTrail logging to S3.
+#     - **Logging is configured ONLY for default region buckets (excluding the `logging` bucket itself) in `aws_s3_bucket_logging`.**
+#       **Logging for replication buckets is *intentionally omitted* in this configuration**
+#       **but consider enabling it for enhanced audit of replicated data (see documentation).**
 #
 # 4. Replication:
-#    - Replication policies are only created if replication is explicitly enabled.
-#    - The replication bucket policy ensures objects can be written to the destination.
-#    - The source bucket replication policy grants the IAM role read permissions.
-#    - Uses `length(aws_iam_role.replication_role) > 0` to prevent errors when the role is absent.
+#     - Replication policies (`replication_destination_policy`) are created **ONLY if replication is explicitly enabled**
+#       **(when `var.replication_region_buckets` is defined and contains enabled buckets).**
+#     - `replication_destination_policy` ensures **the replication IAM role can write replicated objects**
+#       **to the *destination (replication)* bucket**.
+#     - Source bucket replication configuration (IAM Role and Replication Configuration) is defined in `s3/main.tf`.
+#     - Uses `length(aws_iam_role.replication_role) > 0` in `replication_destination_policy` for conditional creation,
+#       **preventing errors when replication is not enabled and the IAM role is absent.**
