@@ -40,7 +40,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 
   provider = aws.replication
 
-  bucket = "${lower(var.name_prefix)}-replication-${random_string.suffix.result}"
+  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}"
 
   tags = {
     Name        = "${var.name_prefix}-${each.key}"
@@ -88,7 +88,7 @@ resource "aws_s3_bucket_notification" "all_buckets_notifications" {
     ) : key => value if value.enabled
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   topic {
     topic_arn = var.sns_topic_arn
@@ -115,7 +115,7 @@ resource "aws_s3_bucket_versioning" "all_buckets_versioning" {
     ) : key => value if value.enabled && value.versioning
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   versioning_configuration {
     status = "Enabled"
@@ -165,7 +165,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "all_buckets_encry
     ) : key => value if value.enabled
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   # Server-Side Encryption Configuration
   rule {
@@ -199,7 +199,7 @@ resource "aws_s3_bucket_public_access_block" "all_buckets_public_access_block" {
     ) : key => value if value.enabled
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   # Public Access Block Settings (same for all buckets)
   block_public_acls       = true # Block all public ACLs (Access Control Lists)

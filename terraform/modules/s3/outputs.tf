@@ -72,35 +72,26 @@ output "deploy_wordpress_scripts_files_etags_map" {
 
 # --- Replication Bucket --- #
 
+locals {
+  replication_buckets_enabled = length([
+    for key, value in var.replication_region_buckets : key
+    if value.enabled
+  ]) > 0
+}
+
 output "replication_bucket_arn" {
-  value       = var.replication_region_buckets["replication"].enabled ? aws_s3_bucket.replication_region_buckets["replication"].arn : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].arn : null
   description = "ARN of the replication bucket."
 }
 
 output "replication_bucket_name" {
-  value       = var.replication_region_buckets["replication"].enabled ? aws_s3_bucket.replication_region_buckets["replication"].bucket : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].bucket : null
   description = "Name of the replication bucket."
 }
 
 output "replication_bucket_region" {
-  value = aws_s3_bucket.replication_region_buckets["replication"].region
-}
-
-# --- Encryption Status --- #
-
-output "s3_encryption_status" {
-  value = {
-    for each in tomap({
-      for key, value in merge(
-        var.default_region_buckets,
-        var.replication_region_buckets,
-      ) : key => value if value.enabled
-      }) : each.key => each.value.enabled ? try(
-      aws_s3_bucket_server_side_encryption_configuration.all_buckets_encryption[each.key].rule[0].apply_server_side_encryption_by_default.sse_algorithm,
-      "Not Encrypted"
-    ) : "Not Encrypted"
-  }
-  description = "Map of bucket names to their encryption status."
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].region : null
+  description = "AWS region of the replication bucket."
 }
 
 # --- DynamoDB Table Outputs --- #
@@ -133,9 +124,7 @@ output "enable_lambda" {
 #    - Disabled buckets return `null` for their outputs.
 # 2. WordPress Scripts:
 #    - 'deploy_wordpress_scripts_files_etags_map' provides ETags for uploaded scripts.
-# 3. Encryption Status:
-#    - 's3_encryption_status' indicates the server-side encryption status for each bucket.
-# 4. DynamoDB:
+# 3. DynamoDB:
 #    - Outputs are provided for the DynamoDB table used for state locking (if enabled).
-# 5. Lambda:
+# 4. Lambda:
 #    - Outputs indicate whether Lambda is enabled for TTL automation (if enabled).

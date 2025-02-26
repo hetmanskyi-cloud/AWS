@@ -4,6 +4,7 @@ variable "aws_region" {
   type        = string
 }
 
+# Region where the replication bucket will be created, typically different from the primary region.
 variable "replication_region" {
   description = "Region for the replication bucket"
   type        = string
@@ -186,7 +187,7 @@ variable "enable_s3_script" {
 variable "s3_scripts" {
   description = "Map of files to be uploaded to the scripts bucket when enable_s3_script is true"
   type        = map(string)
-  default     = {} # Пустое значение по умолчанию, если не задано
+  default     = {}
 }
 
 variable "enable_asg_ssh_access" {
@@ -805,8 +806,8 @@ variable "enable_dynamodb" {
 
   # Ensures DynamoDB is only enabled when S3 bucket are active.
   validation {
-    condition     = var.enable_dynamodb ? lookup(var.default_region_buckets, "terraform_state", false) : true
-    error_message = "enable_dynamodb requires `terraform_state` bucket = true."
+    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
+    error_message = "enable_dynamodb requires `terraform_state` bucket to be enabled."
   }
 }
 

@@ -48,7 +48,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     if value.enabled
   }
 
-  bucket = aws_s3_bucket.replication_region_buckets[each.key].id
+  bucket = aws_s3_bucket.s3_replication_bucket[each.key].id
 
   # Retain noncurrent object versions for a defined period
   rule {
@@ -76,7 +76,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
 #     - Optimizes S3 costs via object lifecycle rules.
 #     - Includes rules for version retention and aborting incomplete uploads.
 #     - **`delete-objects` rule (days=1) is optimized for TEST environments to speed up `terraform destroy`.**
-#       **For PRODUCTION, consider removing/increasing `days` to prevent data loss.**
+#       **For PRODUCTION, REMOVE this rule or set `days` to a much higher value (e.g., 30+ days)**
+#       **to prevent accidental data loss. This rule will permanently delete ALL objects after just 1 day!**
 #
 # 2. Replication Bucket Lifecycle:
 #     - Configures lifecycle rules for replication buckets (separate resource).

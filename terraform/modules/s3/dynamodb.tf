@@ -2,9 +2,16 @@
 # This file defines a DynamoDB table used for Terraform state file locking.
 # The locking mechanism prevents multiple users from making concurrent changes to the state file.
 
+# Local variable to check if terraform_state bucket is enabled
+locals {
+  terraform_state_bucket  = contains(keys(var.default_region_buckets), "terraform_state")
+  terraform_state_enabled = local.terraform_state_bucket ? var.default_region_buckets["terraform_state"].enabled : false
+  dynamodb_can_be_created = var.enable_dynamodb && local.terraform_state_enabled
+}
+
 resource "aws_dynamodb_table" "terraform_locks" {
   # Create the table only if the remote backend, S3 bucket for state, and DynamoDB are enabled.
-  count = var.default_region_buckets["terraform_state"].enabled && var.enable_dynamodb ? 1 : 0
+  count = local.dynamodb_can_be_created ? 1 : 0
 
   # --- Table Name --- #
   # Construct the table name dynamically using a project-specific prefix and a random suffix for uniqueness.

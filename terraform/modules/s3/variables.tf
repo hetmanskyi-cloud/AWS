@@ -1,7 +1,6 @@
 # --- S3 Module Variables --- #
 # Defines input variables for configuring the S3 module, allowing customization and flexibility.
 
-# --- AWS Region Configuration ---#
 # Region where the replication bucket will be created, typically different from the primary region.
 variable "replication_region" {
   description = "Region for the replication bucket"
@@ -129,8 +128,8 @@ variable "enable_dynamodb" {
   default     = false
 
   validation {
-    condition     = var.enable_dynamodb ? lookup(var.default_region_buckets, "terraform_state", false) : true
-    error_message = "enable_dynamodb requires buckets[\"terraform_state\"] to be true."
+    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
+    error_message = "enable_dynamodb requires buckets[\"terraform_state\"] to be enabled."
   }
 }
 

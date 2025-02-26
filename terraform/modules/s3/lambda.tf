@@ -253,7 +253,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group" {
 # It updates the expiration timestamps to avoid stale locks.
 # Note: If TTL automation is not required, this Lambda can be disabled or removed.
 resource "aws_lambda_function" "update_ttl" {
-  count = var.enable_lambda && var.enable_dynamodb && length(aws_dynamodb_table.terraform_locks) > 0 ? 1 : 0
+  count = var.enable_lambda && var.enable_dynamodb && length(aws_dynamodb_table.terraform_locks) > 0 && fileexists("${path.root}/scripts/update_ttl.zip") ? 1 : 0
 
   filename      = "${path.root}/scripts/update_ttl.zip" # Path to the Lambda function code.
   function_name = "${var.name_prefix}-update-ttl"

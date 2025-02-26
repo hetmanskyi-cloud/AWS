@@ -158,7 +158,6 @@ module "s3" {
   sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
   kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 
-
   replication_region = var.replication_region
 }
 

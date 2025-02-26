@@ -34,7 +34,7 @@ resource "aws_iam_role" "asg_role" {
 # --- S3 Access Policy ---
 resource "aws_iam_policy" "s3_access_policy" {
   # The policy is created only if at least one of the buckets (WordPress media or scripts) is enabled
-  count = can(var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled) ? 1 : 0
+  count = can(var.default_region_buckets["wordpress_media"].enabled || var.default_region_buckets["scripts"].enabled) ? 1 : 0
 
   name        = "${var.name_prefix}-asg-s3-access-policy"
   description = "S3 access policy for WordPress media (read/write) and scripts (read-only)"
@@ -44,7 +44,7 @@ resource "aws_iam_policy" "s3_access_policy" {
     Statement = flatten([
 
       # 1) WordPress media bucket: read+write
-      var.buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null
+      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null
       ? [
         {
           Effect = "Allow"
@@ -63,7 +63,7 @@ resource "aws_iam_policy" "s3_access_policy" {
       : [],
 
       # 2) Scripts bucket: read-only
-      var.buckets["scripts"].enabled && var.scripts_bucket_arn != null
+      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null
       ? [
         {
           Effect = "Allow"
@@ -80,7 +80,7 @@ resource "aws_iam_policy" "s3_access_policy" {
       ]
       : [],
       # 3) KMS permissions for S3 uploads (required for encrypted uploads)
-      var.buckets["wordpress_media"].enabled && var.kms_key_arn != null
+      var.default_region_buckets["wordpress_media"].enabled && var.kms_key_arn != null
       ? [
         {
           Effect = "Allow"
@@ -99,7 +99,7 @@ resource "aws_iam_policy" "s3_access_policy" {
 
 # Attach S3 access policy to the role only if policy was created
 resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
-  count = can(var.buckets["wordpress_media"].enabled || var.buckets["scripts"].enabled) ? 1 : 0
+  count = can(var.default_region_buckets["wordpress_media"].enabled || var.default_region_buckets["scripts"].enabled) ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
   policy_arn = aws_iam_policy.s3_access_policy[0].arn
@@ -166,8 +166,8 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 resource "aws_iam_policy" "kms_decrypt_policy" {
   count = (
     var.enable_ebs_encryption
-    || var.buckets["wordpress_media"].enabled
-    || var.buckets["scripts"].enabled
+    || var.default_region_buckets["wordpress_media"].enabled
+    || var.default_region_buckets["scripts"].enabled
   ) ? 1 : 0
 
   name        = "${var.name_prefix}-kms-decrypt-policy"
@@ -178,7 +178,7 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
     Statement = flatten([
 
       # 1) WordPress media: read/write => need Encrypt/GenerateDataKey/Decrypt/DescribeKey
-      can(var.buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null)
+      can(var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null)
       ? [
         {
           Effect = "Allow"
@@ -194,7 +194,7 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
       : [],
 
       # 2) scripts (read-only) => typically need only Decrypt/DescribeKey (if scripts bucket is SSE-KMS)
-      can(var.buckets["scripts"].enabled && var.scripts_bucket_arn != null)
+      can(var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null)
       ? [
         {
           Effect = "Allow"
@@ -228,8 +228,8 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
 resource "aws_iam_role_policy_attachment" "kms_access" {
   count = (
     var.enable_ebs_encryption
-    || var.buckets["wordpress_media"].enabled
-    || var.buckets["scripts"].enabled
+    || var.default_region_buckets["wordpress_media"].enabled
+    || var.default_region_buckets["scripts"].enabled
   ) ? 1 : 0
 
   role       = aws_iam_role.asg_role.name

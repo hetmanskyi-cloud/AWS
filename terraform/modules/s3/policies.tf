@@ -39,7 +39,7 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
     ) : key => value if value.enabled
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -50,7 +50,7 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*"
+        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*"
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
@@ -60,18 +60,22 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
     ]
   })
 
-  depends_on = [aws_s3_bucket.default_region_buckets, aws_s3_bucket.replication_region_buckets]
+  depends_on = [aws_s3_bucket.default_region_buckets, aws_s3_bucket.s3_replication_bucket]
 }
 
-# Allows S3 Replication Service to write replicated objects to the destination bucket.
-# This policy grants necessary permissions to the replication IAM role.
+# --- Replication Destination Bucket Policy --- #
+# Allows the replication role to write to the destination bucket.
 resource "aws_s3_bucket_policy" "replication_destination_policy" {
-  for_each = tomap({
-    for key, value in var.replication_region_buckets : key => value
+  for_each = length([
+    for value in var.default_region_buckets : value
+    if value.enabled && value.replication
+    ]) > 0 ? tomap({
+    for key, value in var.replication_region_buckets :
+    key => value
     if value.enabled
-  })
+  }) : {}
 
-  bucket = aws_s3_bucket.replication_bucket[each.key].id
+  bucket = aws_s3_bucket.s3_replication_bucket[each.key].id
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -80,19 +84,72 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
         Sid    = "AllowReplicationWrite",
         Effect = "Allow",
         Principal = {
-          AWS = aws_iam_role.replication_role[each.key].arn
+          AWS = aws_iam_role.replication_role[0].arn
         },
         Action = [
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
           "s3:ReplicateTags",
         ],
-        Resource = "${aws_s3_bucket.replication_bucket[each.key].arn}/*"
+        Resource = "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*"
       }
     ]
   })
 
-  depends_on = [aws_s3_bucket.replication_bucket, aws_iam_role.replication_rol]
+  depends_on = [aws_s3_bucket.s3_replication_bucket, aws_iam_role.replication_role]
+}
+
+# Data source to create IAM Policy Document for S3 logging bucket policy.
+# This policy grants permissions to AWS logging services (logging.s3.amazonaws.com)
+# to write logs to the S3 logging bucket and perform ACL checks.
+data "aws_iam_policy_document" "logging_bucket_policy" {
+
+  # Statement for allowing AWS Log Delivery service to write logs to the bucket.
+  statement {
+    sid    = "AWSLogDeliveryWrite"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    actions = [
+      "s3:PutObject",
+      "s3:GetBucketAcl",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values = [
+        data.aws_caller_identity.current.account_id,
+      ]
+    }
+  }
+
+  # Statement for allowing AWS Log Delivery service to check bucket ACL.
+  statement {
+    sid    = "AWSLogDeliveryCheckGrant"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    actions = [
+      "s3:ListBucket",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values = [
+        data.aws_caller_identity.current.account_id,
+      ]
+    }
+  }
 }
 
 # Policy for the dedicated "logging" bucket.
@@ -114,7 +171,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Effect    = "Allow",
         Principal = "*",
         Action    = "s3:PutObject",
-        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*",
+        Resource  = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*",
         Condition = {
           StringEquals = {
             "aws:SourceAccount" = var.aws_account_id
@@ -129,10 +186,16 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
           Service = "cloudtrail.amazonaws.com"
         },
         Action   = "s3:GetBucketAcl",
-        Resource = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}"
+        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}"
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [
+      policy
+    ]
+  }
 }
 
 # --- Notes --- #
@@ -140,7 +203,7 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
 #     - Enforces HTTPS-only access for all buckets via `enforce_https_policy`.
 #     - **`logging_bucket_policy` relies on the global `enforce_https_policy` for HTTPS enforcement,**
 #       **and does not include an explicit Deny non-HTTPS statement for code simplicity.**
-#     - Relies on default Server-Side Encryption (SSE-S3) for data at rest (configured in s3/main.tf).
+#     - Uses AWS KMS for server-side encryption (SSE-KMS) for data at rest (configured in s3/main.tf).
 #     - Policies are dynamically applied to each *enabled* bucket using `for_each` and `merge`.
 #
 # 2. CORS Configuration:
