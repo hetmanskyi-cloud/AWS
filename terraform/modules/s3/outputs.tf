@@ -25,6 +25,11 @@ output "logging_bucket_name" {
   value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].bucket : null
 }
 
+output "logging_bucket_id" {
+  description = "ID of logging bucket." # Description: ID
+  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].id : null
+}
+
 # --- AMI Bucket --- #
 
 output "ami_bucket_arn" {

@@ -60,6 +60,13 @@ variable "sns_topic_arn" {
   type        = string
 }
 
+# --- Replication Region SNS Topic ARN --- #
+variable "replication_region_sns_topic_arn" {
+  description = "ARN of SNS Topic in replication region for bucket notifications." # Description: Replication Region SNS Topic ARN
+  type        = string
+  default     = "" # Может быть пустым, если не используется
+}
+
 # --- Default Region Buckets Config --- #
 variable "default_region_buckets" {
   type = map(object({

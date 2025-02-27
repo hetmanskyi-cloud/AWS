@@ -24,15 +24,14 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
   # 4. Headers: Content-Type only (security best practice).
 }
 
-# --- Enforce HTTPS Policy --- #
-# Enforces HTTPS-only access for all buckets.
-resource "aws_s3_bucket_policy" "enforce_https_policy" {
-  # Dynamic HTTPS policy for all enabled buckets
+# --- Enforce HTTPS Policy for Default Region Buckets --- #
+resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
+  # HTTPS policy for default region buckets
   for_each = tomap({
-    for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled
+    for key, value in var.default_region_buckets : key => value if value.enabled
   })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -42,7 +41,7 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource  = "${contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].arn : aws_s3_bucket.default_region_buckets[each.key].arn}/*"
+        Resource  = "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
@@ -52,7 +51,38 @@ resource "aws_s3_bucket_policy" "enforce_https_policy" {
     ]
   })
 
-  depends_on = [aws_s3_bucket.default_region_buckets, aws_s3_bucket.s3_replication_bucket] # Depends on buckets
+  depends_on = [aws_s3_bucket.default_region_buckets] # Depends on buckets
+}
+
+# --- Enforce HTTPS Policy for Replication Region Buckets --- #
+resource "aws_s3_bucket_policy" "replication_region_enforce_https_policy" {
+  # HTTPS policy for replication region buckets
+  for_each = tomap({
+    for key, value in var.replication_region_buckets : key => value if value.enabled
+  })
+
+  provider = aws.replication
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*"
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket.s3_replication_bucket] # Depends on buckets
 }
 
 # --- Replication Destination Bucket Policy --- #
@@ -67,7 +97,8 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
     if value.enabled
   }) : {} # Conditional policy creation
 
-  bucket = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
+  provider = aws.replication                                  # Explicitly specify replication provider
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -140,45 +171,6 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
         data.aws_caller_identity.current.account_id,
       ]
     }
-  }
-}
-
-# --- Logging Bucket Policy --- #
-# Policy for dedicated "logging" bucket.
-resource "aws_s3_bucket_policy" "logging_bucket_policy" {
-  count = var.default_region_buckets["logging"].enabled ? 1 : 0 # Conditional policy for "logging" bucket
-
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id # Target logging bucket
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "AllowAllAWSLogs"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = var.aws_account_id
-          }
-        }
-      },
-      {
-        Sid    = "AWSCloudTrailAclCheck"
-        Effect = "Allow"
-        Principal = {
-          Service = "cloudtrail.amazonaws.com"
-        }
-        Action   = "s3:GetBucketAcl"
-        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}"
-      }
-    ]
-  })
-
-  lifecycle {
-    ignore_changes = [policy] # Ignore policy changes
   }
 }
 

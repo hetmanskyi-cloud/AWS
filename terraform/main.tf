@@ -137,7 +137,8 @@ module "s3" {
   enable_s3_script                  = var.enable_s3_script
   s3_scripts                        = var.s3_scripts
 
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
+  replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
 
   # KMS role for S3 module
   kms_key_arn = module.kms.kms_key_arn

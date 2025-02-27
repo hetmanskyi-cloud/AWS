@@ -4,6 +4,62 @@
 # - Integrates with CloudWatch Logs for real-time monitoring
 # - Validates log file integrity for security
 
+# --- CloudTrail S3 Bucket Policy --- #
+# Explicitly set the S3 bucket policy required by CloudTrail
+resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
+
+  bucket = module.s3.logging_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AWSCloudTrailAclCheck"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:GetBucketAcl"
+        Resource  = module.s3.logging_bucket_arn
+      },
+      {
+        Sid       = "AWSCloudTrailWrite"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${module.s3.logging_bucket_arn}/cloudtrail/AWSLogs/${var.aws_account_id}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Sid       = "AllowSSLRequestsOnly"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          module.s3.logging_bucket_arn,
+          "${module.s3.logging_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
+  # Ignore changes to policy to avoid constant updates due to JSON formatting differences
+  lifecycle {
+    ignore_changes = [policy]
+  }
+
+  # Explicitly depend on the S3 module
+  depends_on = [module.s3]
+}
+
 # --- Main CloudTrail Configuration --- #
 # Creates the main CloudTrail instance for API activity monitoring
 # Only create CloudTrail if logging bucket is enabled
@@ -36,6 +92,9 @@ resource "aws_cloudtrail" "cloudtrail" {
     Name        = "${var.name_prefix}-cloudtrail"
     Environment = var.environment
   }
+
+  # Make sure the bucket policy is applied before CloudTrail is created
+  depends_on = [aws_s3_bucket_policy.cloudtrail_bucket_policy]
 }
 
 # --- CloudWatch Logs Configuration --- #

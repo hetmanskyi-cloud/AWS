@@ -43,7 +43,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
   # Dynamic lifecycle for replication region buckets
   for_each = { for key, value in var.replication_region_buckets : key => value if value.enabled }
 
-  bucket = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
+  provider = aws.replication                                  # Use replication provider for replication buckets
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
 
   # Rule: Retain noncurrent versions (replication)
   rule {

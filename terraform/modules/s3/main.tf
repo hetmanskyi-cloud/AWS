@@ -81,37 +81,56 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # - Uploads scripts to 'scripts' bucket (defined in 'var.s3_scripts').
 }
 
-# --- All Buckets Notifications --- #
-# Configures notifications for all enabled S3 buckets to a central SNS topic.
-resource "aws_s3_bucket_notification" "all_buckets_notifications" {
-  # Unified notifications for all enabled buckets
-  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
+# --- All Buckets Notifications (Default Region) --- #
+resource "aws_s3_bucket_notification" "default_region_bucket_notifications" {
+  # Unified notifications for all enabled default region buckets
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   topic {
     topic_arn = var.sns_topic_arn                            # SNS topic ARN
     events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Object events: create & remove
   }
-
-  # --- Notes --- #
-  # - Notifications to central SNS topic for all enabled buckets.
 }
 
-# --- All Buckets Versioning --- #
-# Enables versioning for all enabled S3 buckets (if versioning=true).
-resource "aws_s3_bucket_versioning" "all_buckets_versioning" {
-  # Unified versioning for all eligible buckets
-  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled && value.versioning })
+# --- Replication Region Buckets Notifications --- #
+resource "aws_s3_bucket_notification" "replication_region_bucket_notifications" {
+  # Unified notifications for all enabled replication region buckets
+  for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
+  provider = aws.replication
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket ID
+
+  topic {
+    topic_arn = var.replication_region_sns_topic_arn         # Replication region SNS topic ARN
+    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Object events: create & remove
+  }
+}
+
+# --- Default Region Buckets Versioning --- #
+resource "aws_s3_bucket_versioning" "default_region_bucket_versioning" {
+  # Versioning for eligible default region buckets
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled && value.versioning })
+
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   versioning_configuration {
     status = "Enabled" # Enable versioning
   }
+}
 
-  # --- Notes --- #
-  # - Versioning for enabled buckets (versioning=true).
+# --- Replication Region Buckets Versioning --- #
+resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
+  # Versioning for eligible replication region buckets
+  for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled && value.versioning })
+
+  provider = aws.replication
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket ID
+
+  versioning_configuration {
+    status = "Enabled" # Enable versioning
+  }
 }
 
 # --- Logging Configuration (Default Region Buckets) --- #
@@ -130,13 +149,12 @@ resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
   # - Consider separate logging for replication buckets if needed.
 }
 
-# --- SSE Configuration for All Buckets --- #
-# Enforces AWS KMS server-side encryption for all enabled S3 buckets.
-resource "aws_s3_bucket_server_side_encryption_configuration" "all_buckets_encryption" {
-  # Dynamic SSE for all enabled buckets (default & replication regions)
-  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
+# --- SSE Configuration for Default Region Buckets --- #
+resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bucket_encryption" {
+  # SSE for default region buckets
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
   rule {
     apply_server_side_encryption_by_default {
@@ -149,31 +167,56 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "all_buckets_encry
   lifecycle {
     prevent_destroy = false # Allow destroy for updates/replacements
   }
-
-  # --- Notes --- #
-  # - KMS SSE for all enabled buckets; unencrypted uploads denied (via policy).
-  # - 'prevent_destroy = false' for updates.
-  # - Ensure KMS key exists (var.kms_key_arn).
 }
 
-# --- Public Access Block for All Buckets --- #
-# Enforces public access restrictions on all S3 buckets.
-resource "aws_s3_bucket_public_access_block" "all_buckets_public_access_block" {
-  # Dynamic Public Access Block for all enabled buckets
-  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
+# --- SSE Configuration for Replication Region Buckets --- #
+resource "aws_s3_bucket_server_side_encryption_configuration" "replication_region_bucket_encryption" {
+  # SSE for replication region buckets
+  for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
+  provider = aws.replication
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"       # KMS encryption algorithm
+      kms_master_key_id = var.kms_key_arn # KMS key ARN
+    }
+    bucket_key_enabled = true # Enable Bucket Key for cost optimization
+  }
+
+  lifecycle {
+    prevent_destroy = false # Allow destroy for updates/replacements
+  }
+}
+
+# --- Public Access Block for Default Region Buckets --- #
+resource "aws_s3_bucket_public_access_block" "default_region_bucket_public_access_block" {
+  # Public Access Block for default region buckets
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
   # Public Access Block settings - same for all buckets
   block_public_acls       = true # Block public ACLs
   block_public_policy     = true # Block public policies
   ignore_public_acls      = true # Ignore public ACLs
   restrict_public_buckets = true # Restrict public access
+}
 
-  # --- Notes --- #
-  # - Restricts public access to all enabled buckets.
-  # - Enforces security best practices.
-  # - Unified configuration for default & replication regions.
+# --- Public Access Block for Replication Region Buckets --- #
+resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_access_block" {
+  # Public Access Block for replication region buckets
+  for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
+
+  provider = aws.replication
+  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket
+
+  # Public Access Block settings - same for all buckets
+  block_public_acls       = true # Block public ACLs
+  block_public_policy     = true # Block public policies
+  ignore_public_acls      = true # Ignore public ACLs
+  restrict_public_buckets = true # Restrict public access
 }
 
 ## --- Random Suffix for Bucket Names --- ##

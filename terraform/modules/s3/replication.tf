@@ -91,6 +91,10 @@ resource "aws_iam_policy" "replication_policy" {
           "kms:Decrypt",
           "kms:GenerateDataKey*"
         ]
+        Resource = [
+          var.kms_key_arn,
+          "${var.kms_key_arn}/*"
+        ]
       }
     ]
   })
@@ -134,7 +138,13 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
     }
   }
 
-  depends_on = [aws_s3_bucket.default_region_buckets, aws_s3_bucket.s3_replication_bucket] # Depends on buckets
+  # Explicitly depend on both source and destination bucket versioning
+  depends_on = [
+    aws_s3_bucket.default_region_buckets,
+    aws_s3_bucket.s3_replication_bucket,
+    aws_s3_bucket_versioning.default_region_bucket_versioning,
+    aws_s3_bucket_versioning.replication_region_bucket_versioning
+  ]
 }
 
 # --- Module Notes --- #
