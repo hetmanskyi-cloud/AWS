@@ -1,7 +1,8 @@
 # --- Main Configuration for S3 Buckets --- #
-# Defines S3 buckets and core configurations.  Buckets are managed via 'var.buckets' in terraform.tfvars.
+# Defines S3 buckets and core configurations.
 
 # --- Terraform Configuration --- #
+# Defines Terraform provider and version.
 terraform {
   required_providers {
     aws = {
@@ -11,231 +12,192 @@ terraform {
   }
 }
 
+# --- AWS Provider for Replication Region --- #
+# Configures AWS provider for replication region.
 provider "aws" {
-  alias  = "replication"
-  region = var.replication_region
+  alias  = "replication"          # Replication provider alias
+  region = var.replication_region # Replication region
 }
 
-# --- Dynamically Create S3 Buckets (Default Region) --- #
+# --- Default Region Buckets --- #
+# Dynamically creates S3 buckets in the default region.
 resource "aws_s3_bucket" "default_region_buckets" {
-  for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled
-  })
+  # Dynamic buckets in default region
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
 
-  provider = aws
+  provider = aws # Default AWS provider
 
-  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}"
+  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}" # Bucket name: <prefix>-<key>-<suffix>
 
   tags = {
-    Name        = "${var.name_prefix}-${each.key}"
-    Environment = var.environment
+    Name        = "${var.name_prefix}-${each.key}" # Name tag
+    Environment = var.environment                  # Environment tag
   }
+
+  force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
 }
 
-# --- Dynamically Create Replication S3 Buckets (Replication Region) --- #
+# --- Replication Region Buckets --- #
+# Dynamically creates S3 buckets in the replication region.
 resource "aws_s3_bucket" "s3_replication_bucket" {
-  for_each = tomap({
-    for key, value in var.replication_region_buckets : key => value if value.enabled
-  })
+  # Dynamic buckets in replication region
+  for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 
-  provider = aws.replication
+  provider = aws.replication # Replication AWS provider  
 
-  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}"
+  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}" # Bucket name: <prefix>-<key>-<suffix>
 
   tags = {
-    Name        = "${var.name_prefix}-${each.key}"
-    Environment = var.environment
+    Name        = "${var.name_prefix}-${each.key}" # Name tag (replication)
+    Environment = var.environment                  # Environment tag
   }
+
+  force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
 }
 
-# --- Deploy WordPress Scripts to S3 --- #
+# --- Deploy WordPress Scripts --- #
+# Deploys WordPress scripts to the 'scripts' S3 bucket.
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
+  # Conditional script deployment
   for_each = var.default_region_buckets["scripts"].enabled && var.enable_s3_script ? var.s3_scripts : {}
 
-  bucket = aws_s3_bucket.default_region_buckets["scripts"].id
-  key    = each.key
-  source = "${path.root}/${each.value}"
+  bucket = aws_s3_bucket.default_region_buckets["scripts"].id # Target 'scripts' bucket
+  key    = each.key                                           # S3 object key
+  source = "${path.root}/${each.value}"                       # Local script path
 
-  server_side_encryption = "aws:kms"
-  kms_key_id             = var.kms_key_arn
+  server_side_encryption = "aws:kms"       # KMS encryption
+  kms_key_id             = var.kms_key_arn # KMS key ARN
 
-  content_type = lookup({
-    ".sh"  = "text/x-shellscript",
-    ".php" = "text/php"
-  }, substr(each.key, length(each.key) - 3, 4), "text/plain")
+  content_type = lookup({ ".sh" = "text/x-shellscript", ".php" = "text/php" }, substr(each.key, length(each.key) - 3, 4), "text/plain") # Content type by extension
 
-  depends_on = [aws_s3_bucket.default_region_buckets]
+  depends_on = [aws_s3_bucket.default_region_buckets] # Depends on default buckets
 
   tags = {
-    Name        = "Deploy WordPress Script"
-    Environment = var.environment
+    Name        = "Deploy WordPress Script" # Name tag
+    Environment = var.environment           # Environment tag
   }
 
   # --- Notes --- #
-  # Uploads WordPress scripts to the 'scripts' bucket.
-  # Files are defined in 'var.s3_scripts'. Ensure files exist locally.
+  # - Uploads scripts to 'scripts' bucket (defined in 'var.s3_scripts').
 }
 
-# --- S3 Buckets Notifications for All Buckets --- #
-# Configures notifications for all enabled S3 buckets, across all regions.
-# Dynamically applies notification settings to buckets defined in both `default_region_buckets` and `replication_region_buckets` variables.
+# --- All Buckets Notifications --- #
+# Configures notifications for all enabled S3 buckets to a central SNS topic.
 resource "aws_s3_bucket_notification" "all_buckets_notifications" {
-  # Combine default and replication region buckets for unified notification configuration
-  for_each = tomap({
-    for key, value in merge(
-      var.default_region_buckets,
-      var.replication_region_buckets,
-    ) : key => value if value.enabled
-  })
+  # Unified notifications for all enabled buckets
+  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   topic {
-    topic_arn = var.sns_topic_arn
-    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+    topic_arn = var.sns_topic_arn                            # SNS topic ARN
+    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Object events: create & remove
   }
 
-  # No need for 'provider = aws.replication' here, it's implicitly inherited from the 'bucket' argument.
-
   # --- Notes --- #
-  # 1. Configures S3 bucket notifications for object creation and removal events for all enabled buckets.
-  # 2. Notifications are sent to the SNS topic defined by 'var.sns_topic_arn'.
-  # 3. Configured dynamically for buckets in both default and replication regions.
-  # 4. Unified notification configuration for both default and replication region buckets.
+  # - Notifications to central SNS topic for all enabled buckets.
 }
 
-# --- Versioning Configuration for All S3 Buckets --- #
-# Dynamically enables versioning configuration for all enabled S3 buckets, across both default and replication regions.
+# --- All Buckets Versioning --- #
+# Enables versioning for all enabled S3 buckets (if versioning=true).
 resource "aws_s3_bucket_versioning" "all_buckets_versioning" {
-  # Combine default and replication region buckets for unified versioning configuration
-  for_each = tomap({
-    for key, value in merge(
-      var.default_region_buckets,
-      var.replication_region_buckets,
-    ) : key => value if value.enabled && value.versioning
-  })
+  # Unified versioning for all eligible buckets
+  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled && value.versioning })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   versioning_configuration {
-    status = "Enabled"
+    status = "Enabled" # Enable versioning
   }
 
   # --- Notes --- #
-  # 1. Enables versioning for all enabled buckets if 'versioning = true' in bucket configuration.
-  # 2. Versioning ensures object history retention for recovery, auditing, and compliance.
-  # 3. Configured dynamically for buckets in both default and replication regions.
-  # 4. Consider lifecycle rules for managing noncurrent versions and cost optimization.
-  # 5. Unified versioning configuration for both default and replication region buckets.
+  # - Versioning for enabled buckets (versioning=true).
 }
 
 # --- Logging Configuration (Default Region Buckets) --- #
-# Enables logging for enabled default region S3 buckets (excluding the logging bucket itself).
-# Logs are centralized in a dedicated logging bucket within the default region.
+# Enables access logging for default region S3 buckets (excluding the logging bucket).
 resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
-  for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if(value.enabled && (value.logging != null ? value.logging : false) && key != "logging" && var.default_region_buckets["logging"] != null && var.default_region_buckets["logging"].enabled)
-  })
+  # Dynamic logging for default region buckets (excluding 'logging' bucket)
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if(value.enabled && (value.logging != null ? value.logging : false) && key != "logging" && var.default_region_buckets["logging"] != null && var.default_region_buckets["logging"].enabled) })
 
-  bucket        = aws_s3_bucket.default_region_buckets[each.key].id
-  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id
-  target_prefix = "${var.name_prefix}/${each.key}/"
+  bucket        = aws_s3_bucket.default_region_buckets[each.key].id  # Source bucket for logs
+  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id # Central logging bucket
+  target_prefix = "${var.name_prefix}/${each.key}/"                  # Log prefix: <prefix>/<bucket_name>/
 
   # --- Notes --- #
-  # - Tracks access & operations for debugging, compliance, and audits (default region buckets only).
-  # - Centralized logging to the 'logging' bucket in the default region.
-  # - Configured dynamically via 'logging' flag in var.default_region_buckets.
-  # - Logging bucket itself is excluded to prevent recursion.
-  # - Ensure logging bucket has proper security (private, encrypted, IAM permissions).
-  # - Logging for replication buckets is *not enabled in this configuration*.
-  # - For enhanced security and audit of replicated data, *consider enabling separate logging for replication buckets*.
-  # - Replicated *bucket access logs* (from default region buckets) are available in the central logging bucket, 
-  #   but direct access logs for replication buckets themselves are not included by default.
+  # - Centralized access logs for default region buckets in 'logging' bucket.
+  # - Configured dynamically via 'logging' flag and excludes 'logging' bucket itself.
+  # - Consider separate logging for replication buckets if needed.
 }
 
-# --- Server-Side Encryption (SSE) Configuration for All S3 Buckets --- #
-# Enforces AWS KMS server-side encryption for all enabled S3 buckets and object uploads, across all regions.
-# Dynamically applies SSE settings to all buckets defined in both `default_region_buckets` and `replication_region_buckets` variables.
+# --- SSE Configuration for All Buckets --- #
+# Enforces AWS KMS server-side encryption for all enabled S3 buckets.
 resource "aws_s3_bucket_server_side_encryption_configuration" "all_buckets_encryption" {
-  # Combine default and replication region buckets for unified encryption configuration
-  for_each = tomap({
-    for key, value in merge(
-      var.default_region_buckets,
-      var.replication_region_buckets,
-    ) : key => value if value.enabled
-  })
+  # Dynamic SSE for all enabled buckets (default & replication regions)
+  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
-  # Server-Side Encryption Configuration
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"       # Use AWS KMS for encryption
-      kms_master_key_id = var.kms_key_arn # KMS key for encrypting data
+      sse_algorithm     = "aws:kms"       # KMS encryption algorithm
+      kms_master_key_id = var.kms_key_arn # KMS key ARN
     }
-    bucket_key_enabled = true # Optimizes costs for data encryption
+    bucket_key_enabled = true # Enable Bucket Key for cost optimization
   }
 
   lifecycle {
-    prevent_destroy = false # Allow smooth updates and replacements
+    prevent_destroy = false # Allow destroy for updates/replacements
   }
 
   # --- Notes --- #
-  # 1. Server-side encryption with AWS KMS is applied to all objects in all enabled buckets.
-  # 2. Uploads of unencrypted objects are denied by bucket policy (ensure bucket policies are in place).
-  # 3. 'prevent_destroy = false' allows updates and replacements.
-  # 4. Ensure the KMS key (var.kms_key_arn) exists and has necessary permissions in all relevant regions.
-  # 5. Unified encryption configuration for both default and replication region buckets.
+  # - KMS SSE for all enabled buckets; unencrypted uploads denied (via policy).
+  # - 'prevent_destroy = false' for updates.
+  # - Ensure KMS key exists (var.kms_key_arn).
 }
 
-# Enforces public access restrictions on all S3 buckets defined in terraform.tfvars, across all regions.
-# Blocks public ACLs and policies, ignores existing public ACLs, and restricts public access.
+# --- Public Access Block for All Buckets --- #
+# Enforces public access restrictions on all S3 buckets.
 resource "aws_s3_bucket_public_access_block" "all_buckets_public_access_block" {
-  # Combine default and replication region buckets for unified public access block configuration
-  for_each = tomap({
-    for key, value in merge(
-      var.default_region_buckets,
-      var.replication_region_buckets,
-    ) : key => value if value.enabled
-  })
+  # Dynamic Public Access Block for all enabled buckets
+  for_each = tomap({ for key, value in merge(var.default_region_buckets, var.replication_region_buckets) : key => value if value.enabled })
 
-  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id
+  bucket = contains(keys(var.replication_region_buckets), each.key) ? aws_s3_bucket.s3_replication_bucket[each.key].id : aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
-  # Public Access Block Settings (same for all buckets)
-  block_public_acls       = true # Block all public ACLs (Access Control Lists)
-  block_public_policy     = true # Ensure public bucket policies are blocked
-  ignore_public_acls      = true # Ignore any public ACLs applied to the bucket
-  restrict_public_buckets = true # Restrict the bucket from being publicly accessible
+  # Public Access Block settings - same for all buckets
+  block_public_acls       = true # Block public ACLs
+  block_public_policy     = true # Block public policies
+  ignore_public_acls      = true # Ignore public ACLs
+  restrict_public_buckets = true # Restrict public access
 
   # --- Notes --- #
-  # 1. Restricts all public access to all enabled buckets, across both default and replication regions.
-  # 2. Enforces consistent security best practices across all environments.
-  # 3. Applied dynamically to buckets defined in terraform.tfvars (both default and replication regions).
-  # 4. Unified public access block configuration for both default and replication region buckets.
+  # - Restricts public access to all enabled buckets.
+  # - Enforces security best practices.
+  # - Unified configuration for default & replication regions.
 }
 
-## --- Random Suffix for Unique Bucket Names --- #
-# Generates a random suffix to ensure globally unique S3 bucket names.
+## --- Random Suffix for Bucket Names --- ##
+# Generates random suffix for unique S3 bucket names.
 resource "random_string" "suffix" {
-  length  = 5
-  special = false
-  upper   = false
-  lower   = true
-  numeric = true
+  length  = 5     # Suffix length: 5 chars
+  special = false # No special chars
+  upper   = false # No uppercase letters
+  lower   = true  # Lowercase letters allowed
+  numeric = true  # Numeric chars allowed
 
   # --- Notes --- #
-  # -  Generates a 5-character random suffix (lowercase and numeric).
-  # -  Ensures globally unique bucket names to avoid naming conflicts in AWS S3.
-  # -  Appended to the base bucket name to create a unique bucket identifier.
+  # - 5-char random suffix (lowercase, numeric).
+  # - Ensures unique bucket names.
 }
 
-# --- Notes --- #
+# --- Module Notes --- #
 # General notes for the S3 module.
-# 1. Buckets are dynamically created based on configurations in 'terraform.tfvars'.
-# 2. Module manages both default region buckets and replication region buckets.
-# 3. Key bucket features (versioning, notifications, encryption, public access block) are configured in a unified manner for all enabled buckets.
-# 4. Logging is configured separately and centrally for default region buckets only (replication buckets logging is omitted as redundant).
-# 5. Bucket names are generated dynamically using a random suffix for global uniqueness.
-# 6. Ensure KMS key (var.kms_key_arn) and SNS topic (var.sns_topic_arn) are pre-created and properly configured.
-# 7. Bucket policies and IAM roles/policies for bucket access control are to be configured separately (outside this module, or added in future iterations).
-# 8. Consider adding lifecycle rules for cost optimization and data management.
+
+# 1. Dynamic bucket creation from 'terraform.tfvars'.
+# 2. Manages default & replication region buckets.
+# 3. Unified config for versioning, notifications, encryption, public access block.
+# 4. Centralized logging (default region buckets only).
+# 5. Unique bucket names via random suffix.
+# 6. Pre-create KMS key (var.kms_key_arn) & SNS topic (var.sns_topic_arn).
+# 7. Bucket policies & IAM roles to be configured separately.
+# 8. Consider lifecycle rules for cost optimization.
