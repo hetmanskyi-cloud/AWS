@@ -48,7 +48,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
 # Merges both database and WordPress credentials into a single JSON string.
 resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   secret_id = aws_secretsmanager_secret.wp_secrets.id
-  secret_string = jsonencode(merge(
+  secret_string_wo = jsonencode(merge(
     local.secret_values.database,
     local.secret_values.wordpress
   ))

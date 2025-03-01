@@ -15,7 +15,7 @@ resource "aws_db_instance" "db" {
   engine            = var.engine                                 # Database engine (e.g., "mysql")
   engine_version    = var.engine_version                         # Database engine version
   username          = var.db_username                            # Master username
-  password          = var.db_password                            # Master password (sensitive)
+  password_wo       = var.db_password                            # Master password (sensitive, write-only)
   db_name           = var.db_name                                # Initial database name
   port              = var.db_port                                # Database port (e.g., 3306 for MySQL)
   multi_az          = var.multi_az                               # Enable Multi-AZ deployment for high availability

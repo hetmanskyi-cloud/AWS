@@ -71,9 +71,9 @@ variable "replication_region_sns_topic_arn" {
 variable "default_region_buckets" {
   type = map(object({
     enabled     = optional(bool, true)
-    versioning  = optional(bool, false)
-    replication = optional(bool, false)
-    logging     = optional(bool, false)
+    versioning  = optional(bool, true)
+    replication = optional(bool, true)
+    logging     = optional(bool, true)
     region      = optional(string, null) # Optional: region (defaults to provider)
   }))
   description = "Config for default AWS region buckets." # Description: Default region buckets config
@@ -83,11 +83,9 @@ variable "default_region_buckets" {
 # --- Replication Region Buckets Config --- #
 variable "replication_region_buckets" {
   type = map(object({
-    enabled     = optional(bool, true)
-    versioning  = optional(bool, true)  # Required: versioning for replication
-    replication = optional(bool, false) # N/A: replication for replication buckets
-    logging     = optional(bool, false)
-    region      = string # Required: AWS region for replication
+    enabled    = optional(bool, true)
+    versioning = optional(bool, true) # Required: versioning for replication    
+    region     = string               # Required: AWS region for replication
   }))
   description = "Config for replication region buckets." # Description: Replication region buckets config
   default     = {}
@@ -202,7 +200,7 @@ variable "kms_endpoint_id" {
 
 # --- Module Notes --- #
 # General notes for S3 module variables.
-
+#
 # 1. Bucket Config: 'buckets' map controls bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.
 # 3. Replication: 'replication_region', ensure IAM permissions.

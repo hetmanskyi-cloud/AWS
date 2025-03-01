@@ -12,7 +12,7 @@ resource "aws_iam_role" "replication_role" {
   count = length([
     for value in var.default_region_buckets : value
     if value.enabled && value.replication
-  ]) > 0 && local.replication_buckets_enabled ? 1 : 0 # Conditional role creation
+  ]) > 0 && local.replication_buckets_enabled ? 1 : 0
 
   name = "${var.name_prefix}-replication-role" # Role name
 
@@ -28,8 +28,8 @@ resource "aws_iam_role" "replication_role" {
   })
 
   tags = {
-    Name        = "${var.name_prefix}-replication-role" # Name tag
-    Environment = var.environment                       # Environment tag
+    Name        = "${var.name_prefix}-replication-role"
+    Environment = var.environment
   }
 }
 
@@ -37,7 +37,7 @@ resource "aws_iam_role" "replication_role" {
 resource "aws_iam_policy" "replication_policy" {
   for_each = tomap({
     for key, value in var.default_region_buckets : key => value
-    if value.enabled && value.replication && local.replication_buckets_enabled # Conditional policy creation
+    if value.enabled && value.replication && local.replication_buckets_enabled
   })
 
   name        = "${var.name_prefix}-replication-policy-${each.key}" # Policy name
@@ -47,53 +47,70 @@ resource "aws_iam_policy" "replication_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "ReplicationRead${replace(replace(each.key, "-", ""), "_", "")}" # Sid: ReplicationRead
-        Effect = "Allow"                                                          # Effect: Allow
-        Action = [                                                                # Actions:
+        Sid    = "ReplicationRead${replace(replace(each.key, "-", ""), "_", "")}"
+        Effect = "Allow"
+        Action = [
           "s3:GetReplicationConfiguration",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetBucketVersioning"
         ]
-        Resource = [ # Resources: source bucket ARN
+        Resource = [
           aws_s3_bucket.default_region_buckets[each.key].arn
         ]
       },
       {
-        Sid    = "ReplicationObjectRead${replace(replace(each.key, "-", ""), "_", "")}" # Sid: ReplicationObjectRead
-        Effect = "Allow"                                                                # Effect: Allow
-        Action = [                                                                      # Actions:
+        Sid    = "ReplicationObjectRead${replace(replace(each.key, "-", ""), "_", "")}"
+        Effect = "Allow"
+        Action = [
           "s3:GetObjectVersion",
           "s3:GetObjectVersionAcl",
           "s3:GetObjectVersionTagging"
         ]
-        Resource = [ # Resources: source bucket ARN + objects
+        Resource = [
           "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
         ]
       },
       {
-        Sid    = "ReplicationWrite${replace(replace(each.key, "-", ""), "_", "")}" # Sid: ReplicationWrite
-        Effect = "Allow"                                                           # Effect: Allow
-        Action = [                                                                 # Actions:
+        Sid    = "ReplicationDestinationRead${replace(replace(each.key, "-", ""), "_", "")}"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetBucketVersioning"
+        ]
+        Resource = [
+          aws_s3_bucket.s3_replication_bucket[each.key].arn
+        ]
+      },
+      {
+        Sid    = "ReplicationWrite${replace(replace(each.key, "-", ""), "_", "")}"
+        Effect = "Allow"
+        Action = [
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
           "s3:ReplicateTags",
           "s3:PutObject"
         ]
-        Resource = [ # Resources: dest bucket ARN + objects
-          "${aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].arn}/*",
-          aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].arn,
+        Resource = [
+          "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*",
+          aws_s3_bucket.s3_replication_bucket[each.key].arn
         ]
       },
       {
-        Sid    = "KMSPermissions" # Sid: KMSPermissions
-        Effect = "Allow"          # Effect: Allow
-        Action = [                # KMS Actions:
+        Sid    = "KMSPermissions"
+        Effect = "Allow"
+        Action = [
           "kms:Encrypt",
           "kms:Decrypt",
-          "kms:GenerateDataKey*"
+          "kms:GenerateDataKey*",
+          "kms:ReEncrypt*",
+          "kms:DescribeKey"
         ]
         Resource = [
           var.kms_key_arn,
-          "${var.kms_key_arn}/*"
+          "${var.kms_key_arn}/*",
+          "arn:aws:kms:${var.replication_region}:${var.aws_account_id}:key/*"
         ]
       }
     ]
@@ -104,41 +121,57 @@ resource "aws_iam_policy" "replication_policy" {
 resource "aws_iam_role_policy_attachment" "replication_policy_attachment" {
   for_each = tomap({
     for key, value in var.default_region_buckets : key => value
-    if value.enabled && value.replication && local.replication_buckets_enabled # Conditional attachment
+    if value.enabled && value.replication && local.replication_buckets_enabled
   })
 
-  role       = aws_iam_role.replication_role[0].name           # Replication role name
-  policy_arn = aws_iam_policy.replication_policy[each.key].arn # Replication policy ARN
+  role       = aws_iam_role.replication_role[0].name
+  policy_arn = aws_iam_policy.replication_policy[each.key].arn
 }
 
 # --- S3 Bucket Replication Config --- #
 resource "aws_s3_bucket_replication_configuration" "replication_config" {
   for_each = tomap({
     for key, value in var.default_region_buckets : key => value
-    if value.enabled && value.replication && local.replication_buckets_enabled # Conditional replication config
+    if value.enabled && value.replication && local.replication_buckets_enabled
   })
 
-  bucket = aws_s3_bucket.default_region_buckets[each.key].id # Source bucket
-  role   = aws_iam_role.replication_role[0].arn              # Replication role ARN
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
+  role   = aws_iam_role.replication_role[0].arn
 
   rule {
-    id       = "ReplicationRule-${each.key}" # Rule ID
-    status   = "Enabled"                     # Rule status: Enabled
-    priority = 1                             # Priority: 1
+    id       = "ReplicationRule-${each.key}"
+    status   = "Enabled"
+    priority = 1
 
-    filter {} # Default filter (all objects)
+    filter {
+      prefix = ""
+    }
+
+    source_selection_criteria {
+      sse_kms_encrypted_objects {
+        status = "Enabled"
+      }
+    }
 
     destination {
-      bucket        = aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].arn # Destination bucket ARN
-      storage_class = "STANDARD"                                                                       # Storage class: STANDARD
+      bucket        = aws_s3_bucket.s3_replication_bucket[each.key].arn
+      storage_class = "STANDARD"
+
+      metrics {
+        status = "Enabled"
+      }
+
+      encryption_configuration {
+        # Using the same KMS key ARN, presumably multi-Region KMS key
+        replica_kms_key_id = var.kms_key_arn
+      }
     }
 
     delete_marker_replication {
-      status = "Disabled" # Delete marker replication: Disabled
+      status = "Enabled"
     }
   }
 
-  # Explicitly depend on both source and destination bucket versioning
   depends_on = [
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket.s3_replication_bucket,
@@ -149,7 +182,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 
 # --- Module Notes --- #
 # General notes for S3 replication configuration.
-
+#
 # 1. IAM Role: Manages S3 cross-region replication permissions.
 # 2. IAM Policy: Fine-grained access control for replication (attached to Role).
 # 3. Replication Config: Applied only to default region buckets with replication enabled.

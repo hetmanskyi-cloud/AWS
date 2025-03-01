@@ -133,6 +133,33 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
   }
 }
 
+# --- S3 Bucket Ownership Controls (for ACL compatibility) --- #
+resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_controls" {
+  # Configures S3 Bucket Ownership Controls for default region buckets.
+  # Required to allow ACLs to be used for S3 Access Logging and other ACL-based features.
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred" # Set Object Ownership to BucketOwnerPreferred to enable ACLs
+  }
+
+  depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency
+}
+
+# --- ACL for Logging Bucket --- #
+resource "aws_s3_bucket_acl" "logging_bucket_acl" {
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id # Target logging bucket
+  acl    = "log-delivery-write"                               # Set canned ACL to log-delivery-write
+
+  # --- Depends on --- #
+  depends_on = [
+    aws_s3_bucket.default_region_buckets,                                     # Explicit dependency on buckets
+    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls # Dependency on ownership controls
+  ]
+}
+
 # --- Logging Configuration (Default Region Buckets) --- #
 # Enables access logging for default region S3 buckets (excluding the logging bucket).
 resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
@@ -198,10 +225,10 @@ resource "aws_s3_bucket_public_access_block" "default_region_bucket_public_acces
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
   # Public Access Block settings - same for all buckets
-  block_public_acls       = true # Block public ACLs
-  block_public_policy     = true # Block public policies
-  ignore_public_acls      = true # Ignore public ACLs
-  restrict_public_buckets = true # Restrict public access
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # --- Public Access Block for Replication Region Buckets --- #
@@ -213,10 +240,10 @@ resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_a
   bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket
 
   # Public Access Block settings - same for all buckets
-  block_public_acls       = true # Block public ACLs
-  block_public_policy     = true # Block public policies
-  ignore_public_acls      = true # Ignore public ACLs
-  restrict_public_buckets = true # Restrict public access
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 ## --- Random Suffix for Bucket Names --- ##
@@ -235,7 +262,7 @@ resource "random_string" "suffix" {
 
 # --- Module Notes --- #
 # General notes for the S3 module.
-
+#
 # 1. Dynamic bucket creation from 'terraform.tfvars'.
 # 2. Manages default & replication region buckets.
 # 3. Unified config for versioning, notifications, encryption, public access block.

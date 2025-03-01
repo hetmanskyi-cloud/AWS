@@ -128,23 +128,23 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
 
   # Statement: Allow AWS Log Delivery write access
   statement {
-    sid    = "AWSLogDeliveryWrite" # Sid: AWSLogDeliveryWrite
-    effect = "Allow"               # Effect: Allow
+    sid    = "AWSLogDeliveryWrite"
+    effect = "Allow"
 
-    principals {                                 # Principals:
-      type        = "Service"                    # Type: Service
-      identifiers = ["logging.s3.amazonaws.com"] # Service: logging.s3.amazonaws.com
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
     }
 
-    actions = [ # Actions:
+    actions = [
       "s3:PutObject",
       "s3:GetBucketAcl",
     ]
 
-    condition {                      # Condition:
-      test     = "StringEquals"      # Test: StringEquals
-      variable = "aws:SourceAccount" # Variable: aws:SourceAccount
-      values = [                     # Values: current account ID
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values = [
         data.aws_caller_identity.current.account_id,
       ]
     }
@@ -152,22 +152,22 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
 
   # Statement: Allow AWS Log Delivery ACL check
   statement {
-    sid    = "AWSLogDeliveryCheckGrant" # Sid: AWSLogDeliveryCheckGrant
-    effect = "Allow"                    # Effect: Allow
+    sid    = "AWSLogDeliveryCheckGrant"
+    effect = "Allow"
 
-    principals {                                 # Principals:
-      type        = "Service"                    # Type: Service
-      identifiers = ["logging.s3.amazonaws.com"] # Service: logging.s3.amazonaws.com
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
     }
 
-    actions = [ # Actions:
+    actions = [
       "s3:ListBucket",
     ]
 
-    condition {                      # Condition:
-      test     = "StringEquals"      # Test: StringEquals
-      variable = "aws:SourceAccount" # Variable: aws:SourceAccount
-      values = [                     # Values: current account ID
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values = [
         data.aws_caller_identity.current.account_id,
       ]
     }
@@ -176,26 +176,26 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
 
 # --- Module Notes --- #
 # General notes for S3 bucket policies and CORS.
-
+#
 # 1. Security Policies:
 #   - Enforces HTTPS-only access for all buckets (`enforce_https_policy`).
 #   - `logging_bucket_policy` relies on HTTPS enforcement from `enforce_https_policy`.
 #   - SSE-KMS encryption for data at rest (configured in `s3/main.tf`).
 #   - Dynamic policy application to enabled buckets (`for_each` & `merge`).
-
+#
 # 2. CORS Configuration:
 #   - Conditional config for `wordpress_media` bucket (`enable_cors = true`).
 #   - `allowed_origins` - configurable variable, MUST be restricted in production.
 #   - `allowed_methods` - GET only (read-only).
 #   - `allowed_headers` - Content-Type only (security).
 #   - See README/variable docs for CORS security details.
-
+#
 # 3. Logging & Compliance:
 #   - `logging_bucket_policy`: AWS logging services (`aws:SourceAccount` condition) `s3:PutObject` to `logging` bucket.
 #   - `logging_bucket_policy`: `cloudtrail.amazonaws.com` `s3:GetBucketAcl` on `logging` bucket (for CloudTrail).
 #   - Logging: ONLY for default region buckets (excluding `logging` bucket) in `aws_s3_bucket_logging`.
 #   - Replication bucket logging: intentionally omitted (consider enabling for audit).
-
+#
 # 4. Replication:
 #   - `replication_destination_policy`: ONLY if replication enabled (`var.replication_region_buckets` defined & enabled buckets).
 #   - `replication_destination_policy`: Replication IAM role write access to destination bucket.

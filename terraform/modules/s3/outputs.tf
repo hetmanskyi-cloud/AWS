@@ -74,19 +74,20 @@ output "deploy_wordpress_scripts_files_etags_map" {
 }
 
 # --- Replication Bucket --- #
+# Since we only have one replication bucket (key "wordpress_media"), we reference it explicitly.
 
 output "replication_bucket_arn" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].arn : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].arn : null
   description = "ARN of replication bucket." # Description: ARN
 }
 
 output "replication_bucket_name" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].bucket : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].bucket : null
   description = "Name of replication bucket." # Description: Name
 }
 
 output "replication_bucket_region" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[keys(var.replication_region_buckets)[0]].region : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].region : null
   description = "Region of replication bucket." # Description: Region
 }
 
@@ -116,7 +117,7 @@ output "enable_lambda" {
 
 # --- Module Notes --- #
 # General notes for S3 module outputs.
-
+#
 # 1. Bucket Outputs: For all configured (if enabled), null if disabled.
 # 2. WordPress Scripts: 'deploy_wordpress_scripts_files_etags_map' - ETags for uploaded scripts.
 # 3. DynamoDB: Outputs for state locking table (if enabled).

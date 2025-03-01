@@ -7,6 +7,9 @@ resource "aws_kms_key" "general_encryption_key" {
   description         = "General KMS key for encrypting CloudWatch logs, S3 buckets, and other resources"
   enable_key_rotation = var.enable_key_rotation
 
+  # Multi-region key to allow cross-region usage
+  multi_region = true
+
   tags = {
     Name        = "${var.name_prefix}-general-encryption-key-${var.environment}"
     Environment = var.environment
@@ -23,6 +26,19 @@ locals {
     "kms:ReEncryptTo",
     "kms:GenerateDataKey*",
     "kms:DescribeKey"
+  ]
+
+  # Additional KMS actions specifically for S3 replication
+  s3_replication_kms_actions = [
+    "kms:Encrypt",
+    "kms:Decrypt",
+    "kms:ReEncryptFrom",
+    "kms:ReEncryptTo",
+    "kms:GenerateDataKey*",
+    "kms:DescribeKey",
+    "kms:CreateGrant",
+    "kms:ListGrants",
+    "kms:RevokeGrant"
   ]
 
   # Base AWS services that require KMS access (regionless principals)
@@ -85,6 +101,16 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Service = local.kms_services
         }
         Action   = local.kms_actions
+        Resource = "*"
+      },
+      # 2.1) Special permissions for S3 replication
+      {
+        Sid    = "AllowS3ReplicationUsage"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+        Action   = local.s3_replication_kms_actions
         Resource = "*"
       }
       ],
