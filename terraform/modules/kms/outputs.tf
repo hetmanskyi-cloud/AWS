@@ -14,6 +14,13 @@ output "kms_key_id" {
   value       = aws_kms_key.general_encryption_key.id
 }
 
+# --- KMS Replica Key ARN --- #
+# ARN of the replica KMS key in the replication region
+output "kms_replica_key_arn" {
+  description = "ARN of the replica KMS key in the replication region"
+  value       = length(aws_kms_replica_key.replica_key) > 0 ? aws_kms_replica_key.replica_key[0].arn : null
+}
+
 # --- Enable KMS Role --- #
 # Indicates whether the IAM role and policy for KMS interaction are created.
 output "enable_kms_role" {

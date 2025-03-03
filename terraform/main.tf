@@ -90,8 +90,9 @@ module "kms" {
   source = "./modules/kms" # Path to the KMS module
 
   # AWS region and account-specific details
-  aws_region     = var.aws_region     # Region where resources are created
-  aws_account_id = var.aws_account_id # Account ID for KMS key permissions
+  aws_region         = var.aws_region         # Region where resources are created
+  replication_region = var.replication_region # Region for replication
+  aws_account_id     = var.aws_account_id     # Account ID for KMS key permissions
 
   # Environment and naming
   environment = var.environment # Environment (e.g., dev, stage, prod)
@@ -141,7 +142,8 @@ module "s3" {
   replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
 
   # KMS role for S3 module
-  kms_key_arn = module.kms.kms_key_arn
+  kms_key_arn         = module.kms.kms_key_arn
+  kms_replica_key_arn = module.kms.kms_replica_key_arn
 
   # Pass buckets list dynamically
   default_region_buckets     = var.default_region_buckets
@@ -279,6 +281,8 @@ module "rds" {
   db_password       = var.db_password
   db_name           = var.db_name
   db_port           = var.db_port
+
+  db_password_version = var.db_password_version
 
   # Network configuration for private subnets
   vpc_id                     = module.vpc.vpc_id

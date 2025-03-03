@@ -19,6 +19,15 @@ locals {
       admin_password = var.wp_admin_password
     }
   }
+
+  # Combine the database and WordPress credentials into a single JSON string.
+  # This allows the aws_secretsmanager_secret_version resource to store them as one merged secret.
+  wp_secrets_payload = jsonencode(
+    merge(
+      local.secret_values.database,
+      local.secret_values.wordpress
+    )
+  )
 }
 
 # Create AWS Secrets Manager secret
@@ -48,10 +57,12 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
 # Merges both database and WordPress credentials into a single JSON string.
 resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   secret_id = aws_secretsmanager_secret.wp_secrets.id
-  secret_string_wo = jsonencode(merge(
-    local.secret_values.database,
-    local.secret_values.wordpress
-  ))
+
+  # Use the write-only attribute so the secret is not stored in Terraform state
+  secret_string_wo = local.wp_secrets_payload
+
+  # Use the write-only version via md5 from content
+  secret_string_wo_version = var.wp_secrets_version # Controlled manually via terraform.tfvars
 }
 
 # Define an IAM policy document that grants read access to the secret.

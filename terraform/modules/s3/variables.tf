@@ -1,7 +1,4 @@
 # --- S3 Module Variables --- #
-# Defines input variables for configuring the S3 module, allowing customization and flexibility.
-
-# --- S3 Module Variables --- #
 # Defines input variables for configuring the S3 module.
 
 # --- Replication Region --- #
@@ -41,6 +38,13 @@ variable "kms_key_arn" {
     condition     = length(var.kms_key_arn) > 0
     error_message = "kms_key_arn cannot be empty." # Validation error message
   }
+}
+
+# --- KMS Replica Key ARN --- #
+variable "kms_replica_key_arn" {
+  description = "ARN of KMS replica key in replication region for S3 bucket encryption." # Description: KMS Replica Key ARN
+  type        = string
+  default     = null # May be null if replication is not used
 }
 
 # --- Noncurrent Version Retention Days --- #

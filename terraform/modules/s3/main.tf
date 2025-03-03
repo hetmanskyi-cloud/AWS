@@ -45,7 +45,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 
   provider = aws.replication # Replication AWS provider  
 
-  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}" # Bucket name: <prefix>-<key>-<suffix>
+  bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-rep-${random_string.suffix.result}" # Bucket name format: <prefix>-<key>-rep-<suffix>
 
   tags = {
     Name        = "${var.name_prefix}-${each.key}" # Name tag (replication)
@@ -206,8 +206,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "replication_regio
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"       # KMS encryption algorithm
-      kms_master_key_id = var.kms_key_arn # KMS key ARN
+      sse_algorithm     = "aws:kms"                                                                                                    # KMS encryption algorithm
+      kms_master_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn # Используем реплику ключа KMS
     }
     bucket_key_enabled = true # Enable Bucket Key for cost optimization
   }

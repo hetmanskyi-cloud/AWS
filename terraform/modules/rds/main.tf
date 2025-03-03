@@ -9,16 +9,17 @@
 
 # Define the primary RDS database instance
 resource "aws_db_instance" "db" {
-  identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
-  allocated_storage = var.allocated_storage                      # Storage size in GB
-  instance_class    = var.instance_class                         # RDS instance class
-  engine            = var.engine                                 # Database engine (e.g., "mysql")
-  engine_version    = var.engine_version                         # Database engine version
-  username          = var.db_username                            # Master username
-  password_wo       = var.db_password                            # Master password (sensitive, write-only)
-  db_name           = var.db_name                                # Initial database name
-  port              = var.db_port                                # Database port (e.g., 3306 for MySQL)
-  multi_az          = var.multi_az                               # Enable Multi-AZ deployment for high availability
+  identifier          = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
+  allocated_storage   = var.allocated_storage                      # Storage size in GB
+  instance_class      = var.instance_class                         # RDS instance class
+  engine              = var.engine                                 # Database engine (e.g., "mysql")
+  engine_version      = var.engine_version                         # Database engine version
+  username            = var.db_username                            # Master username
+  password_wo         = var.db_password                            # Use a write-only password to avoid storing it in Terraform state
+  password_wo_version = var.db_password_version                    # Manually controlled via terraform.tfvars
+  db_name             = var.db_name                                # Initial database name
+  port                = var.db_port                                # Database port (e.g., 3306 for MySQL)
+  multi_az            = var.multi_az                               # Enable Multi-AZ deployment for high availability
 
   # --- Security and Networking --- #
   vpc_security_group_ids = [aws_security_group.rds_sg.id]           # Security group IDs for access control

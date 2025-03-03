@@ -107,11 +107,12 @@ resource "aws_iam_policy" "replication_policy" {
           "kms:ReEncrypt*",
           "kms:DescribeKey"
         ]
-        Resource = [
+        Resource = compact([
           var.kms_key_arn,
           "${var.kms_key_arn}/*",
-          "arn:aws:kms:${var.replication_region}:${var.aws_account_id}:key/*"
-        ]
+          var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : "arn:aws:kms:${var.replication_region}:${var.aws_account_id}:key/*",
+          var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? "${var.kms_replica_key_arn}/*" : null
+        ])
       }
     ]
   })
@@ -162,8 +163,8 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
       }
 
       encryption_configuration {
-        # Using the same KMS key ARN, presumably multi-Region KMS key
-        replica_kms_key_id = var.kms_key_arn
+        # Using a replica KMS key for the replication region
+        replica_kms_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn
       }
     }
 

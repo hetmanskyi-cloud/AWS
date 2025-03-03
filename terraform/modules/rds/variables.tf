@@ -75,6 +75,24 @@ variable "db_password" {
   sensitive   = true
 }
 
+# --- RDS Database Password Version --- #
+# This variable defines the version number for the RDS master password.
+# 
+# AWS requires a numeric version (`password_wo_version`) to detect password updates.
+# Since Terraform does not allow hashing sensitive values (like db_password),
+# we must manually increment this number whenever the password changes.
+#
+# Example usage:
+# - First deployment: `db_password_version = 1`
+# - When updating the password: `db_password_version = 2`
+#
+# NOTE: Terraform will trigger an update only if this number is increased.
+variable "db_password_version" {
+  type        = number
+  description = "Manually increment this number when updating the RDS master password."
+  default     = 1 # Increase manually when changing var.db_password
+}
+
 variable "db_name" {
   description = "Initial database name"
   type        = string

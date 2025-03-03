@@ -1,17 +1,19 @@
 # --- SNS Topic for CloudWatch Alarms --- #
 resource "aws_sns_topic" "cloudwatch_alarms" {
+  # Creates an SNS topic in the default region (no 'provider = aws.replication')
   name              = "${var.name_prefix}-cloudwatch-alarms"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 }
 
 # --- SNS Topic for Replication Region --- #
 resource "aws_sns_topic" "replication_region_topic" {
+  # Creates an SNS topic in the replication region (provider alias = aws.replication)
   provider          = aws.replication
   name              = "${var.name_prefix}-replication-region-notifications"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 }
 
-# Allow CloudWatch and S3 to publish messages to the topic
+# Policy allowing CloudWatch + S3 to publish to cloudwatch_alarms
 resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
   arn = aws_sns_topic.cloudwatch_alarms.arn
   policy = jsonencode({
@@ -29,13 +31,19 @@ resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
         Effect    = "Allow",
         Principal = { Service = "s3.amazonaws.com" },
         Action    = "SNS:Publish",
-        Resource  = aws_sns_topic.cloudwatch_alarms.arn
+        Resource  = aws_sns_topic.cloudwatch_alarms.arn,
+        Condition = {
+          # Restrict to your AWS account
+          StringEquals = {
+            "aws:SourceAccount" = var.aws_account_id
+          }
+        }
       }
     ]
   })
 }
 
-# Allow S3 to publish messages to the replication region topic
+# Policy allowing S3 to publish to replication_region_topic
 resource "aws_sns_topic_policy" "replication_region_publish_policy" {
   provider = aws.replication
   arn      = aws_sns_topic.replication_region_topic.arn
@@ -47,7 +55,13 @@ resource "aws_sns_topic_policy" "replication_region_publish_policy" {
         Effect    = "Allow",
         Principal = { Service = "s3.amazonaws.com" },
         Action    = "SNS:Publish",
-        Resource  = aws_sns_topic.replication_region_topic.arn
+        Resource  = aws_sns_topic.replication_region_topic.arn,
+        Condition = {
+          # Restrict to your AWS account in replication region
+          StringEquals = {
+            "aws:SourceAccount" = var.aws_account_id
+          }
+        }
       }
     ]
   })

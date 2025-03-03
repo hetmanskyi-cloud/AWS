@@ -364,6 +364,24 @@ variable "db_password" {
   sensitive   = true
 }
 
+# --- RDS Database Password Version --- #
+# This variable defines the version number for the RDS master password.
+# 
+# AWS requires a numeric version (`password_wo_version`) to detect password updates.
+# Since Terraform does not allow hashing sensitive values (like db_password),
+# we must manually increment this number whenever the password changes.
+#
+# Example usage:
+# - First deployment: `db_password_version = 1`
+# - When updating the password: `db_password_version = 2`
+#
+# NOTE: Terraform will trigger an update only if this number is increased.
+variable "db_password_version" {
+  type        = number
+  description = "Manually increment this number when updating the RDS master password."
+  default     = 1 # Increase manually when changing var.db_password
+}
+
 # --- WordPress Admin Configuration --- #
 variable "wp_admin_user" {
   description = "WordPress admin username"
@@ -837,4 +855,22 @@ variable "cloudtrail_logs_retention_in_days" {
   description = "Retention period (in days) for CloudTrail logs in CloudWatch"
   type        = number
   default     = 30
+}
+
+# --- WordPress Secrets Version --- #
+# This variable defines the version number for the WordPress secrets stored in AWS Secrets Manager.
+#
+# AWS requires a numeric version (`secret_string_wo_version`) to track secret updates.
+# Since Terraform cannot generate a hash from sensitive values, we must manually increase
+# this number whenever any secret value (e.g., admin password, database credentials) is updated.
+#
+# Example usage:
+# - Initial deployment: `wp_secrets_version = 1`
+# - After updating any secret (e.g., admin password): `wp_secrets_version = 2`
+#
+# NOTE: Terraform will only create a new version in AWS Secrets Manager when this number changes.
+variable "wp_secrets_version" {
+  type        = number
+  description = "Manually increment this number when updating WordPress secrets."
+  default     = 1 # Increase manually when changing WordPress or DB secrets
 }

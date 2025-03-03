@@ -24,6 +24,18 @@ variable "aws_region" {
   }
 }
 
+# Replication region for S3
+variable "replication_region" {
+  description = "AWS Region for S3 replication (if used)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.replication_region == "" || can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.replication_region))
+    error_message = "The replication region must follow the format 'xx-xxxx-x', e.g., 'eu-west-1'."
+  }
+}
+
 # Prefix for naming KMS and related resources
 # Helps organize resources with a consistent naming convention across environments.
 variable "name_prefix" {
