@@ -5,7 +5,7 @@
 # - Validates log file integrity for security
 
 # --- CloudTrail S3 Bucket Policy --- #
-# Explicitly set the S3 bucket policy required by CloudTrail
+# Defines the required S3 bucket policy for CloudTrail to store logs.
 resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
   count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
@@ -14,6 +14,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # Allow CloudTrail to check bucket ACL (required for log delivery)
       {
         Sid       = "AWSCloudTrailAclCheck"
         Effect    = "Allow"
@@ -21,6 +22,7 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
         Action    = "s3:GetBucketAcl"
         Resource  = module.s3.logging_bucket_arn
       },
+      # Allow CloudTrail to write logs to the S3 bucket
       {
         Sid       = "AWSCloudTrailWrite"
         Effect    = "Allow"
@@ -33,6 +35,15 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
           }
         }
       },
+      # Ensure that CloudTrail can list objects for validation
+      {
+        Sid       = "AWSCloudTrailList"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:ListBucket"
+        Resource  = module.s3.logging_bucket_arn
+      },
+      # Enforce HTTPS-only access for security compliance
       {
         Sid       = "AllowSSLRequestsOnly"
         Effect    = "Deny"
@@ -51,12 +62,12 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
     ]
   })
 
-  # Ignore changes to policy to avoid constant updates due to JSON formatting differences
+  # Prevent unnecessary updates due to JSON formatting differences
   lifecycle {
     ignore_changes = [policy]
   }
 
-  # Explicitly depend on the S3 module
+  # Ensure the policy is applied only after the S3 module is created
   depends_on = [module.s3]
 }
 

@@ -161,8 +161,8 @@ resource "aws_kms_grant" "s3_replication_grant" {
     "ReEncryptTo",
     "GenerateDataKey",
     "GenerateDataKeyWithoutPlaintext",
-    "DescribeKey"
-    # Optionally: "CreateGrant", "RetireGrant"
+    "DescribeKey",
+    "CreateGrant"
   ]
 
   name = "S3ReplicationGrant"

@@ -54,39 +54,8 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on buckets
 }
 
-# --- Enforce HTTPS Policy for Replication Region Buckets --- #
-resource "aws_s3_bucket_policy" "replication_region_enforce_https_policy" {
-  # HTTPS policy for replication region buckets
-  for_each = tomap({
-    for key, value in var.replication_region_buckets : key => value if value.enabled
-  })
-
-  provider = aws.replication
-  bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "DenyInsecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource  = "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*"
-        Condition = {
-          Bool = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      }
-    ]
-  })
-
-  depends_on = [aws_s3_bucket.s3_replication_bucket] # Depends on buckets
-}
-
-# --- Replication Destination Bucket Policy --- #
-# Allows replication role to write to destination bucket.
+# --- Unified Replication Destination Bucket Policy --- #
+# Combines HTTPS enforcement and replication permissions in one policy.
 resource "aws_s3_bucket_policy" "replication_destination_policy" {
   for_each = length([
     for value in var.default_region_buckets : value
@@ -103,6 +72,20 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # Enforce HTTPS Only
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*"
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+      # Allow replication role to write objects to the destination bucket
       {
         Sid    = "AllowReplicationWrite"
         Effect = "Allow"
@@ -113,13 +96,18 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
           "s3:ReplicateTags",
+          "s3:PutObject",   # Allow writing objects
+          "s3:PutObjectAcl" # Allow setting ACLs for replicated objects
         ]
-        Resource = "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*"
+        Resource = [
+          "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*",
+          aws_s3_bucket.s3_replication_bucket[each.key].arn
+        ]
       }
     ]
   })
 
-  depends_on = [aws_s3_bucket.s3_replication_bucket, aws_iam_role.replication_role] # Depends on replication resources
+  depends_on = [aws_s3_bucket.s3_replication_bucket, aws_iam_role.replication_role] # Ensure dependencies exist before applying
 }
 
 # --- Logging Bucket Policy Document --- #

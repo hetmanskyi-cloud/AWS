@@ -65,7 +65,8 @@ resource "aws_iam_policy" "replication_policy" {
         Action = [
           "s3:GetObjectVersion",
           "s3:GetObjectVersionAcl",
-          "s3:GetObjectVersionTagging"
+          "s3:GetObjectVersionTagging",
+          "s3:GetObjectVersionForReplication"
         ]
         Resource = [
           "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
@@ -90,7 +91,8 @@ resource "aws_iam_policy" "replication_policy" {
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
           "s3:ReplicateTags",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:PutObjectAcl"
         ]
         Resource = [
           "${aws_s3_bucket.s3_replication_bucket[each.key].arn}/*",

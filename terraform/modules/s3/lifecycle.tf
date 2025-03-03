@@ -46,6 +46,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
   provider = aws.replication                                  # Use replication provider for replication buckets
   bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
 
+  # Rule: Delete objects after 1 day (TEST ENV ONLY!)
+  rule {
+    id     = "replication-delete-objects"
+    status = "Enabled"
+
+    expiration {
+      days = 1 # Expiration: 1 day (TEST ENV!)
+    }
+  }
+
   # Rule: Retain noncurrent versions (replication)
   rule {
     id     = "replication-retain-versions" # Rule ID: replication-retain-versions
