@@ -504,27 +504,6 @@ variable "performance_insights_enabled" {
   type        = bool
 }
 
-# --- Endpoints Variables --- #
-
-variable "enable_cloudwatch_logs_for_endpoints" {
-  description = "Enable CloudWatch Logs for VPC Endpoints in stage and prod environments"
-  type        = bool
-  default     = false
-}
-
-# --- Log Retention Period --- #
-# Defines the retention period for CloudWatch Logs.
-variable "endpoints_log_retention_in_days" {
-  description = "Retention period for CloudWatch Logs in days"
-  type        = number
-  default     = 7
-
-  validation {
-    condition     = var.endpoints_log_retention_in_days > 0
-    error_message = "Log retention period must be a positive integer."
-  }
-}
-
 # --- SNS Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
