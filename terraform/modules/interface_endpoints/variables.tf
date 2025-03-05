@@ -103,51 +103,6 @@ variable "public_subnet_cidr_blocks" {
   }
 }
 
-# --- Encryption Configuration --- #
-# ARN of the KMS key used for encrypting data.
-variable "kms_key_arn" {
-  description = <<EOT
-  ARN of the KMS key used for encrypting CloudWatch Logs data.
-  Ensure the KMS key has permissions for CloudWatch Logs actions, such as:
-  - kms:Encrypt
-  - kms:Decrypt
-  - kms:GenerateDataKey
-  EOT
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = !(var.enable_cloudwatch_logs_for_endpoints && var.kms_key_arn == "")
-    error_message = "When enable_cloudwatch_logs_for_endpoints is true, kms_key_arn must be provided."
-  }
-}
-
-# --- Enable CloudWatch Logs for Endpoints --- #
-# Enables CloudWatch Logs for monitoring VPC Endpoints.
-variable "enable_cloudwatch_logs_for_endpoints" {
-  description = "Enable CloudWatch Logs for VPC Endpoints"
-  type        = bool
-  default     = false
-
-  validation {
-    condition     = !(var.enable_cloudwatch_logs_for_endpoints && (var.aws_account_id == "" || var.aws_region == ""))
-    error_message = "When enable_cloudwatch_logs_for_endpoints is true, aws_account_id and aws_region must be provided."
-  }
-}
-
-# --- Log Retention Period --- #
-# Defines the retention period for CloudWatch Logs.
-variable "endpoints_log_retention_in_days" {
-  description = "Retention period for CloudWatch Logs in days"
-  type        = number
-  default     = 7
-
-  validation {
-    condition     = var.endpoints_log_retention_in_days > 0
-    error_message = "Log retention period must be a positive integer."
-  }
-}
-
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.

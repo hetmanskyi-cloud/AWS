@@ -282,8 +282,6 @@ module "rds" {
   db_name           = var.db_name
   db_port           = var.db_port
 
-  db_password_version = var.db_password_version
-
   # Network configuration for private subnets
   vpc_id                     = module.vpc.vpc_id
   vpc_cidr_block             = module.vpc.vpc_cidr_block
@@ -332,19 +330,16 @@ module "rds" {
 module "interface_endpoints" {
   source = "./modules/interface_endpoints" # Path to module Interface Endpoints
 
-  aws_region                           = var.aws_region
-  aws_account_id                       = var.aws_account_id
-  name_prefix                          = var.name_prefix
-  environment                          = var.environment
-  vpc_id                               = module.vpc.vpc_id
-  vpc_cidr_block                       = module.vpc.vpc_cidr_block
-  kms_key_arn                          = module.kms.kms_key_arn
-  private_subnet_ids                   = local.private_subnet_ids
-  private_subnet_cidr_blocks           = local.private_subnet_cidr_blocks
-  public_subnet_ids                    = local.public_subnet_ids
-  public_subnet_cidr_blocks            = local.public_subnet_cidr_blocks
-  enable_cloudwatch_logs_for_endpoints = var.enable_cloudwatch_logs_for_endpoints
-  endpoints_log_retention_in_days      = var.endpoints_log_retention_in_days
+  aws_region                 = var.aws_region
+  aws_account_id             = var.aws_account_id
+  name_prefix                = var.name_prefix
+  environment                = var.environment
+  vpc_id                     = module.vpc.vpc_id
+  vpc_cidr_block             = module.vpc.vpc_cidr_block
+  private_subnet_ids         = local.private_subnet_ids
+  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+  public_subnet_ids          = local.public_subnet_ids
+  public_subnet_cidr_blocks  = local.public_subnet_cidr_blocks
 }
 
 # --- Elasticache Module Configuration --- #

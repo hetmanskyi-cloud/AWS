@@ -17,6 +17,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
   statistic                 = "Average"
   threshold                 = var.rds_storage_threshold # Storage threshold from variables
   alarm_actions             = [var.sns_topic_arn]
+  ok_actions                = [var.sns_topic_arn]
   insufficient_data_actions = [] # For test environments
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
@@ -47,7 +48,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
   statistic                 = "Average"                  # Use average metric for alarm
   threshold                 = var.rds_cpu_threshold_high # High CPU utilization threshold from variables
   alarm_actions             = [var.sns_topic_arn]        # Notify via SNS topic
-  insufficient_data_actions = []                         # For test environments
+  ok_actions                = [var.sns_topic_arn]
+  insufficient_data_actions = [] # For test environments
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }
@@ -77,7 +79,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
   statistic                 = "Average"
   threshold                 = var.rds_connections_threshold # High connection threshold from variables
   alarm_actions             = [var.sns_topic_arn]           # Notify via SNS topic
-  insufficient_data_actions = []                            # For test environments
+  ok_actions                = [var.sns_topic_arn]
+  insufficient_data_actions = [] # For test environments
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Dimension specifies the RDS instance
   }

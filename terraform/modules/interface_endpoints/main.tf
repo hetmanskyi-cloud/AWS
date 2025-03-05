@@ -13,9 +13,6 @@ resource "aws_vpc_endpoint" "ssm" {
   security_group_ids  = [aws_security_group.endpoints_sg.id]
   private_dns_enabled = true
 
-  # Optional: Enable CloudWatch Logs for monitoring traffic
-  policy = var.enable_cloudwatch_logs_for_endpoints ? data.aws_iam_policy_document.endpoint_ssm_doc[0].json : null
-
   tags = {
     Name        = "${var.name_prefix}-ssm-endpoint"
     Environment = var.environment
@@ -110,27 +107,6 @@ resource "aws_vpc_endpoint" "kms" {
     Name        = "${var.name_prefix}-kms-endpoint"
     Environment = var.environment
   }
-}
-
-# --- IAM Policy Document for SSM Endpoint --- #
-# Defines the policy for allowing CloudWatch Logs actions if monitoring is enabled.
-data "aws_iam_policy_document" "endpoint_ssm_doc" {
-  count = var.enable_cloudwatch_logs_for_endpoints ? 1 : 0
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogStream",
-      "logs:PutLogEvents",
-      "logs:DescribeLogStreams",
-      "logs:DescribeLogGroups"
-    ]
-    resources = [
-      "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/vpc-endpoints/${var.name_prefix}-${var.environment}:*"
-    ]
-  }
-  # Note: Wide permissions are used in testing environments for simplicity.
-  # In production, replace this policy with more granular permissions targeting specific log streams.
 }
 
 # --- Notes --- #

@@ -114,7 +114,7 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
 # IAM policy for S3 logging bucket.
 data "aws_iam_policy_document" "logging_bucket_policy" {
 
-  # Statement: Allow AWS Log Delivery write access
+  # Statement: Allow AWS Log Delivery write access (S3 Access Logging)
   statement {
     sid    = "AWSLogDeliveryWrite"
     effect = "Allow"
@@ -125,10 +125,21 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     actions = [
-      "s3:PutObject",
-      "s3:GetBucketAcl",
+      "s3:PutObject"
     ]
 
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.default_region_buckets["logging"].id}/*"
+    ]
+
+    # Ensure that the uploaded files belong to the bucket owner
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+
+    # Restrict log writing to the current AWS account only
     condition {
       test     = "StringEquals"
       variable = "aws:SourceAccount"
@@ -138,7 +149,7 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
   }
 
-  # Statement: Allow AWS Log Delivery ACL check
+  # Statement: Allow AWS Log Delivery ACL check before writing logs
   statement {
     sid    = "AWSLogDeliveryCheckGrant"
     effect = "Allow"
@@ -149,9 +160,15 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     actions = [
-      "s3:ListBucket",
+      "s3:GetBucketAcl",
+      "s3:ListBucket"
     ]
 
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.default_region_buckets["logging"].id}"
+    ]
+
+    # Restrict access to the current AWS account only
     condition {
       test     = "StringEquals"
       variable = "aws:SourceAccount"

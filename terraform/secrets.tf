@@ -89,7 +89,7 @@ resource "aws_iam_role_policy" "secrets_access" {
   policy = data.aws_iam_policy_document.secrets_access.json
 }
 
-# Notes:
+# --- Notes --- #
 
 # 1. The secret name is constructed dynamically, but you can adjust naming
 #    conventions as needed.

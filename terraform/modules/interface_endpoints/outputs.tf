@@ -61,24 +61,6 @@ output "ssm_endpoint_dns_names" {
   value       = [for entry in aws_vpc_endpoint.ssm.dns_entry : entry.dns_name]
 }
 
-# Output ARN of the CloudWatch Log Group for VPC Endpoints
-output "endpoints_log_group_arn" {
-  description = <<-EOT
-    ARN of the CloudWatch Log Group for VPC Endpoints.
-    Returns null if CloudWatch logging is not enabled.
-  EOT
-  value       = try(aws_cloudwatch_log_group.endpoint_logs[0].arn, null)
-}
-
-# Output name of the CloudWatch Log Group for VPC Endpoints
-output "endpoints_log_group_name" {
-  description = <<-EOT
-    Name of the CloudWatch Log Group for VPC Endpoints.
-    Returns null if CloudWatch logging is not enabled.
-  EOT
-  value       = try(aws_cloudwatch_log_group.endpoint_logs[0].name, null)
-}
-
 # --- Lambda Endpoint --- #
 output "lambda_endpoint_id" {
   description = "The ID of the Lambda Interface Endpoint"
