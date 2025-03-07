@@ -11,6 +11,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     id     = "${each.key}-delete-objects" # Rule ID: delete-objects
     status = "Enabled"                    # Rule status: Enabled
 
+    filter {
+      prefix = "" # Empty prefix matches all objects
+    }
+
     expiration {
       days = 1 # Expiration: 1 day (TEST ENV!)
     }
@@ -21,6 +25,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     id     = "${each.key}-retain-versions" # Rule ID: retain-versions
     status = "Enabled"                     # Rule status: Enabled
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = var.noncurrent_version_retention_days # Noncurrent days (var)
     }
@@ -30,6 +38,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   rule {
     id     = "${each.key}-abort-incomplete-uploads" # Rule ID: abort-incomplete-uploads
     status = "Enabled"                              # Rule status: Enabled
+
+    filter {
+      prefix = ""
+    }
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7 # Abort after 7 days
@@ -51,6 +63,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     id     = "replication-delete-objects"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     expiration {
       days = 1 # Expiration: 1 day (TEST ENV!)
     }
@@ -61,6 +77,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     id     = "replication-retain-versions" # Rule ID: replication-retain-versions
     status = "Enabled"                     # Rule status: Enabled
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = var.noncurrent_version_retention_days # Noncurrent days (var)
     }
@@ -70,6 +90,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
   rule {
     id     = "replication-abort-incomplete-uploads" # Rule ID: replication-abort-incomplete-uploads
     status = "Enabled"                              # Rule status: Enabled
+
+    filter {
+      prefix = ""
+    }
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7 # Abort after 7 days
