@@ -14,32 +14,6 @@ output "ssm_messages_endpoint_id" {
   value       = try(aws_vpc_endpoint.ssm_messages.id, null)
 }
 
-# --- SSM Messages Interface Endpoint DNS Names --- #
-output "ssm_messages_endpoint_dns_names" {
-  description = "DNS names for the SSM Messages Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.ssm_messages.dns_entry : entry.dns_name]
-}
-
-# --- ASG Messages Interface Endpoint DNS Names --- #
-output "asg_messages_endpoint_dns_names" {
-  description = "DNS names for the ASG Messages Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.asg_messages.dns_entry : entry.dns_name]
-}
-
-# --- Endpoint States --- #
-output "endpoints_state" {
-  description = "State of all VPC endpoints"
-  value = {
-    ssm             = aws_vpc_endpoint.ssm.state
-    ssm_messages    = aws_vpc_endpoint.ssm_messages.state
-    asg_messages    = aws_vpc_endpoint.asg_messages.state
-    lambda          = aws_vpc_endpoint.lambda.state
-    cloudwatch_logs = aws_vpc_endpoint.cloudwatch_logs.state
-    sqs             = aws_vpc_endpoint.sqs.state
-    kms             = aws_vpc_endpoint.kms.state
-  }
-}
-
 # --- ASG Messages Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for ASG Messages, used for Systems Manager communications.
 output "asg_messages_endpoint_id" {
@@ -54,22 +28,10 @@ output "endpoint_security_group_id" {
   value       = aws_security_group.endpoints_sg.id
 }
 
-# --- SSM Interface Endpoint DNS Names --- #
-# Outputs the DNS names for the Interface Endpoint for AWS Systems Manager (SSM).
-output "ssm_endpoint_dns_names" {
-  description = "DNS names for the SSM Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.ssm.dns_entry : entry.dns_name]
-}
-
 # --- Lambda Endpoint --- #
 output "lambda_endpoint_id" {
   description = "The ID of the Lambda Interface Endpoint"
   value       = try(aws_vpc_endpoint.lambda.id, null)
-}
-
-output "lambda_endpoint_dns_names" {
-  description = "DNS names for the Lambda Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.lambda.dns_entry : entry.dns_name]
 }
 
 # --- CloudWatch Logs Endpoint --- #
@@ -78,31 +40,16 @@ output "cloudwatch_logs_endpoint_id" {
   value       = try(aws_vpc_endpoint.cloudwatch_logs.id, null)
 }
 
-output "cloudwatch_logs_endpoint_dns_names" {
-  description = "DNS names for the CloudWatch Logs Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.cloudwatch_logs.dns_entry : entry.dns_name]
-}
-
 # --- SQS Endpoint --- #
 output "sqs_endpoint_id" {
   description = "The ID of the SQS Interface Endpoint"
   value       = try(aws_vpc_endpoint.sqs.id, null)
 }
 
-output "sqs_endpoint_dns_names" {
-  description = "DNS names for the SQS Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.sqs.dns_entry : entry.dns_name]
-}
-
 # --- KMS Endpoint --- #
 output "kms_endpoint_id" {
   description = "The ID of the KMS Interface Endpoint"
   value       = try(aws_vpc_endpoint.kms.id, null)
-}
-
-output "kms_endpoint_dns_names" {
-  description = "DNS names for the KMS Interface Endpoint"
-  value       = [for entry in aws_vpc_endpoint.kms.dns_entry : entry.dns_name]
 }
 
 # --- Notes --- #

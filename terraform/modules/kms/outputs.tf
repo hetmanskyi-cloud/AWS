@@ -61,7 +61,7 @@ The ARN of the CloudWatch Alarm for decrypt operations.
 Returns null if `enable_key_monitoring` is false.
 Ensure dependent modules verify this output before using it.
 EOT
-  value       = var.enable_key_monitoring ? aws_cloudwatch_metric_alarm.kms_decrypt_alarm["kms_alarm"].arn : null
+  value       = var.enable_key_monitoring ? aws_cloudwatch_metric_alarm.kms_decrypt_alarm[0].arn : null
 }
 
 # --- Notes --- #

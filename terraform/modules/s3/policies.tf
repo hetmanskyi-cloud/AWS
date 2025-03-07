@@ -26,9 +26,9 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Enforce HTTPS Policy for Default Region Buckets --- #
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
-  # HTTPS policy for default region buckets
+  # HTTPS policy for default region buckets (EXCLUDING logging bucket)
   for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled
+    for key, value in var.default_region_buckets : key => value if value.enabled && key != "logging"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -110,73 +110,169 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
   depends_on = [aws_s3_bucket.s3_replication_bucket, aws_iam_role.replication_role] # Ensure dependencies exist before applying
 }
 
-# --- Logging Bucket Policy Document --- #
-# IAM policy for S3 logging bucket.
+# Retrieve AWS ELB service account ARN for the specified region
+data "aws_elb_service_account" "main" {
+  region = var.aws_region
+}
+
+# Generate IAM policy document for S3 logging bucket permissions
 data "aws_iam_policy_document" "logging_bucket_policy" {
 
-  # Statement: Allow AWS Log Delivery write access (S3 Access Logging)
+  # Allow ALB Service to check bucket ACL
   statement {
-    sid    = "AWSLogDeliveryWrite"
-    effect = "Allow"
+    sid     = "AllowELBLogDeliveryACLCheck"
+    effect  = "Allow"
+    actions = ["s3:GetBucketAcl"]
 
     principals {
       type        = "Service"
-      identifiers = ["logging.s3.amazonaws.com"]
+      identifiers = ["delivery.logs.amazonaws.com"]
     }
 
-    actions = [
-      "s3:PutObject"
+    resources = [
+      aws_s3_bucket.default_region_buckets["logging"].arn
     ]
+  }
+
+  # Allow ALB AWS Account to check bucket ACL
+  statement {
+    sid     = "AllowELBAccountGetBucketAcl"
+    effect  = "Allow"
+    actions = ["s3:GetBucketAcl"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
+    }
 
     resources = [
-      "arn:aws:s3:::${aws_s3_bucket.default_region_buckets["logging"].id}/*"
+      aws_s3_bucket.default_region_buckets["logging"].arn
+    ]
+  }
+
+  # Allow ALB service to write logs with proper ACL
+  statement {
+    sid     = "AllowELBLogDeliveryPutObject"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
     ]
 
-    # Ensure that the uploaded files belong to the bucket owner
     condition {
       test     = "StringEquals"
       variable = "s3:x-amz-acl"
       values   = ["bucket-owner-full-control"]
     }
+  }
 
-    # Restrict log writing to the current AWS account only
+  # Allow ALB AWS account to put objects (with ACL)
+  statement {
+    sid     = "AllowELBAccountPutObject"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
+    }
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
+    ]
+
     condition {
       test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values = [
-        data.aws_caller_identity.current.account_id,
-      ]
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
     }
   }
 
-  # Statement: Allow AWS Log Delivery ACL check before writing logs
+  # Allow S3 server access logging service
   statement {
-    sid    = "AWSLogDeliveryCheckGrant"
-    effect = "Allow"
+    sid     = "S3LogDeliveryWrite"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
 
     principals {
       type        = "Service"
       identifiers = ["logging.s3.amazonaws.com"]
     }
 
-    actions = [
-      "s3:GetBucketAcl",
-      "s3:ListBucket"
-    ]
-
     resources = [
-      "arn:aws:s3:::${aws_s3_bucket.default_region_buckets["logging"].id}"
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
     ]
 
-    # Restrict access to the current AWS account only
     condition {
       test     = "StringEquals"
       variable = "aws:SourceAccount"
-      values = [
-        data.aws_caller_identity.current.account_id,
-      ]
+      values   = [var.aws_account_id]
     }
   }
+
+  # Enforce HTTPS-only access
+  statement {
+    sid     = "DenyInsecureTransport"
+    effect  = "Deny"
+    actions = ["s3:*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    resources = [
+      aws_s3_bucket.default_region_buckets["logging"].arn,
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
+  # Allow ALB service account to write access logs to the designated S3 bucket path 
+  statement {
+    sid    = "AllowALBAccountPutLogs"
+    effect = "Allow"
+
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
+    }
+
+    actions = ["s3:PutObject"]
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/alb-logs/${var.environment}/AWSLogs/${var.aws_account_id}/*"
+    ]
+  }
+}
+
+# --- Apply Logging Bucket Policy --- #
+# Applies the logging bucket policy to the logging bucket
+resource "aws_s3_bucket_policy" "logging_bucket_policy" {
+  for_each = tomap({
+    for key, value in var.default_region_buckets : key => value
+    if key == "logging" && value.enabled
+  })
+
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  policy = data.aws_iam_policy_document.logging_bucket_policy.json
+
+  depends_on = [
+    aws_s3_bucket.default_region_buckets,
+    aws_s3_bucket_public_access_block.default_region_bucket_public_access_block,
+    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls
+  ]
 }
 
 # --- Module Notes --- #

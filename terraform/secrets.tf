@@ -59,10 +59,7 @@ resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   secret_id = aws_secretsmanager_secret.wp_secrets.id
 
   # Use the write-only attribute so the secret is not stored in Terraform state
-  secret_string_wo = local.wp_secrets_payload
-
-  # Use the write-only version via md5 from content
-  secret_string_wo_version = var.wp_secrets_version # Controlled manually via terraform.tfvars
+  secret_string = local.wp_secrets_payload
 }
 
 # Define an IAM policy document that grants read access to the secret.

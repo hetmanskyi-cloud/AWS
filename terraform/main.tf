@@ -125,7 +125,8 @@ module "kms" {
 module "s3" {
   source = "./modules/s3" # Path to S3 module
 
-  # S3 configuration  
+  # S3 configuration
+  aws_region                        = var.aws_region
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
   name_prefix                       = var.name_prefix
@@ -326,20 +327,17 @@ module "rds" {
   depends_on = [module.vpc]
 }
 
-# --- Endpoints Module Configuration --- #
+# --- Interface Endpoints Module Configuration --- #
 module "interface_endpoints" {
   source = "./modules/interface_endpoints" # Path to module Interface Endpoints
 
   aws_region                 = var.aws_region
-  aws_account_id             = var.aws_account_id
   name_prefix                = var.name_prefix
   environment                = var.environment
   vpc_id                     = module.vpc.vpc_id
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
-  public_subnet_ids          = local.public_subnet_ids
-  public_subnet_cidr_blocks  = local.public_subnet_cidr_blocks
 }
 
 # --- Elasticache Module Configuration --- #

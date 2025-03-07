@@ -104,6 +104,24 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
   }
 }
 
+# --- Conditional Log Group for RDS Enhanced Monitoring --- #
+resource "aws_cloudwatch_log_group" "rds_os_metrics" {
+  count = var.enable_rds_monitoring ? 1 : 0
+
+  name              = "RDSOSMetrics"
+  retention_in_days = var.rds_log_retention_days
+  kms_key_id        = var.kms_key_arn
+
+  tags = {
+    Name        = "${var.name_prefix}-rds-os-metrics-${var.environment}"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
 # --- RDS Subnet Group Configuration --- #
 
 # Define a DB subnet group for RDS to specify private subnets for deployment

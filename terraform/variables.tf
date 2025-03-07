@@ -817,21 +817,3 @@ variable "cloudtrail_logs_retention_in_days" {
   type        = number
   default     = 30
 }
-
-# --- WordPress Secrets Version --- #
-# This variable defines the version number for the WordPress secrets stored in AWS Secrets Manager.
-#
-# AWS requires a numeric version (`secret_string_wo_version`) to track secret updates.
-# Since Terraform cannot generate a hash from sensitive values, we must manually increase
-# this number whenever any secret value (e.g., admin password, database credentials) is updated.
-#
-# Example usage:
-# - Initial deployment: `wp_secrets_version = 1`
-# - After updating any secret (e.g., admin password): `wp_secrets_version = 2`
-#
-# NOTE: Terraform will only create a new version in AWS Secrets Manager when this number changes.
-variable "wp_secrets_version" {
-  type        = number
-  description = "Manually increment this number when updating WordPress secrets."
-  default     = 1 # Increase manually when changing WordPress or DB secrets
-}

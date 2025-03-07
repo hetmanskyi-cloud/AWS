@@ -7,12 +7,6 @@ variable "aws_region" {
   type        = string
 }
 
-# --- AWS Account ID --- #
-variable "aws_account_id" {
-  description = "AWS account ID for permissions and policies"
-  type        = string
-}
-
 # --- Name Prefix --- #
 # A prefix applied to all resource names for easy identification.
 variable "name_prefix" {
@@ -75,30 +69,6 @@ variable "private_subnet_cidr_blocks" {
 
   validation {
     condition     = alltrue([for cidr in var.private_subnet_cidr_blocks : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))])
-    error_message = "All CIDR blocks must be in valid format (e.g., '10.0.0.0/24')."
-  }
-}
-
-# --- Public Subnet IDs --- #
-# List of public subnet IDs for interface endpoints, if needed.
-variable "public_subnet_ids" {
-  description = "List of public subnet IDs for interface endpoints"
-  type        = list(string)
-
-  validation {
-    condition     = alltrue([for id in var.public_subnet_ids : can(regex("^subnet-[a-f0-9]{8,17}$", id))])
-    error_message = "All public subnet IDs must be valid AWS subnet IDs."
-  }
-}
-
-# --- Public Subnet CIDR Blocks --- #
-# CIDR blocks for public subnets used to define Security Group rules.
-variable "public_subnet_cidr_blocks" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-
-  validation {
-    condition     = alltrue([for cidr in var.public_subnet_cidr_blocks : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))])
     error_message = "All CIDR blocks must be in valid format (e.g., '10.0.0.0/24')."
   }
 }

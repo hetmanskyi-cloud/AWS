@@ -8,142 +8,46 @@
 # Combining WAF and Shield Standard ensures a comprehensive security strategy for ALB.
 
 # Web ACL (Access Control List) protects ALB from common web vulnerabilities.
-# Includes managed rules for blocking bad bots, preventing SQL injections, XSS, Denial-of-Service (DoS) attacks and Log4j exploits.
+# This is a simplified configuration for testing purposes.
 resource "aws_wafv2_web_acl" "alb_waf" {
   count = var.enable_waf ? 1 : 0
+
   # Name of the WAF ACL
-  name        = "${var.name_prefix}-alb-waf" # # Unique name for the WAF ACL
+  name        = "${var.name_prefix}-alb-waf" # Unique name for the WAF ACL
   scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
   description = "WAF for ALB to protect against basic attacks"
-
-  # --- Notes on Rules --- #
-  # Ensure that the WAF rules are updated to include the latest versions.
-  # Regularly review managed rules (e.g., AWSManagedRulesBotControlRuleSet, AWSManagedRulesSQLiRuleSet)
-  # to ensure they cover emerging threats.
 
   # --- Default Action --- #
   # Default action is to allow all requests if no rules match.
   # - In case no rules match, allow all incoming requests.
   # - Can be changed to `block {}` for stricter security if required.
   default_action {
-    allow {
-
-    }
+    allow {}
   }
 
-  # --- Managed Rules --- #
-  # Managed rules (e.g., SQLi, XSS, Log4j) help protect against common vulnerabilities.
-  # Prioritize rules based on application-specific risks.
-  # For production, consider enabling additional rulesets for enhanced security.
-
-  # Rule 1: Block malicious bots
+  # --- Rate Limiting Rule --- #
+  # Simple rate limiting rule to prevent abuse and brute force attacks.
+  # Limits requests from a single IP to 1000 requests per 5-minute period.
   rule {
-    name     = "BlockBadBots"
+    name     = "RateLimitRule"
     priority = 1 # Priority of the rule
+
     action {
-      block {} # Block requests matching this rule
+      block {} # Block requests exceeding the rate limit
     }
 
     statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesBotControlRuleSet"
-        vendor_name = "AWS"
+      rate_based_statement {
+        limit              = 1000 # Maximum number of requests allowed in 5 minutes
+        aggregate_key_type = "IP" # Aggregate requests by IP address
       }
     }
 
     # Visibility settings for monitoring
     visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "BlockBadBots"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  # Rule 2: Block Log4j exploit attempts
-  rule {
-    name     = "PreventLog4j"
-    priority = 2 # Priority of this rule (executed after BlockBadBots)
-
-    action {
-      block {} # Block requests matching this rule
-    }
-
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesKnownBadInputsRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-
-    # Visibility settings for monitoring
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "PreventLog4j"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  # Rule 3: Prevent SQL Injection attacks
-  rule {
-    name     = "PreventSQLInjection"
-    priority = 3 # Priority of this rule (executed after PreventLog4j)
-    action {
-      block {} # Block requests matching this rule
-    }
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesSQLiRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "PreventSQLInjection"
-      sampled_requests_enabled   = true
-    }
-
-  }
-
-  # Rule 4: Prevent Cross-Site Scripting (XSS) attacks
-  rule {
-    name     = "PreventXSS"
-    priority = 4 # Priority of this rule (executed after PreventSQLInjection)
-    action {
-      block {} # Block requests matching this rule
-    }
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesCrossSiteScriptingRuleSet"
-        vendor_name = "AWS" # AWS is the vendor for this rule group
-      }
-    }
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "PreventXSS"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  # Rule 5: Prevent Denial-of-Service (DoS) attacks
-  rule {
-    name     = "PreventDoS"
-    priority = 5 # Priority of this rule (executed after Cross-Site Scripting)
-
-    action {
-      block {} # Block requests matching this rule
-    }
-
-    statement {
-      managed_rule_group_statement {
-        name        = "AWSManagedRulesCommonRuleSet"
-        vendor_name = "AWS"
-      }
-    }
-
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "PreventDoS"
-      sampled_requests_enabled   = true
+      cloudwatch_metrics_enabled = true            # Enable CloudWatch metrics
+      metric_name                = "RateLimitRule" # Metric name for CloudWatch
+      sampled_requests_enabled   = true            # Enable request sampling for detailed analysis
     }
   }
 
@@ -159,6 +63,9 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     Name        = "${var.name_prefix}-alb-waf"
     Environment = var.environment
   }
+
+  # Ensure WAF is created after ALB to prevent dependency issues
+  depends_on = [aws_lb.application]
 }
 
 # --- WAF Association with ALB --- #
@@ -187,11 +94,23 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
 
 # --- Notes --- #
 # 1. WAF resources are controlled by `enable_waf` variable.
-# 2. Managed Rules:
-#    - "BlockBadBots": Protects from malicious bots targeting the ALB.
-#    - "PreventLog4j": Blocks Log4j exploit attempts to ensure compliance.
-#    - "PreventSQLInjection": Prevents SQL Injection attacks on the ALB.
-#    - "PreventXSS": Prevents Cross-Site Scripting attacks.
-#    - "PreventDoS": Protects from Denial-of-Service attacks.
+# 2. Current Configuration:
+#    - "RateLimitRule": Limits requests from a single IP to prevent abuse.
+#    - This is a simplified configuration for testing purposes.
 # 3. Logging:
 #    - Enabled only if `enable_waf` variable and `enable_waf_logging` variable are both set to `true`.
+# 4. Recommendations for Production:
+#    - Start with this simplified configuration and test thoroughly
+#    - Gradually add AWS Managed Rule Groups in the following order:
+#      a. AWSManagedRulesCommonRuleSet - Basic protection against common threats
+#      b. AWSManagedRulesSQLiRuleSet - Protection against SQL injection attacks
+#      c. AWSManagedRulesCrossSiteScriptingRuleSet - Protection against XSS attacks
+#      d. AWSManagedRulesKnownBadInputsRuleSet - Protection against known malicious inputs
+#      e. AWSManagedRulesBotControlRuleSet - Protection against bot traffic
+#    - Add each rule group individually and test after each addition
+#    - Monitor WAF metrics in CloudWatch to evaluate effectiveness
+#    - Consider using AWS Firewall Manager for centralized WAF management across multiple accounts
+# 5. IAM Permissions:
+#    - Ensure the Terraform execution role has the necessary WAF permissions
+#    - Required permissions include wafv2:CreateWebACL, wafv2:GetWebACL, wafv2:UpdateWebACL, etc.
+#    - For managed rule groups, additional permissions may be required

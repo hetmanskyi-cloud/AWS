@@ -37,6 +37,32 @@ resource "aws_s3_bucket" "default_region_buckets" {
   force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
 }
 
+# --- S3 Bucket Ownership Controls --- #
+# Set bucket ownership controls to ensure proper permissions for ELB logging
+resource "aws_s3_bucket_ownership_controls" "default_region_buckets" {
+  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+# --- S3 Bucket ACL for Logging Bucket --- #
+# Set ACL for the logging bucket to allow ELB to write logs
+resource "aws_s3_bucket_acl" "logging_bucket_acl" {
+  for_each = tomap({
+    for key, value in var.default_region_buckets : key => value
+    if key == "logging" && value.enabled
+  })
+
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  acl    = "log-delivery-write"
+
+  depends_on = [aws_s3_bucket_ownership_controls.default_region_buckets]
+}
+
 # --- Replication Region Buckets --- #
 # Dynamically creates S3 buckets in the replication region.
 resource "aws_s3_bucket" "s3_replication_bucket" {
@@ -148,18 +174,6 @@ resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_con
   depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency
 }
 
-# --- ACL for Logging Bucket --- #
-resource "aws_s3_bucket_acl" "logging_bucket_acl" {
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id # Target logging bucket
-  acl    = "log-delivery-write"                               # Set canned ACL to log-delivery-write
-
-  # --- Depends on --- #
-  depends_on = [
-    aws_s3_bucket.default_region_buckets,                                     # Explicit dependency on buckets
-    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls # Dependency on ownership controls
-  ]
-}
-
 # --- Logging Configuration (Default Region Buckets) --- #
 # Enables access logging for default region S3 buckets (excluding the logging bucket).
 resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
@@ -176,10 +190,13 @@ resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
   # - Consider separate logging for replication buckets if needed.
 }
 
-# --- SSE Configuration for Default Region Buckets --- #
+# --- SSE Configuration for Default Region Buckets EXCEPT Logging Bucket --- #
 resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bucket_encryption" {
   # SSE for default region buckets
-  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+  for_each = tomap({
+    for key, value in var.default_region_buckets : key => value
+    if value.enabled && key != "logging"
+  })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
@@ -193,6 +210,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bu
 
   lifecycle {
     prevent_destroy = false # Allow destroy for updates/replacements
+  }
+}
+
+# --- SSE-S3 Configuration ONLY for Logging Bucket --- #
+resource "aws_s3_bucket_server_side_encryption_configuration" "logging_bucket_encryption" {
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
+
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256" # IMPORTANT! Only SSE-S3 is supported for ALB logs.
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = false
   }
 }
 

@@ -29,9 +29,9 @@ resource "aws_lb" "application" {
     for_each = var.logging_bucket != null ? [1] : []
 
     content {
-      bucket  = var.logging_bucket             # S3 bucket for storing logs
-      prefix  = "${var.name_prefix}/alb-logs/" # Separate ALB logs with a specific prefix
-      enabled = var.enable_alb_access_logs     # Control logging via variable
+      bucket  = var.logging_bucket         # S3 bucket for storing logs
+      prefix  = ""                         # Empty so that ALB uses the standard AWS path
+      enabled = var.enable_alb_access_logs # Control logging via variable
     }
   }
 

@@ -1,7 +1,13 @@
 # --- S3 Module Variables --- #
 # Defines input variables for configuring the S3 module.
 
-# --- Replication Region --- #
+# --- Default AWS Region --- #
+variable "aws_region" {
+  description = "AWS region where resources will be created"
+  type        = string
+}
+
+# --- Replication AWS Region --- #
 variable "replication_region" {
   description = "AWS region for replication bucket." # Description: Replication region
   type        = string
