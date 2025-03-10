@@ -37,32 +37,6 @@ resource "aws_s3_bucket" "default_region_buckets" {
   force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
 }
 
-# --- S3 Bucket Ownership Controls --- #
-# Set bucket ownership controls to ensure proper permissions for ELB logging
-resource "aws_s3_bucket_ownership_controls" "default_region_buckets" {
-  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
-
-  bucket = aws_s3_bucket.default_region_buckets[each.key].id
-
-  rule {
-    object_ownership = "BucketOwnerPreferred"
-  }
-}
-
-# --- S3 Bucket ACL for Logging Bucket --- #
-# Set ACL for the logging bucket to allow ELB to write logs
-resource "aws_s3_bucket_acl" "logging_bucket_acl" {
-  for_each = tomap({
-    for key, value in var.default_region_buckets : key => value
-    if key == "logging" && value.enabled
-  })
-
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
-  acl    = "log-delivery-write"
-
-  depends_on = [aws_s3_bucket_ownership_controls.default_region_buckets]
-}
-
 # --- Replication Region Buckets --- #
 # Dynamically creates S3 buckets in the replication region.
 resource "aws_s3_bucket" "s3_replication_bucket" {
@@ -159,11 +133,14 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
   }
 }
 
-# --- S3 Bucket Ownership Controls (for ACL compatibility) --- #
+# --- S3 Bucket Ownership Controls for Default Region Buckets (except ALB Logs) --- #
 resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_controls" {
-  # Configures S3 Bucket Ownership Controls for default region buckets.
-  # Required to allow ACLs to be used for S3 Access Logging and other ACL-based features.
-  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+  # Configures S3 Bucket Ownership Controls for all default region buckets,
+  # except the ALB logs bucket. This setting (BucketOwnerPreferred) enables ACLs.
+  for_each = tomap({
+    for key, value in var.default_region_buckets :
+    key => value if value.enabled && key != "alb_logs"
+  })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id
 
@@ -174,28 +151,29 @@ resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_con
   depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency
 }
 
-# --- Logging Configuration (Default Region Buckets) --- #
-# Enables access logging for default region S3 buckets (excluding the logging bucket).
-resource "aws_s3_bucket_logging" "default_region_bucket_logging" {
-  # Dynamic logging for default region buckets (excluding 'logging' bucket)
-  for_each = tomap({ for key, value in var.default_region_buckets : key => value if(value.enabled && (value.logging != null ? value.logging : false) && key != "logging" && var.default_region_buckets["logging"] != null && var.default_region_buckets["logging"].enabled) })
+# --- S3 Bucket Ownership Controls for ALB Logs Bucket --- #
+resource "aws_s3_bucket_ownership_controls" "alb_logs_bucket_ownership_controls" {
+  # Conditional creation of ownership controls for alb_logs bucket
+  for_each = tomap({
+    for key, value in var.default_region_buckets : key => value
+    if key == "alb_logs" && value.enabled
+  })
 
-  bucket        = aws_s3_bucket.default_region_buckets[each.key].id  # Source bucket for logs
-  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id # Central logging bucket
-  target_prefix = "${var.name_prefix}/${each.key}/"                  # Log prefix: <prefix>/<bucket_name>/
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
 
-  # --- Notes --- #
-  # - Centralized access logs for default region buckets in 'logging' bucket.
-  # - Configured dynamically via 'logging' flag and excludes 'logging' bucket itself.
-  # - Consider separate logging for replication buckets if needed.
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+
+  depends_on = [aws_s3_bucket.default_region_buckets]
 }
 
-# --- SSE Configuration for Default Region Buckets EXCEPT Logging Bucket --- #
+# --- SSE Configuration for Default Region Buckets EXCEPT ALB Logs Bucket --- #
 resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bucket_encryption" {
   # SSE for default region buckets
   for_each = tomap({
     for key, value in var.default_region_buckets : key => value
-    if value.enabled && key != "logging"
+    if value.enabled && key != "alb_logs"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -211,17 +189,28 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bu
   lifecycle {
     prevent_destroy = false # Allow destroy for updates/replacements
   }
+
+  # --- Notes --- #
+  # ALB Logs Bucket Encryption Exception:
+  # The 'alb_logs' bucket is intentionally excluded from this resource and
+  # configured separately in 'aws_s3_bucket_server_side_encryption_configuration.alb_logs_bucket'.
+  # This is because ALB Access Logs only support SSE-S3 (AES256) encryption or no encryption.
+  # SSE-KMS is not supported for ALB Access Logs delivery.
+  # Therefore, 'alb_logs' bucket requires a dedicated SSE-S3 configuration (sse_algorithm = "AES256").
 }
 
-# --- SSE-S3 Configuration ONLY for Logging Bucket --- #
-resource "aws_s3_bucket_server_side_encryption_configuration" "logging_bucket_encryption" {
-  count = var.default_region_buckets["logging"].enabled ? 1 : 0
+# --- SSE-S3 Configuration for ALB Logs Bucket --- #
+resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs_bucket" {
+  for_each = tomap({
+    for key, value in var.default_region_buckets :
+    key => value if value.enabled && key == "alb_logs"
+  })
 
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256" # IMPORTANT! Only SSE-S3 is supported for ALB logs.
+      sse_algorithm = "AES256" # Only SSE-S3 (AES256) is supported for ALB logs.
     }
   }
 
@@ -280,6 +269,66 @@ resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_a
   restrict_public_buckets = true
 }
 
+# --- Set ACL for Logging Bucket --- #
+# Grants S3 log delivery permissions for server access logging.
+resource "aws_s3_bucket_acl" "logging_bucket_acl" {
+  count  = var.default_region_buckets["logging"].enabled ? 1 : 0
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+
+  acl = "log-delivery-write"
+
+  depends_on = [
+    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls,
+    aws_s3_bucket.default_region_buckets,
+    aws_s3_bucket_logging.default_region_bucket_server_access_logging
+  ]
+}
+
+# --- Set ACL for ALB Logs Bucket --- #
+resource "aws_s3_bucket_acl" "alb_logs_bucket_acl" {
+  count = var.default_region_buckets["alb_logs"].enabled ? 1 : 0
+
+  bucket = aws_s3_bucket.default_region_buckets["alb_logs"].id
+  acl    = "log-delivery-write"
+
+  depends_on = [
+    aws_s3_bucket_ownership_controls.alb_logs_bucket_ownership_controls,
+    aws_s3_bucket.default_region_buckets,
+    aws_s3_bucket_logging.default_region_bucket_server_access_logging
+  ]
+}
+
+# --- Server Access Logging for Default Region Buckets --- #
+# Enables server access logging for selected S3 buckets.
+# Logs are stored in the central logging bucket if it is enabled.
+resource "aws_s3_bucket_logging" "default_region_bucket_server_access_logging" {
+  # Apply logging only to enabled buckets with server access logging
+  for_each = tomap({
+    for key, value in var.default_region_buckets :
+    key => value
+    if value.enabled && lookup(value, "server_access_logging", false) && var.default_region_buckets["logging"].enabled
+  })
+
+  bucket        = aws_s3_bucket.default_region_buckets[each.key].id    # Source bucket
+  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id   # Logging destination
+  target_prefix = "${var.name_prefix}/${each.key}-server-access-logs/" # Log path
+}
+
+# --- Server Access Logging for Replication Region Buckets --- #
+resource "aws_s3_bucket_logging" "replication_region_bucket_server_access_logging" {
+  # Dynamic Server Access Logging for replication region buckets
+  for_each = tomap({
+    for key, value in var.replication_region_buckets :
+    key => value
+    if value.enabled && lookup(value, "server_access_logging", false)
+  })
+
+  provider      = aws.replication                                          # Replication provider
+  bucket        = aws_s3_bucket.s3_replication_bucket[each.key].id         # Source bucket for access logs (replication region)
+  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id       # Central logging bucket (Default Region)
+  target_prefix = "${var.name_prefix}/${each.key}-rep-server-access-logs/" # Log prefix: <prefix>/<bucket_name>-rep-access-logs/
+}
+
 ## --- Random Suffix for Bucket Names --- ##
 # Generates random suffix for unique S3 bucket names.
 resource "random_string" "suffix" {
@@ -300,7 +349,9 @@ resource "random_string" "suffix" {
 # 1. Dynamic bucket creation from 'terraform.tfvars'.
 # 2. Manages default & replication region buckets.
 # 3. Unified config for versioning, notifications, encryption, public access block.
-# 4. Centralized logging (default region buckets only).
+# 4. Comprehensive Logging Options: Implements two types of logging:
+#     *   Centralized Bucket Logging Collection: Collects access logs from specified default region buckets into the central 'logging' bucket. Configured via the `logging` parameter in 'terraform.tfvars'.
+#     *   Server Access Logging: Enables Server Access Logging for individual buckets in both default and replication regions. Logs are also directed to the central 'logging' bucket in the default region. Configured via the `access_logging` parameter in 'terraform.tfvars'.
 # 5. Unique bucket names via random suffix.
 # 6. Pre-create KMS key (var.kms_key_arn) & SNS topic (var.sns_topic_arn).
 # 7. Bucket policies & IAM roles to be configured separately.

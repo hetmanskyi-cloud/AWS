@@ -23,15 +23,15 @@ resource "aws_lb" "application" {
   # The type of IP addresses used by ALB
   ip_address_type = "ipv4"
 
-  # --- Access logging configuration for ALB logs --- #
-  # Ensure Access Logs are enabled only if the logging bucket is specified.
+  # Access logging configuration for ALB logs
+  # Ensure Access Logs are enabled only if logging is enabled AND the logging bucket is specified.
   dynamic "access_logs" {
-    for_each = var.logging_bucket != null ? [1] : []
+    for_each = var.enable_alb_access_logs && var.alb_logs_bucket_name != null ? [1] : [] # Access logs enabled based on variable AND bucket name is not null
 
     content {
-      bucket  = var.logging_bucket         # S3 bucket for storing logs
+      bucket  = var.alb_logs_bucket_name   # S3 bucket for storing ALB logs
       prefix  = ""                         # Empty so that ALB uses the standard AWS path
-      enabled = var.enable_alb_access_logs # Control logging via variable
+      enabled = var.enable_alb_access_logs # Control logging via variable - although for_each already controls creation
     }
   }
 

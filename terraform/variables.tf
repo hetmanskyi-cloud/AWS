@@ -733,23 +733,22 @@ variable "enable_firehose" {
 
 variable "default_region_buckets" {
   type = map(object({
-    enabled     = optional(bool, true)
-    versioning  = optional(bool, false)
-    replication = optional(bool, false)
-    logging     = optional(bool, false)
-    region      = optional(string, null) # Optional region, defaults to provider region if not set
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false)
+    replication           = optional(bool, false)
+    server_access_logging = optional(bool, false)
+    region                = optional(string, null) # Optional: region (defaults to provider)    
   }))
-  description = "Configuration for S3 buckets in the default AWS region."
+  description = "Config for default AWS region buckets." # Description: Default region buckets config
   default     = {}
 }
 
 variable "replication_region_buckets" {
   type = map(object({
-    enabled     = optional(bool, true)
-    versioning  = optional(bool, true)  # Versioning MUST be enabled for replication destinations
-    replication = optional(bool, false) # Replication is not applicable for replication buckets themselves
-    logging     = optional(bool, false)
-    region      = string # AWS region for the replication bucket (REQUIRED)
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false) # Versioning MUST be enabled for replication destinations    
+    server_access_logging = optional(bool, false)
+    region                = string # AWS region for the replication bucket (REQUIRED)
   }))
   description = "Configuration for S3 buckets specifically in the replication AWS region."
   default     = {}

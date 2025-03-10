@@ -80,11 +80,11 @@ variable "replication_region_sns_topic_arn" {
 # --- Default Region Buckets Config --- #
 variable "default_region_buckets" {
   type = map(object({
-    enabled     = optional(bool, true)
-    versioning  = optional(bool, true)
-    replication = optional(bool, true)
-    logging     = optional(bool, true)
-    region      = optional(string, null) # Optional: region (defaults to provider)
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false)
+    replication           = optional(bool, false)
+    server_access_logging = optional(bool, false)
+    region                = optional(string, null) # Optional: region (defaults to provider)    
   }))
   description = "Config for default AWS region buckets." # Description: Default region buckets config
   default     = {}
@@ -93,9 +93,10 @@ variable "default_region_buckets" {
 # --- Replication Region Buckets Config --- #
 variable "replication_region_buckets" {
   type = map(object({
-    enabled    = optional(bool, true)
-    versioning = optional(bool, true) # Required: versioning for replication    
-    region     = string               # Required: AWS region for replication
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false) # Required: versioning for replication    
+    server_access_logging = optional(bool, false)
+    region                = string # Required: AWS region for replication
   }))
   description = "Config for replication region buckets." # Description: Replication region buckets config
   default     = {}

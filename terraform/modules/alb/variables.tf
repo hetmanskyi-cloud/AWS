@@ -1,4 +1,17 @@
 # --- General Variables --- #
+
+# --- Default AWS Region --- #
+variable "aws_region" {
+  description = "AWS region where resources will be created"
+  type        = string
+}
+
+# --- AWS Account ID --- #
+variable "aws_account_id" {
+  description = "AWS Account ID for bucket policies (security)." # Description: AWS Account ID
+  type        = string
+}
+
 # Prefix for naming resources, used for easy identification.
 variable "name_prefix" {
   description = "Prefix for naming resources for easier organization"
@@ -63,10 +76,10 @@ variable "alb_enable_deletion_protection" {
 }
 
 # --- Logging Configuration --- #
-# S3 bucket name for storing ALB access logs.
-variable "logging_bucket" {
-  description = "S3 bucket name for storing ALB access logs"
+
+variable "alb_logs_bucket_name" {
   type        = string
+  description = "Name of the S3 bucket for ALB access logs"
 }
 
 # --- Logging Bucket ARN --- #
@@ -125,9 +138,9 @@ variable "enable_https_listener" {
 
 # Enable or disable ALB access logs
 variable "enable_alb_access_logs" {
-  description = "Enable or disable ALB access logs"
   type        = bool
-  default     = false # Logging is unabled by default
+  description = "Enable access logs for the ALB"
+  default     = true
 }
 
 # --- Enable High Request Count Alarm --- #

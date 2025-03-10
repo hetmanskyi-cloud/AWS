@@ -26,9 +26,9 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Enforce HTTPS Policy for Default Region Buckets --- #
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
-  # HTTPS policy for default region buckets (EXCLUDING logging bucket)
+  # HTTPS policy for default region buckets (EXCLUDING Logging && ALB Logs bucket)
   for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled && key != "logging"
+    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -41,7 +41,10 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource  = "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
+        Resource = [
+          aws_s3_bucket.default_region_buckets[each.key].arn,
+          "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
+        ]
         Condition = {
           Bool = {
             "aws:SecureTransport" = "false"
@@ -52,6 +55,53 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   })
 
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on buckets
+}
+
+# --- Logging Bucket Policy (Allow Log Delivery & Enforce HTTPS) --- #
+# This policy allows AWS S3 Server Access Logs (`logging.s3.amazonaws.com`) to write logs
+# to the logging bucket (`logging`). It also enforces HTTPS by denying insecure (HTTP) connections.
+resource "aws_s3_bucket_policy" "logging_bucket_policy" {
+  count  = var.default_region_buckets["logging"].enabled ? 1 : 0
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Allow AWS S3 Server Access Logs service to write logs to this bucket
+      {
+        Sid    = "AllowS3ServerAccessLogs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logging.s3.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      # Enforce HTTPS-only access: deny any requests using insecure HTTP
+      {
+        Sid       = "EnforceHTTPSOnly"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.default_region_buckets["logging"].arn,
+          "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket.default_region_buckets]
 }
 
 # --- Unified Replication Destination Bucket Policy --- #
@@ -110,15 +160,16 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
   depends_on = [aws_s3_bucket.s3_replication_bucket, aws_iam_role.replication_role] # Ensure dependencies exist before applying
 }
 
-# Retrieve AWS ELB service account ARN for the specified region
+# Retrieve AWS ALB service account ARN for the specified region
 data "aws_elb_service_account" "main" {
   region = var.aws_region
 }
 
-# Generate IAM policy document for S3 logging bucket permissions
-data "aws_iam_policy_document" "logging_bucket_policy" {
+# --- IAM Policy Document for ALB Logs Bucket Permissions --- #
+data "aws_iam_policy_document" "alb_logs_bucket_policy" {
+  count = var.default_region_buckets["alb_logs"].enabled ? 1 : 0 # Conditional data source
 
-  # Allow ALB Service to check bucket ACL
+  # Statement 1: Allow ELB Log Delivery ACL Check
   statement {
     sid     = "AllowELBLogDeliveryACLCheck"
     effect  = "Allow"
@@ -130,11 +181,11 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     resources = [
-      aws_s3_bucket.default_region_buckets["logging"].arn
+      aws_s3_bucket.default_region_buckets["alb_logs"].arn
     ]
   }
 
-  # Allow ALB AWS Account to check bucket ACL
+  # Statement 2: Allow ELB Account Get Bucket ACL
   statement {
     sid     = "AllowELBAccountGetBucketAcl"
     effect  = "Allow"
@@ -146,11 +197,11 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     resources = [
-      aws_s3_bucket.default_region_buckets["logging"].arn
+      aws_s3_bucket.default_region_buckets["alb_logs"].arn
     ]
   }
 
-  # Allow ALB service to write logs with proper ACL
+  # Statement 3: Allow ELB Log Delivery Put Object with ACL Check
   statement {
     sid     = "AllowELBLogDeliveryPutObject"
     effect  = "Allow"
@@ -162,7 +213,7 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     resources = [
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
+      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
     ]
 
     condition {
@@ -172,7 +223,7 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
   }
 
-  # Allow ALB AWS account to put objects (with ACL)
+  # Statement 4: Allow ELB Account Put Object with ACL Check
   statement {
     sid     = "AllowELBAccountPutObject"
     effect  = "Allow"
@@ -184,7 +235,7 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     resources = [
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
+      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
     ]
 
     condition {
@@ -194,29 +245,7 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
   }
 
-  # Allow S3 server access logging service
-  statement {
-    sid     = "S3LogDeliveryWrite"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["logging.s3.amazonaws.com"]
-    }
-
-    resources = [
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-    ]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [var.aws_account_id]
-    }
-  }
-
-  # Enforce HTTPS-only access
+  # Statement 5: Deny Insecure Transport (HTTPS Enforcement)
   statement {
     sid     = "DenyInsecureTransport"
     effect  = "Deny"
@@ -228,8 +257,8 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
     }
 
     resources = [
-      aws_s3_bucket.default_region_buckets["logging"].arn,
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+      aws_s3_bucket.default_region_buckets["alb_logs"].arn,
+      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/*"
     ]
 
     condition {
@@ -238,67 +267,53 @@ data "aws_iam_policy_document" "logging_bucket_policy" {
       values   = ["false"]
     }
   }
-
-  # Allow ALB service account to write access logs to the designated S3 bucket path 
-  statement {
-    sid    = "AllowALBAccountPutLogs"
-    effect = "Allow"
-
-    principals {
-      type        = "AWS"
-      identifiers = [data.aws_elb_service_account.main.arn]
-    }
-
-    actions = ["s3:PutObject"]
-
-    resources = [
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/alb-logs/${var.environment}/AWSLogs/${var.aws_account_id}/*"
-    ]
-  }
 }
 
-# --- Apply Logging Bucket Policy --- #
-# Applies the logging bucket policy to the logging bucket
-resource "aws_s3_bucket_policy" "logging_bucket_policy" {
-  for_each = tomap({
-    for key, value in var.default_region_buckets : key => value
-    if key == "logging" && value.enabled
-  })
+# --- Apply ALB Logs Bucket Policy --- #
+resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
+  count = var.default_region_buckets["alb_logs"].enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
-  policy = data.aws_iam_policy_document.logging_bucket_policy.json
+  bucket = aws_s3_bucket.default_region_buckets["alb_logs"].id
+  policy = data.aws_iam_policy_document.alb_logs_bucket_policy[0].json
 
   depends_on = [
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket_public_access_block.default_region_bucket_public_access_block,
-    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls
+    aws_s3_bucket_ownership_controls.alb_logs_bucket_ownership_controls,
+    data.aws_iam_policy_document.alb_logs_bucket_policy
   ]
 }
 
 # --- Module Notes --- #
-# General notes for S3 bucket policies and CORS.
 #
-# 1. Security Policies:
-#   - Enforces HTTPS-only access for all buckets (`enforce_https_policy`).
-#   - `logging_bucket_policy` relies on HTTPS enforcement from `enforce_https_policy`.
-#   - SSE-KMS encryption for data at rest (configured in `s3/main.tf`).
-#   - Dynamic policy application to enabled buckets (`for_each` & `merge`).
+# 1. WordPress Media Bucket CORS Config:
+#    - Configures CORS for the 'wordpress_media' bucket.
+#    - Allows only GET method and the Content-Type header.
+#    - 'allowed_origins' must be restricted in production.
 #
-# 2. CORS Configuration:
-#   - Conditional config for `wordpress_media` bucket (`enable_cors = true`).
-#   - `allowed_origins` - configurable variable, MUST be restricted in production.
-#   - `allowed_methods` - GET only (read-only).
-#   - `allowed_headers` - Content-Type only (security).
-#   - See README/variable docs for CORS security details.
+# 2. Enforce HTTPS Policy for Default Region Buckets:
+#    - Applies an HTTPS enforcement policy to all default region buckets, including the 'logging' bucket,
+#      and excluding only the 'alb_logs' bucket.
+#    - Denies any S3 actions if aws:SecureTransport is false for both the bucket and its objects.
 #
-# 3. Logging & Compliance:
-#   - `logging_bucket_policy`: AWS logging services (`aws:SourceAccount` condition) `s3:PutObject` to `logging` bucket.
-#   - `logging_bucket_policy`: `cloudtrail.amazonaws.com` `s3:GetBucketAcl` on `logging` bucket (for CloudTrail).
-#   - Logging: ONLY for default region buckets (excluding `logging` bucket) in `aws_s3_bucket_logging`.
-#   - Replication bucket logging: intentionally omitted (consider enabling for audit).
+# 3. Unified Replication Destination Bucket Policy:
+#    - Combines HTTPS enforcement with replication permissions for replication region buckets.
+#    - Grants the replication role permissions (ReplicateObject, ReplicateDelete, ReplicateTags,
+#      PutObject, and PutObjectAcl) on the destination bucket.
 #
-# 4. Replication:
-#   - `replication_destination_policy`: ONLY if replication enabled (`var.replication_region_buckets` defined & enabled buckets).
-#   - `replication_destination_policy`: Replication IAM role write access to destination bucket.
-#   - Source replication config (IAM Role/Config) in `s3/main.tf`.
-#   - Conditional creation using `length(aws_iam_role.replication_role) > 0` (prevents errors if replication disabled).
+# 4. IAM Policy Document for ALB Logs Bucket Permissions:
+#    - Defines permissions specifically required for Application Load Balancer (ALB) to write access logs into the 'alb_logs' bucket.
+#    - Permits the service 'elasticloadbalancing.amazonaws.com' to perform s3:GetBucketAcl and s3:PutObject,
+#      conditioned on s3:x-amz-acl being "bucket-owner-full-control".
+#    - Allows the ALB service account (retrieved via data.aws_alb_service_account) to write logs.
+#    - Enforces HTTPS-only access for all principals accessing the bucket.
+#    - **Note:** Statement for S3 Log Delivery (logging.s3.amazonaws.com) has been removed as it's not relevant to the ALB logs bucket policy.
+#
+# 5. Application of Bucket Policies:
+#    - The default HTTPS enforcement policy is applied to all default region buckets except 'alb_logs'.
+#    - A separate, more detailed policy (with ELB log permissions) is applied exclusively to the 'alb_logs' bucket.
+#
+# 6. Security Best Practices:
+#    - For logging purposes, both the 'logging' and 'alb_logs' buckets use SSE-S3 (AES256) encryption.
+#    - Versioning is enabled for buckets where needed to maintain object history.
+#    - Public Access Block is configured for all buckets to prevent unauthorized public access.

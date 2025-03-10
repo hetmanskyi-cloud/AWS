@@ -1,10 +1,10 @@
 # --- Firehose Delivery Stream --- #
 # This resource creates a Firehose delivery stream to process and deliver WAF logs to an S3 bucket.
 # Controlled by the `enable_firehose` variable to enable or disable all related resources.
-resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
+resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
   count = var.enable_firehose ? 1 : 0
 
-  name        = "${var.name_prefix}-waf-logs"
+  name        = "aws-waf-logs-${var.name_prefix}-waf-logs"
   destination = "extended_s3" # Destination is an S3 bucket with extended configuration.
 
   # --- Extended S3 Configuration --- #

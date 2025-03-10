@@ -33,16 +33,11 @@ output "wordpress_tg_arn" {
 }
 
 # --- Access Logs Outputs --- #
-# S3 bucket for ALB access logs
-output "alb_access_logs_bucket" {
-  description = "S3 bucket for ALB access logs"
-  value       = var.logging_bucket
-}
 
-# Prefix for organizing ALB access logs
-output "alb_access_logs_prefix" {
-  description = "S3 prefix for ALB access logs"
-  value       = "${var.name_prefix}/alb-logs/"
+# S3 bucket for ALB access logs
+output "alb_access_logs_bucket_name" {
+  description = "Name of the S3 bucket for ALB access logs"
+  value       = var.alb_logs_bucket_name # <---- Исправлено: Используем правильную переменную var.alb_logs_bucket_name
 }
 
 # --- WAF Details --- #

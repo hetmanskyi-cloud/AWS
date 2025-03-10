@@ -33,73 +33,55 @@ resource "aws_iam_role" "asg_role" {
 
 # --- S3 Access Policy ---
 resource "aws_iam_policy" "s3_access_policy" {
-  # The policy is created only if at least one of the buckets (WordPress media or scripts) is enabled
-  count = can(var.default_region_buckets["wordpress_media"].enabled || var.default_region_buckets["scripts"].enabled) ? 1 : 0
+  count = (
+    var.default_region_buckets["wordpress_media"].enabled ||
+    var.default_region_buckets["scripts"].enabled
+  ) ? 1 : 0
 
-  name        = "${var.name_prefix}-asg-s3-access-policy"
-  description = "S3 access policy for WordPress media (read/write) and scripts (read-only)"
+  name = "${var.name_prefix}-s3-access-policy"
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = flatten([
+    Version = "2012-10-17"
+    Statement = concat(
+      # Wordpress media bucket (read/write)
+      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "" ? [{
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
+        Resource = ["${var.wordpress_media_bucket_arn}/*"]
+      }] : [],
 
-      # 1) WordPress media bucket: read+write
-      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null
-      ? [
-        {
-          Effect = "Allow"
-          Action = [
-            "s3:GetObject",
-            "s3:PutObject",
-            "s3:ListBucket",
-            "s3:GetBucket"
-          ]
-          Resource = [
-            var.wordpress_media_bucket_arn,
-            "${var.wordpress_media_bucket_arn}/*"
-          ]
-        }
-      ]
-      : [],
+      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "" ? [{
+        Effect   = "Allow",
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.wordpress_media_bucket_arn
+      }] : [],
 
-      # 2) Scripts bucket: read-only
-      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null
-      ? [
-        {
-          Effect = "Allow"
-          Action = [
-            "s3:GetObject",
-            "s3:ListBucket",
-            "s3:GetBucket"
-          ]
-          Resource = [
-            var.scripts_bucket_arn,
-            "${var.scripts_bucket_arn}/*"
-          ]
-        }
-      ]
-      : [],
-      # 3) KMS permissions for S3 uploads (required for encrypted uploads)
-      var.default_region_buckets["wordpress_media"].enabled && var.kms_key_arn != null
-      ? [
-        {
-          Effect = "Allow"
-          Action = [
-            "kms:Encrypt",
-            "kms:GenerateDataKey",
-            "kms:Decrypt"
-          ]
-          Resource = var.kms_key_arn
-        }
-      ]
-      : []
-    ])
+      # Scripts bucket (read-only)
+      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ? [{
+        Effect   = "Allow",
+        Action   = ["s3:GetObject"],
+        Resource = "${var.scripts_bucket_arn}/*"
+      }] : [],
+
+      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ? [{
+        Effect   = "Allow",
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = var.scripts_bucket_arn
+      }] : [],
+
+      # KMS key permissions for bucket encryption
+      var.default_region_buckets["wordpress_media"].enabled && var.kms_key_arn != null && var.kms_key_arn != "" ? [{
+        Effect   = "Allow",
+        Action   = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey"],
+        Resource = var.kms_key_arn
+      }] : []
+    )
   })
 }
 
 # Attach S3 access policy to the role only if policy was created
 resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
-  count = can(var.default_region_buckets["wordpress_media"].enabled || var.default_region_buckets["scripts"].enabled) ? 1 : 0
+  count = length(aws_iam_policy.s3_access_policy) > 0 ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
   policy_arn = aws_iam_policy.s3_access_policy[0].arn

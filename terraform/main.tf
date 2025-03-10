@@ -386,14 +386,18 @@ module "elasticache" {
 module "alb" {
   source = "./modules/alb"
 
-  name_prefix        = var.name_prefix
-  environment        = var.environment
-  kms_key_arn        = module.kms.kms_key_arn
-  public_subnets     = module.vpc.public_subnets
-  logging_bucket     = module.s3.logging_bucket_name
-  logging_bucket_arn = module.s3.logging_bucket_arn
-  vpc_id             = module.vpc.vpc_id
-  sns_topic_arn      = aws_sns_topic.cloudwatch_alarms.arn
+  # AWS region and account settings
+  aws_region     = var.aws_region
+  aws_account_id = var.aws_account_id
+
+  name_prefix          = var.name_prefix
+  environment          = var.environment
+  kms_key_arn          = module.kms.kms_key_arn
+  public_subnets       = module.vpc.public_subnets
+  alb_logs_bucket_name = module.s3.alb_logs_bucket_name
+  logging_bucket_arn   = module.s3.logging_bucket_arn
+  vpc_id               = module.vpc.vpc_id
+  sns_topic_arn        = aws_sns_topic.cloudwatch_alarms.arn
 
   alb_enable_deletion_protection    = var.alb_enable_deletion_protection
   enable_https_listener             = var.enable_https_listener

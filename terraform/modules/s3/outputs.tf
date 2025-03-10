@@ -30,6 +30,21 @@ output "logging_bucket_id" {
   value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].id : null
 }
 
+# --- ALB Logs Bucket --- #
+
+# --- Output: ALB Logs Bucket Name --- #
+output "alb_logs_bucket_name" {
+  description = "Name of the S3 bucket for ALB logs"
+  value = lookup(var.default_region_buckets, "alb_logs", {
+    enabled               = false
+    versioning            = false
+    replication           = false
+    logging               = false
+    server_access_logging = false
+    region                = null
+  }).enabled ? aws_s3_bucket.default_region_buckets["alb_logs"].bucket : null
+}
+
 # --- AMI Bucket --- #
 
 output "ami_bucket_arn" {

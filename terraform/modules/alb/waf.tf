@@ -88,8 +88,10 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
   # If Firehose is disabled, logging will not function even if WAF is enabled.
   # Ensure `enable_firehose = true` when enabling WAF logging.
 
-  log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs[0].arn]
+  log_destination_configs = [aws_kinesis_firehose_delivery_stream.aws_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn
+
+  depends_on = [aws_kinesis_firehose_delivery_stream.aws_waf_logs]
 }
 
 # --- Notes --- #
