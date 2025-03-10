@@ -45,16 +45,21 @@ output "alb_logs_bucket_name" {
   }).enabled ? aws_s3_bucket.default_region_buckets["alb_logs"].bucket : null
 }
 
-# --- AMI Bucket --- #
+# --- CloudTrail Bucket --- #
 
-output "ami_bucket_arn" {
-  description = "ARN of AMI bucket." # Description: ARN
-  value       = var.default_region_buckets["ami"].enabled ? aws_s3_bucket.default_region_buckets["ami"].arn : null
+output "cloudtrail_bucket_arn" {
+  description = "ARN of the CloudTrail S3 bucket"
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].arn : null
 }
 
-output "ami_bucket_name" {
-  description = "Name of AMI bucket." # Description: Name
-  value       = var.default_region_buckets["ami"].enabled ? aws_s3_bucket.default_region_buckets["ami"].bucket : null
+output "cloudtrail_bucket_id" {
+  description = "ID of the CloudTrail S3 bucket"
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].id : null
+}
+
+output "cloudtrail_bucket_name" {
+  description = "Name of the CloudTrail S3 bucket"
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].bucket : null
 }
 
 # --- Terraform State Bucket --- #

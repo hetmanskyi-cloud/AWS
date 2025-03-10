@@ -116,30 +116,10 @@ variable "flow_logs_retention_in_days" {
   type        = number
 }
 
-# --- SSH Access Configuration ---
-# Enable or disable SSH access
-variable "enable_vpc_ssh_access" {
-  description = "Enable or disable SSH access"
-  type        = bool
-}
-
 variable "ssh_allowed_cidr" {
   description = "List of allowed CIDR blocks for SSH access to ASG instances"
   type        = list(string)
   default     = ["0.0.0.0/0"] # Open for development, restrict for production
-}
-
-# Enable or disable HTTP/HTTPS rules for public NACL
-variable "enable_public_nacl_http" {
-  description = "Enable or disable HTTP rule for public NACL (port 80)"
-  type        = bool
-  default     = false
-}
-
-variable "enable_public_nacl_https" {
-  description = "Enable or disable HTTPS rule for public NACL (port 443)"
-  type        = bool
-  default     = false
 }
 
 # --- Variables for VPC Endpoints Routes --- #

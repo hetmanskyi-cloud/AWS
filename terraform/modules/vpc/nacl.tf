@@ -25,8 +25,6 @@ resource "aws_network_acl" "public_nacl" {
 # Rule for inbound HTTP traffic on port 80
 # tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_http" {
-  count = var.enable_public_nacl_http ? 1 : 0
-
   network_acl_id = aws_network_acl.public_nacl.id # NACL ID
   rule_number    = 100                            # Rule number
   egress         = false                          # false for ingress traffic
@@ -39,8 +37,6 @@ resource "aws_network_acl_rule" "public_inbound_http" {
 
 # Rule for inbound HTTPS traffic on port 443
 resource "aws_network_acl_rule" "public_inbound_https" {
-  count = var.enable_public_nacl_https ? 1 : 0
-
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 110
   egress         = false
@@ -55,8 +51,6 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 # SSH access is required for testing. In production, restrict this to a specific range.
 # tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_ssh" {
-  count = var.enable_vpc_ssh_access ? 1 : 0
-
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
   egress         = false

@@ -26,9 +26,9 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 
 # --- Enforce HTTPS Policy for Default Region Buckets --- #
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
-  # HTTPS policy for default region buckets (EXCLUDING Logging && ALB Logs bucket)
+  # HTTPS policy for default region buckets (EXCLUDING Logging, ALB Logs and CloudTrail)
   for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging"
+    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging" && key != "cloudtrail"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -169,9 +169,56 @@ data "aws_elb_service_account" "main" {
 data "aws_iam_policy_document" "alb_logs_bucket_policy" {
   count = var.default_region_buckets["alb_logs"].enabled ? 1 : 0 # Conditional data source
 
-  # Statement 1: Allow ELB Log Delivery ACL Check
+  # Statement 1: AWSLogDeliveryWrite - Service principal
+  # Grants the ALB service "delivery.logs.amazonaws.com" permission to PutObject
   statement {
-    sid     = "AllowELBLogDeliveryACLCheck"
+    sid     = "AWSLogDeliveryWrite"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+
+  # Statement 2: AWSLogDeliveryWrite - Regional ELB account
+  # Grants the regional ELB account (e.g. arn:aws:iam::156460612806:root) permission to PutObject
+  statement {
+    sid     = "AWSLogDeliveryWriteRegional"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
+    }
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+
+  # Statement 3: AWSLogDeliveryAclCheck - Service principal
+  # Allows "delivery.logs.amazonaws.com" to read the bucket ACL (validation).
+  statement {
+    sid     = "AWSLogDeliveryAclCheck"
     effect  = "Allow"
     actions = ["s3:GetBucketAcl"]
 
@@ -185,9 +232,9 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     ]
   }
 
-  # Statement 2: Allow ELB Account Get Bucket ACL
+  # Statement 4: AWSLogDeliveryAclCheck - Regional ELB account
   statement {
-    sid     = "AllowELBAccountGetBucketAcl"
+    sid     = "AWSLogDeliveryAclCheckRegional"
     effect  = "Allow"
     actions = ["s3:GetBucketAcl"]
 
@@ -201,51 +248,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     ]
   }
 
-  # Statement 3: Allow ELB Log Delivery Put Object with ACL Check
-  statement {
-    sid     = "AllowELBLogDeliveryPutObject"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
-    }
-
-    resources = [
-      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
-    ]
-
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-      values   = ["bucket-owner-full-control"]
-    }
-  }
-
-  # Statement 4: Allow ELB Account Put Object with ACL Check
-  statement {
-    sid     = "AllowELBAccountPutObject"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
-
-    principals {
-      type        = "AWS"
-      identifiers = [data.aws_elb_service_account.main.arn]
-    }
-
-    resources = [
-      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/elasticloadbalancing/${var.aws_region}/*"
-    ]
-
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-      values   = ["bucket-owner-full-control"]
-    }
-  }
-
-  # Statement 5: Deny Insecure Transport (HTTPS Enforcement)
+  # Statement 5 (Optional): DenyInsecureTransport (HTTPS Enforcement)
   statement {
     sid     = "DenyInsecureTransport"
     effect  = "Deny"
@@ -279,7 +282,7 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   depends_on = [
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket_public_access_block.default_region_bucket_public_access_block,
-    aws_s3_bucket_ownership_controls.alb_logs_bucket_ownership_controls,
+    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls,
     data.aws_iam_policy_document.alb_logs_bucket_policy
   ]
 }

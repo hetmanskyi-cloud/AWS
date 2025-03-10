@@ -133,13 +133,12 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
   }
 }
 
-# --- S3 Bucket Ownership Controls for Default Region Buckets (except ALB Logs) --- #
+# --- S3 Bucket Ownership Controls for Default Region Buckets --- #
 resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_controls" {
-  # Configures S3 Bucket Ownership Controls for all default region buckets,
-  # except the ALB logs bucket. This setting (BucketOwnerPreferred) enables ACLs.
+  # Configures S3 Bucket Ownership Controls for all default region buckets  
   for_each = tomap({
     for key, value in var.default_region_buckets :
-    key => value if value.enabled && key != "alb_logs"
+    key => value if value.enabled
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id
@@ -149,23 +148,6 @@ resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_con
   }
 
   depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency
-}
-
-# --- S3 Bucket Ownership Controls for ALB Logs Bucket --- #
-resource "aws_s3_bucket_ownership_controls" "alb_logs_bucket_ownership_controls" {
-  # Conditional creation of ownership controls for alb_logs bucket
-  for_each = tomap({
-    for key, value in var.default_region_buckets : key => value
-    if key == "alb_logs" && value.enabled
-  })
-
-  bucket = aws_s3_bucket.default_region_buckets[each.key].id
-
-  rule {
-    object_ownership = "BucketOwnerPreferred"
-  }
-
-  depends_on = [aws_s3_bucket.default_region_buckets]
 }
 
 # --- SSE Configuration for Default Region Buckets EXCEPT ALB Logs Bucket --- #
@@ -284,29 +266,20 @@ resource "aws_s3_bucket_acl" "logging_bucket_acl" {
   ]
 }
 
-# --- Set ACL for ALB Logs Bucket --- #
-resource "aws_s3_bucket_acl" "alb_logs_bucket_acl" {
-  count = var.default_region_buckets["alb_logs"].enabled ? 1 : 0
-
-  bucket = aws_s3_bucket.default_region_buckets["alb_logs"].id
-  acl    = "log-delivery-write"
-
-  depends_on = [
-    aws_s3_bucket_ownership_controls.alb_logs_bucket_ownership_controls,
-    aws_s3_bucket.default_region_buckets,
-    aws_s3_bucket_logging.default_region_bucket_server_access_logging
-  ]
-}
-
 # --- Server Access Logging for Default Region Buckets --- #
 # Enables server access logging for selected S3 buckets.
-# Logs are stored in the central logging bucket if it is enabled.
+# Logs are stored in the central 'logging' bucket if it is enabled.
 resource "aws_s3_bucket_logging" "default_region_bucket_server_access_logging" {
-  # Apply logging only to enabled buckets with server access logging
+  # Apply logging only to enabled buckets that have server_access_logging set to true,
+  # the 'logging' bucket must be enabled,
+  # AND exclude the 'logging' bucket itself (to avoid infinite recursion).
   for_each = tomap({
     for key, value in var.default_region_buckets :
     key => value
-    if value.enabled && lookup(value, "server_access_logging", false) && var.default_region_buckets["logging"].enabled
+    if value.enabled
+    && lookup(value, "server_access_logging", false)
+    && var.default_region_buckets["logging"].enabled
+    && key != "logging"
   })
 
   bucket        = aws_s3_bucket.default_region_buckets[each.key].id    # Source bucket
@@ -314,22 +287,7 @@ resource "aws_s3_bucket_logging" "default_region_bucket_server_access_logging" {
   target_prefix = "${var.name_prefix}/${each.key}-server-access-logs/" # Log path
 }
 
-# --- Server Access Logging for Replication Region Buckets --- #
-resource "aws_s3_bucket_logging" "replication_region_bucket_server_access_logging" {
-  # Dynamic Server Access Logging for replication region buckets
-  for_each = tomap({
-    for key, value in var.replication_region_buckets :
-    key => value
-    if value.enabled && lookup(value, "server_access_logging", false)
-  })
-
-  provider      = aws.replication                                          # Replication provider
-  bucket        = aws_s3_bucket.s3_replication_bucket[each.key].id         # Source bucket for access logs (replication region)
-  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id       # Central logging bucket (Default Region)
-  target_prefix = "${var.name_prefix}/${each.key}-rep-server-access-logs/" # Log prefix: <prefix>/<bucket_name>-rep-access-logs/
-}
-
-## --- Random Suffix for Bucket Names --- ##
+# --- Random Suffix for Bucket Names --- #
 # Generates random suffix for unique S3 bucket names.
 resource "random_string" "suffix" {
   length  = 5     # Suffix length: 5 chars

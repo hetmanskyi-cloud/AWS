@@ -67,13 +67,6 @@ module "vpc" {
   environment = var.environment
   name_prefix = var.name_prefix
 
-  # SSH Access configuration
-  enable_vpc_ssh_access = var.enable_vpc_ssh_access
-  ssh_allowed_cidr      = var.ssh_allowed_cidr
-
-  enable_public_nacl_http  = var.enable_public_nacl_http
-  enable_public_nacl_https = var.enable_public_nacl_https
-
   # Variables for VPC Endpoints routes
   ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
   ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id

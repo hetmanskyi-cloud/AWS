@@ -39,11 +39,6 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
-variable "enable_vpc_ssh_access" {
-  description = "Enable or disable SSH access"
-  type        = bool
-}
-
 variable "public_subnet_cidr_block_1" {
   description = "CIDR block for the first public subnet"
   type        = string
@@ -109,19 +104,6 @@ variable "availability_zone_private_3" {
 variable "flow_logs_retention_in_days" {
   description = "Retention period in days for CloudWatch logs"
   type        = number
-}
-
-# Enable or disable HTTP/HTTPS rules for public NACL
-variable "enable_public_nacl_http" {
-  description = "Enable or disable HTTP rule for public NACL (port 80)"
-  type        = bool
-  default     = false
-}
-
-variable "enable_public_nacl_https" {
-  description = "Enable or disable HTTPS rule for public NACL (port 443)"
-  type        = bool
-  default     = false
 }
 
 # --- KMS Configuration --- #
