@@ -19,12 +19,7 @@ locals {
   private_subnet_id_2 = module.vpc.private_subnet_2_id
   private_subnet_id_3 = module.vpc.private_subnet_3_id
 
-  # Lists of subnet IDs
-  public_subnet_ids = [
-    local.public_subnet_id_1,
-    local.public_subnet_id_2,
-    local.public_subnet_id_3
-  ]
+  # Lists of subnet IDs  
   private_subnet_ids = [
     local.private_subnet_id_1,
     local.private_subnet_id_2,
