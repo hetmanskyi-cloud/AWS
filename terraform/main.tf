@@ -11,10 +11,7 @@ locals {
     module.vpc.private_subnet_cidr_block_3
   ]
 
-  # Individual subnet IDs
-  public_subnet_id_1  = module.vpc.public_subnet_1_id
-  public_subnet_id_2  = module.vpc.public_subnet_2_id
-  public_subnet_id_3  = module.vpc.public_subnet_3_id
+  # Individual subnet IDs  
   private_subnet_id_1 = module.vpc.private_subnet_1_id
   private_subnet_id_2 = module.vpc.private_subnet_2_id
   private_subnet_id_3 = module.vpc.private_subnet_3_id
