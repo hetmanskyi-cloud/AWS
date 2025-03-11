@@ -71,9 +71,7 @@ module "vpc" {
   ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
   ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id
   asg_messages_endpoint_id    = module.interface_endpoints.asg_messages_endpoint_id
-  lambda_endpoint_id          = module.interface_endpoints.lambda_endpoint_id
   cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
-  sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
   kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 }
 
@@ -104,8 +102,7 @@ module "kms" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # ARN of the SNS topic to send alarm notifications
 
   # Feature-specific flags for permissions
-  enable_dynamodb    = var.enable_dynamodb    # Enable KMS permissions for DynamoDB
-  enable_lambda      = var.enable_lambda      # Enable KMS permissions for Lambda
+  enable_dynamodb    = var.enable_dynamodb    # Enable KMS permissions for DynamoDB  
   enable_firehose    = var.enable_firehose    # Enable KMS permissions for Kinesis Firehose
   enable_waf_logging = var.enable_waf_logging # Enable KMS permissions for WAF logging
 
@@ -125,8 +122,6 @@ module "s3" {
   name_prefix                       = var.name_prefix
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_dynamodb                   = var.enable_dynamodb
-  enable_lambda                     = var.enable_lambda
-  lambda_log_retention_days         = var.lambda_log_retention_days
   enable_cors                       = var.enable_cors
   allowed_origins                   = var.allowed_origins
   enable_s3_script                  = var.enable_s3_script
@@ -148,11 +143,9 @@ module "s3" {
   private_subnet_ids         = module.vpc.private_subnets
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
 
-  # VPC Endpoints
-  lambda_endpoint_id          = module.interface_endpoints.lambda_endpoint_id
+  # VPC Endpoints  
   dynamodb_endpoint_id        = module.vpc.dynamodb_endpoint_id
   cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
-  sqs_endpoint_id             = module.interface_endpoints.sqs_endpoint_id
   kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 
   replication_region = var.replication_region

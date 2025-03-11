@@ -57,6 +57,12 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "S"      # Attribute type: String (S)
   }
 
+  # --- Lifecycle Policy --- #
+  # Prevent accidental deletion of the Terraform lock table.
+  lifecycle {
+    prevent_destroy = true # Protects the table from being destroyed
+  }
+
   # --- Tags --- #
   # Add tags for resource identification and organization.
   tags = {
@@ -71,4 +77,3 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # 1. Creation Logic: DynamoDB table is created only if terraform_state bucket is enabled and enable_dynamodb = true.
 # 2. Purpose: Exclusively for Terraform state locking.
 # 3. Best Practices: Enable TTL, KMS encryption.
-# 4. Integration: Integrated with Lambda for TTL automation (`s3/lambda.tf`).

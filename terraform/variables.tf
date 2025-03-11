@@ -771,27 +771,6 @@ variable "enable_dynamodb" {
   }
 }
 
-# --- Enable Lambda for TTL Automation --- #
-# Enables Lambda for DynamoDB TTL cleanup.
-variable "enable_lambda" {
-  description = "Enable Lambda for DynamoDB TTL automation."
-  type        = bool
-  default     = false
-
-  # Ensures Lambda is enabled only if DynamoDB is active.
-  validation {
-    condition     = var.enable_lambda ? var.enable_dynamodb : true
-    error_message = "enable_lambda requires enable_dynamodb = true."
-  }
-}
-
-# Retention period (in days) for Lambda function logs in CloudWatch.
-variable "lambda_log_retention_days" {
-  description = "Number of days to retain logs for the Lambda function"
-  type        = number
-  default     = 30
-}
-
 # --- CloudTrail Logs Retention Period --- #
 variable "cloudtrail_logs_retention_in_days" {
   description = "Retention period (in days) for CloudTrail logs in CloudWatch"

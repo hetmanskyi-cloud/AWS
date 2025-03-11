@@ -76,7 +76,6 @@ locals {
     # Conditional services:
     var.default_region_buckets["logging"].enabled ? ["cloudtrail.amazonaws.com"] : [],
     var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],
-    var.enable_lambda ? ["lambda.amazonaws.com"] : [],
     var.enable_firehose ? ["firehose.amazonaws.com"] : [],
     var.enable_waf_logging ? ["waf.amazonaws.com"] : []
   ))

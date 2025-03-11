@@ -130,11 +130,6 @@ output "enable_dynamodb" {
   value       = var.enable_dynamodb
 }
 
-output "enable_lambda" {
-  description = "Lambda enabled for TTL automation." # Description: Lambda enabled
-  value       = var.enable_lambda
-}
-
 # --- Module Notes --- #
 # General notes for S3 module outputs.
 #

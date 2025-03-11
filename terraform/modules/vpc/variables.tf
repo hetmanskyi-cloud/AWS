@@ -139,18 +139,8 @@ variable "asg_messages_endpoint_id" {
   type        = string
 }
 
-variable "lambda_endpoint_id" {
-  description = "ID of the Lambda Interface VPC Endpoint (from interface_endpoints module)"
-  type        = string
-}
-
 variable "cloudwatch_logs_endpoint_id" {
   description = "ID of the CloudWatch Logs Interface VPC Endpoint (from interface_endpoints module)"
-  type        = string
-}
-
-variable "sqs_endpoint_id" {
-  description = "ID of the SQS Interface Endpoint (from interface_endpoints module)"
   type        = string
 }
 

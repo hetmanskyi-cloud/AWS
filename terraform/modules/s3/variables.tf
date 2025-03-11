@@ -142,25 +142,6 @@ variable "enable_dynamodb" {
   }
 }
 
-# --- Enable Lambda --- #
-variable "enable_lambda" {
-  description = "Enable Lambda for DynamoDB TTL automation." # Description: Enable Lambda
-  type        = bool
-  default     = false
-
-  validation {
-    condition     = var.enable_lambda ? var.enable_dynamodb : true
-    error_message = "enable_lambda requires enable_dynamodb." # Validation error message
-  }
-}
-
-# --- Lambda Log Retention Days --- #
-variable "lambda_log_retention_days" {
-  description = "Log retention days for Lambda function." # Description: Log retention days
-  type        = number
-  default     = 30
-}
-
 # --- Lambda VPC ID --- #
 variable "vpc_id" {
   description = "VPC ID for Lambda security group." # Description: VPC ID
@@ -179,12 +160,6 @@ variable "private_subnet_cidr_blocks" {
   type        = list(string)
 }
 
-# --- Lambda Endpoint ID --- #
-variable "lambda_endpoint_id" {
-  description = "ID of Lambda VPC Endpoint." # Description: Lambda Endpoint ID
-  type        = string
-}
-
 # --- DynamoDB Endpoint ID --- #
 variable "dynamodb_endpoint_id" {
   description = "ID of DynamoDB VPC Endpoint." # Description: DynamoDB Endpoint ID
@@ -194,12 +169,6 @@ variable "dynamodb_endpoint_id" {
 # --- CloudWatch Logs Endpoint ID --- #
 variable "cloudwatch_logs_endpoint_id" {
   description = "ID of CloudWatch Logs VPC Endpoint." # Description: CloudWatch Logs Endpoint ID
-  type        = string
-}
-
-# --- SQS Endpoint ID --- #
-variable "sqs_endpoint_id" {
-  description = "ID of SQS VPC Endpoint." # Description: SQS Endpoint ID
   type        = string
 }
 
@@ -219,5 +188,4 @@ variable "kms_endpoint_id" {
 # 5. Logging: Centralized logging for configured buckets.
 # 6. Lifecycle: 'noncurrent_version_retention_days' for versioning.
 # 7. Notifications: 'sns_topic_arn' for bucket notifications.
-# 8. DynamoDB/Lambda (Optional): DynamoDB state locking ('enable_dynamodb'), Lambda TTL automation ('enable_lambda').
-# 9. Lambda VPC (Optional): VPC settings for Lambda within VPC.
+# 8. DynamoDB (Optional): DynamoDB state locking ('enable_dynamodb').

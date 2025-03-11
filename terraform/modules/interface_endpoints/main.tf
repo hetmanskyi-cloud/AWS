@@ -49,21 +49,6 @@ resource "aws_vpc_endpoint" "asg_messages" {
   }
 }
 
-# --- Lambda Interface Endpoint --- #
-resource "aws_vpc_endpoint" "lambda" {
-  vpc_id              = var.vpc_id
-  service_name        = "com.amazonaws.${var.aws_region}.lambda"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
-  private_dns_enabled = true
-
-  tags = {
-    Name        = "${var.name_prefix}-lambda-endpoint"
-    Environment = var.environment
-  }
-}
-
 # --- CloudWatch Logs Interface Endpoint --- #
 resource "aws_vpc_endpoint" "cloudwatch_logs" {
   vpc_id              = var.vpc_id
@@ -75,21 +60,6 @@ resource "aws_vpc_endpoint" "cloudwatch_logs" {
 
   tags = {
     Name        = "${var.name_prefix}-cloudwatch-logs-endpoint"
-    Environment = var.environment
-  }
-}
-
-# --- SQS Interface Endpoint --- #
-resource "aws_vpc_endpoint" "sqs" {
-  vpc_id              = var.vpc_id
-  service_name        = "com.amazonaws.${var.aws_region}.sqs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
-  private_dns_enabled = true
-
-  tags = {
-    Name        = "${var.name_prefix}-sqs-endpoint"
     Environment = var.environment
   }
 }

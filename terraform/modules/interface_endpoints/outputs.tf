@@ -28,22 +28,10 @@ output "endpoint_security_group_id" {
   value       = aws_security_group.endpoints_sg.id
 }
 
-# --- Lambda Endpoint --- #
-output "lambda_endpoint_id" {
-  description = "The ID of the Lambda Interface Endpoint"
-  value       = try(aws_vpc_endpoint.lambda.id, null)
-}
-
 # --- CloudWatch Logs Endpoint --- #
 output "cloudwatch_logs_endpoint_id" {
   description = "The ID of the CloudWatch Logs Interface Endpoint"
   value       = try(aws_vpc_endpoint.cloudwatch_logs.id, null)
-}
-
-# --- SQS Endpoint --- #
-output "sqs_endpoint_id" {
-  description = "The ID of the SQS Interface Endpoint"
-  value       = try(aws_vpc_endpoint.sqs.id, null)
 }
 
 # --- KMS Endpoint --- #

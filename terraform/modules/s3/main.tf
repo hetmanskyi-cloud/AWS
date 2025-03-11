@@ -23,6 +23,7 @@ provider "aws" {
 # Dynamically creates S3 buckets in the default region.
 resource "aws_s3_bucket" "default_region_buckets" {
   # Dynamic buckets in default region
+  # If the Terraform state bucket ("terraform_state") is included, additional precautions are needed.
   for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
 
   provider = aws # Default AWS provider
@@ -34,7 +35,20 @@ resource "aws_s3_bucket" "default_region_buckets" {
     Environment = var.environment                  # Environment tag
   }
 
-  force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
+  # WARNING: Enable ONLY for testing environments!
+  force_destroy = true # Allows deletion with non-empty contents.
+
+  # --- Lifecycle Configuration --- #
+  # If the Terraform state bucket ("terraform_state") is used, consider:
+  # 1. Setting prevent_destroy = true to prevent accidental deletion.
+  # 2. Setting force_destroy = false to protect non-empty buckets from deletion.
+  #
+  # Currently, force_destroy remains enabled, and prevent_destroy is NOT applied.
+  # Uncomment the block below for strict protection:
+  #
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 # --- Replication Region Buckets --- #

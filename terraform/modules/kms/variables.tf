@@ -165,14 +165,6 @@ variable "enable_dynamodb" {
   default     = false
 }
 
-# Enable Lambda
-# Indicates if permissions for Lambda should be added to the KMS key.
-variable "enable_lambda" {
-  description = "Flag to indicate if Lambda is enabled for TTL automation"
-  type        = bool
-  default     = false
-}
-
 # Enable Firehose
 # Controls whether permissions for Kinesis Firehose are added to the KMS key.
 variable "enable_firehose" {
