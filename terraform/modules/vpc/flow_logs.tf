@@ -59,7 +59,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_cloudwatch_policy" {
   }
 }
 
-# Attach custom KMS policy to IAM Role for VPC Flow Logs
+# Attach CloudWatch Logs policy to IAM Role for VPC Flow Logs
 resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   name   = "${var.name_prefix}-vpc-flow-logs-policy"
   role   = aws_iam_role.vpc_flow_logs_role.name
@@ -88,7 +88,7 @@ resource "aws_cloudwatch_log_group" "vpc_log_group" {
     Environment = var.environment
   }
 
-  depends_on = [var.kms_key_arn] # Явная зависимость от KMS ключа
+  depends_on = [var.kms_key_arn]
 
   # Lifecycle configuration to allow forced deletion
   lifecycle {

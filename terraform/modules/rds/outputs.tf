@@ -22,7 +22,7 @@ output "db_port" {
 }
 
 # --- RDS Instance Host Address --- #
-# Outputs the host address of the RDS instance to be used for database connections.
+# Outputs the host address of the RDS instance for database connections (e.g., for DB_HOST in WordPress).
 output "db_host" {
   description = "The address of the RDS instance to be used as DB_HOST in WordPress configuration."
   value       = aws_db_instance.db.address
@@ -36,53 +36,49 @@ output "db_endpoint" {
 }
 
 # --- Monitoring Role ARN --- #
-# Outputs the ARN of the IAM role used for RDS Enhanced Monitoring.
+# Outputs the ARN of the IAM role used for RDS Enhanced Monitoring (null if monitoring is disabled).
 output "rds_monitoring_role_arn" {
-  description = "The ARN of the IAM role for RDS Enhanced Monitoring"
+  description = "The ARN of the IAM role for RDS Enhanced Monitoring (null if monitoring is disabled)"
   value       = try(aws_iam_role.rds_monitoring_role[0].arn, null)
 }
 
 # --- Read Replicas Identifiers --- #
-# Outputs a list of identifiers for all RDS read replicas.
-# Note: Returns an empty list if no read replicas are configured.
+# Outputs a list of identifiers for all RDS read replicas. Returns an empty list if no read replicas are configured.
 output "rds_read_replicas_ids" {
   description = "Identifiers of the RDS read replicas"
   value       = [for replica in aws_db_instance.read_replica : replica.id]
 }
 
 # --- RDS Instance Identifier --- #
-# Outputs the unique identifier of the RDS instance.
-# Note: This is the primary and recommended output for referencing the RDS instance identifier,
-# ensuring consistency with AWS terminology and Terraform's resource naming conventions.
+# Outputs the unique identifier of the RDS instance. Recommended output for referencing the RDS instance.
 output "db_instance_identifier" {
   description = "The identifier of the RDS instance"
   value       = aws_db_instance.db.id
 }
 
 # --- Read Replicas Endpoints --- #
-# Outputs a list of endpoints for all RDS read replicas.
-# Note: Returns an empty list if no read replicas are configured.
+# Outputs a list of endpoints for all RDS read replicas. Returns an empty list if no read replicas are configured.
 output "rds_read_replicas_endpoints" {
   description = "Endpoints of the RDS read replicas"
   value       = [for replica in aws_db_instance.read_replica : replica.endpoint]
 }
 
 # --- RDS Instance ARN --- #
-# Outputs the ARN of the RDS instance.
+# Outputs the ARN (Amazon Resource Name) of the RDS instance.
 output "db_arn" {
   description = "The ARN of the RDS instance"
   value       = aws_db_instance.db.arn
 }
 
 # --- RDS Instance Status --- #
-# Outputs the current status of the RDS instance.
+# Outputs the current status of the RDS instance (e.g., "available", "creating").
 output "db_status" {
   description = "The current status of the RDS instance"
   value       = aws_db_instance.db.status
 }
 
 # --- Notes --- #
-# 1. Outputs include essential details for connecting to the RDS instance, such as host, port, and endpoint.
-# 2. The 'rds_security_group_id' can be referenced to manage access control in other modules.
-# 3. Monitoring Role ARN is provided if Enhanced Monitoring is enabled for the RDS instance.
-# 4. The list of read replicas helps in distributing read workloads for improved performance and availability.
+# 1. Outputs provide essential details for connecting to and managing the RDS instance, including connection parameters (host, port, endpoint).
+# 2. 'rds_security_group_id' output allows for referencing the RDS Security Group in other modules for access control configuration.
+# 3. 'rds_monitoring_role_arn' output provides the IAM Role ARN for Enhanced Monitoring, available when monitoring is enabled.
+# 4. Read replica outputs ('rds_read_replicas_ids', 'rds_read_replicas_endpoints') facilitate workload distribution across replicas for improved read performance and high availability.

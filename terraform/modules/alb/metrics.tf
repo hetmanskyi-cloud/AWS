@@ -68,30 +68,6 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   }
 }
 
-# --- Alarm for ALB Health Check Failed --- #
-# Explanation: Tracks the number of failed health checks for the ALB.
-# Useful for detecting issues with the load balancer itself.
-resource "aws_cloudwatch_metric_alarm" "alb_health_check_failed" {
-  count = var.enable_health_check_failed_alarm ? 1 : 0 # Controlled by the variable
-
-  alarm_name          = "${var.name_prefix}-alb-health-check-failed"
-  alarm_description   = "Monitors failed health checks which may indicate problems with target instances or application availability."
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "HealthHostCount"
-  namespace           = "AWS/ApplicationELB"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 0 # Triggered if at least one health check fails
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [var.sns_topic_arn] # Notifications are always enabled if the resource is activated
-  ok_actions          = [var.sns_topic_arn]
-  dimensions = {
-    LoadBalancer = aws_lb.application.arn_suffix
-    TargetGroup  = aws_lb_target_group.wordpress.arn_suffix
-  }
-}
-
 # --- Alarm for unhealthy targets --- #
 # This alarm triggers if at least one target in the target group becomes unhealthy.
 # It's useful for immediate action in case of application or infrastructure issues.

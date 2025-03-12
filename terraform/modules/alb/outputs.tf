@@ -37,7 +37,7 @@ output "wordpress_tg_arn" {
 # S3 bucket for ALB access logs
 output "alb_access_logs_bucket_name" {
   description = "Name of the S3 bucket for ALB access logs"
-  value       = var.alb_logs_bucket_name # <---- Исправлено: Используем правильную переменную var.alb_logs_bucket_name
+  value       = var.alb_logs_bucket_name
 }
 
 # --- WAF Details --- #
@@ -71,12 +71,6 @@ output "alb_5xx_errors_alarm_arn" {
 output "alb_target_response_time_alarm_arn" {
   description = "ARN of the CloudWatch Alarm for target response time on the ALB."
   value       = length(aws_cloudwatch_metric_alarm.alb_target_response_time) > 0 ? aws_cloudwatch_metric_alarm.alb_target_response_time[0].arn : null
-}
-
-# Health check failed alarm
-output "alb_health_check_failed_alarm_arn" {
-  description = "ARN of the CloudWatch Alarm for ALB health check failures."
-  value       = length(aws_cloudwatch_metric_alarm.alb_health_check_failed) > 0 ? aws_cloudwatch_metric_alarm.alb_health_check_failed[0].arn : null
 }
 
 # Unhealthy host count alarm

@@ -1,4 +1,4 @@
-# AWS Secrets Manager configuration for WordPress deployment
+# --- AWS Secrets Manager configuration for WordPress deployment --- #
 # Stores sensitive credentials for database and admin access
 
 locals {
@@ -30,7 +30,7 @@ locals {
   )
 }
 
-# Create AWS Secrets Manager secret
+# --- Create AWS Secrets Manager secret --- #
 # This resource represents the secret container (metadata).
 # Using default AWS managed key for simplicity in this test project.
 # In production, Customer Managed Keys (CMK) are recommended for better control and security.

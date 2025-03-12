@@ -5,6 +5,11 @@
 variable "aws_region" {
   description = "AWS region where resources will be created"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "The AWS Region must follow the format 'xx-xxxx-x', e.g., 'eu-west-1'."
+  }
 }
 
 # --- Name Prefix --- #
@@ -12,6 +17,11 @@ variable "aws_region" {
 variable "name_prefix" {
   description = "Prefix for resource names"
   type        = string
+
+  validation {
+    condition     = length(var.name_prefix) > 0
+    error_message = "The name_prefix variable cannot be empty."
+  }
 }
 
 # --- Environment Label --- #
@@ -38,9 +48,10 @@ variable "vpc_id" {
   }
 }
 
-# Outputs the CIDR block of the VPC
+# --- VPC CIDR Block --- #
+# The CIDR block of the VPC. Used to configure Security Group rules.
 variable "vpc_cidr_block" {
-  description = "CIDR block of the VPC"
+  description = "The CIDR block of the VPC. Used to configure Security Group rules."
   type        = string
 
   validation {
@@ -76,6 +87,3 @@ variable "private_subnet_cidr_blocks" {
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.
-# 3. CloudWatch Logs can be enabled for Interface Endpoints for monitoring traffic.
-# 4. KMS Key ARN is required if encryption for CloudWatch Logs is enabled.
-# 5. Log retention period is configurable to meet different compliance and operational requirements.

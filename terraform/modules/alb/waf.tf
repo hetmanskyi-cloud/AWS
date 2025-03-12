@@ -100,7 +100,8 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
 #    - "RateLimitRule": Limits requests from a single IP to prevent abuse.
 #    - This is a simplified configuration for testing purposes.
 # 3. Logging:
-#    - Enabled only if `enable_waf` variable and `enable_waf_logging` variable are both set to `true`.
+#    - Enabled only if \enable_waf_logging` variable and `enable_firehose` variable are both set to `true`.
+#    - WAF logging also requires Firehose to be enabled and configured correctly.
 # 4. Recommendations for Production:
 #    - Start with this simplified configuration and test thoroughly
 #    - Gradually add AWS Managed Rule Groups in the following order:

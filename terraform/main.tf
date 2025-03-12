@@ -383,7 +383,6 @@ module "alb" {
   enable_high_request_alarm         = var.enable_high_request_alarm
   enable_5xx_alarm                  = var.enable_5xx_alarm
   enable_target_response_time_alarm = var.enable_target_response_time_alarm
-  enable_health_check_failed_alarm  = var.enable_health_check_failed_alarm
   enable_waf                        = var.enable_waf
   enable_waf_logging                = var.enable_waf_logging
   enable_firehose                   = var.enable_firehose

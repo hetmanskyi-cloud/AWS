@@ -5,13 +5,17 @@
 variable "name_prefix" {
   description = "Prefix for resource names"
   type        = string
+  validation {
+    condition     = length(var.name_prefix) > 0
+    error_message = "The name_prefix variable cannot be empty."
+  }
 }
 
 variable "environment" {
   description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
   validation {
-    condition     = can(regex("(dev|stage|prod)", var.environment))
+    condition     = can(regex("^(dev|stage|prod)$", var.environment))
     error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
   }
 }
@@ -21,11 +25,21 @@ variable "environment" {
 variable "vpc_id" {
   description = "VPC ID"
   type        = string
+  validation {
+    condition     = can(regex("^vpc-[a-f0-9]{8,17}$", var.vpc_id))
+    error_message = "The VPC ID must be a valid AWS VPC ID."
+  }
 }
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for Redis"
   type        = list(string)
+  validation {
+    condition = alltrue([
+      for id in var.private_subnet_ids : can(regex("^subnet-[a-f0-9]{8,17}$", id))
+    ])
+    error_message = "All subnet IDs must be valid AWS subnet IDs."
+  }
 }
 
 variable "asg_security_group_id" {

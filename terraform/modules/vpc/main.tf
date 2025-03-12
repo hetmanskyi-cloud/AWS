@@ -65,9 +65,10 @@ resource "aws_subnet" "public_subnet_3" {
 
 # Private Subnet 1
 resource "aws_subnet" "private_subnet_1" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_subnet_cidr_block_1
-  availability_zone = var.availability_zone_private_1
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_subnet_cidr_block_1
+  map_public_ip_on_launch = false
+  availability_zone       = var.availability_zone_private_1
 
   tags = {
     Name        = "${var.name_prefix}-private-subnet-1"
@@ -77,9 +78,10 @@ resource "aws_subnet" "private_subnet_1" {
 
 # Private Subnet 2
 resource "aws_subnet" "private_subnet_2" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_subnet_cidr_block_2
-  availability_zone = var.availability_zone_private_2
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_subnet_cidr_block_2
+  map_public_ip_on_launch = false
+  availability_zone       = var.availability_zone_private_2
 
   tags = {
     Name        = "${var.name_prefix}-private-subnet-2"
@@ -89,9 +91,10 @@ resource "aws_subnet" "private_subnet_2" {
 
 # Private Subnet 3
 resource "aws_subnet" "private_subnet_3" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_subnet_cidr_block_3
-  availability_zone = var.availability_zone_private_3
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_subnet_cidr_block_3
+  map_public_ip_on_launch = false
+  availability_zone       = var.availability_zone_private_3
 
   tags = {
     Name        = "${var.name_prefix}-private-subnet-3"
@@ -118,7 +121,7 @@ resource "aws_default_security_group" "default" {
 # --- Notes --- #
 # 1. The VPC is configured with both public and private subnets to support various workloads.
 # 2. Public subnets allow internet access through the Internet Gateway (IGW).
-# 3. Private subnets are isolated and do not allow direct internet access, 
+# 3. Private subnets are isolated and do not have direct internet access or public IPs by default, 
 #    providing a secure environment for sensitive resources (e.g., databases).
 # 4. All subnets and resources are tagged with a consistent naming convention for easy management.
 # 5. Ensure `map_public_ip_on_launch` is enabled only for public subnets.

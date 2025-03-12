@@ -6,7 +6,7 @@ output "vpc_id" {
   value       = aws_vpc.vpc.id
 }
 
-# --- VPC CIDR Block Output ---
+# --- VPC CIDR Block Output --- #
 # Outputs the CIDR block of the VPC for use in other modules.
 output "vpc_cidr_block" {
   description = "The CIDR block of the VPC"
@@ -135,7 +135,7 @@ output "private_subnet_cidr_block_3" {
   value       = aws_subnet.private_subnet_3.cidr_block
 }
 
-# --- Private Route Table Output ---
+# --- Private Route Table Output --- #
 # Output for the private route table ID, used for routing traffic within private subnets.
 # This route table does not connect to the Internet Gateway and routes traffic only within VPC resources.
 
@@ -144,7 +144,7 @@ output "private_route_table_id" {
   value       = aws_route_table.private_route_table.id
 }
 
-# --- Public Route Table Output ---
+# --- Public Route Table Output --- #
 # Output for the public route table ID, used for routing Internet traffic in public subnets through the Internet Gateway.
 
 output "public_route_table_id" {

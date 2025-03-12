@@ -1,6 +1,6 @@
 # --- Endpoints Security Group Configuration --- #
 # This file defines the Security Group for multiple Interface VPC Endpoints 
-# (SSM, SSM Messages, ASG Messages, Lambda, CloudWatch Logs, SQS, KMS),
+# (SSM, SSM Messages, ASG Messages, CloudWatch Logs, KMS),
 # allowing controlled access within the VPC.
 
 # --- Security Group for VPC Endpoints --- #
@@ -34,8 +34,9 @@ resource "aws_security_group_rule" "https_ingress" {
 }
 
 # --- Egress Rules (Outbound Traffic) --- #
-# Allow HTTPS outbound traffic from the VPC Endpoints to all destinations.
-# Interface VPC Endpoints must allow outbound HTTPS traffic to reach AWS services and PrivateLink.
+# Allow HTTPS outbound traffic from the VPC Endpoints to all destinations (0.0.0.0/0).
+# This is *required* for Interface VPC Endpoints to communicate with AWS services
+# and PrivateLink endpoints outside of the VPC.
 # tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "https_egress" {
   security_group_id = aws_security_group.endpoints_sg.id
@@ -48,7 +49,7 @@ resource "aws_security_group_rule" "https_egress" {
 }
 
 # --- Notes --- #
-# 1. This Security Group is used exclusively for Interface VPC Endpoints (SSM, SSM Messages, ASG Messages, Lambda, CloudWatch Logs, SQS, KMS).
+# 1. This Security Group is used exclusively for Interface VPC Endpoints (SSM, SSM Messages, ASG Messages, CloudWatch Logs, KMS).
 # 2. Ingress rules allow HTTPS (port 443) traffic from entire VPC CIDR block.
 # 3. Egress rules allow HTTPS (port 443) traffic to all AWS services and PrivateLink endpoints.
 # 4. Tags are applied to ensure easy identification and management of the Security Group.

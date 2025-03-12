@@ -677,15 +677,6 @@ variable "enable_target_response_time_alarm" {
   default     = false
 }
 
-# --- Enable Health Check Failed Alarm --- #
-# Controls the creation of a CloudWatch Alarm for ALB health check failures.
-# true: The alarm is created. false: The alarm is not created.
-variable "enable_health_check_failed_alarm" {
-  description = "Enable or disable the CloudWatch alarm for ALB health check failures."
-  type        = bool
-  default     = false
-}
-
 # Toggle WAF for ALB
 variable "enable_waf" {
   description = "Enable or disable WAF for ALB" # Description of the variable

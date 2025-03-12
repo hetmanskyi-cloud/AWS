@@ -18,7 +18,8 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # --- Ingress Rule for HTTP --- #
-# HTTP is required to allow users to access the site. HTTPS is not available in this setup due to the lack of an SSL certificate.
+# HTTP is enabled to allow redirecting users from HTTP to HTTPS.
+# HTTPS is conditionally enabled based on 'enable_https_listener' variable and SSL certificate configuration.
 # tfsec:ignore:aws-ec2-no-public-ingress-sgr
 resource "aws_security_group_rule" "alb_http" {
   type              = "ingress"

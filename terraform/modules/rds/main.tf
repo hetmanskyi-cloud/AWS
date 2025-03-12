@@ -1,89 +1,70 @@
 # --- Main Configuration for RDS --- #
-# This configuration includes:
-# - Primary RDS instance with encryption and monitoring
-# - CloudWatch Log Groups for error and slowquery logs
-# - Optional read replicas for high availability
-# - Subnet group for network isolation
+# Configures a primary RDS instance with encryption and monitoring,
+# CloudWatch Log Groups for error and slowquery logs,
+# optional read replicas for high availability, and subnet group for network isolation.
 
 # --- RDS Database Instance Configuration --- #
-
-# Define the primary RDS database instance
+# Defines the primary RDS database instance resource.
 resource "aws_db_instance" "db" {
-  identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance
-  allocated_storage = var.allocated_storage                      # Storage size in GB
-  instance_class    = var.instance_class                         # RDS instance class
-  engine            = var.engine                                 # Database engine (e.g., "mysql")
-  engine_version    = var.engine_version                         # Database engine version
-  username          = var.db_username                            # Master username
-  password          = var.db_password                            # Master password  
-  db_name           = var.db_name                                # Initial database name
-  port              = var.db_port                                # Database port (e.g., 3306 for MySQL)
-  multi_az          = var.multi_az                               # Enable Multi-AZ deployment for high availability
+  identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance.
+  allocated_storage = var.allocated_storage                      # Storage size in GB.
+  instance_class    = var.instance_class                         # RDS instance class.
+  engine            = var.engine                                 # Database engine (e.g., "mysql").
+  engine_version    = var.engine_version                         # Database engine version.
+  username          = var.db_username                            # Master username.
+  password          = var.db_password                            # Master password.
+  db_name           = var.db_name                                # Initial database name.
+  port              = var.db_port                                # Database port (e.g., 3306 for MySQL).
+  multi_az          = var.multi_az                               # Enable Multi-AZ for high availability.
 
   # --- Security and Networking --- #
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]           # Security group IDs for access control
-  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name # Name of the DB subnet group for RDS
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]           # Security Group for network access control.
+  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name # DB Subnet Group for private subnet placement.
 
   # --- Storage Encryption --- #
-  storage_encrypted = true            # Enable encryption at rest
-  kms_key_id        = var.kms_key_arn # KMS key ARN for encryption (provided by KMS module)
+  storage_encrypted = true            # Enable encryption at rest.
+  kms_key_id        = var.kms_key_arn # KMS Key ARN for storage encryption (from KMS module).
 
   # --- Backup Configuration --- #
-  backup_retention_period = var.backup_retention_period # Number of days to retain backups
-  backup_window           = var.backup_window           # Preferred backup window
+  backup_retention_period = var.backup_retention_period # Backup retention period (days).
+  backup_window           = var.backup_window           # Preferred backup window.
 
-  # --- Auto Minor Version Upgrade --- #
-  auto_minor_version_upgrade = true # Enable automatic minor version upgrade
+  # --- Auto Minor Version Upgrade & Tagging --- #
+  auto_minor_version_upgrade = true # Enable automatic minor version upgrades.
+  copy_tags_to_snapshot      = true # Copy tags to DB snapshots.
 
-  # --- Copy Tags to Snapshots --- #
-  copy_tags_to_snapshot = true # Enable copying tags to snapshots
-
-  # --- Deletion Protection --- #  
-  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.     
-  deletion_protection = var.rds_deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
-
-  # --- Final Snapshot Configuration --- #
-  skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on deletion
-  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name
-  delete_automated_backups  = true                                                                                    # Delete automated backups when the instance is deleted
+  # --- Deletion & Final Snapshot Configuration --- #
+  deletion_protection       = var.rds_deletion_protection                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
+  skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on instance deletion.
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name.
+  delete_automated_backups  = true                                                                                    # Delete automated backups on instance deletion.
 
   # --- Performance Insights --- #
-  performance_insights_enabled    = var.performance_insights_enabled
-  performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null
+  performance_insights_enabled    = var.performance_insights_enabled                          # Enable Performance Insights (controlled by variable).
+  performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null # KMS key for Performance Insights encryption (if enabled).
 
-  # --- Monitoring --- #
-  # Monitoring_interval defines the monitoring interval in seconds.
-  # If monitoring is disabled, it is set to 0.
-  monitoring_interval = var.enable_rds_monitoring ? 60 : 0
-
-  # Monitoring_role_arn specifies the ARN of the IAM role used for Enhanced Monitoring.
-  # The try() function ensures that if the role is not created (count = 0),
-  # the value is safely set to null to avoid errors.
-  monitoring_role_arn = var.enable_rds_monitoring ? try(aws_iam_role.rds_monitoring_role[0].arn, null) : null
+  # --- Enhanced Monitoring --- #
+  monitoring_interval = var.enable_rds_monitoring ? 60 : 0                                                    # Enhanced Monitoring interval (seconds, 60 if enabled, 0 if disabled).
+  monitoring_role_arn = var.enable_rds_monitoring ? try(aws_iam_role.rds_monitoring_role[0].arn, null) : null # IAM Role ARN for Enhanced Monitoring (conditional, uses 'try').
 
   # --- CloudWatch Logs Configuration --- #
-  # In test environments, we export only essential logs:
-  # - error: for critical issues and crashes
-  # - slowquery: for query optimization during development
-  # For production, consider adding:
-  # - general: for connections, disconnections, and DDL operations
-  # - audit: for security and compliance tracking
-  enabled_cloudwatch_logs_exports = [
-    "error",    # Critical errors and crashes
-    "slowquery" # For query optimization during development
+  enabled_cloudwatch_logs_exports = [ # CloudWatch Logs exported (configurable).
+    "error",                          # Critical errors and crashes.
+    "slowquery"                       # For query optimization.
   ]
 
-  # Tags for resource identification
+  # --- Tags --- #
   tags = {
-    Name        = "${var.name_prefix}-db-${var.environment}" # Resource name tag
-    Environment = var.environment                            # Environment tag
+    Name        = "${var.name_prefix}-db-${var.environment}" # Resource name tag.
+    Environment = var.environment                            # Environment tag.
   }
 
-  # Ensure the security group is created first
-  depends_on = [aws_security_group.rds_sg, aws_cloudwatch_log_group.rds_log_group]
+  # --- Dependencies --- #
+  depends_on = [aws_security_group.rds_sg, aws_cloudwatch_log_group.rds_log_group] # Ensure SG and Log Groups are created first.
 }
 
 # --- CloudWatch Log Groups for RDS --- #
+# Creates CloudWatch Log Groups for RDS error and slowquery logs using 'for_each' to iterate over log types.
 resource "aws_cloudwatch_log_group" "rds_log_group" {
   for_each = toset([
     "/aws/rds/instance/${var.name_prefix}-db-${var.environment}/error",
@@ -105,9 +86,9 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
 }
 
 # --- Conditional Log Group for RDS Enhanced Monitoring --- #
+# Conditional CloudWatch Log Group for RDS OS Metrics (created only when Enhanced Monitoring is enabled).
 resource "aws_cloudwatch_log_group" "rds_os_metrics" {
-  count = var.enable_rds_monitoring ? 1 : 0
-
+  count             = var.enable_rds_monitoring ? 1 : 0
   name              = "RDSOSMetrics"
   retention_in_days = var.rds_log_retention_days
   kms_key_id        = var.kms_key_arn
@@ -123,29 +104,26 @@ resource "aws_cloudwatch_log_group" "rds_os_metrics" {
 }
 
 # --- RDS Subnet Group Configuration --- #
-
-# Define a DB subnet group for RDS to specify private subnets for deployment
+# Defines a DB subnet group for RDS to specify private subnets for deployment.
 resource "aws_db_subnet_group" "db_subnet_group" {
-  name        = "${var.name_prefix}-db-subnet-group-${var.environment}" # Unique name for the DB subnet group
-  description = "Subnet group for RDS ${var.engine} instance"           # Description for the DB subnet group
-  subnet_ids  = var.private_subnet_ids                                  # Assign RDS to private subnets
+  name        = "${var.name_prefix}-db-subnet-group-${var.environment}" # Unique name for the DB Subnet Group.
+  description = "Subnet group for RDS ${var.engine} instance."          # Description for the DB Subnet Group.
+  subnet_ids  = var.private_subnet_ids                                  # Assign RDS to private subnets.
 
   tags = {
-    Name        = "${var.name_prefix}-db-subnet-group-${var.environment}" # Tag with dynamic name
-    Environment = var.environment                                         # Environment tag
+    Name        = "${var.name_prefix}-db-subnet-group-${var.environment}" # Tag with dynamic name.
+    Environment = var.environment                                         # Environment tag.
   }
 }
 
 # --- Read Replica Configuration --- #
-
-# Define RDS read replicas
+# Defines RDS read replicas, inheriting configuration from the primary DB instance.
 resource "aws_db_instance" "read_replica" {
-  count = var.read_replicas_count
+  count = var.read_replicas_count # Creates read replicas based on 'read_replicas_count' variable.
 
   identifier = "${var.name_prefix}-replica${count.index}-${var.environment}"
 
-  # Inherit configuration from the primary DB instance  
-  # Deletion protection is disabled for testing. In production, set this to true to prevent accidental deletions.
+  # --- Inherited Configuration from Primary Instance --- #
   instance_class          = aws_db_instance.db.instance_class
   engine                  = aws_db_instance.db.engine
   engine_version          = aws_db_instance.db.engine_version
@@ -156,61 +134,49 @@ resource "aws_db_instance" "read_replica" {
   kms_key_id              = aws_db_instance.db.kms_key_id
   backup_retention_period = aws_db_instance.db.backup_retention_period
   backup_window           = aws_db_instance.db.backup_window
-  # Deletion Protection is disabled for this test project for easier cleanup.
-  deletion_protection = var.rds_deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
-  monitoring_interval = aws_db_instance.db.monitoring_interval
-  monitoring_role_arn = aws_db_instance.db.monitoring_role_arn
+  deletion_protection     = var.rds_deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
+  monitoring_interval     = aws_db_instance.db.monitoring_interval
+  monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
 
-  # --- Performance Insights for replicas --- #
+  # --- Performance Insights --- #
   performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
   performance_insights_kms_key_id = aws_db_instance.db.performance_insights_kms_key_id
 
-  # Auto Minor Version Upgrade
-  auto_minor_version_upgrade = true # Enable automatic minor version upgrade
-
-  # Copy Tags to Snapshots
-  copy_tags_to_snapshot = true # Enable copying tags to snapshots
-
-  publicly_accessible = false # Read replicas should not be publicly accessible
-
-  # Note: AWS does not create final snapshots for replicas during deletion.
-  # This parameter is included solely for code consistency.
-  skip_final_snapshot = var.skip_final_snapshot
-
+  # --- Other Configurations --- #
+  auto_minor_version_upgrade      = true                    # Enable automatic minor version upgrades.
+  copy_tags_to_snapshot           = true                    # Copy tags to DB snapshots.
+  publicly_accessible             = false                   # Replicas should not be publicly accessible.
+  skip_final_snapshot             = var.skip_final_snapshot # Skip final snapshot on deletion (for code consistency).
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
-  # Tags for read replica identification
+  # --- Tags --- #
   tags = merge(
     aws_db_instance.db.tags,
-    { Name = "${var.name_prefix}-replica-${count.index}" }
+    { Name = "${var.name_prefix}-replica-${count.index}" } # Read Replica specific Name tag.
   )
 
-  # Ensure replicas depend on the primary DB instance
-  depends_on = [aws_db_instance.db]
+  # --- Dependencies --- #
+  depends_on = [aws_db_instance.db] # Ensure replica creation after primary instance.
 }
 
 # --- Notes --- #
 # 1. Security:
-#    - Encryption at rest and in transit is enabled by default
-#    - KMS keys are used for both storage and log encryption
+#    - Encryption at rest is enabled for the RDS instance. Encryption in transit should be enforced by connecting clients using TLS/SSL.
+#    - KMS keys are used for both storage and CloudWatch logs encryption.
 #
 # 2. High Availability:
-#    - Read replicas are optional and provide load distribution
-#    - Multi-AZ deployment is configurable via var.multi_az
+#    - Optional read replicas provide read load distribution.
+#    - Multi-AZ deployment for the primary instance is configurable via 'var.multi_az'.
 #
 # 3. Backup and Protection:
-#    - Backup retention, final snapshots, and deletion protection are configurable
-#    - Enhanced Monitoring is enabled conditionally using an IAM role
+#    - Configurable backup retention, final snapshots, and deletion protection.
+#    - Enhanced Monitoring is conditionally enabled using a dedicated IAM role.
 #
 # 4. Logging Strategy:
-#    - Test Environment:
-#      * Error logs for critical issues
-#      * Slowquery logs for performance optimization
-#    - Production Recommendations:
-#      * Add general logs for comprehensive activity monitoring
-#      * Consider audit logs for compliance requirements
+#    - For Test Environments: Error and slowquery logs are exported to CloudWatch for issue diagnosis and performance tuning.
+#    - Production Recommendations: Consider adding general logs for comprehensive activity monitoring and audit logs for compliance. Monitor CloudWatch costs, as log volume can increase expenses.
 #
 # 5. Best Practices:
-#    - Review log retention periods regularly
-#    - Monitor CloudWatch costs, especially in production
-#    - Use tags consistently for resource management
+#    - Regularly review and adjust log retention periods to manage storage and costs.
+#    - Monitor CloudWatch costs associated with logging, especially in production environments.
+#    - Maintain consistent tagging across all RDS resources for effective management and cost allocation.

@@ -43,6 +43,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
 
 # --- Alarm for Redis Evictions --- #
 # Tracks memory issues in Redis by monitoring eviction events.
+# Statistic is set to "Sum" to count the total number of evictions within the period.
 resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
   count = var.enable_redis_evictions_alarm ? 1 : 0
 

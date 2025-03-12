@@ -1,14 +1,15 @@
 # --- Main Configuration for VPC Endpoints --- #
-# Create Interface Endpoints for multiple AWS services (SSM, Lambda, CloudWatch Logs, SQS, KMS, etc.)
-# Each endpoint is placed in *all* private subnets to ensure high availability,
-# so any instance in any AZ can connect to these services privately (without NAT).
+# Creates Interface VPC Endpoints for essential AWS services:
+# SSM, SSM Messages, ASG Messages (EC2 Messages), CloudWatch Logs, and KMS.
+# Each endpoint is deployed across all private subnets for high availability,
+# enabling private service access from any AZ within the VPC without NAT.
 
 resource "aws_vpc_endpoint" "ssm" {
   vpc_id            = var.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.ssm"
   vpc_endpoint_type = "Interface"
 
-  # Important: specify *all* private subnets so that each AZ has ENI
+  # Deploy endpoint ENIs across all private subnets for AZ redundancy.
   subnet_ids          = var.private_subnet_ids
   security_group_ids  = [aws_security_group.endpoints_sg.id]
   private_dns_enabled = true
@@ -34,7 +35,7 @@ resource "aws_vpc_endpoint" "ssm_messages" {
   }
 }
 
-# --- ASG Messages Interface Endpoint --- #
+# --- ASG Messages Interface Endpoint (EC2 Messages for Auto Scaling) --- #
 resource "aws_vpc_endpoint" "asg_messages" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.ec2messages"
@@ -81,7 +82,7 @@ resource "aws_vpc_endpoint" "kms" {
 
 # --- Notes --- #
 # 1. This module creates Interface Endpoints for multiple AWS services such as SSM, SSM Messages,
-#    EC2 Messages, Lambda, CloudWatch Logs, SQS, and KMS.
+#    EC2 Messages, CloudWatch Logs, and KMS.
 #    Gateway Endpoints for S3 and DynamoDB are managed separately in the VPC module.
 #
 # 2. Each Interface Endpoint is configured to use all private subnets. This ensures an ENI is created

@@ -78,7 +78,6 @@ variable "db_password" {
 variable "db_name" {
   description = "Initial database name"
   type        = string
-  sensitive   = true
 }
 
 variable "db_port" {
@@ -91,10 +90,6 @@ variable "multi_az" {
   description = "Enable Multi-AZ deployment for RDS high availability"
   type        = bool
   default     = false # Default to false for test environment
-  validation {
-    condition     = var.multi_az == true || var.multi_az == false
-    error_message = "Multi-AZ deployment must be a boolean value."
-  }
 }
 
 # --- Backup and Retention Configuration --- #
@@ -144,9 +139,9 @@ variable "vpc_id" {
 }
 
 # --- VPC CIDR Block --- #
-# CIDR block of the VPC where the RDS instance is deployed.
+# VPC CIDR block.
 variable "vpc_cidr_block" {
-  description = "The CIDR block of the VPC where RDS is deployed."
+  description = "CIDR block of the VPC where RDS is deployed."
   type        = string
 }
 
@@ -198,7 +193,7 @@ variable "rds_cpu_threshold_high" {
 }
 
 variable "rds_storage_threshold" {
-  description = "Threshold for low free storage space on RDS (in bytes)"
+  description = "Threshold for low free storage space on RDS (in bytes)" # Unit clarified as bytes
   type        = number
 }
 
