@@ -1,4 +1,4 @@
-# --- VPC Outputs ---
+# --- VPC Module Outputs --- #
 output "vpc_id" {
   description = "The ID of the VPC created in the VPC module"
   value       = module.vpc.vpc_id
@@ -45,29 +45,13 @@ output "vpc_flow_logs_role_arn" {
   value       = module.vpc.vpc_flow_logs_role_arn
 }
 
-# --- KMS Outputs --- #
+# --- KMS Module Outputs --- #
 output "kms_key_arn" {
   description = "KMS key ARN created for encrypting resources"
   value       = module.kms.kms_key_arn
 }
 
-# --- RDS Outputs --- #
-output "db_host" {
-  description = "The hostname of the RDS instance"
-  value       = module.rds.db_host
-}
-
-output "db_endpoint" {
-  description = "The endpoint of the RDS instance"
-  value       = module.rds.db_endpoint
-}
-
-output "db_port" {
-  description = "The port of the RDS instance"
-  value       = module.rds.db_port
-}
-
-# --- ASG Outputs --- #
+# --- ASG Module Outputs --- #
 output "asg_id" {
   description = "The ID of the Auto Scaling Group"
   value       = try(module.asg[0].asg_id, null)
@@ -109,7 +93,23 @@ output "rendered_user_data" {
   sensitive   = true
 }
 
-# --- S3 Outputs --- #
+# --- RDS Module Outputs --- #
+output "db_host" {
+  description = "The hostname of the RDS instance"
+  value       = module.rds.db_host
+}
+
+output "db_endpoint" {
+  description = "The endpoint of the RDS instance"
+  value       = module.rds.db_endpoint
+}
+
+output "db_port" {
+  description = "The port of the RDS instance"
+  value       = module.rds.db_port
+}
+
+# --- S3 Module Outputs --- #
 
 # Output the ARN of the WordPress media bucket
 output "wordpress_media_bucket_arn" {
@@ -123,7 +123,14 @@ output "scripts_bucket_arn" {
   value       = module.s3.scripts_bucket_arn
 }
 
-# --- Elasticache Outputs --- #
+# --- SNS Topic Outputs --- #
+
+output "sns_topic_arn" {
+  value       = aws_sns_topic.cloudwatch_alarms.arn
+  description = "ARN of the SNS topic"
+}
+
+# --- Elasticache Module Outputs --- #
 
 # Output Redis endpoint from the elasticache module
 output "redis_endpoint" {
@@ -136,7 +143,7 @@ output "redis_port" {
   value       = module.elasticache.redis_port
 }
 
-# --- ALB Outputs --- #
+# --- ALB Module Outputs --- #
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
   value       = module.alb.alb_dns_name
@@ -159,11 +166,4 @@ output "secret_arn" {
 output "secret_name" {
   description = "Name of the secret in AWS Secrets Manager"
   value       = aws_secretsmanager_secret.wp_secrets.name
-}
-
-# --- SNS Topic Outputs --- #
-
-output "sns_topic_arn" {
-  value       = aws_sns_topic.cloudwatch_alarms.arn
-  description = "ARN of the SNS topic"
 }

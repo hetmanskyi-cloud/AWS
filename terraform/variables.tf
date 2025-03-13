@@ -32,7 +32,8 @@ variable "name_prefix" {
   type        = string
 }
 
-# --- VPC Configuration --- #
+# --- VPC Module Configuration --- #
+
 # CIDR blocks for VPC and subnets
 variable "vpc_cidr_block" {
   description = "Primary CIDR block for the VPC"
@@ -70,6 +71,7 @@ variable "private_subnet_cidr_block_3" {
 }
 
 # --- Availability Zones --- #
+
 variable "availability_zone_public_1" {
   description = "Availability zone for the first public subnet"
   type        = string
@@ -100,13 +102,14 @@ variable "availability_zone_private_3" {
   type        = string
 }
 
-# --- CloudWatch Log Retention --- #
+# --- CloudWatch Flow Log Retention --- #
+
 variable "flow_logs_retention_in_days" {
   description = "Retention period in days for CloudWatch logs"
   type        = number
 }
 
-# --- KMS Configuration --- #
+# --- KMS Module Configuration --- #
 
 # List of additional AWS principals that require access to the KMS key
 # Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
@@ -147,7 +150,7 @@ variable "key_decrypt_threshold" {
   default     = 100 # Example value, adjust as needed.
 }
 
-# --- ASG Instance Configuration --- #
+# --- ASG Module Configuration --- #
 
 # Settings for instance, AMI, and key
 variable "ami_id" {
@@ -353,7 +356,7 @@ variable "wp_admin_user" {
   default     = "admin"
 }
 
-# --- RDS Configuration --- #
+# --- RDS Module Configuration --- #
 
 # Storage size in GB for the RDS instance
 variable "allocated_storage" {
@@ -435,7 +438,7 @@ variable "rds_log_retention_days" {
   default     = 30
 }
 
-# --- RDS Monitoring Variables --- #
+# --- RDS Module Variables --- #
 
 # Threshold for CPU utilization alarm
 variable "rds_cpu_threshold_high" {
@@ -486,6 +489,66 @@ variable "performance_insights_enabled" {
   type        = bool
 }
 
+# --- S3 Module Variables --- #
+
+variable "default_region_buckets" {
+  type = map(object({
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false)
+    replication           = optional(bool, false)
+    server_access_logging = optional(bool, false)
+    region                = optional(string, null) # Optional: region (defaults to provider)    
+  }))
+  description = "Config for default AWS region buckets." # Description: Default region buckets config
+  default     = {}
+}
+
+variable "replication_region_buckets" {
+  type = map(object({
+    enabled               = optional(bool, false)
+    versioning            = optional(bool, false) # Versioning MUST be enabled for replication destinations    
+    server_access_logging = optional(bool, false)
+    region                = string # AWS region for the replication bucket (REQUIRED)
+  }))
+  description = "Configuration for S3 buckets specifically in the replication AWS region."
+  default     = {}
+}
+
+# Enable CORS configuration for the WordPress media bucket
+variable "enable_cors" {
+  description = "Enable or disable CORS configuration for the WordPress media bucket."
+  type        = bool
+  default     = false # Set to true in `terraform.tfvars` to enable CORS for the WordPress media bucket
+}
+
+# Allowed origins
+variable "allowed_origins" {
+  description = "List of allowed origins for S3 bucket CORS"
+  type        = list(string)
+  default     = ["https://example.com"]
+}
+
+# Lifecycle Configuration
+# Number of days to retain noncurrent object versions
+variable "noncurrent_version_retention_days" {
+  description = "Number of days to retain noncurrent versions of objects in S3 buckets"
+  type        = number
+}
+
+# --- Enable DynamoDB for State Locking --- #
+# Controls the creation of the DynamoDB table for state locking.
+variable "enable_dynamodb" {
+  description = "Enable DynamoDB table for state locking."
+  type        = bool
+  default     = false
+
+  # Ensures DynamoDB is only enabled when S3 bucket are active.
+  validation {
+    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
+    error_message = "enable_dynamodb requires `terraform_state` bucket to be enabled."
+  }
+}
+
 # --- SNS Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
@@ -498,7 +561,7 @@ variable "sns_subscriptions" {
   default = []
 }
 
-# --- ElastiCache Configuration Variables --- #
+# --- ElastiCache Module Variables --- #
 
 variable "redis_version" {
   description = "Redis version for the ElastiCache cluster"
@@ -626,7 +689,7 @@ variable "enable_redis_low_cpu_credits_alarm" {
   default     = false # Set to true to enable the alarm
 }
 
-# --- ALB Configuration Variables --- #
+# --- ALB Module Variables --- #
 
 # --- Deletion Protection Variable for ALB --- #
 # This variable is specific to the ALB module and controls deletion protection for the ALB.
@@ -702,67 +765,7 @@ variable "enable_firehose" {
   default     = false
 }
 
-# --- S3 Bucket Configuration Variables --- #
-
-variable "default_region_buckets" {
-  type = map(object({
-    enabled               = optional(bool, false)
-    versioning            = optional(bool, false)
-    replication           = optional(bool, false)
-    server_access_logging = optional(bool, false)
-    region                = optional(string, null) # Optional: region (defaults to provider)    
-  }))
-  description = "Config for default AWS region buckets." # Description: Default region buckets config
-  default     = {}
-}
-
-variable "replication_region_buckets" {
-  type = map(object({
-    enabled               = optional(bool, false)
-    versioning            = optional(bool, false) # Versioning MUST be enabled for replication destinations    
-    server_access_logging = optional(bool, false)
-    region                = string # AWS region for the replication bucket (REQUIRED)
-  }))
-  description = "Configuration for S3 buckets specifically in the replication AWS region."
-  default     = {}
-}
-
-# Enable CORS configuration for the WordPress media bucket
-variable "enable_cors" {
-  description = "Enable or disable CORS configuration for the WordPress media bucket."
-  type        = bool
-  default     = false # Set to true in `terraform.tfvars` to enable CORS for the WordPress media bucket
-}
-
-# Allowed origins
-variable "allowed_origins" {
-  description = "List of allowed origins for S3 bucket CORS"
-  type        = list(string)
-  default     = ["https://example.com"]
-}
-
-# Lifecycle Configuration
-# Number of days to retain noncurrent object versions
-variable "noncurrent_version_retention_days" {
-  description = "Number of days to retain noncurrent versions of objects in S3 buckets"
-  type        = number
-}
-
-# --- Enable DynamoDB for State Locking --- #
-# Controls the creation of the DynamoDB table for state locking.
-variable "enable_dynamodb" {
-  description = "Enable DynamoDB table for state locking."
-  type        = bool
-  default     = false
-
-  # Ensures DynamoDB is only enabled when S3 bucket are active.
-  validation {
-    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
-    error_message = "enable_dynamodb requires `terraform_state` bucket to be enabled."
-  }
-}
-
-# --- CloudTrail Logs Retention Period --- #
+# --- CloudTrail Variables --- #
 variable "cloudtrail_logs_retention_in_days" {
   description = "Retention period (in days) for CloudTrail logs in CloudWatch"
   type        = number

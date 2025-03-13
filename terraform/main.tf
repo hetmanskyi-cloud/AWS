@@ -1,3 +1,4 @@
+# --- Locals Block --- #
 locals {
   # CIDR blocks
   public_subnet_cidr_blocks = [
@@ -25,6 +26,7 @@ locals {
 }
 
 # --- VPC Module Configuration --- #
+# Configures the Virtual Private Cloud (VPC) module to define the network infrastructure.
 module "vpc" {
   source = "./modules/vpc" # Path to module VPC
 
@@ -103,37 +105,8 @@ module "kms" {
   replication_region_buckets = var.replication_region_buckets
 }
 
-# --- S3 Module --- #
-module "s3" {
-  source = "./modules/s3" # Path to S3 module
-
-  # S3 configuration
-  aws_region                        = var.aws_region
-  aws_account_id                    = var.aws_account_id
-  environment                       = var.environment
-  name_prefix                       = var.name_prefix
-  noncurrent_version_retention_days = var.noncurrent_version_retention_days
-  enable_dynamodb                   = var.enable_dynamodb
-  enable_cors                       = var.enable_cors
-  allowed_origins                   = var.allowed_origins
-  enable_s3_script                  = var.enable_s3_script
-  s3_scripts                        = var.s3_scripts
-
-  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
-  replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
-
-  # KMS role for S3 module
-  kms_key_arn         = module.kms.kms_key_arn
-  kms_replica_key_arn = module.kms.kms_replica_key_arn
-
-  # Pass buckets list dynamically
-  default_region_buckets     = var.default_region_buckets
-  replication_region_buckets = var.replication_region_buckets
-
-  replication_region = var.replication_region
-}
-
 # --- ASG Module Configuration --- #
+# Configures the Auto Scaling Group module for managing the application instances.
 module "asg" {
   source = "./modules/asg" # Path to module ASG
 
@@ -143,10 +116,13 @@ module "asg" {
   aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
 
+  # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
 
+  # Flag to enable uploading user data script to S3
   enable_s3_script = var.enable_s3_script
 
+  # Configuration for enabling SSH access to ASG instances
   enable_asg_ssh_access = var.enable_asg_ssh_access
   ssh_key_name          = var.ssh_key_name
   ssh_allowed_cidr      = var.ssh_allowed_cidr
@@ -164,6 +140,7 @@ module "asg" {
   network_in_threshold    = var.network_in_threshold
   network_out_threshold   = var.network_out_threshold
 
+  # CloudWatch Alarms for scaling and instance status
   enable_scale_out_alarm        = var.enable_scale_out_alarm
   enable_scale_in_alarm         = var.enable_scale_in_alarm
   enable_asg_status_check_alarm = var.enable_asg_status_check_alarm
@@ -192,7 +169,7 @@ module "asg" {
   # ALB Listener configuration
   enable_https_listener = module.alb.enable_https_listener
 
-  # S3 bucket configurations
+  # S3 bucket configurations for scripts and media
   default_region_buckets      = var.default_region_buckets
   replication_region_buckets  = var.replication_region_buckets
   wordpress_media_bucket_name = module.s3.wordpress_media_bucket_name
@@ -230,6 +207,7 @@ module "asg" {
 }
 
 # --- RDS Module Configuration --- #
+# Configures the Relational Database Service (RDS) module for the WordPress application.
 module "rds" {
   source = "./modules/rds" # Path to module RDS
 
@@ -276,6 +254,7 @@ module "rds" {
   rds_storage_threshold     = var.rds_storage_threshold
   rds_connections_threshold = var.rds_connections_threshold
 
+  # CloudWatch Alarms for RDS performance and availability
   enable_low_storage_alarm      = var.enable_low_storage_alarm
   enable_high_cpu_alarm         = var.enable_high_cpu_alarm
   enable_high_connections_alarm = var.enable_high_connections_alarm
@@ -286,35 +265,55 @@ module "rds" {
   # Read Replica Configuration
   read_replicas_count = var.read_replicas_count
 
-  # KMS key for encryption
+  # KMS key for encryption of RDS data
   kms_key_arn = module.kms.kms_key_arn
 
-  # SNS Topic for CloudWatch Alarms
+  # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
   depends_on = [module.vpc]
 }
 
-# --- Interface Endpoints Module Configuration --- #
-module "interface_endpoints" {
-  source = "./modules/interface_endpoints" # Path to module Interface Endpoints
+# --- S3 Module --- #
+# Configures the Simple Storage Service (S3) module for storing various data.
+module "s3" {
+  source = "./modules/s3" # Path to S3 module
 
-  aws_region                 = var.aws_region
-  name_prefix                = var.name_prefix
-  environment                = var.environment
-  vpc_id                     = module.vpc.vpc_id
-  vpc_cidr_block             = module.vpc.vpc_cidr_block
-  private_subnet_ids         = local.private_subnet_ids
-  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+  # S3 configuration
+  aws_region                        = var.aws_region
+  aws_account_id                    = var.aws_account_id
+  environment                       = var.environment
+  name_prefix                       = var.name_prefix
+  noncurrent_version_retention_days = var.noncurrent_version_retention_days
+  enable_dynamodb                   = var.enable_dynamodb
+  enable_cors                       = var.enable_cors
+  allowed_origins                   = var.allowed_origins
+  enable_s3_script                  = var.enable_s3_script
+  s3_scripts                        = var.s3_scripts
+
+  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
+  replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
+
+  # KMS role for S3 module
+  kms_key_arn         = module.kms.kms_key_arn
+  kms_replica_key_arn = module.kms.kms_replica_key_arn
+
+  # Pass buckets list dynamically
+  default_region_buckets     = var.default_region_buckets
+  replication_region_buckets = var.replication_region_buckets
+
+  replication_region = var.replication_region
 }
 
 # --- Elasticache Module Configuration --- #
+# Configures the ElastiCache module for managing the Redis caching layer.
 module "elasticache" {
   source = "./modules/elasticache" # Path to module Elasticache
 
   name_prefix = var.name_prefix
   environment = var.environment
 
+  # KMS key ARN for encrypting data at rest in ElastiCache
   kms_key_arn = module.kms.kms_key_arn
 
   # ElastiCache configuration
@@ -334,7 +333,7 @@ module "elasticache" {
   # Security Group (from ASG module)
   asg_security_group_id = module.asg.asg_security_group_id
 
-  # Monitoring
+  # Monitoring thresholds for Redis cluster
   redis_cpu_threshold                  = var.redis_cpu_threshold
   redis_memory_threshold               = var.redis_memory_threshold
   enable_redis_low_memory_alarm        = var.enable_redis_low_memory_alarm
@@ -346,11 +345,12 @@ module "elasticache" {
   redis_evictions_threshold            = var.redis_evictions_threshold
   redis_cpu_credits_threshold          = var.redis_cpu_credits_threshold
 
-  # SNS Topic for CloudWatch Alarms
+  # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 }
 
 # --- ALB Module --- #
+# Configures the Application Load Balancer (ALB) for routing traffic to the application instances.
 module "alb" {
   source = "./modules/alb"
 
@@ -378,4 +378,18 @@ module "alb" {
   enable_firehose                   = var.enable_firehose
 
   depends_on = [module.vpc, module.s3]
+}
+
+# --- Interface Endpoints Module Configuration --- #
+# Configures the VPC Interface Endpoints for secure access to AWS services within the VPC.
+module "interface_endpoints" {
+  source = "./modules/interface_endpoints" # Path to module Interface Endpoints
+
+  aws_region                 = var.aws_region
+  name_prefix                = var.name_prefix
+  environment                = var.environment
+  vpc_id                     = module.vpc.vpc_id
+  vpc_cidr_block             = module.vpc.vpc_cidr_block
+  private_subnet_ids         = local.private_subnet_ids
+  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
 }
