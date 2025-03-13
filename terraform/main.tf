@@ -130,16 +130,6 @@ module "s3" {
   default_region_buckets     = var.default_region_buckets
   replication_region_buckets = var.replication_region_buckets
 
-
-  vpc_id                     = module.vpc.vpc_id
-  private_subnet_ids         = module.vpc.private_subnets
-  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
-
-  # VPC Endpoints  
-  dynamodb_endpoint_id        = module.vpc.dynamodb_endpoint_id
-  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
-  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
-
   replication_region = var.replication_region
 }
 

@@ -1,5 +1,6 @@
 # --- S3 Replication Configuration --- #
 
+# Local variable to check if any replication buckets are enabled
 locals {
   replication_buckets_enabled = length([
     for key, value in var.replication_region_buckets : key
@@ -46,6 +47,7 @@ resource "aws_iam_policy" "replication_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # Statement: ReplicationRead (Source Bucket - Bucket Level Read Permissions)
       {
         Sid    = "ReplicationRead${replace(replace(each.key, "-", ""), "_", "")}"
         Effect = "Allow"
@@ -59,6 +61,7 @@ resource "aws_iam_policy" "replication_policy" {
           aws_s3_bucket.default_region_buckets[each.key].arn
         ]
       },
+      # Statement: ReplicationObjectRead (Source Bucket - Object Level Read Permissions)
       {
         Sid    = "ReplicationObjectRead${replace(replace(each.key, "-", ""), "_", "")}"
         Effect = "Allow"
@@ -72,6 +75,7 @@ resource "aws_iam_policy" "replication_policy" {
           "${aws_s3_bucket.default_region_buckets[each.key].arn}/*"
         ]
       },
+      # Statement: ReplicationDestinationRead (Destination Bucket - Bucket Level Read Permissions)
       {
         Sid    = "ReplicationDestinationRead${replace(replace(each.key, "-", ""), "_", "")}"
         Effect = "Allow"
@@ -84,6 +88,7 @@ resource "aws_iam_policy" "replication_policy" {
           aws_s3_bucket.s3_replication_bucket[each.key].arn
         ]
       },
+      # Statement: ReplicationWrite (Destination Bucket - Write Permissions)
       {
         Sid    = "ReplicationWrite${replace(replace(each.key, "-", ""), "_", "")}"
         Effect = "Allow"
@@ -99,6 +104,7 @@ resource "aws_iam_policy" "replication_policy" {
           aws_s3_bucket.s3_replication_bucket[each.key].arn
         ]
       },
+      # Statement: KMSPermissions (KMS Key Permissions for Encryption)
       {
         Sid    = "KMSPermissions"
         Effect = "Allow"
@@ -112,6 +118,7 @@ resource "aws_iam_policy" "replication_policy" {
         Resource = compact([
           var.kms_key_arn,
           "${var.kms_key_arn}/*",
+          # WARNING: Fallback grants access to ALL KMS keys in replication region! Restrict or make kms_replica_key_arn mandatory in production!
           var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : "arn:aws:kms:${var.replication_region}:${var.aws_account_id}:key/*",
           var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? "${var.kms_replica_key_arn}/*" : null
         ])
@@ -165,7 +172,8 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
       }
 
       encryption_configuration {
-        # Using a replica KMS key for the replication region
+        # Using a replica KMS key for the replication region (best practice for key separation & regional compliance).
+        # Falls back to source KMS key (var.kms_key_arn) if var.kms_replica_key_arn is not provided (simpler setup, but potentially less secure/compliant).
         replica_kms_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn
       }
     }
@@ -190,3 +198,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 # 2. IAM Policy: Fine-grained access control for replication (attached to Role).
 # 3. Replication Config: Applied only to default region buckets with replication enabled.
 # 4. Security Best Practices: Dedicated IAM roles/policies, KMS encryption support.
+# 5. Replication Scope Limitation:
+#    - Replication is configured *only for SSE-KMS encrypted objects*.
+#    - Objects encrypted with SSE-S3 or no encryption are *NOT* replicated.
+#    - **If all objects replication is required, remove `source_selection_criteria` block or adjust configuration.

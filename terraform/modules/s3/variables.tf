@@ -9,75 +9,75 @@ variable "aws_region" {
 
 # --- Replication AWS Region --- #
 variable "replication_region" {
-  description = "AWS region for replication bucket." # Description: Replication region
+  description = "AWS region for replication bucket."
   type        = string
 }
 
 # --- Environment --- #
 variable "environment" {
-  description = "Deployment environment (dev, stage, prod)." # Description: Environment
+  description = "Deployment environment (dev, stage, prod)."
   type        = string
   validation {
     condition     = can(regex("(dev|stage|prod)", var.environment))
-    error_message = "Environment must be 'dev', 'stage', or 'prod'." # Validation error message
+    error_message = "Environment must be 'dev', 'stage', or 'prod'."
   }
 }
 
 # --- Name Prefix --- #
 variable "name_prefix" {
-  description = "Prefix for S3 resource names (uniqueness)." # Description: Name prefix
+  description = "Prefix for S3 resource names (uniqueness)."
   type        = string
 }
 
 # --- AWS Account ID --- #
 variable "aws_account_id" {
-  description = "AWS Account ID for bucket policies (security)." # Description: AWS Account ID
+  description = "AWS Account ID for bucket policies (security)."
   type        = string
 }
 
 # --- KMS Key ARN --- #
 variable "kms_key_arn" {
-  description = "ARN of KMS key for S3 bucket encryption (security)." # Description: KMS Key ARN
+  description = "ARN of KMS key for S3 bucket encryption (security)."
   type        = string
 
   validation {
     condition     = length(var.kms_key_arn) > 0
-    error_message = "kms_key_arn cannot be empty." # Validation error message
+    error_message = "kms_key_arn cannot be empty."
   }
 }
 
 # --- KMS Replica Key ARN --- #
 variable "kms_replica_key_arn" {
-  description = "ARN of KMS replica key in replication region for S3 bucket encryption." # Description: KMS Replica Key ARN
+  description = "ARN of KMS replica key in replication region for S3 bucket encryption."
   type        = string
   default     = null # May be null if replication is not used
 }
 
 # --- Noncurrent Version Retention Days --- #
 variable "noncurrent_version_retention_days" {
-  description = "Retention days for noncurrent object versions (versioning)." # Description: Retention days
+  description = "Retention days for noncurrent object versions (versioning)."
   type        = number
 
   validation {
     condition     = var.noncurrent_version_retention_days > 0
-    error_message = "Retention days > 0 required." # Validation error message
+    error_message = "Retention days > 0 required."
   }
 }
 
 # --- SNS Topic ARN --- #
 variable "sns_topic_arn" {
-  description = "ARN of SNS Topic for bucket notifications." # Description: SNS Topic ARN
+  description = "ARN of SNS Topic for bucket notifications."
   type        = string
 }
 
 # --- Replication Region SNS Topic ARN --- #
 variable "replication_region_sns_topic_arn" {
-  description = "ARN of SNS Topic in replication region for bucket notifications." # Description: Replication Region SNS Topic ARN
+  description = "ARN of SNS Topic in replication region for bucket notifications."
   type        = string
-  default     = "" # Может быть пустым, если не используется
+  default     = ""
 }
 
-# --- Default Region Buckets Config --- #
+# --- Default Region Buckets Configuration --- #
 variable "default_region_buckets" {
   type = map(object({
     enabled               = optional(bool, false)
@@ -86,11 +86,11 @@ variable "default_region_buckets" {
     server_access_logging = optional(bool, false)
     region                = optional(string, null) # Optional: region (defaults to provider)    
   }))
-  description = "Config for default AWS region buckets." # Description: Default region buckets config
+  description = "Config for default AWS region buckets."
   default     = {}
 }
 
-# --- Replication Region Buckets Config --- #
+# --- Replication Region Buckets Configuration --- #
 variable "replication_region_buckets" {
   type = map(object({
     enabled               = optional(bool, false)
@@ -98,90 +98,54 @@ variable "replication_region_buckets" {
     server_access_logging = optional(bool, false)
     region                = string # Required: AWS region for replication
   }))
-  description = "Config for replication region buckets." # Description: Replication region buckets config
+  description = "Config for replication region buckets."
   default     = {}
 }
 
 # --- Enable S3 Script --- #
 variable "enable_s3_script" {
-  description = "Enable uploading scripts to S3." # Description: Enable S3 Script
+  description = "Enable uploading scripts to S3."
   type        = bool
   default     = false
 }
 
 # --- S3 Scripts Map --- #
 variable "s3_scripts" {
-  description = "Map of files for scripts bucket upload." # Description: S3 Scripts Map
+  description = "Map of files for scripts bucket upload."
   type        = map(string)
   default     = {}
 }
 
 # --- Enable CORS --- #
 variable "enable_cors" {
-  description = "Enable CORS for WordPress media bucket." # Description: Enable CORS
+  description = "Enable CORS for WordPress media bucket."
   type        = bool
-  default     = false # Default: CORS disabled
+  default     = false
 }
 
 # --- Allowed Origins --- #
 variable "allowed_origins" {
-  description = "List of allowed origins for S3 CORS." # Description: Allowed Origins
+  description = "List of allowed origins for S3 CORS."
   type        = list(string)
   default     = ["https://example.com"]
 }
 
 # --- Enable DynamoDB --- #
 variable "enable_dynamodb" {
-  description = "Enable DynamoDB for Terraform state locking." # Description: Enable DynamoDB
+  description = "Enable DynamoDB for Terraform state locking."
   type        = bool
   default     = false
 
   validation {
     condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
-    error_message = "enable_dynamodb requires terraform_state bucket enabled." # Validation error message
+    error_message = "enable_dynamodb requires terraform_state bucket enabled."
   }
-}
-
-# --- Lambda VPC ID --- #
-variable "vpc_id" {
-  description = "VPC ID for Lambda security group." # Description: VPC ID
-  type        = string
-}
-
-# --- Private Subnet IDs --- #
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs for Lambda." # Description: Private Subnet IDs
-  type        = list(string)
-}
-
-# --- Private Subnet CIDR Blocks --- #
-variable "private_subnet_cidr_blocks" {
-  description = "CIDR blocks for private subnet security group ingress." # Description: Private Subnet CIDR Blocks
-  type        = list(string)
-}
-
-# --- DynamoDB Endpoint ID --- #
-variable "dynamodb_endpoint_id" {
-  description = "ID of DynamoDB VPC Endpoint." # Description: DynamoDB Endpoint ID
-  type        = string
-}
-
-# --- CloudWatch Logs Endpoint ID --- #
-variable "cloudwatch_logs_endpoint_id" {
-  description = "ID of CloudWatch Logs VPC Endpoint." # Description: CloudWatch Logs Endpoint ID
-  type        = string
-}
-
-# --- KMS Endpoint ID --- #
-variable "kms_endpoint_id" {
-  description = "ID of KMS VPC Endpoint." # Description: KMS Endpoint ID
-  type        = string
 }
 
 # --- Module Notes --- #
 # General notes for S3 module variables.
 #
-# 1. Bucket Config: 'buckets' map controls bucket creation and properties.
+# 1. Bucket Configuration: 'default_region_buckets' and 'replication_region_buckets' maps control bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.
 # 3. Replication: 'replication_region', ensure IAM permissions.
 # 4. WordPress: CORS ('enable_cors', 'allowed_origins'), scripts upload ('enable_s3_script', 's3_scripts').

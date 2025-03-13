@@ -321,9 +321,11 @@ resource "random_string" "suffix" {
 # 1. Dynamic bucket creation from 'terraform.tfvars'.
 # 2. Manages default & replication region buckets.
 # 3. Unified config for versioning, notifications, encryption, public access block.
-# 4. Comprehensive Logging Options: Implements two types of logging:
-#     *   Centralized Bucket Logging Collection: Collects access logs from specified default region buckets into the central 'logging' bucket. Configured via the `logging` parameter in 'terraform.tfvars'.
-#     *   Server Access Logging: Enables Server Access Logging for individual buckets in both default and replication regions. Logs are also directed to the central 'logging' bucket in the default region. Configured via the `access_logging` parameter in 'terraform.tfvars'.
+# 4. Server Access Logging (Default Region, Centralized):
+#     * Default region buckets only (AWS cross-region logging limitation).
+#     * Enabled per bucket via `server_access_logging` in 'terraform.tfvars'.
+#     * Centralized logs in 'logging' bucket (default region).
+#     * 'logging' bucket ACL for log delivery ('log-delivery-write').
 # 5. Unique bucket names via random suffix.
 # 6. Pre-create KMS key (var.kms_key_arn) & SNS topic (var.sns_topic_arn).
 # 7. Bucket policies & IAM roles to be configured separately.

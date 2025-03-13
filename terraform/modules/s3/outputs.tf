@@ -123,7 +123,7 @@ output "terraform_locks_table_name" {
   value       = var.enable_dynamodb ? aws_dynamodb_table.terraform_locks[0].name : null
 }
 
-# --- DynamoDB & Lambda Outputs --- #
+# --- DynamoDB Outputs --- #
 
 output "enable_dynamodb" {
   description = "DynamoDB enabled for state locking." # Description: DynamoDB enabled
@@ -136,4 +136,3 @@ output "enable_dynamodb" {
 # 1. Bucket Outputs: For all configured (if enabled), null if disabled.
 # 2. WordPress Scripts: 'deploy_wordpress_scripts_files_etags_map' - ETags for uploaded scripts.
 # 3. DynamoDB: Outputs for state locking table (if enabled).
-# 4. Lambda: Indicates Lambda enabled for TTL automation (if enabled).
