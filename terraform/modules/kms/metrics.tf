@@ -35,9 +35,10 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
     Name        = "${var.name_prefix}-kms-decrypt-usage-high"
     Environment = var.environment
   }
-
-  # --- Configuration Notes --- #
-  # - Adjust 'threshold' and 'evaluation_periods' based on expected workload patterns and sensitivity.
-  # - Increasing 'evaluation_periods' and using 'datapoints_to_alarm' helps minimize false positives in production environments.
-  # - Ensure 'sns_topic_arn' variable is set in 'terraform.tfvars' to enable alarm notifications via SNS topic.
 }
+
+# --- Notes --- #
+# - Adjust 'threshold' and 'evaluation_periods' based on expected workload patterns and sensitivity.
+# - Increasing 'evaluation_periods' and using 'datapoints_to_alarm' helps minimize false positives in production environments.
+# - Ensure 'sns_topic_arn' variable is set in 'terraform.tfvars' to enable alarm notifications via SNS topic.
+# - Failure to specify SNS ARN will result in no notifications.

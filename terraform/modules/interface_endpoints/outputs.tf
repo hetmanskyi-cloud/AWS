@@ -44,4 +44,3 @@ output "kms_endpoint_id" {
 # 1. Outputs include the IDs of VPC Endpoints (Interface) created by this module.
 # 2. The Security Group ID is provided for Interface Endpoints to manage inbound and outbound rules.
 # 3. These outputs can be referenced by other modules or resources for integration.
-# 4. DNS names are essential for services to communicate with the endpoints within the VPC.

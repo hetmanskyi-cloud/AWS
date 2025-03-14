@@ -1,88 +1,96 @@
-# ASG Module for Terraform
+# Terraform ASG Module
 
-This module creates and manages ASG instances and associated resources in AWS. It includes support for Auto Scaling Groups (ASG), monitoring, logging, and security configurations. Designed for environments like dev, stage, and prod, it adheres to best practices for scalability, performance, and security.
+This Terraform module creates and manages Auto Scaling Groups (ASG) and related resources on AWS. It's suitable for dev, stage, and prod environments, ensuring best practices for scalability, security, and performance.
 
 ---
 
 ## Prerequisites
 
 - **AWS Provider Configuration**:
-  The region and other parameters of the `aws` provider are specified in the `providers.tf` file of the root block.
-  
-  An example of the configuration can be found in the "Usage Example" section.
+
+  The AWS region and other provider settings should be configured in the `providers.tf` file in your root module.  
 
 ---
 
 ## Features
 
-- **Auto Scaling Group (ASG):**
-  - Automatically scales ASG instances based on workload.
-- **CloudWatch Monitoring:**
-  - Alarms monitor both individual instances and Auto Scaling Group (ASG) instances
-  - Notifications via SNS, ensuring prompt responses to issues.
-- **Security:**
-  - Configurable Security Group for HTTP and HTTPS traffic.
-  - SSM support for secure, passwordless instance management.
-  - Conditional IAM policies to ensure least privilege access.
-- **S3 Integration:**
-  - Optional access to deployment scripts from S3 (if scripts_bucket_arn is provided).
-  - Conditional access to WordPress media bucket (if enabled via buckets variable).
-  - IAM policies are created only when S3 resources are defined.
-- **Tagging and Metadata:**
-  - Consistent tagging for all instances to simplify identification and organization.
-  - Enforces IMDSv2 for enhanced instance metadata security.
+- **Auto Scaling Group (ASG)**:
+  - Automatic scaling based on workload.
+
+- **CloudWatch Monitoring**:
+  - CloudWatch Alarms for ASG instances and individual instances.
+  - SNS notifications for proactive alerts.
+
+- **Security**:
+  - Configurable Security Groups (HTTP/HTTPS, SSH).
+  - Systems Manager (SSM) support for secure instance management.
+  - Conditional IAM policies with least privilege access.
+
+- **S3 Integration**:
+  - Optional retrieval of deployment scripts from S3.
+  - Conditional WordPress media bucket access.
+
+- **Tagging and Metadata**:
+  - Consistent resource tagging.
+  - IMDSv2 enforced for enhanced metadata security.
 
 ---
 
 ## File Structure
 
-| **File**                 | **Description**                                                                    |
-|--------------------------|------------------------------------------------------------------------------------|
-| `main.tf`                | Defines the ASG, scaling policies, and dynamic configurations for stage/prod.      |
-| `iam.tf`                 | Configures conditional IAM roles and policies for ASG instances.                   |
-| `launch_template.tf`     | Creates a launch template for ASG instances.                                       |
-| `metrics.tf`             | Defines CloudWatch alarms for scaling and monitoring.                              |
-| `security_group.tf`      | Configures the Security Group for ASG instances.                                   |
-| `outputs.tf`             | Exposes key outputs for integration with other modules.                            |
-| `variables.tf`           | Declares input variables for the module.                                           |
+| **File**             | **Description**                                             |
+|----------------------|-------------------------------------------------------------|
+| `main.tf`            | ASG, scaling policies, and dynamic configurations.          |
+| `iam.tf`             | IAM roles and conditional policies.                         |
+| `launch_template.tf` | ASG launch template configuration.                          |
+| `metrics.tf`         | CloudWatch alarms and metrics for monitoring.               |
+| `security_group.tf`  | Security Group rules for ASG instances.                     |
+| `outputs.tf`         | Exposed outputs for integration and management.             |
+| `variables.tf`       | Module input variables and configuration options.           |
 
 ---
 
 ## Input Variables
 
-| **Name**                     | **Type**       | **Description**                                                                     | **Default/Required**  |
-|------------------------------|----------------|-------------------------------------------------------------------------------------|-----------------------|
-| `environment`                | `string`       | Environment for the resources (e.g., dev, stage, prod).                             | Required              |
-| `name_prefix`                | `string`       | Prefix for naming resources.                                                        | Required              |
-| `instance_type`              | `string`       | Instance type (e.g., t2.micro).                                                     | Required              |
-| `autoscaling_min`            | `number`       | Minimum number of instances in the Auto Scaling Group.                              | Required              |
-| `autoscaling_max`            | `number`       | Maximum number of instances in the Auto Scaling Group.                              | Required              |
-| `scale_out_cpu_threshold`    | `number`       | CPU utilization threshold for scaling out.                                          | Required              |
-| `scale_in_cpu_threshold`     | `number`       | CPU utilization threshold for scaling in.                                           | Required              |
-| `network_in_threshold`       | `number`       | Threshold for high incoming network traffic.                                        | Required              |
-| `network_out_threshold`      | `number`       | Threshold for high outgoing network traffic.                                        | Required              |
-| `volume_size`                | `number`       | Size of the root EBS volume for ASG instances in GiB.                               | Required              |
-| `volume_type`                | `string`       | Type of the root EBS volume (e.g., gp2).                                            | Required              |
-| `public_subnet_ids`          | `list(string)` | List of public subnet IDs for deploying instances.                                  | Required              |
-| `vpc_id`                     | `string`       | VPC ID where EC2 instances are deployed.                                            | Required              |
-| `target_group_arn`           | `string`       | ARN of the ALB target group for routing traffic.                                    | Required              |
-| `sns_topic_arn`              | `string`       | ARN of the SNS Topic for CloudWatch alarms.                                         | Required              |
-| `wordpress_media_bucket_arn` | `string`       | ARN of the S3 bucket for WordPress media. Only used if enabled in buckets variable. | Optional              |
-| `scripts_bucket_arn`         | `string`       | ARN of the S3 bucket containing deployment scripts.                                 | Optional              |
-| `buckets`                    | `map(bool)`    | Map of bucket features to enable/disable (e.g., wordpress_media).                   | Optional              |
+| **Variable**                | **Type**       | **Description**                                                         | **Default / Required** |
+|-----------------------------|----------------|-------------------------------------------------------------------------|------------------------|
+| `environment`               | `string`       | Environment (dev, stage, prod).                                         | Required               |
+| `name_prefix`               | `string`       | Prefix for resource naming.                                             | Required               |
+| `instance_type`             | `string`       | EC2 instance type (e.g., t2.micro).                                     | Required               |
+| `ami_id`                    | `string`       | AMI ID for ASG instances.                                               | Required               |
+| `autoscaling_min`           | `number`       | Minimum instances in ASG.                                               | Required               |
+| `autoscaling_max`           | `number`       | Maximum instances in ASG.                                               | Required               |
+| `scale_out_cpu_threshold`   | `number`       | CPU threshold (%) to scale out.                                         | Required               |
+| `scale_in_cpu_threshold`    | `number`       | CPU threshold (%) to scale in.                                          | Required               |
+| `network_in_threshold`      | `number`       | Incoming network threshold (bytes).                                     | Required               |
+| `network_out_threshold`     | `number`       | Outgoing network threshold (bytes).                                     | Required               |
+| `volume_size`               | `number`       | EBS volume size (GiB).                                                  | Required               |
+| `volume_type`               | `string`       | EBS volume type (gp2, gp3, etc.).                                       | Required               |
+| `public_subnet_ids`         | `list(string)` | Public subnet IDs for ASG instances.                                    | Required               |
+| `vpc_id`                    | `string`       | VPC ID for ASG resources.                                               | Required               |
+| `wordpress_tg_arn`          | `string`       | ALB Target Group ARN for routing traffic.                               | Required               |
+| `sns_topic_arn`             | `string`       | SNS topic ARN for alarms.                                               | Required               |
+| `enable_scaling_policies`   | `bool`         | Enable/disable scaling policies.                                        | `true`                 |
+| `enable_https_listener`     | `bool`         | Enable HTTPS listener.                                                  | Required               |
+| `enable_ebs_encryption`     | `bool`         | Enable EBS encryption.                                                  | `false`                |
+| `ssh_key_name`              | `string`       | SSH key pair name (optional).                                           | Required               |
+| `enable_asg_ssh_access`     | `bool`         | Enable SSH access to ASG instances.                                     | `false`                |
+| `ssh_allowed_cidr`          | `list(string)` | Allowed CIDR blocks for SSH.                                            | `0.0.0.0/0`            |
+| `wordpress_media_bucket_arn`| `string`       | ARN of WordPress media S3 bucket.                                       | Optional               |
+| `scripts_bucket_arn`        | `string`       | ARN of scripts S3 bucket.                                               | Optional               |
 
 ---
 
 ## Outputs
 
-| **Name**                   | **Description**                                  |
-|----------------------------|--------------------------------------------------|
-| `asg_id`                   | ID of the Auto Scaling Group.                    |
-| `launch_template_id`       | ID of the ASG Launch Template.                   |
-| `instance_public_ips`      | Public IPs of instances (if assigned).           |
-| `instance_private_ips`     | Private IPs of instances.                        |
-| `instance_ids`             | IDs of instances in the Auto Scaling Group.      |
-| `asg_security_group_id`    | Security Group ID for ASG instances.             |
+| **Output**                | **Description**                                    |
+|---------------------------|----------------------------------------------------|
+| `asg_id`                  | ASG ID for referencing.                            |
+| `launch_template_id`      | Launch Template ID used by ASG.                    |
+| `instance_ids`            | IDs of ASG instances.                              |
+| `instance_public_ips`     | Public IPs of ASG instances (if assigned).         |
+| `instance_private_ips`    | Private IPs of ASG instances.                      |
+| `asg_security_group_id`   | Security Group ID associated with ASG instances.   |
 
 ---
 
@@ -93,7 +101,7 @@ module "asg" {
   source                  = "./modules/asg"
   environment             = "dev"
   name_prefix             = "dev"
-  ami_id                  = "ami-0123456789abcdef0"
+  ami_id                  = "ami-03fd334507439f4d1"
   instance_type           = "t2.micro"
   ssh_key_name            = "my-ssh-key"
   autoscaling_min         = 1
@@ -106,12 +114,9 @@ module "asg" {
   volume_type             = "gp2"
   public_subnet_ids       = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
   vpc_id                  = "vpc-0123456789abcdef0"
-  target_group_arn        = module.alb.wordpress_tg_arn
+  wordpress_tg_arn        = module.alb.wordpress_tg_arn
   sns_topic_arn           = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
-  scripts_bucket_name     = "my-scripts-bucket"
-  buckets = {
-    wordpress_media = true
-  }
+  enable_https_listener   = true
 }
 ```
 
@@ -119,59 +124,32 @@ module "asg" {
 
 ## Security Best Practices
 
-1. **SSH Access:**
-   - Restrict SSH in prod using `ssh_allowed_cidr`.
-   - Use Systems Manager (SSM) for secure management.
-2. **Encryption:**
-   - Enable KMS encryption for EBS volumes in production.
-   - Use encrypted connections for RDS and Redis.
-3. **Security Groups:**
-   - Review and restrict security group rules.
-   - Ensure proper isolation between components.
-4. **Monitoring:**
-   - Monitor CPU and network thresholds.
-   - Set up SNS notifications for alerts.
-   - Use alarms for proactive issue detection.
-5. **Scaling Policies:**
-   - Monitor CPU utilization thresholds to optimize scaling and resource usage.  
+- Restrict SSH access to known CIDR blocks in production.
+- Enable KMS encryption for sensitive data.
+- Regularly audit Security Group rules.
+- Use SSM for secure instance management.
+- Implement proactive monitoring and alerts.
 
 ---
 
 ## Future Improvements
 
-1. **Instance Lifecycle Hooks**  
-   - Consider implementing lifecycle hooks to perform tasks before instances are launched or terminated (e.g., pre-warm configuration, graceful shutdown handling), ensuring better resource management and smooth transitions.
-
-2. **Blue-Green Deployment Support**  
-   - Evaluate the possibility of introducing blue-green deployment strategies for seamless application updates with minimal downtime, if required to improve deployment reliability.
-
-3. **Spot Instance Integration**  
-   - Assess the feasibility of adding support for mixed instance types and spot instances to optimize cost efficiency while maintaining high availability when applicable.
-
-4. **Golden AMI Implementation**  
-   - Explore the use of golden AMIs to standardize and streamline instance deployments, leveraging AWS Systems Manager and EventBridge for automated AMI updates and patch management.
-
-5. **Enhanced Monitoring**  
-   - Extend CloudWatch metrics coverage by adding memory and disk utilization insights for improved resource allocation and operational visibility.
-
-6. **Logging Improvements**  
-   - Consider enabling CloudWatch log aggregation and export to S3 for long-term storage, analysis, and compliance with organizational policies.
-
-7. **Graceful Scale-In Policies**  
-   - Ensure that scale-in policies effectively drain connections and gracefully terminate instances without causing disruptions to application availability by leveraging ALB health checks and deregistration delays.
+- Lifecycle hooks for graceful scaling.
+- Blue-green deployment support.
+- Spot instance integration for cost optimization.
+- Enhanced monitoring (memory/disk).
 
 ---
 
 ## Authors
 
-This module is built following Terraform best practices to prioritize scalability, security, and maintainability. Contributions are welcome to enhance its functionality!
+This module is developed following Terraform best practices. Contributions are welcome!
 
 ---
 
 ## Useful Resources
 
-- [Amazon EC2 Documentation](https://docs.aws.amazon.com/ec2/index.html)
-- [Terraform EC2 Module](https://registry.terraform.io/modules/terraform-aws-modules/ec2/instance/latest)
-- [CloudWatch Metrics for EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring_ec2.html)
-
----
+- [AWS EC2 Documentation](https://docs.aws.amazon.com/ec2/)
+- [Terraform AWS EC2 Module](https://registry.terraform.io/modules/terraform-aws-modules/ec2-instance/aws)
+- [AWS Auto Scaling Documentation](https://docs.aws.amazon.com/autoscaling/)
+- [CloudWatch Monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring_ec2.html)

@@ -20,7 +20,7 @@ resource "aws_iam_role" "kms_role" {
     ]
   })
 
-  # Tags for resource identification and cost tracking.
+  # Tags for resource identification
   tags = {
     Name        = "${var.name_prefix}-kms-role"
     Environment = var.environment

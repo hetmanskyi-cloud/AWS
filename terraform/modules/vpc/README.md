@@ -64,7 +64,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 - **Gateway Endpoints**:
   - Configurable S3 and DynamoDB endpoints for private access without requiring a NAT Gateway.
 - **Flexible Access Control**:
-  - SSH, HTTP, and HTTPS access can be dynamically enabled or disabled using input variables (`enable_vpc_ssh_access`, `enable_public_nacl_http`, `enable_public_nacl_https`).
+  - SSH, HTTP, and HTTPS access can be dynamically enabled or disabled using input variables (`ssh_allowed_cidr`).
 - **Tagging**:
   - Consistent tagging for resource tracking and cost allocation.
 
@@ -74,7 +74,6 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 
 1. **Network ACLs (NACLs)**:
    - Public subnets:
-     - HTTP/HTTPS access can be conditionally enabled (`enable_public_nacl_http`, `enable_public_nacl_https`)
      - SSH access is configurable with CIDR restrictions
      - Ephemeral ports open for return traffic
    - Private subnets:
@@ -142,7 +141,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | **File**              | **Description**                                                                 |
 |-----------------------|---------------------------------------------------------------------------------|
 | `main.tf`             | Defines the VPC, subnets, and main configurations.                              |
-| `gateway_routes.tf`   | Configures route tables, Internet Gateway, and Gateway Endpoints.               |
+| `endpoints_routes.tf` | Configures route tables, Internet Gateway, and Gateway Endpoints.               |
 | `nacl.tf`             | Creates and associates Network ACLs for public and private subnets.             |
 | `flow_logs.tf`        | Configures VPC Flow Logs and related IAM roles and policies.                    |
 | `variables.tf`        | Declares input variables for the module.                                        |
@@ -173,10 +172,12 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `availability_zone_private_3`    | `string`       | Availability zone for the third private subnet.     | **Required**               |
 | `kms_key_arn`                    | `string`       | ARN of KMS key for Flow Logs encryption             | **Required**               |
 | `flow_logs_retention_in_days`    | `number`       | Number of days to retain VPC Flow Logs              | **Required**               |
-| `enable_vpc_ssh_access`          | `bool`         | Enable or disable SSH access (public NACL rule).    | `false` (Optional)         |
 | `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.         | `["0.0.0.0/0"]` (Optional) |
-| `enable_public_nacl_http`        | `bool`         | Enable or disable HTTP access (public NACL rule).   | `false` (Optional)         |
-| `enable_public_nacl_https`       | `bool`         | Enable or disable HTTPS access (public NACL rule).  | `false` (Optional)         |
+| `ssm_endpoint_id`                | `string`       | ID of the SSM Interface VPC Endpoint                | **Required**               |
+| `ssm_messages_endpoint_id`       | `string`       | ID of the SSM Messages Interface VPC Endpoint       | **Required**               |
+| `asg_messages_endpoint_id`       | `string`       | ID of the EC2 ASG Messages Interface Endpoint       | **Required**               |
+| `cloudwatch_logs_endpoint_id`    | `string`       | ID of the CloudWatch Logs Interface VPC Endpoint    | **Required**               |
+| `kms_endpoint_id`                | `string`       | ID of the KMS Interface VPC Endpoint                | **Required**               |
 
 ## **Outputs**
 
@@ -192,6 +193,8 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `private_subnet_3_id`            | ID of the third private subnet                                       |
 | `public_subnets`                 | List of all public subnet IDs                                        |
 | `private_subnets`                | List of all private subnet IDs                                       |
+| `public_subnet_ids`              | List of IDs for public subnets                                       |
+| `private_subnet_ids`             | List of IDs for private subnets                                      |
 | `public_subnet_cidr_block_1`     | CIDR block for the first public subnet                               |
 | `public_subnet_cidr_block_2`     | CIDR block for the second public subnet                              |
 | `public_subnet_cidr_block_3`     | CIDR block for the third public subnet                               |
@@ -207,7 +210,13 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `default_security_group_id`      | The ID of the default security group for the VPC                     |
 | `public_subnet_nacl_id`          | The ID of the NACL associated with public subnets                    |
 | `private_subnet_nacl_id`         | The ID of the NACL associated with private subnets                   |
-| `igw_id`                         | The ID of the Internet Gateway                                       |
+| `availability_zone_public_1`     | Availability Zone for public subnet 1                                |
+| `availability_zone_public_2`     | Availability Zone for public subnet 2                                |
+| `availability_zone_public_3`     | Availability Zone for public subnet 3                                |
+| `availability_zone_private_1`    | Availability Zone for private subnet 1                               |
+| `availability_zone_private_2`    | Availability Zone for private subnet 2                               |
+| `availability_zone_private_3`    | Availability Zone for private subnet 3                               |
+| `internet_gateway_id`            | The ID of the Internet Gateway                                       |
 
 ---
 
@@ -239,14 +248,18 @@ module "vpc" {
   availability_zone_private_3   = "eu-west-1c"
 
   # Security Configuration
-  enable_vpc_ssh_access        = true
-  ssh_allowed_cidr            = ["10.0.0.0/8"]  # Restrict SSH access
-  enable_public_nacl_http     = true   # Enable if direct HTTP access needed
-  enable_public_nacl_https    = true   # Enable if direct HTTPS access needed
+  ssh_allowed_cidr             = ["10.0.0.0/8"]  # Restrict SSH access
 
   # Flow Logs Configuration
   kms_key_arn                 = aws_kms_key.vpc_logs_key.arn
   flow_logs_retention_in_days = 30     # Adjust based on requirements
+  
+  # VPC Endpoint IDs from interface_endpoints module
+  ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
+  ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id
+  asg_messages_endpoint_id    = module.interface_endpoints.asg_messages_endpoint_id
+  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
+  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 }
 
 # KMS key for Flow Logs encryption
@@ -259,6 +272,12 @@ resource "aws_kms_key" "vpc_logs_key" {
     Name        = "dev-vpc-logs-key"
     Environment = "development"
   }
+}
+
+# Interface Endpoints module (referenced in VPC module)
+module "interface_endpoints" {
+  source = "./modules/interface_endpoints"
+  # ... other parameters
 }
 ```
 

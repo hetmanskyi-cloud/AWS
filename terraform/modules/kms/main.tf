@@ -60,7 +60,7 @@ locals {
     "kms:CreateGrant"
   ]
 
-  # Base AWS services requiring KMS access (regionless principals).
+  # Base AWS services requiring KMS access (AWS service principals).
   kms_services = distinct(concat(
     [
       # Regionless service principals:
@@ -172,8 +172,8 @@ resource "aws_kms_grant" "s3_replication_grant" {
 # 1. Dynamic Service Permissions:
 #    - Base services (logs, rds, etc.) are always included.
 #    - Additional services are added via feature flags.
-#    - Cross-account access is NOT directly configured in this module.  # Corrected: Removed misleading part.
-#    - Custom IAM roles and users via additional_principals (e.g., "arn:aws:iam::123456789012:role/example"). # Clarified to "roles and users" and kept example as role ARN.
+#    - Cross-account access is NOT directly configured in this module.
+#    - Custom IAM roles and users via additional_principals (e.g., "arn:aws:iam::123456789012:role/example").
 #
 # 2. Root Access Removal Process:
 #    - Initial root access is required for setup.

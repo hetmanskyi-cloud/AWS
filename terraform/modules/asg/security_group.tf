@@ -18,7 +18,7 @@ resource "aws_security_group" "asg_security_group" {
   }
 }
 
-# SSH Traffic (consider using SSM for production environments)
+# SSH Traffic (consider disabling SSH and using SSM for production environments)
 resource "aws_security_group_rule" "allow_ssh" {
   count = var.enable_asg_ssh_access ? 1 : 0
 

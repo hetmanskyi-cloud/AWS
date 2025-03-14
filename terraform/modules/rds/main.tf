@@ -50,7 +50,7 @@ resource "aws_db_instance" "db" {
   # --- CloudWatch Logs Configuration --- #
   enabled_cloudwatch_logs_exports = [ # CloudWatch Logs exported (configurable).
     "error",                          # Critical errors and crashes.
-    "slowquery"                       # For query optimization.
+    "slowquery"                       # Query performance tuning.
   ]
 
   # --- Tags --- #

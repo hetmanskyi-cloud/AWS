@@ -60,6 +60,7 @@ variable "environment" {
   }
 }
 
+# S3 bucket configuration for default region.
 variable "default_region_buckets" {
   type = map(object({
     enabled     = optional(bool, true)
@@ -72,6 +73,7 @@ variable "default_region_buckets" {
   default     = {}
 }
 
+# S3 bucket configuration for replication region.
 variable "replication_region_buckets" {
   type = map(object({
     enabled     = optional(bool, true)

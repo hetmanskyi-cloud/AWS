@@ -195,10 +195,3 @@ echo " ✅ Check completed at $(date)"
 #
 # 🔴 Error Handling:
 # If any service is down or misconfigured, the script will print ❌ warnings.
-#
-# 📝 Version History:
-# - v1.0.0: Initial version.
-# - v1.1.0: Added DNS resolution check, VPC reachability check (ping),
-#          WordPress Site URL check, and Nginx configuration validation.
-#
-# ===========================================
