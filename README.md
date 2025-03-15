@@ -63,7 +63,7 @@ This project implements a production-ready AWS infrastructure with the following
 
 - **Secure Networking**: VPC with public and private subnets across multiple Availability Zones, Network ACLs, and VPC Flow Logs
 - **High Availability**: Auto Scaling Groups, Multi-AZ RDS, and ElastiCache Redis with replication
-- **Security**: WAF protection, KMS encryption, HTTPS enforcement, and secure IAM policies
+- **Security**: WAF protection, KMS encryption, HTTPS enforcement, secure IAM policies, and Secrets Manager for credentials management
 - **Monitoring**: CloudWatch alarms, SNS notifications, and comprehensive logging
 - **Scalability**: Auto Scaling policies based on CPU and memory utilization
 - **WordPress Hosting**: Pre-configured WordPress deployment with database and caching
@@ -89,6 +89,7 @@ This project consists of the following modules:
 
 - Terraform v1.11+
 - AWS CLI configured with appropriate credentials
+- AWS Provider v5.0+ and Random Provider v3.0+
 - AWS account with permissions to create the required resources
 - Domain name (if using HTTPS with ACM certificates)
 
@@ -155,12 +156,14 @@ To enable remote state storage:
 terraform apply -target=module.s3 -target=aws_dynamodb_table.terraform_locks
 ```
 
-2. Uncomment the backend configuration in `remote_backend.tf`
-3. Run `terraform init` again to migrate the state to S3
+2. Uncomment and configure the backend configuration in `remote_backend.tf` (the file contains a commented template)
+3. Replace the placeholder values with your actual S3 bucket name, DynamoDB table name, and AWS region
+4. Run `terraform init -reconfigure` to migrate the state to S3
 
 ## Security Considerations
 
 - All sensitive data is encrypted using KMS
+- Secrets Manager securely stores WordPress and database credentials
 - Public access to S3 buckets is blocked
 - HTTPS is enforced for all web traffic
 - Security groups follow the principle of least privilege
@@ -192,6 +195,9 @@ WordPress updates can be managed through the admin interface or by updating the 
 - CloudWatch dashboards for key metrics
 - SNS notifications for alarms
 - CloudTrail for API activity logging
+- ALB Access Logs stored in S3 with region-specific bucket policies:
+  - Each AWS region requires specific ELB account IDs in the bucket policy (e.g., 156460612806 for eu-west-1)
+  - Proper S3 bucket permissions configured for log delivery
 
 ## Troubleshooting
 
@@ -219,7 +225,7 @@ WordPress updates can be managed through the admin interface or by updating the 
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU General Public License v3 (GPL-3.0) - see the LICENSE file for details.
 
 ## References
 
