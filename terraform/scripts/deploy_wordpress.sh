@@ -134,18 +134,25 @@ rm -f /etc/nginx/sites-enabled/default
 systemctl restart nginx
 
 # 6. Download and install WordPress
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading and installing WordPress..."
-cd /tmp
-curl -O https://wordpress.org/latest.zip
-unzip -q latest.zip
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading and installing WordPress from GitHub..."
+
 # Ensure /var/www/html exists
 mkdir -p /var/www/html
+
 # Remove old WordPress files if they exist
-rm -rf /var/www/html/*
-# Move WordPress to correct directory
-mv wordpress /var/www/html/wordpress || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to move WordPress!"; exit 1; }
-# Remove temporary files
-rm -rf latest.zip
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing old WordPress installation..."
+rm -rf /var/www/html/wordpress
+
+# Clone WordPress repository from GitHub using HTTPS (no SSH keys required)
+git clone --depth=1 https://github.com/hetmanskyi-cloud/wordpress.git /var/www/html/wordpress || { 
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to clone WordPress repository!"; exit 1; 
+}
+
+# Set proper ownership and permissions
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting file permissions..."
+chown -R www-data:www-data /var/www/html/wordpress
+chmod -R 755 /var/www/html/wordpress
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation completed successfully!"
 
 # 7. Configure WordPress (wp-config.php) for DB, ALB, Redis
