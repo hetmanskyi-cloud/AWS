@@ -380,7 +380,7 @@ module "alb" {
   depends_on = [module.vpc, module.s3]
 }
 
-# --- Interface Endpoints Module Configuration --- #
+# --- Interface Endpoints Module Configuration (Now disabled) --- #
 # Configures the VPC Interface Endpoints for secure access to AWS services within the VPC.
 module "interface_endpoints" {
   source = "./modules/interface_endpoints" # Path to module Interface Endpoints
@@ -392,4 +392,5 @@ module "interface_endpoints" {
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
   private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
+  enable_interface_endpoints = var.enable_interface_endpoints
 }

@@ -78,9 +78,27 @@ resource "aws_security_group_rule" "all_outbound" {
   # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
 }
 
+# --- Outbound Rule for ASG to AWS Services --- #
+# Allows outbound HTTPS traffic from ASG instances to AWS public endpoints
+# when Interface Endpoints are disabled (enable_interface_endpoints = false).
+resource "aws_security_group_rule" "allow_ssm_public_egress" {
+  count = var.enable_interface_endpoints ? 0 : 1
+
+  security_group_id = aws_security_group.asg_security_group.id
+  type              = "egress"
+  protocol          = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow outbound HTTPS traffic from ASG instances to AWS public services (SSM, CloudWatch, etc.)"
+}
+
 # --- Outbound Rule for ASG to VPC Endpoints --- #
 # Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch)
-resource "aws_security_group_rule" "allow_ssm_egress" {
+# when Interface Endpoints are enabled (enable_interface_endpoints = true).
+resource "aws_security_group_rule" "allow_private_ssm_egress" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   security_group_id        = aws_security_group.asg_security_group.id # ASG Security Group
   type                     = "egress"
   protocol                 = "tcp"
@@ -93,12 +111,25 @@ resource "aws_security_group_rule" "allow_ssm_egress" {
 # --- Notes --- #
 #
 # 1. **Traffic Rules**:
-#    - HTTP traffic is always enabled for communication between ALB and ASG.
-#    - HTTPS traffic is enabled only if `enable_https_listener` is set to `true` in the ALB module.
+#    - HTTP traffic (port 80) is always enabled for communication between ALB and ASG.
+#    - HTTPS traffic (port 443) is enabled only if `enable_https_listener = true` in the ALB module.
 #
-# 2. **Outbound Rules**:
-#    - All outbound traffic is allowed for simplicity.
+# 2. **Outbound Traffic**:
+#    - All outbound traffic (`0.0.0.0/0`) is allowed for ASG instances by default for flexibility.
+#    - Specific outbound rules for AWS services are dynamically adjusted based on `enable_interface_endpoints`:
+#      - If `enable_interface_endpoints = false`, ASG instances use public AWS service endpoints.
+#      - If `enable_interface_endpoints = true`, ASG instances use private VPC Endpoints.
 #
-# 3. **Best Practices**:
+# 3. **Security Considerations**:
+#    - The `all_outbound` rule (`0.0.0.0/0`) is suitable for development but should be restricted in production.
+#    - Consider using **least privilege access** by specifying only required outbound destinations.
 #    - Regularly audit security group rules to minimize unnecessary access.
-#    - Ensure ALB and ASG configurations align with application requirements.
+#
+# 4. **Future Readiness**:
+#    - The VPC Interface Endpoints module is currently **disabled** but is retained for future use.
+#    - If ASG instances are later moved to private subnets **without NAT Gateway**, enabling `enable_interface_endpoints`
+#      will automatically switch outbound traffic to private VPC Endpoints instead of public AWS APIs.
+#
+# 5. **Instance Connectivity**:
+#    - ASG instances require outbound HTTPS (`443`) to AWS services for SSM, CloudWatch, and KMS.
+#    - Ensure the appropriate outbound rule (`allow_ssm_public_egress` or `allow_private_ssm_egress`) is active.

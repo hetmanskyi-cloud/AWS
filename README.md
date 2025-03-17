@@ -74,16 +74,114 @@ This project implements a production-ready AWS infrastructure with the following
 
 This project consists of the following modules:
 
-| Module | Description |
-|--------|-------------|
-| [vpc](/terraform/modules/vpc) | Creates a VPC with public and private subnets, route tables, NACLs, and VPC endpoints |
-| [alb](/terraform/modules/alb) | Provisions an Application Load Balancer with WAF, security groups, and monitoring |
-| [asg](/terraform/modules/asg) | Sets up Auto Scaling Groups with launch templates and scaling policies |
-| [rds](/terraform/modules/rds) | Configures RDS MySQL instances with Multi-AZ support and monitoring |
-| [elasticache](/terraform/modules/elasticache) | Deploys ElastiCache Redis clusters with replication and monitoring |
-| [s3](/terraform/modules/s3) | Creates S3 buckets with encryption, lifecycle policies, and replication |
-| [kms](/terraform/modules/kms) | Manages KMS keys for encryption of resources |
-| [interface_endpoints](/terraform/modules/interface_endpoints) | Establishes VPC interface endpoints for AWS services |
+| Module                                                       | Description                                                          |
+|--------------------------------------------------------------|----------------------------------------------------------------------|
+| [vpc](/terraform/modules/vpc)                                | VPC with public/private subnets, route tables, NACLs, and endpoints  |
+| [alb](/terraform/modules/alb)                                | Application Load Balancer with WAF, security groups, and monitoring  |
+| [asg](/terraform/modules/asg)                                | Auto Scaling Groups for WordPress with scaling policies and IAM roles|
+| [rds](/terraform/modules/rds)                                | RDS MySQL with Multi-AZ support and monitoring                       |
+| [elasticache](/terraform/modules/elasticache)                | ElastiCache Redis with replication and monitoring                    |
+| [s3](/terraform/modules/s3)                                  | S3 buckets with encryption, lifecycle policies, and replication      |
+| [kms](/terraform/modules/kms)                                | KMS keys for resource encryption                                     |
+| [interface_endpoints](/terraform/modules/interface_endpoints)| VPC interface endpoints with conditional creation                    |
+
+## Code Structure Overview
+
+```
+terraform/                           # Main Terraform configuration directory
+├── main.tf                          # Primary configuration file with module calls
+├── variables.tf                     # Input variable declarations
+├── outputs.tf                       # Output value definitions
+├── providers.tf                     # AWS provider configuration
+├── remote_backend.tf                # S3 backend for state management
+├── secrets.tf                       # AWS Secrets Manager configuration
+├── cloudtrail.tf                    # CloudTrail logging setup
+├── sns_topic.tf                     # SNS notification configuration
+├── terraform.tfvars                 # Variable values for deployment
+│
+├── modules/                         # Modular components of the infrastructure
+│   ├── vpc/                         # Virtual Private Cloud module
+│   │   ├── main.tf                  # VPC, subnets, and core resources
+│   │   ├── endpoints_routes.tf      # Route tables and VPC endpoints
+│   │   ├── flow_logs.tf             # VPC Flow Logs configuration
+│   │   ├── nacl.tf                  # Network ACL rules
+│   │   ├── variables.tf             # Input variables for the module
+│   │   ├── outputs.tf               # Output values from the module
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── alb/                         # Application Load Balancer module
+│   │   ├── main.tf                  # ALB and target group configuration
+│   │   ├── security_group.tf        # ALB security groups
+│   │   ├── waf.tf                   # Web Application Firewall rules
+│   │   ├── firehose.tf              # Kinesis Firehose for logs
+│   │   ├── metrics.tf               # CloudWatch metrics and alarms
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── asg/                         # Auto Scaling Group module
+│   │   ├── main.tf                  # ASG configuration and scaling policies
+│   │   ├── launch_template.tf       # EC2 launch template with WordPress deployment
+│   │   ├── iam.tf                   # IAM roles and conditional policies for S3, KMS, and SSM
+│   │   ├── security_group.tf        # EC2 security groups with dynamic rules
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── rds/                         # RDS Database module
+│   │   ├── main.tf                  # RDS instance configuration
+│   │   ├── security_group.tf        # Database security groups
+│   │   ├── iam.tf                   # IAM roles for monitoring
+│   │   ├── metrics.tf               # CloudWatch metrics and alarms
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── elasticache/                 # ElastiCache Redis module
+│   │   ├── main.tf                  # Redis cluster configuration
+│   │   ├── security_group.tf        # Redis security groups
+│   │   ├── metrics.tf               # CloudWatch metrics and alarms
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── s3/                          # S3 Storage module
+│   │   ├── main.tf                  # S3 bucket configuration
+│   │   ├── policies.tf              # Bucket policies
+│   │   ├── lifecycle.tf             # Object lifecycle rules
+│   │   ├── replication.tf           # Cross-region replication
+│   │   ├── dynamodb.tf              # DynamoDB for state locking
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   ├── kms/                         # KMS Encryption module
+│   │   ├── main.tf                  # Main KMS configuration
+│   │   ├── key.tf                   # KMS key configuration
+│   │   ├── metrics.tf               # CloudWatch metrics and alarms
+│   │   ├── variables.tf             # Input variables
+│   │   ├── outputs.tf               # Output values
+│   │   └── README.md                # Module documentation
+│   │
+│   └── interface_endpoints/         # VPC Interface Endpoints module (now disabled)
+│       ├── main.tf                  # Endpoint configuration
+│       ├── security_group.tf        # Endpoint security groups
+│       ├── variables.tf             # Input variables
+│       ├── outputs.tf               # Output values
+│       └── README.md                # Module documentation
+│
+├── scripts/                         # Deployment and maintenance scripts
+│   ├── check_aws_resources.sh       # Checks AWS resource status
+│   ├── check_server_status.sh       # EC2 instance health checker
+│   ├── deploy_wordpress.sh          # Automates WordPress deployment
+│   ├── healthcheck-1.0.php          # Simple ALB health check
+│   ├── healthcheck-2.0.php          # Advanced ALB health check
+│   └── README.md                    # Scripts documentation
+│
+└── templates/                       # Template files for resources
+    ├── user_data.sh.tpl             # EC2 user data template
+    └── README.md                    # Templates documentation
+```
 
 ## Prerequisites
 

@@ -771,3 +771,11 @@ variable "cloudtrail_logs_retention_in_days" {
   type        = number
   default     = 30
 }
+
+# --- Interface Endpoints Module Variables --- #
+
+variable "enable_interface_endpoints" {
+  description = "Enable or disable Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)"
+  type        = bool
+  default     = false
+}

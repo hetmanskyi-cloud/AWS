@@ -42,7 +42,7 @@ The module provisions:
 - **Existing SNS Topic** (required if key monitoring is enabled):
   - SNS topic ARN for alarm notifications.
 
-## Module File Structure
+## Module Files Structure
 
 | File             | Description                                                         |
 |------------------|---------------------------------------------------------------------|

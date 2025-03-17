@@ -66,7 +66,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ---
 
-## Files Structure
+## Module Files Structure
 
 | **File**          | **Description**                                                                          |
 |-------------------|------------------------------------------------------------------------------------------|

@@ -4,40 +4,40 @@
 # Outputs the ID of the Interface Endpoint for AWS Systems Manager (SSM).
 output "ssm_endpoint_id" {
   description = "The ID of the SSM Interface Endpoint"
-  value       = try(aws_vpc_endpoint.ssm.id, null)
+  value       = try(aws_vpc_endpoint.ssm[0].id, null)
 }
 
 # --- SSM Messages Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for SSM Messages, used by the Systems Manager Agent.
 output "ssm_messages_endpoint_id" {
   description = "The ID of the SSM Messages Interface Endpoint"
-  value       = try(aws_vpc_endpoint.ssm_messages.id, null)
+  value       = try(aws_vpc_endpoint.ssm_messages[0].id, null)
 }
 
 # --- ASG Messages Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for ASG Messages, used for Systems Manager communications.
 output "asg_messages_endpoint_id" {
   description = "The ID of the ASG Messages Interface Endpoint"
-  value       = try(aws_vpc_endpoint.asg_messages.id, null)
+  value       = try(aws_vpc_endpoint.asg_messages[0].id, null)
 }
 
 # --- Endpoint Security Group ID --- #
 # Outputs the ID of the Security Group created for VPC Endpoints to allow controlled access.
 output "endpoint_security_group_id" {
   description = "ID of the security group for VPC endpoints"
-  value       = aws_security_group.endpoints_sg.id
+  value       = length(aws_security_group.endpoints_sg) > 0 ? aws_security_group.endpoints_sg[0].id : null
 }
 
 # --- CloudWatch Logs Endpoint --- #
 output "cloudwatch_logs_endpoint_id" {
   description = "The ID of the CloudWatch Logs Interface Endpoint"
-  value       = try(aws_vpc_endpoint.cloudwatch_logs.id, null)
+  value       = try(aws_vpc_endpoint.cloudwatch_logs[0].id, null)
 }
 
 # --- KMS Endpoint --- #
 output "kms_endpoint_id" {
   description = "The ID of the KMS Interface Endpoint"
-  value       = try(aws_vpc_endpoint.kms.id, null)
+  value       = try(aws_vpc_endpoint.kms[0].id, null)
 }
 
 # --- Notes --- #

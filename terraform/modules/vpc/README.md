@@ -136,7 +136,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
      ```
    - Common fields explanation provided in CloudWatch
 
-## **File Structure**
+## **Module Files Structure**
 
 | **File**              | **Description**                                                                 |
 |-----------------------|---------------------------------------------------------------------------------|

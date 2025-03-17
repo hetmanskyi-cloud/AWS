@@ -143,8 +143,11 @@ mkdir -p /var/www/html
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing old WordPress installation..."
 rm -rf /var/www/html/wordpress
 
-# Clone WordPress repository from GitHub using HTTPS (no SSH keys required)
-git clone --depth=1 https://github.com/hetmanskyi-cloud/wordpress.git /var/www/html/wordpress || { 
+# Define the WordPress version (branch, tag, or commit)
+GIT_COMMIT="main"  # Replace with a specific commit or tag if needed
+
+# Clone the WordPress repository
+git clone --depth=1 --branch "$GIT_COMMIT" https://github.com/hetmanskyi-cloud/wordpress.git /var/www/html/wordpress || { 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to clone WordPress repository!"; exit 1; 
 }
 

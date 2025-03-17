@@ -1,17 +1,21 @@
-# --- Main Configuration for VPC Endpoints --- #
-# Creates Interface VPC Endpoints for essential AWS services:
-# SSM, SSM Messages, ASG Messages (EC2 Messages), CloudWatch Logs, and KMS.
-# Each endpoint is deployed across all private subnets for high availability,
-# enabling private service access from any AZ within the VPC without NAT.
+# --- VPC Interface Endpoints (Future Use) --- #
+# This module is currently disabled but remains as a future-proofing measure.
+# It allows private communication with AWS services (SSM, CloudWatch, KMS, etc.)
+# if EC2 instances are later moved to private subnets without internet access.
+# 
+# For now, instances are in public subnets with direct internet access, so 
+# enabling this module is unnecessary. To enable, set `enable_interface_endpoints = true`.
 
 resource "aws_vpc_endpoint" "ssm" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   vpc_id            = var.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.ssm"
   vpc_endpoint_type = "Interface"
 
   # Deploy endpoint ENIs across all private subnets for AZ redundancy.
   subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
+  security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
   tags = {
@@ -22,11 +26,13 @@ resource "aws_vpc_endpoint" "ssm" {
 
 # --- SSM Messages Interface Endpoint --- #
 resource "aws_vpc_endpoint" "ssm_messages" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
+  security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
   tags = {
@@ -37,11 +43,13 @@ resource "aws_vpc_endpoint" "ssm_messages" {
 
 # --- ASG Messages Interface Endpoint (EC2 Messages for Auto Scaling) --- #
 resource "aws_vpc_endpoint" "asg_messages" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.ec2messages"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
+  security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
   tags = {
@@ -52,11 +60,13 @@ resource "aws_vpc_endpoint" "asg_messages" {
 
 # --- CloudWatch Logs Interface Endpoint --- #
 resource "aws_vpc_endpoint" "cloudwatch_logs" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.logs"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
+  security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
   tags = {
@@ -67,11 +77,13 @@ resource "aws_vpc_endpoint" "cloudwatch_logs" {
 
 # --- KMS Interface Endpoint --- #
 resource "aws_vpc_endpoint" "kms" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.kms"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
-  security_group_ids  = [aws_security_group.endpoints_sg.id]
+  security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
   tags = {

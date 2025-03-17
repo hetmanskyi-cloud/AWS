@@ -43,7 +43,7 @@ This module provisions and manages an RDS (Relational Database Service) instance
 
 ---
 
-## Files Structure
+## Module Files Structure
 
 | **File**               | **Description**                                                               |
 |------------------------|-------------------------------------------------------------------------------|

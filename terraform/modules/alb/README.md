@@ -32,7 +32,7 @@ This module provisions:
 - **CloudWatch Alarms** for proactive monitoring
 - **Kinesis Firehose** for log processing (conditional)
 
-## Module Files
+## Module Files Structure
 
 | **File**             | **Description**                                                |
 |----------------------|----------------------------------------------------------------|

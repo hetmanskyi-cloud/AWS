@@ -2,6 +2,22 @@
 
 Terraform module to provision AWS Interface VPC Endpoints for secure and private communication with essential AWS services within your VPC.
 
+This module is currently **disabled** (`enable_interface_endpoints = false`) but remains as a **future-proofing measure**.
+
+### When is it needed?
+If EC2 instances are **moved to private subnets** without NAT Gateway, AWS Systems Manager (SSM), CloudWatch Logs, and KMS **will stop working** because they require an internet connection. In such a scenario, **VPC Interface Endpoints** allow these services to work securely inside the VPC **without internet access**.
+
+### Current State
+- **EC2 instances are in public subnets** with internet access.
+- **Session Manager and CloudWatch Logs work via the public internet**, so VPC Endpoints are **not needed**.
+- This module remains in the project in case the architecture changes.
+
+### How to Enable?
+If EC2 instances are moved to private subnets, **update `terraform.tfvars`**:
+```hcl
+enable_interface_endpoints = true
+```
+
 ## Overview
 
 This module creates Interface VPC Endpoints for secure and highly available access to AWS services without traversing the public internet, enhancing security and reliability.
@@ -26,11 +42,11 @@ Endpoints are deployed across all private subnets, ensuring high availability ac
 ## Module Architecture
 
 This module provisions:
-- **Interface VPC Endpoints** for listed AWS services.
+- **Interface VPC Endpoints** for listed AWS services, using conditional creation based on the `enable_interface_endpoints` variable.
 - **Dedicated Security Group** to control HTTPS (port 443) access within the VPC.
 - **Inbound and outbound Security Group rules** tailored for secure communication.
 
-## Module File Structure
+## Module Files Structure
 
 | File                   | Description                                                      |
 |------------------------|------------------------------------------------------------------|
@@ -55,6 +71,7 @@ This module provisions:
 | `vpc_cidr_block`              | `string`       | CIDR block of the VPC.             | Valid CIDR block format                 |
 | `private_subnet_ids`          | `list(string)` | List of private subnet IDs.        | Valid AWS subnet IDs                    |
 | `private_subnet_cidr_blocks`  | `list(string)` | List of private subnet CIDR blocks.| Valid CIDR block format                 |
+| `enable_interface_endpoints`  | `bool`         | Enable/disable Interface Endpoints.| Default: `false`                        |
 
 ## Outputs
 
@@ -80,6 +97,7 @@ module "interface_endpoints" {
   vpc_cidr_block              = module.vpc.vpc_cidr_block
   private_subnet_ids          = module.vpc.private_subnet_ids
   private_subnet_cidr_blocks  = module.vpc.private_subnet_cidr_blocks
+  enable_interface_endpoints  = false  # Default is false, set to true when needed
 }
 ```
 
@@ -89,9 +107,13 @@ module "interface_endpoints" {
 - **Egress:** Allowed to AWS services and PrivateLink endpoints (required)
 - **Private DNS Enabled:** Allows standard AWS service URLs
 
+## Conditional Creation
+All resources in this module use the `count` parameter with the `enable_interface_endpoints` variable to conditionally create resources. When set to `false`, no resources are created, which is the default behavior.
+
 ## Best Practices
 - Deploy Interface Endpoints across all private subnets for high availability.
 - Consistently tag all resources for easier management.
+- Enable this module only when instances are in private subnets without internet access.
 
 ## Outputs
 Outputs provided:

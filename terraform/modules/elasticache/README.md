@@ -47,7 +47,7 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 
 ---
 
-## File Structure
+## Module Files Structure
 
 | File                 | Description                                              |
 |----------------------|----------------------------------------------------------|
@@ -141,9 +141,8 @@ module "elasticache" {
   sns_topic_arn = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   kms_key_arn   = "arn:aws:kms:eu-west-1:123456789012:key/example"
 }
-```
 
----
+```
 
 ## Useful Resources
 

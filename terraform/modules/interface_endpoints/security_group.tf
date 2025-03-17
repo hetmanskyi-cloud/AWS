@@ -6,6 +6,8 @@
 # --- Security Group for VPC Endpoints --- #
 # Creates a Security Group to control access for Interface Endpoints within the VPC.
 resource "aws_security_group" "endpoints_sg" {
+  count = var.enable_interface_endpoints ? 1 : 0
+
   name_prefix = "${var.name_prefix}-endpoints-sg"
   description = "Security Group for VPC Endpoints allowing HTTPS access from VPC CIDR"
   vpc_id      = var.vpc_id # ID of the VPC where the Security Group is created
@@ -24,7 +26,9 @@ resource "aws_security_group" "endpoints_sg" {
 # --- Ingress Rules (Inbound Traffic) --- #
 # Allow HTTPS traffic (port 443) to the VPC Endpoints from the entire VPC CIDR.
 resource "aws_security_group_rule" "https_ingress" {
-  security_group_id = aws_security_group.endpoints_sg.id
+  count = var.enable_interface_endpoints ? 1 : 0
+
+  security_group_id = aws_security_group.endpoints_sg[0].id
   type              = "ingress"
   from_port         = 443
   to_port           = 443
@@ -39,7 +43,9 @@ resource "aws_security_group_rule" "https_ingress" {
 # and PrivateLink endpoints outside of the VPC.
 # tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "https_egress" {
-  security_group_id = aws_security_group.endpoints_sg.id
+  count = var.enable_interface_endpoints ? 1 : 0
+
+  security_group_id = aws_security_group.endpoints_sg[0].id
   type              = "egress"
   from_port         = 443
   to_port           = 443

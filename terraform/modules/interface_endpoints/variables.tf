@@ -84,6 +84,16 @@ variable "private_subnet_cidr_blocks" {
   }
 }
 
+# --- Enable or Disable Interface VPC Endpoints --- #
+# This variable controls whether Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.) 
+# are created within the VPC. When set to `false`, no Interface Endpoints or 
+# associated resources (such as Security Groups) will be created.
+variable "enable_interface_endpoints" {
+  description = "Enable or disable Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)"
+  type        = bool
+  default     = false
+}
+
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.

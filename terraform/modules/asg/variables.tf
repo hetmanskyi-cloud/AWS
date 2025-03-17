@@ -420,6 +420,14 @@ variable "healthcheck_version" {
   description = "Determines which healthcheck file to use (1.0 or 2.0)."
 }
 
+# --- Interface VPC Endpoints Toggle --- #
+# Controls whether Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.) are created.
+variable "enable_interface_endpoints" {
+  description = "Enable or disable Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)"
+  type        = bool
+  default     = false
+}
+
 # --- Notes --- #
 
 # 1. **Variable Grouping:**
