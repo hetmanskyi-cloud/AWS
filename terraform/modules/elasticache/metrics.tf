@@ -41,30 +41,9 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
   }
 }
 
-# --- Alarm for Redis Evictions --- #
-# Tracks memory issues in Redis by monitoring eviction events.
-# Statistic is set to "Sum" to count the total number of evictions within the period.
-resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
-  count = var.enable_redis_evictions_alarm ? 1 : 0
-
-  alarm_name                = "${var.name_prefix}-redis-evictions"
-  comparison_operator       = "GreaterThanThreshold"
-  evaluation_periods        = 1
-  metric_name               = "Evictions"
-  namespace                 = "AWS/ElastiCache"
-  period                    = 300
-  statistic                 = "Sum"
-  threshold                 = var.redis_evictions_threshold # Default can be 1
-  alarm_actions             = [var.sns_topic_arn]
-  ok_actions                = [var.sns_topic_arn]
-  insufficient_data_actions = [var.sns_topic_arn]
-  dimensions = {
-    ReplicationGroupId = aws_elasticache_replication_group.redis.id
-  }
-}
-
 # --- Replication Bytes Used Alarm --- #
 # Monitors the replication bytes used to detect high memory usage for replication.
+# This metric is only relevant when replicas are configured.
 resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
   count = var.enable_redis_replication_bytes_alarm && var.replicas_per_node_group > 0 ? 1 : 0
 
@@ -108,8 +87,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
 # 1. Monitoring strategy:
 #    - Critical alarms are controlled via enable variables:
 #       - `enable_redis_low_memory_alarm`: Monitors memory usage to prevent bottlenecks.
-#       - `enable_redis_high_cpu_alarm`: Tracks CPU utilization for performance issues.
-#       - `enable_redis_evictions_alarm`: Detects key evictions due to memory limits, highlighting potential data loss risks.
+#       - `enable_redis_high_cpu_alarm`: Tracks CPU utilization for performance issues.#       
 #       - `enable_redis_replication_bytes_alarm`: Tracks replication memory usage to detect potential issues with replication memory overhead.
 #       - `enable_redis_low_cpu_credits_alarm`: Ensures sufficient CPU credits for burstable instance types.
 # 2. Alarms help detect and resolve resource bottlenecks early, improving reliability and availability.

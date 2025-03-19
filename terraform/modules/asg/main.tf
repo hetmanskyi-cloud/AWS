@@ -90,7 +90,7 @@ resource "aws_autoscaling_policy" "scale_in_policy" {
 
 # Define a target tracking scaling policy for the Auto Scaling Group.
 resource "aws_autoscaling_policy" "target_tracking_scaling_policy" {
-  count = var.enable_scaling_policies ? 1 : 0
+  count = var.enable_target_tracking ? 1 : 0
 
   name                   = "${var.name_prefix}-target-tracking-scaling-policy"
   policy_type            = "TargetTrackingScaling"
@@ -117,22 +117,28 @@ data "aws_instances" "asg_instances" {
 
 # --- Notes --- #
 # 1. **ASG Logic**:
-#    - Optional scaling policies (`scale_out_policy`, `scale_in_policy`, `target_tracking_scaling_policy`) are enabled via the `enable_scaling_policies` variable.
+#    - The Auto Scaling Group (ASG) dynamically adjusts the number of EC2 instances based on scaling policies and health checks.
 #
 # 2. **Target Group Integration**:
-#    - The ASG instances are attached to the ALB's Target Group (`wordpress_tg_arn`).
+#    - ASG instances are attached to the ALB's Target Group (`wordpress_tg_arn`) for traffic routing and health monitoring.
 #
 # 3. **Health Checks**:
-#    - The ASG uses ELB (ALB) health checks to ensure instance availability.
+#    - The ASG uses ELB (ALB) health checks to ensure instance availability and proper application-level monitoring.
 #
-# 4. **Scaling Policies**:
-#   - `scale_out_policy`: Triggers a scale-out action (adds an instance) when CPU utilization exceeds the target.
-#   - `scale_in_policy`: Triggers a scale-in action (removes an instance) when CPU utilization drops below the target.
-#   - `target_tracking_scaling_policy`: Automatically adjusts capacity to maintain a target CPU utilization percentage (default: 50%).
+# 4. **Scaling Policies Control**:
+#    - **Simple scaling policies** (`scale_out_policy`, `scale_in_policy`) are controlled via the `enable_scaling_policies` variable.
+#      - `scale_out_policy`: Adds an instance when CPU utilization exceeds the configured threshold.
+#      - `scale_in_policy`: Removes an instance when CPU utilization drops below the configured threshold.
+#      - These policies rely on external CloudWatch Alarms for triggering.
+#
+#    - **Target Tracking Scaling Policy** is controlled separately via the `enable_target_tracking` variable.
+#      - `target_tracking_scaling_policy`: Automatically adjusts ASG capacity to maintain the target average CPU utilization (default: 50%).
+#      - AWS manages the necessary CloudWatch Alarms internally for this policy (no external alarms required).
 #
 # 5. **Data Source**:
-#   - Dynamically retrieves ASG instance details for monitoring or further integrations.
-#   - Controlled by the `enable_data_source` variable to optimize resource usage in environments where this data is not needed.
+#    - The optional `aws_instances` data source dynamically retrieves instance IDs from the ASG for monitoring or external integrations.
+#    - Controlled by the `enable_data_source` variable to avoid unnecessary overhead when not required.
 #
 # 6. **Dependencies**:
-#    - The ASG relies on a Launch Template and Target Group for configuration.
+#    - The ASG depends on the Launch Template and ALB Target Group.
+#    - `lifecycle { create_before_destroy = true }` ensures zero downtime during updates or scaling events.

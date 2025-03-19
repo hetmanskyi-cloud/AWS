@@ -24,7 +24,7 @@ provider "aws" {
 
 # Replica KMS key in the replication region for cross-region S3 replication (conditional).
 resource "aws_kms_replica_key" "replica_key" {
-  count = var.replication_region != "" ? 1 : 0
+  count = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? 1 : 0
 
   provider        = aws.replication
   description     = "Replica of general encryption key for S3 replication in ${var.replication_region}"
@@ -39,14 +39,15 @@ resource "aws_kms_replica_key" "replica_key" {
 # --- Local Variables --- #
 locals {
   # Common KMS actions for various services and principals.
-  kms_actions = [
+  kms_actions = distinct([
     "kms:Encrypt",
     "kms:Decrypt",
     "kms:ReEncryptFrom",
     "kms:ReEncryptTo",
     "kms:GenerateDataKey*",
+    "kms:GenerateDataKeyWithoutPlaintext",
     "kms:DescribeKey"
-  ]
+  ])
 
   # KMS actions specifically required for S3 replication.
   s3_replication_kms_actions = [
@@ -56,8 +57,19 @@ locals {
     "kms:ReEncryptTo",
     "kms:GenerateDataKey",
     "kms:GenerateDataKeyWithoutPlaintext",
-    "kms:DescribeKey",
-    "kms:CreateGrant"
+    "kms:DescribeKey"
+  ]
+
+  # KMS Grant Operations (used in aws_kms_grant)
+  s3_replication_grant_operations = [
+    "Encrypt",
+    "Decrypt",
+    "ReEncryptFrom",
+    "ReEncryptTo",
+    "GenerateDataKey",
+    "GenerateDataKeyWithoutPlaintext",
+    "DescribeKey",
+    "CreateGrant"
   ]
 
   # Base AWS services requiring KMS access (AWS service principals).
@@ -99,7 +111,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
     Id      = "key-policy-1",
     Statement = flatten([
       [
-        # Statement: Enable IAM User Permissions (TEMPORARY - REMOVE AFTER SETUP)
+        # Statement: Temporary root access for initial setup (REMOVE after initial setup).
         {
           Sid    = "EnableIAMUserPermissions",
           Effect = "Allow",
@@ -109,7 +121,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Action   = "kms:*",
           Resource = "*",
         },
-        # Statement: Allow AWS Services Usage
+        # Statement: # Allow AWS services usage with restricted resource (only this KMS key).
         {
           Sid    = "AllowAWSServicesUsage",
           Effect = "Allow",
@@ -117,7 +129,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             Service = local.kms_services
           },
           Action   = local.kms_actions,
-          Resource = "*",
+          Resource = aws_kms_key.general_encryption_key.arn,
         },
         # Statement: Allow S3 Replication Usage
         {
@@ -127,7 +139,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             Service = "s3.amazonaws.com"
           },
           Action   = local.s3_replication_kms_actions,
-          Resource = "*",
+          Resource = aws_kms_key.general_encryption_key.arn,
         },
       ],
       length(local.additional_principals) > 0 ? [
@@ -139,31 +151,30 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             AWS = local.additional_principals
           },
           Action   = local.kms_actions,
-          Resource = "*",
+          Resource = aws_kms_key.general_encryption_key.arn,
         }
       ] : []
     ])
   })
+
+  # --- Notes --- #
+  # 1. Currently, the KMS key is accessed without using a KMS VPC Interface Endpoint, meaning encryption traffic
+  #    goes through the public internet.
+  # 2. If EC2 instances are later moved to private subnets without internet access, ensure the KMS VPC Endpoint
+  #    is enabled by setting 'enable_interface_endpoints = true' in terraform.tfvars.
+  #    AWS will automatically route encryption traffic through the private VPC connection when available.
 }
 
 # --- KMS Grant for S3 Replication on Replica Key --- #
 # Granting S3 service permissions to use the replica KMS key for cross-region S3 replication.
 # Replica key policies cannot be directly modified; grants are used instead.
 resource "aws_kms_grant" "s3_replication_grant" {
-  count             = var.replication_region != "" ? 1 : 0
+  count = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? 1 : 0
+
   key_id            = aws_kms_replica_key.replica_key[0].id
   grantee_principal = "s3.amazonaws.com"
 
-  operations = [
-    "Encrypt",
-    "Decrypt",
-    "ReEncryptFrom",
-    "ReEncryptTo",
-    "GenerateDataKey",
-    "GenerateDataKeyWithoutPlaintext",
-    "DescribeKey",
-    "CreateGrant"
-  ]
+  operations = local.s3_replication_grant_operations
 
   name = "S3ReplicationGrant"
 }
@@ -202,3 +213,5 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #    - A separate KMS grant (aws_kms_grant.s3_replication_grant) is created to allow S3 to perform
 #      encryption and decryption operations necessary for replication.
 #    - Ensure that any changes in permissions required for S3 replication are reflected in this grant.
+# 6. Replica KMS key and KMS Grant for S3 Replication on Replica Key are dynamically created only when replication buckets are enabled.
+#    Ensure replication_region in terraform.tfvars matches the replication_region_buckets configuration.

@@ -103,6 +103,12 @@ variable "enable_scaling_policies" {
   default     = true
 }
 
+variable "enable_target_tracking" {
+  description = "Enable target tracking scaling policy (recommended)"
+  type        = bool
+  default     = true
+}
+
 # --- Scaling Policy Thresholds --- #
 # Parameters related to CPU and network usage for scaling decisions.
 

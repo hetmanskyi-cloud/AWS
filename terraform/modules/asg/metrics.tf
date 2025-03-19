@@ -117,30 +117,31 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
 }
 
 # --- Notes --- #
-
 # 1. **Alarm Logic**:
-#    - Each alarm is enabled or disabled using individual variables (e.g., `enable_scale_out_alarm`).
-#    - All alarms use treat_missing_data = "notBreaching" to prevent false alarms.
+#    - Each alarm is controlled by individual boolean variables (e.g., `enable_scale_out_alarm`, `enable_high_network_in_alarm`).
+#    - All alarms use `treat_missing_data = "notBreaching"` to minimize false positives if no data is reported.
 #
-# 2. **Scaling Alarms**:
-#    - `scale_out_alarm`: Scales out (adds instances) when CPU utilization exceeds the threshold.
-#    - `scale_in_alarm`: Scales in (removes instances) when CPU utilization drops below the threshold.
-#    - Both use 2 evaluation periods to avoid reaction to temporary spikes.
+# 2. **Scaling Alarms (Simple Policies Only)**:
+#    - `scale_out_alarm`: Triggers the `scale_out_policy` when average CPU utilization exceeds the specified threshold.
+#    - `scale_in_alarm`: Triggers the `scale_in_policy` when average CPU utilization drops below the specified threshold.
+#    - Both alarms depend on `enable_scaling_policies = true` and require explicit connection to simple scaling policies.
+#    - Designed for environments where manual scaling control via CloudWatch Alarms is required.
+#    - **Note:** These alarms are not connected to `target_tracking_scaling_policy` — Target Tracking creates its own internal alarms automatically.
 #
 # 3. **Health Monitoring**:
-#    - `asg_status_check_failed`: Complements ALB health checks with EC2-level monitoring.
-#    - Can work simultaneously with ALB checks for comprehensive health monitoring.
-#    - Disabled by default but can be enabled for additional system-level insights.
+#    - `asg_status_check_failed`: Monitors EC2 instance health at the system level using AWS status checks.
+#    - Complements ALB health checks by detecting low-level instance issues (e.g., hardware failure, OS issues).
+#    - Can be enabled for deeper system visibility.
 #
 # 4. **Traffic Monitoring**:
-#    - `high_network_in`: Tracks unusually high incoming traffic.
-#    - `high_network_out`: Tracks unusually high outgoing traffic.
-#    - Both use 3 evaluation periods with 2 datapoints to alarm for reliable detection.
+#    - `high_network_in`: Detects unusually high incoming network traffic, which may indicate potential DDoS attacks or traffic spikes.
+#    - `high_network_out`: Detects unusually high outgoing network traffic, which may indicate data exfiltration or unexpected outbound spikes.
+#    - Both alarms use 3 evaluation periods and require 2 breaching datapoints for reliability and reduced false positives.
 #
 # 5. **SNS Notifications**:
-#    - All alarms send both alarm and OK notifications via SNS if topic ARN is provided.
-#    - Network alarms now include SNS notifications for better visibility.
+#    - All alarms send notifications to the configured SNS topic (`sns_topic_arn`) on both ALARM and OK state transitions.
+#    - Ensures real-time alerting and recovery visibility.
 #
-# 6. **Scalability**:
-#    - Modular design allows easy addition of new alarms and metrics as needed.
-#    - Each alarm can be independently enabled/disabled based on environment needs.
+# 6. **Scalability and Flexibility**:
+#    - The modular design allows for easy addition or removal of specific alarms based on environment or project requirements.
+#    - Each alarm is independently controlled, making it suitable for fine-tuning per environment (dev, stage, prod).

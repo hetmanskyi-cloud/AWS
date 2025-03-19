@@ -31,7 +31,7 @@ resource "aws_iam_role" "asg_role" {
   }
 }
 
-# --- S3 Access Policy ---
+# --- S3 Access Policy --- #
 resource "aws_iam_policy" "s3_access_policy" {
   count = (
     var.default_region_buckets["wordpress_media"].enabled ||

@@ -60,13 +60,6 @@ module "vpc" {
   # General environment and naming configurations
   environment = var.environment
   name_prefix = var.name_prefix
-
-  # Variables for VPC Endpoints routes
-  ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
-  ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id
-  asg_messages_endpoint_id    = module.interface_endpoints.asg_messages_endpoint_id
-  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
-  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
 }
 
 # --- KMS Module Configuration --- #
@@ -134,6 +127,7 @@ module "asg" {
   autoscaling_max         = var.autoscaling_max
   desired_capacity        = var.desired_capacity
   enable_scaling_policies = var.enable_scaling_policies
+  enable_target_tracking  = var.enable_target_tracking
   enable_data_source      = var.enable_data_source
   scale_out_cpu_threshold = var.scale_out_cpu_threshold
   scale_in_cpu_threshold  = var.scale_in_cpu_threshold

@@ -78,21 +78,6 @@ resource "aws_security_group_rule" "all_outbound" {
   # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
 }
 
-# --- Outbound Rule for ASG to AWS Services --- #
-# Allows outbound HTTPS traffic from ASG instances to AWS public endpoints
-# when Interface Endpoints are disabled (enable_interface_endpoints = false).
-resource "aws_security_group_rule" "allow_ssm_public_egress" {
-  count = var.enable_interface_endpoints ? 0 : 1
-
-  security_group_id = aws_security_group.asg_security_group.id
-  type              = "egress"
-  protocol          = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_blocks       = ["0.0.0.0/0"]
-  description       = "Allow outbound HTTPS traffic from ASG instances to AWS public services (SSM, CloudWatch, etc.)"
-}
-
 # --- Outbound Rule for ASG to VPC Endpoints --- #
 # Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch)
 # when Interface Endpoints are enabled (enable_interface_endpoints = true).
@@ -116,9 +101,8 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 #
 # 2. **Outbound Traffic**:
 #    - All outbound traffic (`0.0.0.0/0`) is allowed for ASG instances by default for flexibility.
-#    - Specific outbound rules for AWS services are dynamically adjusted based on `enable_interface_endpoints`:
-#      - If `enable_interface_endpoints = false`, ASG instances use public AWS service endpoints.
-#      - If `enable_interface_endpoints = true`, ASG instances use private VPC Endpoints.
+#    - When restricting outbound traffic in the future, ensure HTTPS access to AWS services (SSM, CloudWatch, KMS) remains allowed.
+#    - If `enable_interface_endpoints = true`, ASG instances will use private VPC Endpoints for AWS service communication.
 #
 # 3. **Security Considerations**:
 #    - The `all_outbound` rule (`0.0.0.0/0`) is suitable for development but should be restricted in production.
@@ -132,4 +116,4 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 #
 # 5. **Instance Connectivity**:
 #    - ASG instances require outbound HTTPS (`443`) to AWS services for SSM, CloudWatch, and KMS.
-#    - Ensure the appropriate outbound rule (`allow_ssm_public_egress` or `allow_private_ssm_egress`) is active.
+#    - Current configuration (`all_outbound`) already covers this requirement.

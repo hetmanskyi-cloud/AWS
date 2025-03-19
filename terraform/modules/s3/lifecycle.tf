@@ -26,7 +26,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     status = "Enabled"                     # Rule status: Enabled
 
     filter {
-      prefix = ""
+      prefix = "" # Apply to all objects
     }
 
     noncurrent_version_expiration {
@@ -40,7 +40,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
     status = "Enabled"                              # Rule status: Enabled
 
     filter {
-      prefix = ""
+      prefix = "" # Apply to all objects
     }
 
     abort_incomplete_multipart_upload {
@@ -64,7 +64,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     status = "Enabled"
 
     filter {
-      prefix = ""
+      prefix = "" # Apply to all objects
     }
 
     expiration {
@@ -78,7 +78,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     status = "Enabled"                     # Rule status: Enabled
 
     filter {
-      prefix = ""
+      prefix = "" # Apply to all objects
     }
 
     noncurrent_version_expiration {
@@ -92,7 +92,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
     status = "Enabled"                              # Rule status: Enabled
 
     filter {
-      prefix = ""
+      prefix = "" # Apply to all objects
     }
 
     abort_incomplete_multipart_upload {

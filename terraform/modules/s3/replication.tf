@@ -118,9 +118,8 @@ resource "aws_iam_policy" "replication_policy" {
         Resource = compact([
           var.kms_key_arn,
           "${var.kms_key_arn}/*",
-          # WARNING: Fallback grants access to ALL KMS keys in replication region! Restrict or make kms_replica_key_arn mandatory in production!
-          var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : "arn:aws:kms:${var.replication_region}:${var.aws_account_id}:key/*",
-          var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? "${var.kms_replica_key_arn}/*" : null
+          var.kms_replica_key_arn != null ? var.kms_replica_key_arn : null,
+          var.kms_replica_key_arn != null ? "${var.kms_replica_key_arn}/*" : null
         ])
       }
     ]

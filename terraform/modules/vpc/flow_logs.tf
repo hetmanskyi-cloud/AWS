@@ -12,23 +12,6 @@ data "aws_iam_policy_document" "vpc_flow_logs_assume_role" {
   }
 }
 
-# IAM policy document for KMS permissions required by VPC Flow Logs
-data "aws_iam_policy_document" "vpc_flow_logs_kms_policy" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "kms:Encrypt",
-      "kms:Decrypt",
-      "kms:ReEncryptTo",
-      "kms:ReEncryptFrom",
-      "kms:GenerateDataKey",
-      "kms:GenerateDataKeyWithoutPlaintext",
-      "kms:DescribeKey"
-    ]
-    resources = [var.kms_key_arn]
-  }
-}
-
 # --- IAM Role and Policies --- #
 
 # Create IAM Role for VPC Flow Logs

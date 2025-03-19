@@ -173,11 +173,6 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `kms_key_arn`                    | `string`       | ARN of KMS key for Flow Logs encryption             | **Required**               |
 | `flow_logs_retention_in_days`    | `number`       | Number of days to retain VPC Flow Logs              | **Required**               |
 | `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.         | `["0.0.0.0/0"]` (Optional) |
-| `ssm_endpoint_id`                | `string`       | ID of the SSM Interface VPC Endpoint                | **Required**               |
-| `ssm_messages_endpoint_id`       | `string`       | ID of the SSM Messages Interface VPC Endpoint       | **Required**               |
-| `asg_messages_endpoint_id`       | `string`       | ID of the EC2 ASG Messages Interface Endpoint       | **Required**               |
-| `cloudwatch_logs_endpoint_id`    | `string`       | ID of the CloudWatch Logs Interface VPC Endpoint    | **Required**               |
-| `kms_endpoint_id`                | `string`       | ID of the KMS Interface VPC Endpoint                | **Required**               |
 
 ## **Outputs**
 
@@ -252,14 +247,7 @@ module "vpc" {
 
   # Flow Logs Configuration
   kms_key_arn                 = aws_kms_key.vpc_logs_key.arn
-  flow_logs_retention_in_days = 30     # Adjust based on requirements
-  
-  # VPC Endpoint IDs from interface_endpoints module
-  ssm_endpoint_id             = module.interface_endpoints.ssm_endpoint_id
-  ssm_messages_endpoint_id    = module.interface_endpoints.ssm_messages_endpoint_id
-  asg_messages_endpoint_id    = module.interface_endpoints.asg_messages_endpoint_id
-  cloudwatch_logs_endpoint_id = module.interface_endpoints.cloudwatch_logs_endpoint_id
-  kms_endpoint_id             = module.interface_endpoints.kms_endpoint_id
+  flow_logs_retention_in_days = 30     # Adjust based on requirements  
 }
 
 # KMS key for Flow Logs encryption
@@ -274,11 +262,6 @@ resource "aws_kms_key" "vpc_logs_key" {
   }
 }
 
-# Interface Endpoints module (referenced in VPC module)
-module "interface_endpoints" {
-  source = "./modules/interface_endpoints"
-  # ... other parameters
-}
 ```
 
 ## **Best Practices**

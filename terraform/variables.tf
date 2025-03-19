@@ -214,6 +214,12 @@ variable "enable_scaling_policies" {
   default     = true
 }
 
+variable "enable_target_tracking" {
+  description = "Enable target tracking scaling policy (recommended)"
+  type        = bool
+  default     = true
+}
+
 variable "enable_data_source" {
   description = "Enable or disable the data source for fetching ASG instance details"
   type        = bool

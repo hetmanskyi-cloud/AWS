@@ -15,14 +15,12 @@ resource "aws_network_acl" "public_nacl" {
 }
 
 # --- Public NACL Rules --- #
-# HTTP/HTTPS rules are not required because traffic is routed through ALB.
-# Enable only if direct instance access for HTTP/HTTPS is needed (e.g., for debugging).
+# Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
 
-# Rules for the public NACL, defining which traffic is allowed or denied.
+# Rules for public subnets controlling inbound traffic to ALB.
+# These rules must remain open (0.0.0.0/0) for ALB to accept HTTP/HTTPS traffic.
 
-## Ingress Rules: Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
-
-# Rule for inbound HTTP traffic on port 80
+# Rule for inbound HTTP traffic on port 80 for ALB
 # tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_http" {
   network_acl_id = aws_network_acl.public_nacl.id # NACL ID
@@ -31,11 +29,11 @@ resource "aws_network_acl_rule" "public_inbound_http" {
   protocol       = "tcp"                          # TCP protocol
   from_port      = 80                             # Start port
   to_port        = 80                             # End port
-  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs
+  cidr_block     = "0.0.0.0/0"                    # Allow from all IPs for ALB
   rule_action    = "allow"                        # Allow traffic
 }
 
-# Rule for inbound HTTPS traffic on port 443
+# Rule for inbound HTTPS traffic on port 443 for ALB
 resource "aws_network_acl_rule" "public_inbound_https" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 110
@@ -71,7 +69,7 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   protocol       = "tcp"
   from_port      = 1024
   to_port        = 65535
-  cidr_block     = "0.0.0.0/0" # Allow from all IPs # Replace with a more restrictive CIDR in production.
+  cidr_block     = "0.0.0.0/0" # Allow from all IPs. Replace with a more restrictive CIDR in production.
   rule_action    = "allow"
 }
 
@@ -89,7 +87,7 @@ resource "aws_network_acl_rule" "public_outbound_allow_all" {
   rule_action    = "allow"
 }
 
-# --- Private Network ACL Configuration ---
+# --- Private Network ACL Configuration --- #
 # Definition of the private NACL for controlling traffic in private subnets.
 
 resource "aws_network_acl" "private_nacl" {
@@ -274,5 +272,6 @@ resource "aws_network_acl_association" "private_nacl_association_3" {
 #    but these rules can be toggled via variables for enhanced security.
 # 2. Private NACLs allow restricted access to resources like MySQL and Redis within the VPC.
 # 3. Egress rules permit outbound traffic to DNS and ephemeral ports for normal operations.
-# 4. Ensure that NACLs are correctly associated with the intended subnets to avoid connectivity issues.
-# 5. Regularly review NACL rules to maintain alignment with security best practices.
+# 4. ICMP rules are not included by default; add them if network diagnostics (ping, traceroute) are needed.
+# 5. Ensure that NACLs are correctly associated with the intended subnets to avoid connectivity issues.
+# 6. Regularly review NACL rules to maintain alignment with security best practices.
