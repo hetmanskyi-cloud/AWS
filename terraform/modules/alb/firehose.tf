@@ -19,15 +19,15 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
     buffering_size     = 5   # Buffering size in MB.
 
     # GZIP compression reduces storage costs but may increase processing costs when decrypting data in the future.
-    compression_format = "GZIP" # Compress logs in GZIP format for storage efficiency.
+    compression_format = "GZIP" # Compress logs in GZIP format to reduce S3 storage costs. Note: decompression may add processing overhead when analyzing logs later.
 
-    kms_key_arn = var.kms_key_arn # KMS key for encrypting logs. In production replace with CMK
+    kms_key_arn = var.kms_key_arn # KMS key (Customer Managed Key) for encrypting logs. Ensures secure storage in S3.
   }
 }
 
 # --- IAM Role for Firehose --- #
-# This IAM Role is specifically required for delivering logs from Firehose to the target S3 bucket.
-# Ensure this role has permissions only for the required actions to follow the principle of least privilege.
+# This IAM Role is required for Firehose to deliver logs to the target S3 bucket.
+# Ensure it has only the minimum necessary permissions (least privilege principle).
 resource "aws_iam_role" "firehose_role" {
   count = var.enable_firehose ? 1 : 0
 
@@ -96,7 +96,6 @@ resource "aws_iam_role_policy_attachment" "firehose_policy_attachment" {
 }
 
 # --- Notes --- #
-
 # 1. All Firehose-related resources are controlled by the `enable_firehose` variable.
 # 2. Logs are delivered to an S3 bucket with GZIP compression for storage efficiency.
 # 3. S3 is chosen over CloudWatch Logs for its cost-effectiveness and flexibility in long-term storage.
@@ -104,3 +103,5 @@ resource "aws_iam_role_policy_attachment" "firehose_policy_attachment" {
 #    for real-time monitoring, but be mindful of the additional costs.
 # 4. KMS encryption ensures logs are securely stored in the target bucket.
 # 5. The logging bucket is dynamically assigned based on the logging_bucket_arn variable.
+# 6. Buffering settings (interval and size) control how often Firehose delivers logs to S3.
+#    - Adjust these values based on log volume and latency requirements.

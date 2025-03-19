@@ -54,6 +54,8 @@ variable "target_group_port" {
 }
 
 # ARN of the SSL certificate for HTTPS listener (optional).
+# Required when `enable_https_listener` is set to true. 
+# Best practice: Use a valid ACM certificate in production for HTTPS traffic.
 variable "certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener"
   type        = string
@@ -68,7 +70,7 @@ variable "certificate_arn" {
 # --- Deletion Protection Variable for ALB --- #
 # This variable is specific to the ALB module and controls deletion protection for the ALB.
 # - Default value: false (in `alb/variables.tf`).
-# - Recommended: Set to true for production (prod) in `terraform.tfvars` for enhanced safety.
+# Recommended: Set to true for production (prod) in `terraform.tfvars` to prevent accidental deletion of the ALB.
 variable "alb_enable_deletion_protection" {
   description = "Enable deletion protection for the ALB (recommended for prod)"
   type        = bool
@@ -97,7 +99,8 @@ variable "logging_bucket_arn" {
 
 # --- KMS Key ARN --- #
 # ARN of the KMS key used for encrypting Firehose data in the S3 bucket.
-# kms_key_arn is required if enable_firehose is set to true.
+# Customer Managed Key (CMK) is used for better security control.
+# Required if enable_firehose is set to true.
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting Firehose data in the S3 bucket"
   type        = string
@@ -124,6 +127,7 @@ variable "alb_5xx_threshold" {
 }
 
 # ARN of the SNS Topic for sending CloudWatch alarm notifications.
+# Critical for receiving alerts in production environments.
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
@@ -194,3 +198,14 @@ variable "enable_firehose" {
   type        = bool
   default     = false
 }
+
+# --- Notes --- #
+# - In production, enable HTTPS listener, WAF, and logging for improved security and observability.
+# - Features controlled by `enable_*` variables (e.g., enable_waf, enable_firehose, enable_high_request_alarm) 
+#   are optional but highly recommended for production environments:
+#     - enable_waf: Protects against common web attacks.
+#     - enable_firehose: Enables detailed WAF logging to S3 for auditing.
+#     - enable_*_alarm: Activates CloudWatch alarms for traffic monitoring and issue detection.
+# - In development or test environments, these features can be disabled to reduce costs.
+# - Validate all required ARNs (certificate_arn, sns_topic_arn, kms_key_arn) before enabling related features.
+# - Regularly review and adjust alarm thresholds based on real traffic patterns and system behavior.

@@ -1,5 +1,6 @@
 # --- Security Group for the ALB --- #
 # This security group defines the base configuration for the ALB.
+# It controls inbound traffic from the public internet and outbound traffic to targets.
 resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.name_prefix}-alb-sg" # Security group name prefixed with the environment name.
   vpc_id      = var.vpc_id                  # VPC where the ALB resides.
@@ -28,7 +29,7 @@ resource "aws_security_group_rule" "alb_http" {
   protocol          = "tcp"
   security_group_id = aws_security_group.alb_sg.id
   cidr_blocks       = ["0.0.0.0/0"]
-  description       = "Allow HTTP traffic for redirecting to HTTPS"
+  description       = "Allow HTTP traffic for redirecting to HTTPS or serving plain HTTP if HTTPS is disabled"
 }
 
 # --- Ingress Rule for HTTPS --- #
@@ -43,14 +44,15 @@ resource "aws_security_group_rule" "alb_https" {
   cidr_blocks       = ["0.0.0.0/0"]
   description       = "Allow HTTPS traffic (enabled only if HTTPS listener is active)"
 
-  # Note: Ensure the SSL certificate provided via `certificate_arn` is valid and properly configured.
+  # Note: 0.0.0.0/0 is required to allow public HTTPS access.
+  # Ensure the SSL certificate provided via `certificate_arn` is valid and properly configured and tested in production.
   # The HTTPS listener depends on a valid SSL certificate to function correctly.
   # If SSL certificate is missing, var.enable_https_listener variable should be set to false
 }
 
 # --- Egress Rule for ALB --- #
 # Allow all outbound traffic. 
-# This is required because the ALB must be able to communicate with external services, including end-users.
+# Required for ALB to forward requests to registered targets (e.g., ASG instances) and communicate with external services.
 # tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "alb_egress_all" {
   security_group_id = aws_security_group.alb_sg.id
@@ -76,3 +78,4 @@ resource "aws_security_group_rule" "alb_egress_all" {
 # 4. Security Recommendations:
 #    - Regularly review CIDR blocks for ingress rules to ensure they meet your security requirements.
 #    - Monitor ALB logs for unexpected traffic patterns.
+#    - For production, consider limiting CIDR ranges instead of allowing 0.0.0.0/0 to reduce exposure.

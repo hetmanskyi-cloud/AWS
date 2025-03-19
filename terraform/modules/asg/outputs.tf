@@ -25,6 +25,7 @@ output "instance_ids" {
 }
 
 # The public IPs of ASG instances (if assigned), useful for debugging or temporary access.
+# Note: Public IPs are typically used only during testing. In production, access should be via private IPs or SSM.
 output "instance_public_ips" {
   description = "The public IPs of instances in the Auto Scaling Group (if assigned)"
   value       = var.enable_data_source ? try(data.aws_instances.asg_instances[0].public_ips, []) : []
@@ -50,6 +51,8 @@ output "launch_template_latest_version" {
   value       = aws_launch_template.asg_launch_template.latest_version
 }
 
+# Rendered User Data script that was passed to EC2 instances.
+# Marked as sensitive to avoid accidental exposure of secrets or passwords in logs.
 output "rendered_user_data" {
   value       = local.rendered_user_data
   description = "Rendered user_data script passed to EC2 instances."
@@ -67,12 +70,14 @@ output "asg_security_group_id" {
 # --- IAM Role Details --- #
 
 # The ID of the IAM role attached to ASG instances.
+# Useful for auditing and reviewing the exact permissions granted to the ASG.
 output "instance_role_id" {
   description = "The ID of the IAM role attached to ASG instances"
   value       = aws_iam_role.asg_role.id
 }
 
-# The ARN of the IAM role attached to ASG instances.
+# The ID of the IAM role attached to ASG instances.
+# Useful for auditing and reviewing the exact permissions granted to the ASG.
 output "instance_profile_arn" {
   description = "The ARN of the instance profile for ASG instances"
   value       = aws_iam_instance_profile.asg_instance_profile.arn
@@ -81,18 +86,20 @@ output "instance_profile_arn" {
 # --- Scaling Policy Outputs --- #
 
 # ARN of the Scale-Out Policy to increase ASG capacity when utilization exceeds threshold.
+# If scaling policies are disabled, returns null.
 output "scale_out_policy_arn" {
   description = "ARN of the Scale-Out Policy"
   value       = var.enable_scaling_policies ? try(aws_autoscaling_policy.scale_out_policy[0].arn, null) : null
 }
 
 # ARN of the Scale-In Policy to decrease ASG capacity when utilization drops below threshold.
+# If scaling policies are disabled, returns null.
 output "scale_in_policy_arn" {
   description = "ARN of the Scale-In Policy"
   value       = var.enable_scaling_policies ? try(aws_autoscaling_policy.scale_in_policy[0].arn, null) : null
 }
 
-# --- Output Notes --- #
+# --- Notes --- #
 # 1. **ASG Outputs:**
 #    - `asg_id` and `asg_name` provide core identifiers for the Auto Scaling Group.
 #
@@ -110,6 +117,7 @@ output "scale_in_policy_arn" {
 #    - Policy ARNs are exposed for CloudWatch Alarm integration.
 #
 # 6. **Best Practices:**
-#    - Use private IPs for internal communication in production.
-#    - Monitor scaling policy triggers through CloudWatch.
-#    - Leverage SSM for secure instance management.
+#    - Use private IPs and VPC DNS resolution for internal communication in production.
+#    - Avoid relying on public IPs — utilize AWS SSM Session Manager for secure access.
+#    - Monitor scaling policy triggers through CloudWatch Alarms to verify expected behavior.
+#    - Track `launch_template_latest_version` to ensure ASG is always running the expected template version.

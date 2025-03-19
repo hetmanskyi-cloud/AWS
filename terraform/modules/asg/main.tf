@@ -13,17 +13,21 @@ resource "aws_autoscaling_group" "asg" {
 
   # Associates the ASG with the defined Launch Template that specifies instance configurations in asg/launch_template.tf
   launch_template {
-    id      = aws_launch_template.asg_launch_template.id
+    id = aws_launch_template.asg_launch_template.id
+    # CAUTION: "$Latest" always uses the latest version of the Launch Template.
     version = "$Latest" # Use the latest version of the launch template
 
     # Warning: Using "$Latest" for versioning may lead to unintended updates in production.
-    # Consider specifying an explicit version for better control, especially in production environments.
+    # Recommended for dev/test. 
+    # For production, use a specific version (e.g., "1") to prevent unintended updates causing downtime.
     # Alternatively, ensure lifecycle { create_before_destroy = true } is set to avoid downtime.
   }
 
   # Health check configuration
-  health_check_type         = "ELB" # ALB health checks are used to ensure application-level availability of instances
-  health_check_grace_period = 300   # Grace period (seconds) for instances to warm up
+  # "ELB" type ensures the ASG uses the ALB's health check status.
+  # This provides application-level monitoring (not just EC2 instance health).
+  health_check_type         = "ELB" # Use ALB health checks for instance replacement decisions
+  health_check_grace_period = 300   # Wait 5 minutes for instance warm-up before considering health status
 
   # Attach Target Group for ALB
   target_group_arns = length(var.wordpress_tg_arn) > 0 ? [var.wordpress_tg_arn] : [] # List of Target Group ARNs to route traffic from ALB to ASG instances
@@ -31,7 +35,7 @@ resource "aws_autoscaling_group" "asg" {
   # Scaling policies for ASG
   wait_for_capacity_timeout = "0" # Skip capacity waiting and allow ASG to provision instances without delays.
 
-  # Termination policy for balanced scaling
+  # Termination policy for predictable scaling behavior
   # Terminate the oldest instance first to ensure stability and cost-effectiveness.
   # If an immediate replacement is required, the newest instance will be terminated first.
   termination_policies = ["OldestInstance", "NewestInstance"]
@@ -96,6 +100,8 @@ resource "aws_autoscaling_policy" "target_tracking_scaling_policy" {
   policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.asg.name
 
+  # Dynamically adjusts instance count to maintain average CPU utilization near the target value.
+  # AWS automatically manages CloudWatch Alarms for this policy.
   target_tracking_configuration {
     target_value = 50 # Target CPU utilization percentage
     predefined_metric_specification {
@@ -106,6 +112,10 @@ resource "aws_autoscaling_policy" "target_tracking_scaling_policy" {
 
 # --- Data Source to Fetch ASG Instance IDs --- #
 # Retrieves instance IDs dynamically to facilitate monitoring and management through AWS data sources.
+# Useful for:
+# - Monitoring (e.g., dynamic dashboards)
+# - Management tasks requiring instance IDs
+# Optional: Enabled only if `enable_data_source = true`
 data "aws_instances" "asg_instances" {
   count = var.enable_data_source ? 1 : 0 # Enable only if data source is required
 
@@ -142,3 +152,9 @@ data "aws_instances" "asg_instances" {
 # 6. **Dependencies**:
 #    - The ASG depends on the Launch Template and ALB Target Group.
 #    - `lifecycle { create_before_destroy = true }` ensures zero downtime during updates or scaling events.
+#
+# 7. **Security and Best Practices**:
+#    - Always review instance IAM roles to follow the principle of least privilege.
+#    - Monitor scaling events to ensure scaling policies behave as expected.
+#    - For production, avoid using "$Latest" for launch template versions.
+#    - Consider instance refresh strategies or rolling updates for safer deployments.

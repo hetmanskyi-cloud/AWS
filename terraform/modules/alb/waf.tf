@@ -1,14 +1,19 @@
 # --- WAF (Web Application Firewall) Configuration for ALB --- #
 
+# --- Security Reminder --- #
+# - AWS WAF is optional but strongly recommended for production environments to protect against web attacks.
+# - This configuration uses a basic Rate Limit rule. For production, extend WAF rules with AWS Managed Rule Groups.
+
 # --- Notes on ALB Protection --- #
 # By default, ALB is protected by AWS Shield Standard, which defends against DDoS attacks at the 
-# Network (L3) and Transport (L4) layers. 
-# 
+# Network (L3) and Transport (L4) layers. AWS WAF adds Layer 7 protection against web application attacks.
+
 # For application-level (L7) attacks, AWS WAF provides additional protection through managed rules.
 # Combining WAF and Shield Standard ensures a comprehensive security strategy for ALB.
 
 # Web ACL (Access Control List) protects ALB from common web vulnerabilities.
-# This is a simplified configuration for testing purposes.
+# This is a simplified configuration suitable for testing and development.
+# In production, extend it with AWS Managed Rule Groups for better protection.
 resource "aws_wafv2_web_acl" "alb_waf" {
   count = var.enable_waf ? 1 : 0
 
@@ -28,6 +33,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   # --- Rate Limiting Rule --- #
   # Simple rate limiting rule to prevent abuse and brute force attacks.
   # Limits requests from a single IP to 1000 requests per 5-minute period.
+  # For production, complement it with AWS Managed Rules covering OWASP Top 10 threats.
   rule {
     name     = "RateLimitRule"
     priority = 1 # Priority of the rule
@@ -80,7 +86,8 @@ resource "aws_wafv2_web_acl_association" "alb_waf_association" {
 }
 
 # --- WAF Logging Configuration --- #
-# Logs all WAF activity to the specified destination.
+# Logs all WAF activity to the specified destination via Firehose.
+# WAF logging fully depends on Firehose. Logging will fail if Firehose is not enabled and configured properly.
 resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
   count = (var.enable_waf_logging && var.enable_firehose) ? 1 : 0
 
@@ -104,12 +111,12 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
 #    - WAF logging also requires Firehose to be enabled and configured correctly.
 # 4. Recommendations for Production:
 #    - Start with this simplified configuration and test thoroughly
-#    - Gradually add AWS Managed Rule Groups in the following order:
+#    - Extend this configuration by adding AWS Managed Rule Groups in the following priority order:
 #      a. AWSManagedRulesCommonRuleSet - Basic protection against common threats
-#      b. AWSManagedRulesSQLiRuleSet - Protection against SQL injection attacks
-#      c. AWSManagedRulesCrossSiteScriptingRuleSet - Protection against XSS attacks
+#      b. AWSManagedRulesSQLiRuleSet - SQL injection protection
+#      c. AWSManagedRulesCrossSiteScriptingRuleSet - Cross-Site Scripting (XSS) protection
 #      d. AWSManagedRulesKnownBadInputsRuleSet - Protection against known malicious inputs
-#      e. AWSManagedRulesBotControlRuleSet - Protection against bot traffic
+#      e. AWSManagedRulesBotControlRuleSet - Bot traffic protection
 #    - Add each rule group individually and test after each addition
 #    - Monitor WAF metrics in CloudWatch to evaluate effectiveness
 #    - Consider using AWS Firewall Manager for centralized WAF management across multiple accounts

@@ -36,7 +36,8 @@ locals {
   # Base64 encode the healthcheck content
   healthcheck_b64 = base64encode(local.healthcheck_content)
 
-  # Retry configuration for service checks
+  # Retry configuration used during the WordPress deployment process inside the user_data script
+  # Defines the maximum number of retries and the interval between them when checking service availability (e.g., database, PHP-FPM)
   retry_config = {
     MAX_RETRIES    = 30 # Maximum number of retry attempts
     RETRY_INTERVAL = 10 # Interval between retries in seconds
@@ -73,12 +74,12 @@ locals {
 
 # --- ASG Launch Template for ASG --- #
 resource "aws_launch_template" "asg_launch_template" {
-  # --- Template Settings --- #
+  # Template Settings
   # The name_prefix ensures unique naming for launch templates.
   name_prefix = "${var.name_prefix}-asg-launch-template"
   description = "Launch template for ASG instances with auto-scaling configuration"
 
-  # --- Lifecycle Management --- #
+  # Lifecycle Management
   # Ensure a new launch template is created before the old one is destroyed during updates.
   lifecycle {
     create_before_destroy = true # Ensure no downtime during template updates
@@ -87,17 +88,17 @@ resource "aws_launch_template" "asg_launch_template" {
   # Create new version on each update
   update_default_version = true
 
-  # --- Security Group --- #
+  # Security Group
   # Reference the ASG Security Group.
   vpc_security_group_ids = [aws_security_group.asg_security_group.id] # Security groups for networking
 
-  # --- Instance Specifications --- #
+  # Instance Specifications
   # Define the AMI ID and instance type.
   image_id      = var.ami_id        # AMI ID specified in terraform.tfvars
   instance_type = var.instance_type # Instance type (e.g., t2.micro for AWS Free Tier)
   key_name      = var.ssh_key_name  # SSH key pair name for secure instance access (optional)
 
-  # --- Block Device Mappings --- #
+  # Block Device Mappings
   # Configure the root EBS volume with encryption enabled if enabled via `enable_ebs_encryption`.
   block_device_mappings {
     device_name = "/dev/xvda" # Root volume device name for image AMIs
@@ -110,31 +111,42 @@ resource "aws_launch_template" "asg_launch_template" {
     }
   }
 
-  # --- Security and Metadata Settings --- #
-  # Enable instance metadata options and set termination behavior.
-  disable_api_termination              = false       # Allow API termination
-  instance_initiated_shutdown_behavior = "terminate" # Terminate instance on shutdown
+  # Security and Metadata Settings
+  # Control instance termination and metadata access settings.
+
+  # Prevent accidental termination of instances via API (useful in production)
+  disable_api_termination = false # Set to true in production to prevent manual terminations
+
+  # Defines the behavior when an instance is shut down via OS commands (e.g., `shutdown -h now`)
+  instance_initiated_shutdown_behavior = "terminate" # Ensures instance is fully terminated upon shutdown
+
+  # Metadata Options for Security
+  # Enforce IMDSv2 for enhanced security:
+  # - Protects against SSRF attacks (Server-Side Request Forgery)
+  # - Prevents unauthorized access to instance metadata
+  # - Requires all applications accessing metadata to use signed requests
   metadata_options {
-    http_endpoint               = "enabled"  # Enable instance metadata endpoint
-    http_tokens                 = "required" # Enforce IMDSv2 for metadata security
-    http_put_response_hop_limit = 2          # # Consider the route through ALB
-    instance_metadata_tags      = "enabled"  # Enable instance metadata tags for better tracking.
+    http_endpoint               = "enabled"  # Enable instance metadata endpoint (required for IMDSv2)
+    http_tokens                 = "required" # Enforce IMDSv2 (all metadata requests must be signed)
+    http_put_response_hop_limit = 2          # Prevents metadata exposure by limiting request hops. Consider the route through ALB
+    instance_metadata_tags      = "enabled"  # Allow retrieval of instance tags from metadata
   }
 
-  # --- Monitoring and EBS Optimization --- #
+  # Monitoring and EBS Optimization
   # Enable monitoring and optimization for higher performance.
   monitoring {
-    enabled = true # Enable detailed CloudWatch monitoring (may incur additional costs)
+    enabled = false # Enable detailed CloudWatch monitoring (may incur additional costs)
   }
-  ebs_optimized = true # Enable EBS optimization for the instance
+  ebs_optimized = false # Enable EBS optimization for better disk I/O performance (recommended for production workloads)
+  # Note: Might be unnecessary for t2.micro or very small instances
 
-  # --- IAM Instance Profile --- #
+  # IAM Instance Profile
   # Attach an IAM instance profile to manage permissions for the instance.
   iam_instance_profile {
     name = aws_iam_instance_profile.asg_instance_profile.name # IAM instance profile from asg/iam.tf
   }
 
-  # --- Tag Specifications --- #
+  # Tag Specifications
   # Tags are applied to ASG instances created with this Launch Template.
   # The tag `Name` is specific to instances and does not need to match the Launch Template resource name.
   tag_specifications {
@@ -146,26 +158,26 @@ resource "aws_launch_template" "asg_launch_template" {
     }
   }
 
-  # --- Dependency and Error Handling --- #
+  # Dependency and Error Handling
   depends_on = [
     aws_iam_instance_profile.asg_instance_profile,
     aws_security_group.asg_security_group
   ]
 
-  # --- User Data --- #
+  # User Data
   # Provides an installation and configuration script for WordPress.
   user_data = base64encode(local.rendered_user_data)
 }
 
 # --- Notes --- #
-#
 # 1. **AMI Selection**:
 #    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via the script.
 #    - The AMI ID must be specified in terraform.tfvars.
 #
 # 2. **User Data**:
-#    - The deploy_wordpress.sh script configures the instance with Nginx, PHP, and WordPress.
-#    - User data is passed encoded (using base64) to ensure correct processing.
+#    - The deploy_wordpress.sh script is dynamically rendered and configures Nginx, PHP, WordPress, and the ALB health check endpoint.
+#    - Base64 encoding ensures the script is properly transmitted to EC2.
+#    - Any syntax error in the template or missing variables will cause the instance bootstrap to fail silently — verify template correctness.
 #
 # 3. **SSH Access**:
 #    - Temporary SSH access can be enabled for debugging or maintenance using the `enable_ssh_access` variable in terraform.tfvars.
@@ -189,3 +201,7 @@ resource "aws_launch_template" "asg_launch_template" {
 #
 # 8. **Critical Considerations**:
 #    - Ensure all variables required by the deploy_wordpress.sh script are passed correctly via the templatefile function.
+#
+# 9. **AMI Updates and Rolling Deployments**:
+#    - Regularly update the AMI ID to include OS and security patches.
+#    - Consider enabling rolling updates for the Auto Scaling Group to avoid downtime during redeployments.

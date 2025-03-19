@@ -3,12 +3,15 @@
 # Root access should be removed after initial setup by updating the key policy via 'aws_kms_key_policy' resource.
 
 # Define a KMS key for encrypting various AWS resources (CloudWatch logs, S3 buckets, etc.).
+# This is a Customer Managed Key (CMK), fully managed and controlled within this project.
 resource "aws_kms_key" "general_encryption_key" {
   description         = "General KMS key for encrypting CloudWatch logs, S3 buckets, and other resources"
   enable_key_rotation = var.enable_key_rotation
 
   # Enable multi-region support for cross-region key usage.
+  # This must be set to true when using KMS replica keys for S3 replication or other cross-region scenarios.
   multi_region = true
+
 
   tags = {
     Name        = "${var.name_prefix}-general-encryption-key-${var.environment}"

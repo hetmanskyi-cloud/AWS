@@ -72,18 +72,6 @@ variable "private_subnet_ids" {
   }
 }
 
-# --- Private Subnet CIDR Blocks --- #
-# The CIDR blocks for private subnets used to define Security Group rules.
-variable "private_subnet_cidr_blocks" {
-  description = "CIDR blocks for private subnets"
-  type        = list(string)
-
-  validation {
-    condition     = alltrue([for cidr in var.private_subnet_cidr_blocks : can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))])
-    error_message = "All CIDR blocks must be in valid format (e.g., '10.0.0.0/24')."
-  }
-}
-
 # --- Enable or Disable Interface VPC Endpoints --- #
 # This variable controls whether Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.) 
 # are created within the VPC. When set to `false`, no Interface Endpoints or 

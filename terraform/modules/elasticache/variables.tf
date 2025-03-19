@@ -140,12 +140,6 @@ variable "redis_memory_threshold" {
   }
 }
 
-variable "redis_evictions_threshold" {
-  description = "Threshold for Redis evictions alarm (number of evictions)"
-  type        = number
-  default     = 1
-}
-
 variable "redis_cpu_credits_threshold" {
   description = "Threshold for Redis CPU credits alarm. Relevant for burstable instances."
   type        = number
@@ -168,12 +162,6 @@ variable "enable_redis_low_memory_alarm" {
 
 variable "enable_redis_high_cpu_alarm" {
   description = "Enable or disable the high CPU utilization alarm for Redis"
-  type        = bool
-  default     = false
-}
-
-variable "enable_redis_evictions_alarm" {
-  description = "Enable or disable the Redis evictions alarm"
   type        = bool
   default     = false
 }

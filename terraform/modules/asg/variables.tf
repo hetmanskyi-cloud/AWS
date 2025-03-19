@@ -60,7 +60,7 @@ variable "enable_asg_ssh_access" {
 variable "ssh_allowed_cidr" {
   description = "List of allowed CIDR blocks for SSH access to ASG instances"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Open for development, restrict for production
+  default     = ["0.0.0.0/0"] # Open for development. STRICTLY RESTRICT in production (e.g., VPN CIDR).
 }
 
 # --- Auto Scaling Configuration --- #
@@ -189,7 +189,7 @@ variable "volume_type" {
 }
 
 variable "enable_ebs_encryption" {
-  description = "Enable encryption for ASG EC2 instance root volumes"
+  description = "Enable encryption for ASG EC2 instance root volumes (Recommended: true in production)"
   type        = bool
   default     = false
 }
@@ -277,7 +277,7 @@ variable "php_fpm_service" {
 variable "wp_title" {
   description = "Title of the WordPress site"
   type        = string
-  sensitive   = true
+  sensitive   = true # Could contain branding or sensitive info
 }
 
 variable "alb_dns_name" {
@@ -286,7 +286,7 @@ variable "alb_dns_name" {
 }
 
 variable "wordpress_secret_name" {
-  description = "The name of the Secrets Manager secret for WordPress credentials"
+  description = "The name of the Secrets Manager secret for WordPress credentials (must exist in Secrets Manager)"
   type        = string
 }
 
@@ -452,3 +452,10 @@ variable "enable_interface_endpoints" {
 #    - Use different values for `ssh_allowed_cidr` in production.
 #    - Set appropriate autoscaling thresholds based on traffic patterns.
 #    - Consider enabling EBS encryption in production environments.
+#
+# 5. **Production Recommendations:**
+#    - Set `enable_ebs_encryption = true` to protect data at rest.
+#    - Use strict `ssh_allowed_cidr` to limit SSH access (or disable SSH and use SSM).
+#    - Monitor `scale_in_cpu_threshold` and `scale_out_cpu_threshold` carefully to avoid aggressive scaling.
+#    - Enable `enable_interface_endpoints = true` when placing instances in private subnets without NAT.
+#    - Use encrypted S3 buckets (`wordpress_media_bucket_arn` and `scripts_bucket_arn`) for sensitive data.

@@ -20,6 +20,7 @@ output "alb_name" {
 }
 
 # General-purpose Security Group ID
+# Allows other modules (e.g., ASG, VPC Endpoints) to reference the ALB Security Group for traffic rules.
 output "alb_security_group_id" {
   description = "Primary Security Group ID of the Application Load Balancer for integration with other modules"
   value       = aws_security_group.alb_sg.id
@@ -33,8 +34,8 @@ output "wordpress_tg_arn" {
 }
 
 # --- Access Logs Outputs --- #
-
 # S3 bucket for ALB access logs
+# Outputs the S3 bucket name used for ALB access logs (if access logging is enabled).
 output "alb_access_logs_bucket_name" {
   description = "Name of the S3 bucket for ALB access logs"
   value       = var.alb_logs_bucket_name
@@ -42,18 +43,22 @@ output "alb_access_logs_bucket_name" {
 
 # --- WAF Details --- #
 # ARN of the WAF Web ACL
+# Can be used by security modules or CloudFront for consistent WAF rule application.
 output "waf_arn" {
   description = "The ARN of the WAF Web ACL"
   value       = var.enable_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
 }
 
 # --- HTTPS Listener --- #
+# Indicates whether the HTTPS listener is enabled on the ALB.
+# Useful for conditionally configuring resources that depend on HTTPS being active.
 output "enable_https_listener" {
   description = "Enable or disable HTTPS listener in ALB"
   value       = var.enable_https_listener
 }
 
 # --- Outputs for ALB CloudWatch Alarms --- #
+# These outputs expose the ARNs of CloudWatch Alarms for monitoring and integration with alerting systems (e.g., SNS).
 
 # High request count alarm
 output "alb_high_request_count_alarm_arn" {

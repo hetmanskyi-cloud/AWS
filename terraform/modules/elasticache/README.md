@@ -4,6 +4,34 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 
 ---
 
+## Architecture Diagram
+
+```
+┌─────────────────┐     ┌───────────────────┐      ┌────────────────┐
+│                 │     │                   │      │                │
+│  ASG Security   │───▶│  Redis Security   │      │  CloudWatch     │
+│  Group          │     │  Group            │      │  Alarms        │
+│                 │     │                   │      │                │
+└─────────────────┘     └────────┬──────────┘      └───────┬────────┘
+                                 │                         │
+                                 ▼                         │
+┌─────────────────┐     ┌────────────────────┐             │
+│                 │     │                    │             │
+│  KMS Key        │────▶│  ElastiCache Redis │◀───────────┘
+│  (Encryption)   │     │  Replication Group │            
+│                 │     │                    │            
+└─────────────────┘     └────────┬───────────┘            
+                                 │                         
+                                 │                         
+                                 ▼                         
+                        ┌────────────────────┐            
+                        │                    │            
+                        │  SNS Topic         │            
+                        │  (Notifications)   │            
+                        │                    │            
+                        └────────────────────┘            
+```
+
 ## Features
 
 - **ElastiCache Subnet Group**:
@@ -28,7 +56,6 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 - **CloudWatch Monitoring**:
   - Low memory detection to prevent performance degradation.
   - High CPU utilization monitoring with multiple evaluations.
-  - Eviction events tracking to prevent potential data loss.
   - Replication bytes monitoring for environments with replicas.
   - CPU credits monitoring for burstable instance types.
   - All alarms configurable via variables, thresholds, and SNS notifications.
@@ -36,7 +63,6 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
   **Monitoring Strategy**:
   - **Redis Low Memory Alarm**: Critical to prevent Redis exhaustion and performance degradation.
   - **Redis High CPU Alarm**: Indicates possible Redis overload or inefficient queries.
-  - **Evictions Alarm**: Detects potential data loss due to memory pressure.
   - **Replication Bytes Alarm**: Important for environments with replicas, helps prevent replication lag due to high memory usage.
   - **CPU Credits Alarm**: Relevant for T-type (burstable) instances, prevents CPU throttling.
 
@@ -78,16 +104,15 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 | `snapshot_window`                     | `string`      | Snapshot window (`HH:MM-HH:MM`)           | `"03:00-04:00"`   |
 | `redis_cpu_threshold`                 | `number`      | CPU utilization threshold (%)             | **Required**      |
 | `redis_memory_threshold`              | `number`      | Memory threshold (bytes)                  | **Required**      |
-| `redis_evictions_threshold`           | `number`      | Evictions threshold                       | `1`               |
 | `redis_cpu_credits_threshold`         | `number`      | CPU credits threshold                     | `5`               |
 | `redis_replication_bytes_threshold`   | `number`      | Replication bytes threshold               | `50000000`        |
 | `sns_topic_arn`                       | `string`      | SNS topic ARN for alarms                  | **Required**      |
 | `kms_key_arn`                         | `string`      | KMS key ARN for encryption                | **Required**      |
 | `enable_redis_low_memory_alarm`       | `bool`        | Enable low memory alarm                   | `false`           |
 | `enable_redis_high_cpu_alarm`         | `bool`        | Enable high CPU alarm                     | `false`           |
-| `enable_redis_evictions_alarm`        | `bool`        | Enable evictions alarm                    | `false`           |
 | `enable_redis_replication_bytes_alarm`| `bool`        | Enable replication bytes alarm            | `false`           |
 | `enable_redis_low_cpu_credits_alarm`  | `bool`        | Enable CPU credits alarm                  | `false`           |
+| `redis_security_group_id`             | `string`      | Security Group ID for ElastiCache Redis   | `null`            |
 
 ---
 
@@ -102,6 +127,47 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 | `redis_replication_group_id`   | Replication group ID                                 |
 | `redis_arn`                    | ARN of Redis replication group                       |
 | `failover_status`              | Indicates if automatic failover is enabled           |
+
+---
+
+## Troubleshooting and Common Issues
+
+### 1. Redis Cluster Not Accessible
+**Cause:** Security group misconfiguration or incorrect port settings.  
+**Solution:**  
+- Ensure `redis_port` is open in the Redis Security Group.  
+- Verify `source_security_group_id` allows traffic from the ASG Security Group.
+
+---
+
+### 2. CloudWatch Alarms Not Triggering
+**Cause:** Alarms are not enabled or thresholds are set too high.  
+**Solution:**  
+- Verify `enable_redis_*_alarm` variables are set to `true`.  
+- Re-check values for `redis_cpu_threshold` and `redis_memory_threshold`.
+
+---
+
+### 3. Data Not Encrypted At Rest
+**Cause:** Missing or incorrect KMS configuration.  
+**Solution:**  
+- Ensure `kms_key_arn` is valid and properly configured.  
+- Check KMS permissions for the ElastiCache service.
+
+---
+
+### 4. SSM or Redis Monitoring Fails
+**Cause:** Missing IAM permissions.  
+**Solution:**  
+- Attach required IAM policies to allow monitoring and access.
+
+---
+
+### 5. Replication Issues or Failover Not Working
+**Cause:** `replicas_per_node_group` is set to `0` or failover is disabled.  
+**Solution:**  
+- Set `replicas_per_node_group` to a value greater than `0`.  
+- Ensure `enable_failover = true` is configured.
 
 ---
 
@@ -137,6 +203,12 @@ module "elasticache" {
   snapshot_retention_limit = 7
   redis_cpu_threshold      = 80
   redis_memory_threshold   = 104857600
+
+  # Enable CloudWatch alarms
+  enable_redis_low_memory_alarm = true
+  enable_redis_high_cpu_alarm = true
+  enable_redis_replication_bytes_alarm = true
+  enable_redis_low_cpu_credits_alarm = true
 
   sns_topic_arn = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   kms_key_arn   = "arn:aws:kms:eu-west-1:123456789012:key/example"

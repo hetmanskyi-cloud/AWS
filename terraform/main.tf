@@ -332,11 +332,9 @@ module "elasticache" {
   redis_memory_threshold               = var.redis_memory_threshold
   enable_redis_low_memory_alarm        = var.enable_redis_low_memory_alarm
   enable_redis_high_cpu_alarm          = var.enable_redis_high_cpu_alarm
-  enable_redis_evictions_alarm         = var.enable_redis_evictions_alarm
   enable_redis_replication_bytes_alarm = var.enable_redis_replication_bytes_alarm
   redis_replication_bytes_threshold    = var.redis_replication_bytes_threshold
   enable_redis_low_cpu_credits_alarm   = var.enable_redis_low_cpu_credits_alarm
-  redis_evictions_threshold            = var.redis_evictions_threshold
   redis_cpu_credits_threshold          = var.redis_cpu_credits_threshold
 
   # SNS Topic for CloudWatch Alarms notifications
@@ -385,6 +383,5 @@ module "interface_endpoints" {
   vpc_id                     = module.vpc.vpc_id
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
-  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
   enable_interface_endpoints = var.enable_interface_endpoints
 }

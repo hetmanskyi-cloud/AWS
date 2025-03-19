@@ -23,6 +23,22 @@ enable_interface_endpoints = true
 This module creates Interface VPC Endpoints for secure and highly available access to AWS services without traversing the public internet, enhancing security and reliability.
 Using this module allows you to configure access to EC2 instances through AWS Systems Manager Session Manager, which allows you to completely disable SSH access if necessary, increasing the level of infrastructure security.
 
+## Architecture Overview
+
+The architecture of this module includes:
+
+1. **EC2 Instances** in private subnets across multiple Availability Zones
+2. **Security Group** controlling access to VPC Endpoints (HTTPS/443)
+3. **VPC Interface Endpoints** for AWS services:
+   - Systems Manager (SSM)
+   - SSM Messages
+   - EC2 Messages
+   - CloudWatch Logs
+   - KMS
+4. **Private connections** between VPC and AWS services without traversing the internet
+
+This architecture enables EC2 instances in private subnets (without internet access) to securely communicate with AWS services through private endpoints within the VPC.
+
 ### Supported AWS Services:
 - **AWS Systems Manager (SSM)**
 - **SSM Messages**
@@ -36,8 +52,8 @@ Endpoints are deployed across all private subnets, ensuring high availability ac
 
 | Name         | Version   |
 |--------------|-----------|
-| Terraform    | >= 1.11   |
-| AWS Provider | >= 5.9    |
+| Terraform    | >= 1.0    |
+| AWS Provider | >= 5.0    |
 
 ## Module Architecture
 
@@ -62,16 +78,15 @@ This module provisions:
 
 ## Inputs
 
-| Name                          | Type           | Description                        | Validation                              |
-|-------------------------------|----------------|------------------------------------|-----------------------------------------|
-| `aws_region`                  | `string`       | AWS region for resources.          | Format: `xx-xxxx-x` (e.g., `eu-west-1`) |
-| `name_prefix`                 | `string`       | Prefix for naming resources.       | Non-empty string                        |
-| `environment`                 | `string`       | Deployment environment label.      | One of: `dev`, `stage`, `prod`          |
-| `vpc_id`                      | `string`       | ID of the existing VPC.            | Valid AWS VPC ID                        |
-| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.             | Valid CIDR block format                 |
-| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.        | Valid AWS subnet IDs                    |
-| `private_subnet_cidr_blocks`  | `list(string)` | List of private subnet CIDR blocks.| Valid CIDR block format                 |
-| `enable_interface_endpoints`  | `bool`         | Enable/disable Interface Endpoints.| Default: `false`                        |
+| Name                          | Type           | Description                               | Validation                              |
+|-------------------------------|----------------|-------------------------------------------|-----------------------------------------|
+| `aws_region`                  | `string`       | AWS region for resources.                 | Format: `xx-xxxx-x` (e.g., `eu-west-1`) |
+| `name_prefix`                 | `string`       | Prefix for naming resources.              | Non-empty string                        |
+| `environment`                 | `string`       | Deployment environment label.             | One of: `dev`, `stage`, `prod`          |
+| `vpc_id`                      | `string`       | ID of the existing VPC.                   | Valid AWS VPC ID                        |
+| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                    | Valid CIDR block format                 |
+| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.               | Valid AWS subnet IDs                    |
+| `enable_interface_endpoints`  | `bool`         | Enable or disable Interface VPC Endpoints | Default: `false`                        |
 
 ## Outputs
 
@@ -90,14 +105,13 @@ This module provisions:
 module "interface_endpoints" {
   source = "./modules/interface_endpoints"
 
-  aws_region                  = "eu-west-1"
-  name_prefix                 = "dev"
-  environment                 = "dev"
-  vpc_id                      = module.vpc.vpc_id
-  vpc_cidr_block              = module.vpc.vpc_cidr_block
-  private_subnet_ids          = module.vpc.private_subnet_ids
-  private_subnet_cidr_blocks  = module.vpc.private_subnet_cidr_blocks
-  enable_interface_endpoints  = false  # Default is false, set to true when needed
+  aws_region                 = "eu-west-1"
+  name_prefix                = "dev"
+  environment                = "dev"
+  vpc_id                     = module.vpc.vpc_id
+  vpc_cidr_block             = module.vpc.vpc_cidr_block
+  private_subnet_ids         = module.vpc.private_subnet_ids
+  enable_interface_endpoints = false  # Default is false, set to true when needed
 }
 ```
 
@@ -124,6 +138,68 @@ Outputs provided:
 Integrate seamlessly with other modules:
 - **VPC Module**: Provides networking infrastructure (VPC and subnets).
 - **ASG Module**: Instances benefit from secure private AWS service access.
+
+## Troubleshooting and Common Issues
+
+### 1. **Interface Endpoints are not created**
+**Cause:**  
+The variable `enable_interface_endpoints` is set to `false`.
+
+**Solution:**  
+Set `enable_interface_endpoints = true` in `terraform.tfvars` to enable the module and create the required resources.
+
+---
+
+### 2. **EC2 instances in private subnets cannot reach AWS services (SSM, CloudWatch Logs, KMS)**
+**Cause:**  
+- Interface Endpoints are not deployed.
+- Missing required IAM roles or policies for EC2 instances.
+- Incorrect Security Group rules blocking HTTPS (TCP 443).
+
+**Solution:**  
+- Ensure Interface Endpoints are created and deployed in the correct private subnets.
+- Attach the `AmazonSSMManagedInstanceCore` IAM policy to the EC2 instance role.
+- Verify Security Group allows outbound HTTPS (TCP 443) traffic.
+
+---
+
+### 3. **SSM Session Manager fails to connect**
+**Cause:**  
+- Private DNS for endpoints is not enabled.
+- EC2 instance cannot resolve the AWS service endpoint.
+
+**Solution:**  
+- Ensure `private_dns_enabled = true` is set in the module (enabled by default).
+- Check DNS resolution inside the VPC:
+  ```bash
+  dig ssm.<region>.amazonaws.com
+  ```
+  It should resolve to a private IP.
+
+---
+
+### 4. **Terraform plan shows changes or tries to recreate endpoints**
+**Cause:**  
+- Subnet list or Security Group was changed.
+- Endpoint resource is sensitive to order changes in `subnet_ids`.
+
+**Solution:**  
+- Ensure the order of `private_subnet_ids` is consistent.
+- Review changes carefully before applying.
+
+---
+
+### 5. **tfsec warning: aws-ec2-no-public-egress-sgr**
+**Cause:**  
+The module allows outbound HTTPS (TCP 443) to `0.0.0.0/0`, which is required for Interface Endpoints.
+
+**Solution:**  
+- This is expected behavior.
+- The module explicitly ignores this warning:
+  ```hcl
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr
+  ```
+- No action needed.
 
 ---
 

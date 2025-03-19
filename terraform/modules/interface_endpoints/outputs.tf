@@ -21,8 +21,9 @@ output "asg_messages_endpoint_id" {
   value       = try(aws_vpc_endpoint.asg_messages[0].id, null)
 }
 
-# --- Endpoint Security Group ID --- #
-# Outputs the ID of the Security Group created for VPC Endpoints to allow controlled access.
+# --- Endpoint Security Group Output --- #
+# Outputs the Security Group ID associated with the Interface VPC Endpoints.
+# This Security Group controls HTTPS (TCP 443) access for SSM, SSM Messages, ASG Messages, CloudWatch Logs, and KMS endpoints.
 output "endpoint_security_group_id" {
   description = "ID of the security group for VPC endpoints"
   value       = length(aws_security_group.endpoints_sg) > 0 ? aws_security_group.endpoints_sg[0].id : null

@@ -1,10 +1,10 @@
 # --- IAM Configuration for ASG Instances --- #
 # This file defines the IAM role and policies for ASG instances, including:
-# - Conditional S3 access (WordPress media and deployment scripts).
-# - CloudWatch logging.
-# - Systems Manager (SSM) for management without SSH.
-# - KMS decryption for S3 and EBS encryption.
-# Temporary credentials are managed automatically via AWS and accessed through IMDSv2.
+# - Conditional S3 access (WordPress media and deployment scripts)
+# - CloudWatch logging
+# - Systems Manager (SSM) for management without SSH
+# - KMS decryption for S3 and EBS encryption
+# - Temporary credentials are managed automatically via AWS and accessed through IMDSv2
 
 # --- IAM Role --- #
 # Allows ASG instances to assume specific permissions for accessing AWS services.
@@ -218,14 +218,17 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
   policy_arn = aws_iam_policy.kms_decrypt_policy[0].arn
 }
 
-# Add data sources for current region and account ID
+# --- Data Sources for Region and Account --- #
+# These data sources fetch the current AWS region and account ID dynamically
+# Useful for constructing ARNs or conditional logic based on the environment.
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 # --- Notes --- #
 # 1. Temporary credentials:
-#    - Automatically managed via AWS IAM.
-#    - Accessible through IMDSv2 with a validity of 1 hour (rotated automatically).
+#    - Automatically managed via the EC2 Instance Metadata Service (IMDSv2).
+#    - Accessible by the instance without manual key management.
+#    - Validity of 1 hour, rotated automatically by AWS.
 #
 # 2. S3 access:
 #    - S3 access policy is created only if there are valid S3 resources defined.
@@ -239,14 +242,14 @@ data "aws_caller_identity" "current" {}
 #    - Enables detailed monitoring by publishing metrics and logs to CloudWatch.
 #
 # 5. KMS policy:
-#    - Grants permissions to decrypt objects in S3 and EBS volumes.
-#    - Ensures the instance can read encrypted data securely.
+#    - Grants permissions to decrypt S3 objects and EBS volumes encrypted with KMS.
+#    - Critical for instance startup if EBS encryption is enabled to avoid boot failures.
 #
 # 6. Instance profile:
 #    - Shared across all ASG instances, ensuring consistent access to AWS services.
 #
 # 7. Best practices:
-#    - Review S3 bucket permissions regularly to minimize access.
+#    - Review S3 bucket policies and attached permissions regularly to minimize exposure.
 #    - Rotate IAM roles periodically to comply with security standards.
 #
 # 8. Security considerations:

@@ -4,6 +4,7 @@
 
 # --- Scale-Out Alarm --- #
 # Adds an instance to the ASG when CPU utilization exceeds the threshold.
+# Recommended: Enable this in production environments to automatically scale out under high load.
 resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
   count = var.enable_scale_out_alarm && var.enable_scaling_policies ? 1 : 0 # Enabled only if scale-out alarm and scaling policies are allowed
 
@@ -26,6 +27,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
 
 # --- Scale-In Alarm --- #
 # Removes an instance from the ASG when CPU utilization falls below the threshold.
+# Important: Ensure this alarm is properly tested to avoid premature scale-in during temporary load drops.
 resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
   count = var.enable_scale_in_alarm ? 1 : 0 # Enabled only if scale-in alarm is allowed
 
@@ -47,8 +49,8 @@ resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
 }
 
 # --- ASG Instance Health Alarm --- #
-# Monitors instance health within ASG using AWS EC2 status checks.
-# This alarm is primarily for notifications about system-level issues not covered by ALB health checks.
+# Monitors instance-level health failures detected by EC2 status checks (hardware/network/OS issues).
+# Complements ALB health checks and provides deeper infrastructure-level visibility.
 resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
   count = var.enable_asg_status_check_alarm ? 1 : 0 # Enabled only if ASG status check alarm is allowed
 
@@ -70,7 +72,8 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
 }
 
 # --- High Incoming Network Traffic Alarm --- #
-# Detects unusual incoming traffic spikes, potentially indicating DDoS attacks.
+# Monitors abnormal inbound traffic spikes. 
+# Recommended: Enable in production to detect potential DDoS or scraping attacks early.
 resource "aws_cloudwatch_metric_alarm" "high_network_in" {
   count = var.enable_high_network_in_alarm ? 1 : 0 # Enabled only if high network-in alarm is allowed
 
@@ -93,8 +96,8 @@ resource "aws_cloudwatch_metric_alarm" "high_network_in" {
 }
 
 # --- High Outgoing Network Traffic Alarm --- #
-# Triggers when outgoing network traffic exceeds the defined threshold.
-# Identifies potential data transfer spikes indicating security concerns.
+# Monitors unusual outbound traffic spikes.
+# Recommended: Enable in production to detect potential data leaks or compromised instances.
 resource "aws_cloudwatch_metric_alarm" "high_network_out" {
   count = var.enable_high_network_out_alarm ? 1 : 0 # Enabled only if high network-out alarm is allowed
 
@@ -145,3 +148,9 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
 # 6. **Scalability and Flexibility**:
 #    - The modular design allows for easy addition or removal of specific alarms based on environment or project requirements.
 #    - Each alarm is independently controlled, making it suitable for fine-tuning per environment (dev, stage, prod).
+#
+# 7. **Production Best Practices**:
+#    - Enable `scale_out_alarm` and `scale_in_alarm` for predictable scaling.
+#    - Always enable `high_network_in` and `high_network_out` alarms in production for traffic anomaly detection.
+#    - Monitor alarm triggering patterns and adjust thresholds to match expected load profiles.
+#    - Use `treat_missing_data = "notBreaching"` carefully — for critical alarms, consider `missing` handling strategy review.

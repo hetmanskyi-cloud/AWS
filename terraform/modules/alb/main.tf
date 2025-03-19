@@ -51,6 +51,7 @@ resource "aws_lb_target_group" "wordpress" {
 
   # --- Health check configuration for monitoring target instance health --- #
   # Verify that the health check path and thresholds align with the application requirements.
+  # Proper configuration ensures fast failure detection and prevents routing traffic to unhealthy instances.
   # Consider stricter criteria for critical applications:
   # - Lower `timeout` and `interval` values for faster detection of failures.
   # - Higher `healthy_threshold` to ensure stability before marking targets as healthy.
@@ -74,6 +75,7 @@ resource "aws_lb_target_group" "wordpress" {
 
   # --- Stickiness Configuration --- #
   # Ensures clients are routed to the same target for the duration of their session.
+  # Useful for WordPress to maintain session consistency and avoid issues with login or caching.
   stickiness {
     enabled         = true        # Enable stickiness
     type            = "lb_cookie" # Use load balancer-managed cookies
@@ -101,7 +103,7 @@ resource "aws_lb_listener" "http" {
   # HTTPS is not used because there is no SSL certificate available.
   protocol = "HTTP"
 
-  # Default action: Redirect HTTP traffic to HTTPS
+  # Default action: Redirect HTTP traffic to HTTPS for secure communication (prevents sending sensitive data over HTTP).
   dynamic "default_action" {
     for_each = var.enable_https_listener ? [1] : []
     content {
@@ -145,21 +147,23 @@ resource "aws_lb_listener" "https" {
 }
 
 # --- Notes --- #
-
 # General Logic:
 # - HTTP Listener: Always created to handle traffic on port 80.
 #   - If `enable_https_listener` is true, HTTP traffic is redirected to HTTPS on port 443.
 #   - If `enable_https_listener` is false, HTTP traffic is forwarded to the Target Group.
 # - HTTPS Listener: Created only when `enable_https_listener` is set to true.
 #   - SSL Certificate ARN must be provided when enabling the HTTPS Listener.
-
+#
 # Key Features:
 # - Access logs: Controlled by the `var.enable_alb_access_logs` variable.
 # - Health checks monitor target availability and ensure stable traffic routing.
 # - Secure traffic:
 #   - HTTPS Listener ensures encrypted communication when enabled.
 #   - HTTP requests are redirected to HTTPS when the HTTPS Listener is active.
-
+#
+# - Note: ALB communicates with targets (EC2 instances) over HTTP even if the client connects via HTTPS.
+#   - TLS termination happens at ALB level for performance optimization.
+#
 # Recommendations:
 # - Use valid SSL certificates for HTTPS.
 # - Periodically review health check settings to align with application requirements.

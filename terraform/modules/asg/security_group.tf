@@ -18,7 +18,7 @@ resource "aws_security_group" "asg_security_group" {
   }
 }
 
-# SSH Traffic (consider disabling SSH and using SSM for production environments)
+# SSH Traffic — Strongly recommended to disable SSH in production and use SSM instead
 resource "aws_security_group_rule" "allow_ssh" {
   count = var.enable_asg_ssh_access ? 1 : 0
 
@@ -26,10 +26,10 @@ resource "aws_security_group_rule" "allow_ssh" {
   from_port   = 22
   to_port     = 22
   protocol    = "tcp"
-  cidr_blocks = var.ssh_allowed_cidr # For better control, restrict SSH to specific IP ranges in prod
+  cidr_blocks = var.ssh_allowed_cidr # Restrict to trusted IPs only (e.g., your office or VPN)
 
   security_group_id = aws_security_group.asg_security_group.id
-  description       = "Allow SSH access from specified CIDR blocks"
+  description       = "Allow SSH access for debugging. Disable in production."
 }
 
 # --- Traffic from ALB to ASG Instances --- #
@@ -63,8 +63,9 @@ resource "aws_security_group_rule" "alb_https" {
 
 # --- Egress Rules (Outbound Traffic) --- #
 
-# Allow all outbound traffic
-# ASG instances need unrestricted outbound access for updates, application dependencies, and external communication.
+# Allow all outbound traffic — Necessary for internet access, updates, SSM, CloudWatch, etc.
+# WARNING: Allowing 0.0.0.0/0 is suitable for development. 
+# In production, review and restrict outbound rules to the minimum required AWS services.
 # tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "all_outbound" {
   security_group_id = aws_security_group.asg_security_group.id
@@ -79,8 +80,8 @@ resource "aws_security_group_rule" "all_outbound" {
 }
 
 # --- Outbound Rule for ASG to VPC Endpoints --- #
-# Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch)
-# when Interface Endpoints are enabled (enable_interface_endpoints = true).
+# Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch).
+# Enabled only if `enable_interface_endpoints = true`
 resource "aws_security_group_rule" "allow_private_ssm_egress" {
   count = var.enable_interface_endpoints ? 1 : 0
 
@@ -94,7 +95,6 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 }
 
 # --- Notes --- #
-#
 # 1. **Traffic Rules**:
 #    - HTTP traffic (port 80) is always enabled for communication between ALB and ASG.
 #    - HTTPS traffic (port 443) is enabled only if `enable_https_listener = true` in the ALB module.
@@ -117,3 +117,8 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 # 5. **Instance Connectivity**:
 #    - ASG instances require outbound HTTPS (`443`) to AWS services for SSM, CloudWatch, and KMS.
 #    - Current configuration (`all_outbound`) already covers this requirement.
+#
+# 6. **Production Recommendations**:
+#    - For production, disable SSH ingress and rely solely on SSM for instance management.
+#    - Replace 0.0.0.0/0 egress with specific AWS service CIDRs or use VPC Endpoints.
+#    - Enable `enable_interface_endpoints = true` when instances move to private subnets.

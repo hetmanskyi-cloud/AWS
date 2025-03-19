@@ -6,6 +6,79 @@ Terraform module to provision and manage an AWS Application Load Balancer (ALB) 
 
 This module creates and manages an Application Load Balancer (ALB) in AWS for handling HTTP/HTTPS traffic. It includes comprehensive configurations for monitoring, logging, security, and WAF integration while adhering to Terraform and AWS best practices.
 
+## Architecture Diagram
+
+```
+                                                    ┌─────────────────────┐
+                                                    │                     │
+                                                    │  CloudWatch Alarms  │
+                                                    │                     │
+                                                    └─────────┬───────────┘
+                                                              │
+                                                              │ Monitors
+                                                              │
+                                                              ▼
+┌─────────────┐     HTTPS/HTTP     ┌─────────────┐     ┌────────────────────────────────────────┐
+│             │     Requests       │             │     │        Security Group                  │
+│  Internet   ├────────────────────►    WAF      ├─────►  ┌─────────────────┐ ┌─────────────┐   │
+│             │                    │ (optional)  │     │  │ Ingress:        │ │ Egress:     │   │
+└─────────────┘                    └─────────────┘     │  │ - Port 80       │ │ - All       │   │
+                                                       │  │ - Port 443      │ │   Traffic   │   │
+                                                       │  └─────────────────┘ └─────────────┘   │
+                                                       │                                        │
+                                                       │           Application Load Balancer    │
+                                                       │                                        │
+                                                       │  ┌─────────────────┐ ┌────────────┐    │
+                                                       │  │ HTTP Listener   │ │ HTTPS      │    │
+                                                       │  │ (Port 80)       │ │ Listener   │    │
+                                                       │  │                 │ │ (Port 443) │    │
+                                                       │  │ If HTTPS:       │ │            │    │
+                                                       │  │ - Redirect      │ │ Forward to │    │
+                                                       │  │ Else:           │ │ Target     │    │
+                                                       │  │ - Forward       │ │ Group      │    │
+                                                       │  └────────┬────────┘ └─────┬──────┘    │
+                                                       └───────────┼────────────────┼───────────┘
+                                                                   │                │
+                                                                   └───────┬────────┘
+                                                                           │
+                                                                           ▼
+                                                       ┌─────────────────────────────────────────┐
+                                                       │           Target Group                  │
+                                                       │                                         │
+                                                       │  ┌─────────────────┐ ┌─────────────┐    │
+                                                       │  │ Health Check:   │ │ Stickiness: │    │
+                                                       │  │ - Path: /health │ │ - Enabled   │    │
+                                                       │  │ - Interval: 10s │ │ - lb_cookie │    │
+                                                       │  │ - Timeout: 3s   │ │ - 1 day     │    │
+                                                       │  └─────────────────┘ └─────────────┘    │
+                                                       └──────────────────────┬──────────────────┘
+                                                                              │
+                                                                              │ Forwards to
+                                                                              ▼
+                                                       ┌─────────────────────────────────────────┐
+                                                       │                                         │
+                                                       │        EC2 Instances in ASG             │
+                                                       │        (WordPress Servers)              │
+                                                       │                                         │
+                                                       └──────────────────────┬──────────────────┘
+                                                                              │
+                                                                              │ Logs
+                                   ┌────────────────┐                         │
+                                   │                │                         │
+                                   │  Firehose      │◄────────────────────────┘
+                                   │  (optional)    │
+                                   └────────┬───────┘
+                                            │
+                                            │ Delivers
+                                            │
+                                   ┌────────▼───────┐
+                                   │                │
+                                   │   S3 Bucket    │
+                                   │   (Logs)       │
+                                   │                │
+                                   └────────────────┘
+```
+
 ### Key Features:
 - **Public-facing ALB** handling HTTP/HTTPS traffic
 - **Target Group** configured with advanced health checks and session stickiness
@@ -18,8 +91,8 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 
 | Name         | Version   |
 |--------------|-----------|
-| Terraform    | >= 1.11   |
-| AWS Provider | >= 5.9    |
+| Terraform    | >= 1.0    |
+| AWS Provider | >= 5.0    |
 
 ## Module Architecture
 
@@ -33,37 +106,45 @@ This module provisions:
 - **Kinesis Firehose** for log processing (conditional)
 
 ## Module Files Structure
+- The module is organized into logical files for clarity and maintainability:
 
-| **File**             | **Description**                                                |
-|----------------------|----------------------------------------------------------------|
-| `main.tf`            | ALB, listeners, target group definitions and configurations    |
-| `security_group.tf`  | Security Group configuration for ALB                           |
-| `waf.tf`             | WAF resources, rules, and logging integration                  |
-| `firehose.tf`        | Kinesis Firehose stream and associated IAM roles/policies      |
-| `metrics.tf`         | CloudWatch Alarms for monitoring ALB metrics                   |
-| `variables.tf`       | Module input variables                                         |
-| `outputs.tf`         | Module outputs for integration with other modules              |
+| **File**             | **Description**                                                           |
+|----------------------|---------------------------------------------------------------------------|
+| `main.tf`            | Declares the ALB, Target Group, Listeners, and core configuration.        |
+| `security_group.tf`  | Manages the Security Group and its rules for the ALB.                     |
+| `waf.tf`             | Provisions WAF with rate limiting and optional AWS Managed Rules.         |
+| `firehose.tf`        | Sets up Kinesis Firehose for WAF log delivery to S3 with KMS encryption.  |
+| `metrics.tf`         | Contains CloudWatch Alarms for monitoring ALB performance and errors.     |
+| `variables.tf`       | Defines all configurable variables with validation and defaults.          |
+| `outputs.tf`         | Exposes module outputs for integration with other modules or environments.|
 
 ## Inputs
 
-| Name                             | Type           | Description                                              | Validation                          |
-|----------------------------------|----------------|----------------------------------------------------------|-------------------------------------|
-| `aws_region`                     | `string`       | AWS region for resources                                 | Format: `xx-xxxx-x`                 |
-| `aws_account_id`                 | `string`       | AWS Account ID for security policies                     | 12-digit numeric string             |
-| `name_prefix`                    | `string`       | Prefix for resource names                                | <= 24 chars                         |
-| `environment`                    | `string`       | Deployment environment                                   | One of: `dev`, `stage`, `prod`      |
-| `public_subnets`                 | `list(string)` | Public subnet IDs for ALB                                | Valid subnet IDs                    |
-| `vpc_id`                         | `string`       | VPC ID for ALB                                           | Valid VPC ID                        |
-| `certificate_arn`                | `string`       | SSL Certificate ARN for HTTPS listener                   | Required if HTTPS enabled           |
-| `enable_https_listener`          | `bool`         | Toggle HTTPS Listener                                    | `true` or `false`                   |
-| `enable_alb_access_logs`         | `bool`         | Toggle ALB access logs                                   | `true` or `false`                   |
-| `alb_logs_bucket_name`           | `string`       | S3 bucket for ALB logs                                   | Non-empty string or `null`          |
-| `logging_bucket_arn`             | `string`       | ARN of S3 bucket for Firehose                            | Non-empty if Firehose enabled       |
-| `kms_key_arn`                    | `string`       | KMS key ARN for log encryption                           | Non-empty if Firehose enabled       |
-| `enable_firehose`                | `bool`         | Toggle Kinesis Firehose                                  | `true` or `false`                   |
-| `enable_waf`                     | `bool`         | Toggle WAF protection                                    | `true` or `false`                   |
-| `enable_waf_logging`             | `bool`         | Toggle WAF logging (requires Firehose)                   | `true` or `false`                   |
-| `sns_topic_arn`                  | `string`       | SNS topic for CloudWatch Alarms                          | Valid SNS ARN                       |
+| Name                               | Type           | Description                                              | Validation                          |
+|------------------------------------|----------------|----------------------------------------------------------|-------------------------------------|
+| `aws_region`                       | `string`       | AWS region for resources                                 | Format: `xx-xxxx-x`                 |
+| `aws_account_id`                   | `string`       | AWS Account ID for security policies                     | 12-digit numeric string             |
+| `name_prefix`                      | `string`       | Prefix for resource names                                | <= 24 chars                         |
+| `environment`                      | `string`       | Deployment environment                                   | One of: `dev`, `stage`, `prod`      |
+| `public_subnets`                   | `list(string)` | Public subnet IDs for ALB                                | Valid subnet IDs                    |
+| `vpc_id`                           | `string`       | VPC ID for ALB                                           | Valid VPC ID                        |
+| `target_group_port`                | `number`       | Port for the target group                                | Default: `80`                       |
+| `certificate_arn`                  | `string`       | SSL Certificate ARN for HTTPS listener                   | Required if HTTPS enabled           |
+| `alb_enable_deletion_protection`   | `bool`         | Enable deletion protection for the ALB                   | Default: `false`                    |
+| `enable_https_listener`            | `bool`         | Toggle HTTPS Listener                                    | `true` or `false`                   |
+| `enable_alb_access_logs`           | `bool`         | Toggle ALB access logs                                   | `true` or `false`                   |
+| `alb_logs_bucket_name`             | `string`       | S3 bucket for ALB logs                                   | Non-empty string or `null`          |
+| `logging_bucket_arn`               | `string`       | ARN of S3 bucket for Firehose                            | Non-empty if Firehose enabled       |
+| `kms_key_arn`                      | `string`       | KMS key ARN for log encryption                           | Non-empty if Firehose enabled       |
+| `enable_firehose`                  | `bool`         | Toggle Kinesis Firehose                                  | `true` or `false`                   |
+| `enable_waf`                       | `bool`         | Toggle WAF protection                                    | `true` or `false`                   |
+| `enable_waf_logging`               | `bool`         | Toggle WAF logging (requires Firehose)                   | `true` or `false`                   |
+| `sns_topic_arn`                    | `string`       | SNS topic for CloudWatch Alarms                          | Valid SNS ARN                       |
+| `alb_request_count_threshold`      | `number`       | Threshold for high request count on ALB                  | Default: `1000`                     |
+| `alb_5xx_threshold`                | `number`       | Threshold for 5XX errors on ALB                          | Default: `50`                       |
+| `enable_high_request_alarm`        | `bool`         | Enable CloudWatch alarm for high request count           | Default: `false`                    |
+| `enable_5xx_alarm`                 | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors              | Default: `false`                    |
+| `enable_target_response_time_alarm`| `bool`      | Enable CloudWatch alarm for Target Response Time            | Default: `false`                    |
 
 ## Outputs
 
@@ -71,15 +152,19 @@ This module provisions:
 |-------------------------------------|----------------------------------------------------|
 | `alb_arn`                           | ARN of the Application Load Balancer               |
 | `alb_dns_name`                      | DNS name of the Application Load Balancer          |
+| `alb_name`                          | Name of the Application Load Balancer              |
 | `alb_security_group_id`             | Security Group ID for ALB                          |
 | `wordpress_tg_arn`                  | ARN of the Target Group                            |
+| `alb_access_logs_bucket_name`       | Name of the S3 bucket for ALB access logs          |
 | `waf_arn`                           | ARN of the WAF Web ACL (if enabled)                |
+| `enable_https_listener`             | Whether HTTPS listener is enabled on the ALB       |
 | `alb_high_request_count_alarm_arn`  | ARN for high request count alarm                   |
 | `alb_5xx_errors_alarm_arn`          | ARN for 5XX error alarm                            |
 | `alb_target_response_time_alarm_arn`| ARN for target response time alarm                 |
 | `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                    |
 
 ## Example Usage
+# Example usage for production environment with full features enabled (WAF, logging, HTTPS)
 
 ```hcl
 module "alb" {
@@ -110,10 +195,12 @@ module "alb" {
 - **CloudWatch alarms** proactively monitor ALB health.
 
 ## Security Best Practices
-- Enable WAF for ALB protection against common web attacks.
-- Store ALB and WAF logs securely with encryption and access restrictions.
-- Regularly audit IAM roles, policies, and review WAF and Security Group configurations.
-- Configure detailed CloudWatch alarms and notifications.
+- Always enable WAF for production to protect against common web attacks.
+- Store ALB and WAF logs securely in S3 with **KMS encryption**.
+- Review and tighten Security Group rules periodically.
+- Regularly audit IAM roles and policies for least privilege.
+- Configure CloudWatch alarms with SNS notifications for proactive monitoring.
+- Ensure `enable_firehose` is enabled if WAF logging is required.
 
 ## Best Practices
 - Enable HTTPS Listener with valid SSL certificate.
@@ -126,9 +213,36 @@ Integrates with:
 - **KMS Module:** Log encryption.
 
 ## Future Improvements
-- **Enhanced WAF Rules:** Integrate managed rule sets for comprehensive protection.
-- **Advanced Traffic Insights:** Integrate additional CloudWatch metrics for improved monitoring.
-- **Automated SSL management:** Integrate automatic SSL certificate rotation.
+- **Enhanced WAF Rules:** Integrate AWS Managed Rule Groups for comprehensive protection:
+  - CommonRuleSet
+  - SQLiRuleSet
+  - CrossSiteScriptingRuleSet
+  - KnownBadInputsRuleSet
+  - BotControlRuleSet
+- **Advanced Traffic Insights:** Add CloudWatch dashboards and additional metrics.
+- **Automated SSL management:** Integrate automatic ACM certificate rotation.
+
+## Troubleshooting and Common Issues
+
+### 1. HTTPS Listener not working
+- **Cause:** Missing or invalid `certificate_arn`
+- **Solution:** Ensure a valid ACM certificate is provisioned in the same region and `enable_https_listener = true`.
+
+### 2. WAF Logging not delivered to S3
+- **Cause:** `enable_firehose` is not enabled or `logging_bucket_arn` is incorrect.
+- **Solution:** Verify both `enable_firehose = true` and a valid `logging_bucket_arn` are set.
+
+### 3. CloudWatch Alarms not triggering
+- **Cause:** `enable_high_request_alarm`, `enable_5xx_alarm`, or `enable_target_response_time_alarm` not set.
+- **Solution:** Enable necessary alarms based on your monitoring needs.
+
+### 4. ALB DNS not resolving
+- **Cause:** ALB is not in an active state or incorrect DNS name used.
+- **Solution:** Check the ALB state in the AWS Console and use the correct output `alb_dns_name`.
+
+### 5. WAF Managed Rules missing (production)
+- **Cause:** Only rate limiting is configured by default.
+- **Solution:** Extend the WAF configuration by adding AWS Managed Rule Groups for production.
 
 ---
 

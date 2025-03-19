@@ -4,7 +4,8 @@
 resource "aws_iam_role" "kms_role" {
   for_each = var.enable_kms_role ? { "kms_role" : "kms_role" } : {} # Enable via 'enable_kms_role' variable.
 
-  name = "${var.name_prefix}-kms-role-${var.environment}"
+  name                 = "${var.name_prefix}-kms-role-${var.environment}"
+  max_session_duration = 3600 # Default limit session to 1 hour for security
 
   # Trust policy: Allows only root account to assume this role.
   assume_role_policy = jsonencode({
@@ -44,7 +45,8 @@ resource "aws_iam_policy" "kms_management_policy" {
           "kms:DescribeKey",
           "kms:EnableKeyRotation",
           "kms:DisableKeyRotation",
-          "kms:UpdateKeyDescription"
+          "kms:UpdateKeyDescription",
+          "kms:GetKeyPolicy"
         ],
         Resource = aws_kms_key.general_encryption_key.arn
       }

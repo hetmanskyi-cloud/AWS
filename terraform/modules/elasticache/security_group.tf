@@ -47,8 +47,6 @@ resource "aws_security_group_rule" "redis_ingress_from_asg" {
 # In such cases, restrict the egress rule to ONLY the necessary destination IP
 # addresses or CIDR blocks and the required ports.
 
-
-
 # --- Notes --- #
 
 # 1. **Ingress Rules**:

@@ -24,7 +24,8 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
 
 # --- Alarm for 5XX errors --- #
 # Explanation: Catches HTTP 5xx errors, often caused by application or server failures.
-# alb_5xx_errors: Indicates application or server errors. Investigate application logs and server health.
+# alb_5xx_errors: Indicates application or target instance errors (5XX returned by ASG targets).
+# Investigate application logs or instance health to identify the root cause.
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   count = var.enable_5xx_alarm ? 1 : 0 # Controlled by the variable `enable_5xx_alarm`
 
@@ -47,7 +48,8 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
 
 # --- Alarm for Target Response Time --- #
 # Explanation: Monitors the average response time of targets in the ALB Target Group.
-# High response time indicates potential issues with the application or infrastructure.
+# High response time indicates potential issues with the application (WordPress) or instance overload.
+# Useful for detecting slow database queries or insufficient compute resources.
 resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   count = var.enable_target_response_time_alarm ? 1 : 0 # Controlled by the variable `enable_target_response_time_alarm`
 
@@ -92,32 +94,34 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
 }
 
 # --- Notes --- #
-
 # Dynamic Alarm Creation:
 # - Alarms for high request count and 5XX errors are conditionally created based on:
 #   - `enable_high_request_alarm`: Controls high request count alarms.
 #   - `enable_5xx_alarm`: Controls 5XX error alarms.
-
+#
 # Always-On Alarm:
 # - The `alb_unhealthy_host_count` alarm is always created to ensure health monitoring of target instances.
-
+# - This alarm quickly notifies when any instance behind the ALB becomes unhealthy according to the ALB health check.
+# - Helps detect issues like WordPress crash, MySQL connection failure, or instance termination.
+#
 # Simplified Notification Logic:
 # - Notifications are always enabled for each alarm if the resource is created.
 # - Alerts are delivered to the specified SNS topic (`var.sns_topic_arn`).
-
+#
 # Key Metrics:
 # - `RequestCount`: Monitors high traffic for scaling or debugging.
 # - `HTTPCode_Target_5XX_Count`: Detects server/application-level errors.
 # - `UnHealthyHostCount`: Tracks the health status of target instances.
 # - `TargetResponseTime`: Measures average target response time; high values indicate potential application or infrastructure bottlenecks.
-
+# - Note: 5XX errors may originate from the ALB itself or backend targets. The metric "HTTPCode_Target_5XX_Count" specifically monitors target (ASG) errors.
+#
 # Recommendations:
 # - Regularly review and adjust alarm thresholds (`alb_request_count_threshold`, `alb_5xx_threshold`) to align with application needs.
 # - Periodically verify that the SNS topic is configured correctly to receive alerts.
-
+#
 # Threshold Validation:
 # - Ensure that `alb_request_count_threshold` and `alb_5xx_threshold` are tuned to real application requirements
 #   to avoid false positives or missing critical events.
-
+#
 # Notifications Consistency:
 # - Double-check that all alarms correctly reference `sns_topic_arn` to ensure alerts are reliably sent to the right channel.
