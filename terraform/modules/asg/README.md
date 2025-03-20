@@ -22,78 +22,85 @@ This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) wi
 
 ## Architecture Diagram
 
-```text
-CloudWatch Alarms ──► SNS Topic ──► Auto Scaling Group (ASG)
-                                       │
-                   ┌───────────────────┴────────────────────┐
-                   │                   │                     │
-            Scale-Out Policy   Scale-In Policy   Target Tracking Policy
-                   │                   │                     │
-                   └──────────► Launch Template ◄────────────┘
-                                       │
-           ┌─────────────┬─────────────┼──────────────┬───────────────┐
-           │             │             │              │               │
-  User Data Script   Security Group   IAM Role   Metadata Options   Monitoring
-           │             │             │              │               │
-           └─────────────┴─────────────┴──────────────┴───────────────┘
-                                       │
-                                       ▼
-                               EC2 Instances (WordPress)
-                                       │
-                    ┌──────────────────┴─────────────────┐
-                    │                                    │
-              RDS Database                   ElastiCache Redis
+```mermaid
+graph TB
+    %% Main Components
+    CloudWatch("CloudWatch Alarms")
+    SNS("SNS Topic")
+    ASG("Auto Scaling Group (ASG)")
+    LT("Launch Template")
+    EC2("EC2 Instances (WordPress)")
+    ALB("Application Load Balancer")
+    RDS("RDS Database")
+    Redis("ElastiCache Redis")
+    S3Media("S3 Bucket (WordPress Media)")
+    S3Scripts("S3 Bucket (Deployment Scripts)")
+    SecretsManager("AWS Secrets Manager")
+    
+    %% Subgraphs for organization
+    subgraph "Security"
+        SG("Security Group")
+        IAM("IAM Role & Instance Profile")
+        KMS("KMS Encryption")
+        IMDSv2("IMDSv2 Metadata Security")
+    end
+    
+    subgraph "Scaling Policies"
+        ScaleOut("Scale-Out Policy")
+        ScaleIn("Scale-In Policy")
+        TargetTracking("Target Tracking Policy")
+    end
+    
+    subgraph "Monitoring"
+        CPUAlarms("CPU Utilization Alarms")
+        StatusAlarms("Instance Status Alarms")
+        NetworkAlarms("Network Traffic Alarms")
+    end
+    
+    %% Connections
+    CloudWatch -->|"Triggers"| SNS
+    SNS -->|"Notifications"| ASG
+    
+    CPUAlarms -->|"High CPU"| ScaleOut
+    CPUAlarms -->|"Low CPU"| ScaleIn
+    StatusAlarms -->|"Instance Health"| CloudWatch
+    NetworkAlarms -->|"Traffic Anomalies"| CloudWatch
+    
+    ScaleOut -->|"Add Instance"| ASG
+    ScaleIn -->|"Remove Instance"| ASG
+    TargetTracking -->|"Auto-adjust Capacity"| ASG
+    
+    ASG -->|"Uses"| LT
+    ASG -->|"Registers with"| ALB
+    
+    LT -->|"Configures"| EC2
+    LT -->|"Applies"| SG
+    LT -->|"Attaches"| IAM
+    LT -->|"Enforces"| IMDSv2
+    LT -->|"Enables"| KMS
+    
+    EC2 -->|"Connects to"| RDS
+    EC2 -->|"Caches with"| Redis
+    EC2 -->|"Stores media in"| S3Media
+    EC2 -->|"Fetches scripts from"| S3Scripts
+    EC2 -->|"Retrieves secrets from"| SecretsManager
+    
+    ALB -->|"Routes traffic to"| EC2
+    SG -->|"Controls traffic for"| EC2
+    IAM -->|"Grants permissions to"| EC2
+    KMS -->|"Encrypts data for"| EC2
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef security fill:#DD3522,stroke:#232F3E,color:white;
+    classDef monitoring fill:#3F8624,stroke:#232F3E,color:white;
+    classDef policy fill:#1A73E8,stroke:#232F3E,color:white;
+    
+    class CloudWatch,SNS,ASG,LT,EC2,ALB,RDS,Redis,S3Media,S3Scripts,SecretsManager aws;
+    class SG,IAM,KMS,IMDSv2 security;
+    class CPUAlarms,StatusAlarms,NetworkAlarms monitoring;
+    class ScaleOut,ScaleIn,TargetTracking policy;
 ```
-
----
-
-## Features
-
-### Auto Scaling and Load Management
-- Configurable min, max, and desired capacity.
-- CPU target tracking and manual scaling policies.
-- Health checks via ALB.
-- Lifecycle management with `create_before_destroy`.
-
-### Launch Template
-- EC2 instance specifications (AMI, instance type, volumes).
-- User data for automated WordPress deployment.
-- Local or S3-based deployment script support.
-- EBS encryption and metadata options with IMDSv2.
-
-### Security
-- Security Group with dynamic rules (SSH, ALB HTTP/HTTPS).
-- Optional SSH access.
-- IAM role and instance profile with:
-  - S3 access (WordPress media, deployment scripts).
-  - CloudWatch logs and monitoring.
-  - SSM for management.
-  - KMS decryption for encrypted resources.
-- Enforced metadata security via IMDSv2.
-
-### Monitoring and CloudWatch Alarms
-- CPU-based scale-out and scale-in alarms.
-- Status check alarms for instance health.
-- Network In/Out traffic monitoring.
-- SNS notifications for all alarms.
-- Target Tracking Scaling (AWS-managed CloudWatch alarms) with default target of 50% CPU utilization.
-
-### KMS and Encryption Support
-- Optional EBS volume encryption.
-- S3 encryption support with KMS.
-- KMS permissions dynamically assigned.
-
-### S3 Script Mode
-- If `enable_s3_script` is `true`, fetches deployment script from S3.
-- Fallback to local script if disabled.
-
-### Metadata Security (IMDSv2)
-- All EC2 instances enforce IMDSv2 to protect metadata.
-
-### Secrets and Database
-- Integration with AWS Secrets Manager.
-- Secure connection to RDS.
-- Redis caching support.
 
 ---
 

@@ -8,75 +8,92 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 
 ## Architecture Diagram
 
-```
-                                                    ┌─────────────────────┐
-                                                    │                     │
-                                                    │  CloudWatch Alarms  │
-                                                    │                     │
-                                                    └─────────┬───────────┘
-                                                              │
-                                                              │ Monitors
-                                                              │
-                                                              ▼
-┌─────────────┐     HTTPS/HTTP     ┌─────────────┐     ┌────────────────────────────────────────┐
-│             │     Requests       │             │     │        Security Group                  │
-│  Internet   ├────────────────────►    WAF      ├─────►  ┌─────────────────┐ ┌─────────────┐   │
-│             │                    │ (optional)  │     │  │ Ingress:        │ │ Egress:     │   │
-└─────────────┘                    └─────────────┘     │  │ - Port 80       │ │ - All       │   │
-                                                       │  │ - Port 443      │ │   Traffic   │   │
-                                                       │  └─────────────────┘ └─────────────┘   │
-                                                       │                                        │
-                                                       │           Application Load Balancer    │
-                                                       │                                        │
-                                                       │  ┌─────────────────┐ ┌────────────┐    │
-                                                       │  │ HTTP Listener   │ │ HTTPS      │    │
-                                                       │  │ (Port 80)       │ │ Listener   │    │
-                                                       │  │                 │ │ (Port 443) │    │
-                                                       │  │ If HTTPS:       │ │            │    │
-                                                       │  │ - Redirect      │ │ Forward to │    │
-                                                       │  │ Else:           │ │ Target     │    │
-                                                       │  │ - Forward       │ │ Group      │    │
-                                                       │  └────────┬────────┘ └─────┬──────┘    │
-                                                       └───────────┼────────────────┼───────────┘
-                                                                   │                │
-                                                                   └───────┬────────┘
-                                                                           │
-                                                                           ▼
-                                                       ┌─────────────────────────────────────────┐
-                                                       │           Target Group                  │
-                                                       │                                         │
-                                                       │  ┌─────────────────┐ ┌─────────────┐    │
-                                                       │  │ Health Check:   │ │ Stickiness: │    │
-                                                       │  │ - Path: /health │ │ - Enabled   │    │
-                                                       │  │ - Interval: 10s │ │ - lb_cookie │    │
-                                                       │  │ - Timeout: 3s   │ │ - 1 day     │    │
-                                                       │  └─────────────────┘ └─────────────┘    │
-                                                       └──────────────────────┬──────────────────┘
-                                                                              │
-                                                                              │ Forwards to
-                                                                              ▼
-                                                       ┌─────────────────────────────────────────┐
-                                                       │                                         │
-                                                       │        EC2 Instances in ASG             │
-                                                       │        (WordPress Servers)              │
-                                                       │                                         │
-                                                       └──────────────────────┬──────────────────┘
-                                                                              │
-                                                                              │ Logs
-                                   ┌────────────────┐                         │
-                                   │                │                         │
-                                   │  Firehose      │◄────────────────────────┘
-                                   │  (optional)    │
-                                   └────────┬───────┘
-                                            │
-                                            │ Delivers
-                                            │
-                                   ┌────────▼───────┐
-                                   │                │
-                                   │   S3 Bucket    │
-                                   │   (Logs)       │
-                                   │                │
-                                   └────────────────┘
+```mermaid
+flowchart TB
+    %% Main Components and Traffic Flow
+    Internet((Internet)) --> WAF[AWS WAF\n(Optional)]
+    WAF --> ALB[Application Load Balancer\nPublic-facing]
+    
+    %% Security Group Details
+    subgraph SG["Security Group"]
+        direction TB
+        Ingress["Ingress Rules:\n- Port 80 (HTTP)\n- Port 443 (HTTPS, Optional)"]
+        Egress["Egress Rules:\n- All Traffic (0.0.0.0/0)"]
+    end
+    SG --- ALB
+    
+    %% Listeners and Routing Logic
+    subgraph Listeners["ALB Listeners"]
+        direction LR
+        HTTP[HTTP Listener\nPort 80]
+        HTTPS[HTTPS Listener\nPort 443\n(Optional)]
+    end
+    ALB --> Listeners
+    
+    %% HTTP Listener Logic
+    HTTP --> |"If HTTPS Enabled"|Redirect[Redirect to HTTPS\nHTTP 301]
+    HTTP --> |"If HTTPS Disabled"|TG[Target Group\nPort 80]
+    
+    %% HTTPS Listener Logic
+    HTTPS --> TG
+    
+    %% Target Group Configuration
+    subgraph TargetConfig["Target Group Configuration"]
+        direction TB
+        HC[Health Check\nPath: /healthcheck.php\nInterval: 10s\nTimeout: 3s\nHealthy: 2 successes\nUnhealthy: 3 failures]
+        ST[Stickiness\nEnabled: true\nType: lb_cookie\nDuration: 1 day]
+        DR[Deregistration Delay: 300s\nSlow Start: 300s]
+    end
+    TG --> TargetConfig
+    TG --> ASG[EC2 Instances\nin Auto Scaling Group]
+    
+    %% Monitoring System
+    subgraph Monitoring["CloudWatch Monitoring"]
+        direction TB
+        HighReq[High Request Count Alarm\n(Optional)]
+        Errors5xx[5XX Errors Alarm\n(Optional)]
+        RespTime[Target Response Time Alarm\n(Optional)]
+        UnhealthyHosts[Unhealthy Hosts Alarm]
+    end
+    ALB --> Monitoring
+    
+    %% Notifications
+    Monitoring --> SNS[SNS Topic\nAlerts & Notifications]
+    
+    %% WAF Configuration
+    subgraph WAFConfig["WAF Configuration"]
+        direction TB
+        RateLimit[Rate Limit Rule\n1000 req/5min per IP]
+        ManagedRules["AWS Managed Rules\n(Recommended for Production)"]
+    end
+    WAF --> WAFConfig
+    
+    %% Logging System
+    subgraph Logging["Logging System"]
+        direction TB
+        ALBLogs[ALB Access Logs\n(Optional)]
+        WafLogs[WAF Logs\n(Optional)]
+    end
+    ALB --> |"Access Logs"|Logging
+    WAF --> |"WAF Logs"|Logging
+    
+    %% Log Delivery
+    WafLogs --> Firehose[Kinesis Firehose\nGZIP Compression\n(Optional)]
+    ALBLogs --> S3[S3 Bucket\nKMS Encryption\nSecure Access]
+    Firehose --> S3
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E,stroke-width:2px
+    classDef security fill:#DD344C,stroke:#232F3E,color:white,stroke-width:2px
+    classDef monitoring fill:#3B48CC,stroke:#232F3E,color:white,stroke-width:2px
+    classDef optional fill:#FFFFFF,stroke:#232F3E,color:#232F3E,stroke-dasharray:5 5
+    classDef subgraph fill:#F7F7F7,stroke:#232F3E,color:#232F3E
+    
+    class ALB,TG,HTTP,HTTPS,Firehose,S3,ASG aws
+    class WAF,RateLimit,ManagedRules security
+    class Monitoring,HighReq,Errors5xx,RespTime,UnhealthyHosts,SNS monitoring
+    class WAF,HTTPS,HighReq,Errors5xx,RespTime,WafLogs,ALBLogs,Firehose,ManagedRules optional
+    class SG,Listeners,TargetConfig,WAFConfig,Logging subgraph
 ```
 
 ### Key Features:

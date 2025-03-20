@@ -6,30 +6,94 @@ This module creates and manages an ElastiCache Redis cluster in AWS, including a
 
 ## Architecture Diagram
 
-```
-┌─────────────────┐     ┌───────────────────┐      ┌────────────────┐
-│                 │     │                   │      │                │
-│  ASG Security   │───▶│  Redis Security   │      │  CloudWatch     │
-│  Group          │     │  Group            │      │  Alarms        │
-│                 │     │                   │      │                │
-└─────────────────┘     └────────┬──────────┘      └───────┬────────┘
-                                 │                         │
-                                 ▼                         │
-┌─────────────────┐     ┌────────────────────┐             │
-│                 │     │                    │             │
-│  KMS Key        │────▶│  ElastiCache Redis │◀───────────┘
-│  (Encryption)   │     │  Replication Group │            
-│                 │     │                    │            
-└─────────────────┘     └────────┬───────────┘            
-                                 │                         
-                                 │                         
-                                 ▼                         
-                        ┌────────────────────┐            
-                        │                    │            
-                        │  SNS Topic         │            
-                        │  (Notifications)   │            
-                        │                    │            
-                        └────────────────────┘            
+```mermaid
+graph TB
+    %% Main Components
+    VPC["VPC"]
+    PrivateSubnets["Private Subnets"]
+    ASG["Auto Scaling Group (ASG)"]
+    ASG_SG["ASG Security Group"]
+    Redis["ElastiCache Redis<br>Replication Group"]
+    KMS["KMS Key<br>(Encryption)"]
+    SNS["SNS Topic<br>(Notifications)"]
+    
+    %% ElastiCache Components
+    subgraph "ElastiCache Configuration"
+        SubnetGroup["Subnet Group"]
+        ParamGroup["Parameter Group<br>(Redis Version Family)"]
+        RedisNodes["Redis Nodes<br>(Primary + Replicas)"]
+        FailoverMech["Automatic Failover<br>Mechanism"]
+    end
+    
+    subgraph "Security"
+        RedisSG["Redis Security Group"]
+        Encryption["Encryption<br>(At-Rest & In-Transit)"]
+        IngressRule["Ingress Rule<br>(Redis Port)"]
+    end
+    
+    subgraph "Monitoring"
+        CWAlarms["CloudWatch Alarms"]
+        LowMemAlarm["Low Memory Alarm<br>(FreeableMemory)"]
+        HighCPUAlarm["High CPU Alarm<br>(CPUUtilization)"]
+        ReplBytesAlarm["Replication Bytes Alarm<br>(ReplicationBytesUsed)"]
+        CPUCreditsAlarm["CPU Credits Alarm<br>(CPUCreditBalance)"]
+    end
+    
+    subgraph "Backup"
+        Snapshots["Automated Snapshots<br>(Daily Window)"]
+        RetentionPolicy["Retention Policy"]
+    end
+    
+    %% Network Structure
+    VPC -->|"Contains"| PrivateSubnets
+    PrivateSubnets -->|"Used by"| SubnetGroup
+    
+    %% Connections
+    ASG -->|"Connects to"| Redis
+    ASG_SG -->|"Allows traffic to"| IngressRule
+    IngressRule -->|"Controls access to"| RedisSG
+    RedisSG -->|"Secures"| Redis
+    
+    %% ElastiCache Configuration
+    SubnetGroup -->|"Deploys in"| Redis
+    ParamGroup -->|"Configures"| Redis
+    Redis -->|"Creates"| RedisNodes
+    Redis -->|"Enables when<br>replicas > 0"| FailoverMech
+    
+    %% Security
+    KMS -->|"Provides keys for"| Encryption
+    Encryption -->|"Secures data in"| Redis
+    
+    %% Monitoring
+    Redis -->|"Monitored by"| CWAlarms
+    CWAlarms -->|"Includes"| LowMemAlarm
+    CWAlarms -->|"Includes"| HighCPUAlarm
+    CWAlarms -->|"Includes"| ReplBytesAlarm
+    CWAlarms -->|"Includes"| CPUCreditsAlarm
+    
+    LowMemAlarm -->|"Notifies"| SNS
+    HighCPUAlarm -->|"Notifies"| SNS
+    ReplBytesAlarm -->|"Notifies"| SNS
+    CPUCreditsAlarm -->|"Notifies"| SNS
+    
+    %% Backup
+    Redis -->|"Creates"| Snapshots
+    Snapshots -->|"Managed by"| RetentionPolicy
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef security fill:#DD3522,stroke:#232F3E,color:white;
+    classDef monitoring fill:#3F8624,stroke:#232F3E,color:white;
+    classDef backup fill:#1A73E8,stroke:#232F3E,color:white;
+    classDef config fill:#7D3C98,stroke:#232F3E,color:white;
+    classDef network fill:#1E8449,stroke:#232F3E,color:white;
+    
+    class ASG,ASG_SG,Redis,KMS,SNS aws;
+    class RedisSG,Encryption,IngressRule security;
+    class CWAlarms,LowMemAlarm,HighCPUAlarm,ReplBytesAlarm,CPUCreditsAlarm monitoring;
+    class Snapshots,RetentionPolicy backup;
+    class SubnetGroup,ParamGroup,RedisNodes,FailoverMech config;
+    class VPC,PrivateSubnets network;
 ```
 
 ## Features

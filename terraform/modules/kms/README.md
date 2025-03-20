@@ -44,19 +44,19 @@ graph TD
     %% Main KMS Components
     KMSKey[Primary KMS Key] --> KeyPolicy[Key Policy]
     KMSKey --> KeyRotation[Automatic Key Rotation]
-    
+
     %% Replication Components
     KMSKey --> |Multi-Region| ReplicaKey[Replica KMS Key]
     ReplicaKey --> KMSGrant[KMS Grants for S3]
-    
+
     %% IAM Components
     KMSKey --> |Optional| IAMRole[IAM Role]
     IAMRole --> IAMPolicy[KMS Management Policy]
-    
+
     %% Monitoring Components
     KMSKey --> |Optional| CWAlarm[CloudWatch Alarm]
     CWAlarm --> SNSTopic[SNS Topic]
-    
+
     %% AWS Services Integration
     S3[S3 Buckets] --> |Encryption| KMSKey
     CloudTrail[CloudTrail] --> |Encryption| KMSKey
@@ -65,24 +65,31 @@ graph TD
     CloudWatch[CloudWatch Logs] --> |Encryption| KMSKey
     SSM[SSM] --> |Encryption| KMSKey
     EBS[EBS Volumes] --> |Encryption| KMSKey
-    
+
     %% Optional Services
     DynamoDB[DynamoDB] -.-> |Optional| KMSKey
     Firehose[Kinesis Firehose] -.-> |Optional| KMSKey
     WAF[WAF Logging] -.-> |Optional| KMSKey
-    
+
     %% Cross-Region Replication
     S3 --> |Cross-Region Replication| ReplicaS3[S3 Replica Buckets]
     ReplicaS3 --> |Encryption| ReplicaKey
-    
+
+    %% CloudTrail Audit of KMS Usage
+    KMSKey --> |Audit Logs| CloudTrail
+
+    %% Optional KMS VPC Interface Endpoint
+    KMSKey --> |Optional| VPCEndpoint[KMS VPC Endpoint]
+
     %% Styling
     classDef primary fill:#f9f,stroke:#333,stroke-width:2px
     classDef optional fill:#bbf,stroke:#33f,stroke-width:1px,stroke-dasharray: 5 5
     classDef service fill:#dfd,stroke:#080
-    
+
     class KMSKey primary
-    class ReplicaKey,IAMRole,IAMPolicy,CWAlarm,SNSTopic,KMSGrant optional
+    class ReplicaKey,IAMRole,IAMPolicy,CWAlarm,SNSTopic,KMSGrant,VPCEndpoint optional
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3 service
+
 ```
 
 ## Prerequisites

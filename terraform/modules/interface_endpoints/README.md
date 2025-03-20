@@ -25,17 +25,80 @@ Using this module allows you to configure access to EC2 instances through AWS Sy
 
 ## Architecture Overview
 
-The architecture of this module includes:
-
-1. **EC2 Instances** in private subnets across multiple Availability Zones
-2. **Security Group** controlling access to VPC Endpoints (HTTPS/443)
-3. **VPC Interface Endpoints** for AWS services:
-   - Systems Manager (SSM)
-   - SSM Messages
-   - EC2 Messages
-   - CloudWatch Logs
-   - KMS
-4. **Private connections** between VPC and AWS services without traversing the internet
+```mermaid
+graph TB
+    %% Main Components
+    VPC["VPC"]
+    PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
+    EC2["EC2 Instances<br>(Private Subnets)"]
+    
+    %% Endpoint Components
+    subgraph "Interface VPC Endpoints"
+        SSM["Systems Manager<br>(SSM)"]
+        SSMMessages["SSM Messages"]
+        EC2Messages["EC2 Messages<br>(ASG Communication)"]
+        CWLogs["CloudWatch Logs"]
+        KMS["Key Management<br>Service (KMS)"]
+    end
+    
+    subgraph "Security"
+        EndpointsSG["Endpoints Security Group"]
+        IngressRule["Ingress Rule<br>(HTTPS/443 from VPC CIDR)"]
+        EgressRule["Egress Rule<br>(HTTPS/443 to AWS Services)"]
+    end
+    
+    subgraph "AWS Services Cloud"
+        AWSServices["AWS Services<br>(SSM, CloudWatch, KMS)"]
+    end
+    
+    %% Network Structure
+    VPC -->|"Contains"| PrivateSubnets
+    PrivateSubnets -->|"Host"| EC2
+    
+    %% Security Connections
+    EndpointsSG -->|"Contains"| IngressRule
+    EndpointsSG -->|"Contains"| EgressRule
+    
+    %% Endpoint Deployments
+    PrivateSubnets -->|"Deploy ENIs in"| SSM
+    PrivateSubnets -->|"Deploy ENIs in"| SSMMessages
+    PrivateSubnets -->|"Deploy ENIs in"| EC2Messages
+    PrivateSubnets -->|"Deploy ENIs in"| CWLogs
+    PrivateSubnets -->|"Deploy ENIs in"| KMS
+    
+    %% Security Group Application
+    EndpointsSG -->|"Secures"| SSM
+    EndpointsSG -->|"Secures"| SSMMessages
+    EndpointsSG -->|"Secures"| EC2Messages
+    EndpointsSG -->|"Secures"| CWLogs
+    EndpointsSG -->|"Secures"| KMS
+    
+    %% Service Connections
+    EC2 -->|"Private Access<br>via Endpoints"| SSM
+    EC2 -->|"Private Access<br>via Endpoints"| SSMMessages
+    EC2 -->|"Private Access<br>via Endpoints"| EC2Messages
+    EC2 -->|"Private Access<br>via Endpoints"| CWLogs
+    EC2 -->|"Private Access<br>via Endpoints"| KMS
+    
+    SSM -->|"Private Connection"| AWSServices
+    SSMMessages -->|"Private Connection"| AWSServices
+    EC2Messages -->|"Private Connection"| AWSServices
+    CWLogs -->|"Private Connection"| AWSServices
+    KMS -->|"Private Connection"| AWSServices
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef security fill:#DD3522,stroke:#232F3E,color:white;
+    classDef network fill:#1E8449,stroke:#232F3E,color:white;
+    classDef endpoints fill:#3F8624,stroke:#232F3E,color:white;
+    classDef awscloud fill:#7D3C98,stroke:#232F3E,color:white;
+    
+    class EC2,AWSServices aws;
+    class EndpointsSG,IngressRule,EgressRule security;
+    class VPC,PrivateSubnets network;
+    class SSM,SSMMessages,EC2Messages,CWLogs,KMS endpoints;
+    class AWSServices awscloud;
+```
 
 This architecture enables EC2 instances in private subnets (without internet access) to securely communicate with AWS services through private endpoints within the VPC.
 
