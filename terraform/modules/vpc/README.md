@@ -1,4 +1,4 @@
-# VPC Module for Terraform
+# AWS VPC Module for Terraform
 
 This module creates and manages a Virtual Private Cloud (VPC) in AWS, including public and private subnets, route tables, Internet Gateway, Network ACLs (NACLs), and VPC Flow Logs. It provides a secure, scalable, and configurable networking foundation for AWS infrastructure.
 
@@ -6,26 +6,80 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 
 ## **Architecture Overview**
 
-```plaintext
-                                   Internet Gateway
-                                         │
-                                         │
-                     ┌─────────────┬─────┴─────┬───────────┐
-                     │             │           │           │
-               Public Subnet  Public Subnet Public Subnet  │
-                  (AZ-1)        (AZ-2)       (AZ-3)        │
-                     │             │           │           │
-                     │             │           │           │
-              Private Subnet  Private Subnet Private Subnet│
-                  (AZ-1)        (AZ-2)       (AZ-3)        │
-                     │             │           │           │
-                     └─────────────┼───────────┘           │
-                                   │                       │
-                         Gateway Endpoints                 │
-                         (S3 & DynamoDB)                   │
-                                                           │
-                                VPC Flow Logs ─────────────┘
-                            (CloudWatch Logs)
+```mermaid
+graph TD
+    %% Main VPC Component
+    VPC["VPC<br/>(CIDR Block)"] 
+    
+    %% Internet Gateway
+    IGW["Internet Gateway"]
+    
+    %% Subnets
+    subgraph "Public Subnets"
+        PubSub1["Public Subnet 1<br/>(AZ-1)"]
+        PubSub2["Public Subnet 2<br/>(AZ-2)"]
+        PubSub3["Public Subnet 3<br/>(AZ-3)"]
+    end
+    
+    subgraph "Private Subnets"
+        PrivSub1["Private Subnet 1<br/>(AZ-1)"]
+        PrivSub2["Private Subnet 2<br/>(AZ-2)"]
+        PrivSub3["Private Subnet 3<br/>(AZ-3)"]
+    end
+    
+    %% Route Tables
+    PubRT["Public Route Table"]
+    PrivRT["Private Route Table"]
+    
+    %% NACLs
+    PubNACL["Public NACL"]
+    PrivNACL["Private NACL"]
+    
+    %% VPC Endpoints
+    S3EP["S3 Gateway Endpoint"]
+    DynamoEP["DynamoDB Gateway Endpoint"]
+    
+    %% Flow Logs and Monitoring
+    FlowLogs["VPC Flow Logs"]
+    LogGroup["CloudWatch Log Group"]
+    CWAlarm["CloudWatch Alarm<br/>(Flow Logs Delivery Errors)"]
+    SNS["SNS Topic<br/>(Optional)"]
+    
+    %% Default Security Group
+    DefSG["Default Security Group<br/>(Locked Down)"]
+    
+    %% Connections
+    VPC --> IGW
+    VPC --> PubSub1 & PubSub2 & PubSub3
+    VPC --> PrivSub1 & PrivSub2 & PrivSub3
+    VPC --> S3EP & DynamoEP
+    VPC --> FlowLogs
+    VPC --> DefSG
+    
+    PubSub1 & PubSub2 & PubSub3 --> PubRT
+    PrivSub1 & PrivSub2 & PrivSub3 --> PrivRT
+    
+    PubSub1 & PubSub2 & PubSub3 --> PubNACL
+    PrivSub1 & PrivSub2 & PrivSub3 --> PrivNACL
+    
+    PubRT --> IGW
+    
+    FlowLogs --> LogGroup
+    LogGroup --> CWAlarm
+    CWAlarm --> SNS
+    
+    %% Styling
+    classDef vpc fill:#f9f,stroke:#333,stroke-width:2px
+    classDef subnet fill:#bbf,stroke:#333,stroke-width:1px
+    classDef endpoint fill:#bfb,stroke:#333,stroke-width:1px
+    classDef security fill:#fbb,stroke:#333,stroke-width:1px
+    classDef monitoring fill:#fbf,stroke:#333,stroke-width:1px
+    
+    class VPC vpc
+    class PubSub1,PubSub2,PubSub3,PrivSub1,PrivSub2,PrivSub3 subnet
+    class S3EP,DynamoEP endpoint
+    class PubNACL,PrivNACL,DefSG security
+    class FlowLogs,LogGroup,CWAlarm,SNS monitoring
 ```
 
 ## **Features**
@@ -57,6 +111,9 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
     - Automatic cleanup support in test environments
     - Proper resource tagging for cost allocation
     - Structured log organization by environment
+  - **Monitoring and Alerts**:
+    - CloudWatch Alarm for VPC Flow Logs `DeliveryErrors` metric
+    - SNS notifications (required for Flow Logs delivery monitoring) for alerting on delivery failures (optional)
   - **Best Practices**:
     - Regular review of retention periods
     - Cost monitoring recommendations
@@ -84,13 +141,53 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
    - KMS encryption for all log data
    - IAM roles follow principle of least privilege
    - CloudWatch Logs permissions scoped to specific log groups
+   - CloudWatch alarm for monitoring Flow Logs delivery errors
+   - Optional SNS notifications for immediate alerts on delivery failures
 
 3. **Security Considerations**:
    - Public IP assignment is restricted to public subnets only
    - Gateway Endpoints provide secure access to AWS services
    - NACL rules are stateless and provide additional security layer
+   - Default Security Group is fully restricted (no ingress/egress)
 
 > Note: Some tfsec rules are intentionally ignored with proper documentation (e.g., public IP assignment in public subnets).
+
+## NACL Rules Comparison Table
+
+| Rule Number | Direction | Protocol | Port Range       | Source/Destination CIDR | Action | Description                                    |
+|------------ |---------- |--------- |----------------- |------------------------ |------- |------------------------------------------------|
+| **Public NACL**                                                                                                                           |
+| 100         | Inbound   | TCP      | 80               | 0.0.0.0/0               | ALLOW  | Allow HTTP traffic for ALB                     |
+| 110         | Inbound   | TCP      | 443              | 0.0.0.0/0               | ALLOW  | Allow HTTPS traffic for ALB                    |
+| 120         | Inbound   | TCP      | 22               | var.ssh_allowed_cidr[0] | ALLOW  | Allow SSH traffic (configurable CIDR)          |
+| 130         | Inbound   | TCP      | 1024-65535       | 0.0.0.0/0               | ALLOW  | Allow ephemeral ports for return traffic       |
+| 100         | Outbound  | ALL      | ALL              | 0.0.0.0/0               | ALLOW  | Allow all outbound traffic                     |
+|                                                                                                                                           |
+| **Private NACL**                                                                                                                          |
+| 200         | Inbound   | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL from within VPC                    |
+| 210         | Inbound   | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis from within VPC                    |
+| 220         | Inbound   | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports for return traffic       |
+| 250         | Inbound   | TCP      | 443              | VPC CIDR                | ALLOW  | Allow HTTPS to VPC Endpoints (SSM, etc.)       |
+| 200         | Outbound  | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL outbound to VPC                    |
+| 210         | Outbound  | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis outbound to VPC                    |
+| 220         | Outbound  | TCP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS TCP queries                          |
+| 230         | Outbound  | UDP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS UDP queries                          |
+| 240         | Outbound  | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports within VPC               |
+| 260         | Outbound  | TCP      | 443              | VPC CIDR                | ALLOW  | Allow SSM traffic to VPC Endpoints             |
+
+---
+
+> *Note:* Adjust `ssh_allowed_cidr`, CIDRs, and port ranges per environment for production hardening.
+
+---
+
+🔹 **Notes:**
+- **Public NACL** allows only web traffic and SSH for testing.
+- **Private NACL** strictly controls traffic: only MySQL, Redis, DNS, and SSM are allowed.
+- All ephemeral port ranges are open for necessary return traffic.
+- Rule numbers correspond to Terraform `aws_network_acl_rule` resources for clarity.
+
+---
 
 ## **Cost Management**
 
@@ -113,29 +210,6 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
    - Consider sampling for high-traffic environments
    - Monitor CloudWatch Logs usage
 
-## **Troubleshooting Guide**
-
-1. **Common Issues**:
-   - NACL blocking traffic
-   - Flow Logs delivery failures
-   - Subnet capacity issues
-
-2. **NACL Debugging**:
-   ```shell
-   # Check NACL rules
-   aws ec2 describe-network-acls --network-acl-id <nacl-id>
-   
-   # View Flow Logs
-   aws logs tail <log-group-name> --follow
-   ```
-
-3. **Flow Logs Analysis**:
-   - Example log format:
-     ```
-     <version> <account-id> <interface-id> <srcaddr> <dstaddr> <srcport> <dstport> <protocol> <packets> <bytes> <start> <end> <action> <log-status>
-     ```
-   - Common fields explanation provided in CloudWatch
-
 ## **Module Files Structure**
 
 | **File**              | **Description**                                                                 |
@@ -143,7 +217,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `main.tf`             | Defines the VPC, subnets, and main configurations.                              |
 | `endpoints_routes.tf` | Configures route tables, Internet Gateway, and Gateway Endpoints.               |
 | `nacl.tf`             | Creates and associates Network ACLs for public and private subnets.             |
-| `flow_logs.tf`        | Configures VPC Flow Logs and related IAM roles and policies.                    |
+| `flow_logs.tf`        | Configures VPC Flow Logs, related IAM roles, policies, and CloudWatch alarms.   |
 | `variables.tf`        | Declares input variables for the module.                                        |
 | `outputs.tf`          | Exposes key outputs for integration with other modules.                         |
 
@@ -151,60 +225,62 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 
 ## **Input Variables**
 
-| **Name**                         | **Type**       | **Description**                                     | **Default/Required**       |
-|----------------------------------|----------------|-----------------------------------------------------|----------------------------|
-| `aws_region`                     | `string`       | AWS region where resources will be created.         | **Required**               |
-| `aws_account_id`                 | `string`       | AWS account ID for configuring permissions.         | **Required**               |
-| `vpc_cidr_block`                 | `string`       | CIDR block for the VPC.                             | **Required**               |
-| `name_prefix`                    | `string`       | Prefix for resource names.                          | **Required**               |
-| `environment`                    | `string`       | Environment tag (e.g., dev, stage, prod).           | **Required**               |
-| `public_subnet_cidr_block_1`     | `string`       | CIDR block for the first public subnet.             | **Required**               |
-| `public_subnet_cidr_block_2`     | `string`       | CIDR block for the second public subnet.            | **Required**               |
-| `public_subnet_cidr_block_3`     | `string`       | CIDR block for the third public subnet.             | **Required**               |
-| `private_subnet_cidr_block_1`    | `string`       | CIDR block for the first private subnet.            | **Required**               |
-| `private_subnet_cidr_block_2`    | `string`       | CIDR block for the second private subnet.           | **Required**               |
-| `private_subnet_cidr_block_3`    | `string`       | CIDR block for the third private subnet.            | **Required**               |
-| `availability_zone_public_1`     | `string`       | Availability zone for the first public subnet.      | **Required**               |
-| `availability_zone_public_2`     | `string`       | Availability zone for the second public subnet.     | **Required**               |
-| `availability_zone_public_3`     | `string`       | Availability zone for the third public subnet.      | **Required**               |
-| `availability_zone_private_1`    | `string`       | Availability zone for the first private subnet.     | **Required**               |
-| `availability_zone_private_2`    | `string`       | Availability zone for the second private subnet.    | **Required**               |
-| `availability_zone_private_3`    | `string`       | Availability zone for the third private subnet.     | **Required**               |
-| `kms_key_arn`                    | `string`       | ARN of KMS key for Flow Logs encryption             | **Required**               |
-| `flow_logs_retention_in_days`    | `number`       | Number of days to retain VPC Flow Logs              | **Required**               |
-| `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.         | `["0.0.0.0/0"]` (Optional) |
+| **Name**                         | **Type**       | **Description**                                      | **Default/Required**       |
+|----------------------------------|----------------|------------------------------------------------------|----------------------------|
+| `aws_region`                     | `string`       | AWS region where resources will be created.          | **Required**               |
+| `aws_account_id`                 | `string`       | AWS account ID for configuring permissions.          | **Required**               |
+| `vpc_cidr_block`                 | `string`       | CIDR block for the VPC.                              | **Required**               |
+| `name_prefix`                    | `string`       | Prefix for resource names.                           | **Required**               |
+| `environment`                    | `string`       | Environment tag (e.g., dev, stage, prod).            | **Required**               |
+| `public_subnet_cidr_block_1`     | `string`       | CIDR block for the first public subnet.              | **Required**               |
+| `public_subnet_cidr_block_2`     | `string`       | CIDR block for the second public subnet.             | **Required**               |
+| `public_subnet_cidr_block_3`     | `string`       | CIDR block for the third public subnet.              | **Required**               |
+| `private_subnet_cidr_block_1`    | `string`       | CIDR block for the first private subnet.             | **Required**               |
+| `private_subnet_cidr_block_2`    | `string`       | CIDR block for the second private subnet.            | **Required**               |
+| `private_subnet_cidr_block_3`    | `string`       | CIDR block for the third private subnet.             | **Required**               |
+| `availability_zone_public_1`     | `string`       | Availability zone for the first public subnet.       | **Required**               |
+| `availability_zone_public_2`     | `string`       | Availability zone for the second public subnet.      | **Required**               |
+| `availability_zone_public_3`     | `string`       | Availability zone for the third public subnet.       | **Required**               |
+| `availability_zone_private_1`    | `string`       | Availability zone for the first private subnet.      | **Required**               |
+| `availability_zone_private_2`    | `string`       | Availability zone for the second private subnet.     | **Required**               |
+| `availability_zone_private_3`    | `string`       | Availability zone for the third private subnet.      | **Required**               |
+| `kms_key_arn`                    | `string`       | ARN of KMS key for Flow Logs encryption              | **Required**               |
+| `flow_logs_retention_in_days`    | `number`       | Number of days to retain VPC Flow Logs               | **Required**               |
+| `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.          | `["0.0.0.0/0"]` (Optional) |
+| `sns_topic_arn`                  | `string`       | ARN of SNS Topic for CloudWatch Alarms notifications.| `null` (Optional)          |
 
 ## **Outputs**
 
 | **Name**                         | **Description**                                                      |
 |----------------------------------|----------------------------------------------------------------------|
 | `vpc_id`                         | The ID of the created VPC                                            |
+| `vpc_arn`                        | The ARN of the VPC                                                   |
 | `vpc_cidr_block`                 | The CIDR block of the VPC                                            |
 | `public_subnet_1_id`             | ID of the first public subnet                                        |
 | `public_subnet_2_id`             | ID of the second public subnet                                       |
 | `public_subnet_3_id`             | ID of the third public subnet                                        |
+| `public_subnets`                 | List of public subnet IDs                                            |
+| `public_subnet_ids`              | List of IDs for public subnets                                       |
 | `private_subnet_1_id`            | ID of the first private subnet                                       |
 | `private_subnet_2_id`            | ID of the second private subnet                                      |
 | `private_subnet_3_id`            | ID of the third private subnet                                       |
-| `public_subnets`                 | List of all public subnet IDs                                        |
-| `private_subnets`                | List of all private subnet IDs                                       |
-| `public_subnet_ids`              | List of IDs for public subnets                                       |
+| `private_subnets`                | List of private subnet IDs                                           |
 | `private_subnet_ids`             | List of IDs for private subnets                                      |
+| `vpc_flow_logs_log_group_name`   | Name of the CloudWatch Log Group for VPC Flow Logs                   |
+| `vpc_flow_logs_role_arn`         | IAM Role ARN for VPC Flow Logs                                       |
 | `public_subnet_cidr_block_1`     | CIDR block for the first public subnet                               |
 | `public_subnet_cidr_block_2`     | CIDR block for the second public subnet                              |
 | `public_subnet_cidr_block_3`     | CIDR block for the third public subnet                               |
 | `private_subnet_cidr_block_1`    | CIDR block for the first private subnet                              |
 | `private_subnet_cidr_block_2`    | CIDR block for the second private subnet                             |
 | `private_subnet_cidr_block_3`    | CIDR block for the third private subnet                              |
+| `private_route_table_id`         | The ID of the private route table used by all private subnets        |
 | `public_route_table_id`          | ID of the public route table                                         |
-| `private_route_table_id`         | ID of the private route table                                        |
-| `vpc_flow_logs_log_group_name`   | Name of the CloudWatch Log Group for VPC Flow Logs                   |
-| `vpc_flow_logs_role_arn`         | ARN of the IAM Role for VPC Flow Logs                                |
-| `s3_endpoint_id`                 | ID of the S3 Gateway Endpoint                                        |
-| `dynamodb_endpoint_id`           | ID of the DynamoDB Gateway Endpoint                                  |
+| `s3_endpoint_id`                 | The ID of the S3 Gateway Endpoint                                    |
+| `dynamodb_endpoint_id`           | The ID of the DynamoDB VPC Endpoint                                  |
 | `default_security_group_id`      | The ID of the default security group for the VPC                     |
-| `public_subnet_nacl_id`          | The ID of the NACL associated with public subnets                    |
-| `private_subnet_nacl_id`         | The ID of the NACL associated with private subnets                   |
+| `public_subnet_nacl_id`          | The ID of the NACL associated with the public subnet                 |
+| `private_subnet_nacl_id`         | The ID of the NACL associated with the private subnet                |
 | `availability_zone_public_1`     | Availability Zone for public subnet 1                                |
 | `availability_zone_public_2`     | Availability Zone for public subnet 2                                |
 | `availability_zone_public_3`     | Availability Zone for public subnet 3                                |
@@ -213,9 +289,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 | `availability_zone_private_3`    | Availability Zone for private subnet 3                               |
 | `internet_gateway_id`            | The ID of the Internet Gateway                                       |
 
----
-
-## **Usage Example**
+## **Example Usage**
 
 ```hcl
 module "vpc" {
@@ -223,101 +297,148 @@ module "vpc" {
   aws_region                    = "eu-west-1"
   aws_account_id                = "123456789012"
   vpc_cidr_block                = "10.0.0.0/16"
-  name_prefix                   = "dev"
-  environment                   = "development"  # Must be dev, stage, or prod
-
-  # Subnet Configuration
+  name_prefix                   = "my-project"
+  environment                   = "prod"
+  
+  # Public Subnet Configuration
   public_subnet_cidr_block_1    = "10.0.1.0/24"
   public_subnet_cidr_block_2    = "10.0.2.0/24"
   public_subnet_cidr_block_3    = "10.0.3.0/24"
-  private_subnet_cidr_block_1   = "10.0.4.0/24"
-  private_subnet_cidr_block_2   = "10.0.5.0/24"
-  private_subnet_cidr_block_3   = "10.0.6.0/24"
-
-  # Availability Zones - spread across three AZs for high availability
   availability_zone_public_1    = "eu-west-1a"
   availability_zone_public_2    = "eu-west-1b"
   availability_zone_public_3    = "eu-west-1c"
+  
+  # Private Subnet Configuration
+  private_subnet_cidr_block_1   = "10.0.4.0/24"
+  private_subnet_cidr_block_2   = "10.0.5.0/24"
+  private_subnet_cidr_block_3   = "10.0.6.0/24"
   availability_zone_private_1   = "eu-west-1a"
   availability_zone_private_2   = "eu-west-1b"
   availability_zone_private_3   = "eu-west-1c"
-
+  
   # Security Configuration
-  ssh_allowed_cidr             = ["10.0.0.0/8"]  # Restrict SSH access
-
+  ssh_allowed_cidr              = ["10.10.0.0/16"]  # Restrict SSH access to corporate network
+  
   # Flow Logs Configuration
-  kms_key_arn                 = aws_kms_key.vpc_logs_key.arn
-  flow_logs_retention_in_days = 30     # Adjust based on requirements  
+  kms_key_arn                   = "arn:aws:kms:eu-west-1:123456789012:key/abcd1234-ab12-cd34-ef56-abcdef123456"
+  flow_logs_retention_in_days   = 30
+  
+  # Monitoring Configuration
+  sns_topic_arn                 = "arn:aws:sns:eu-west-1:123456789012:vpc-alerts"
 }
-
-# KMS key for Flow Logs encryption
-resource "aws_kms_key" "vpc_logs_key" {
-  description             = "KMS key for VPC Flow Logs encryption"
-  deletion_window_in_days = 7
-  enable_key_rotation     = true
-
-  tags = {
-    Name        = "dev-vpc-logs-key"
-    Environment = "development"
-  }
-}
-
 ```
-
-## **Best Practices**
-
-1. **Network Design**:
-   - Use all available AZs for high availability
-   - Separate public and private subnets
-   - Plan CIDR ranges for future growth
-
-2. **Security**:
-   - Review NACL rules regularly
-   - Monitor Flow Logs for suspicious activity
-   - Use KMS encryption for sensitive data
-
-3. **Monitoring**:
-   - Set up CloudWatch Alarms
-   - Review Flow Logs regularly
-   - Monitor subnet IP usage
-
-## **Future Improvements**
-
-1. **VPC Flow Logs Enhancement**:
-   - Add support for custom log formats
-   - Implement Athena integration for log analysis
-   - Add option for S3 as alternative log destination
-   - Create default CloudWatch Alarms for common scenarios
-
-2. **Network Configuration**:
-   - Add support for Transit Gateway integration
-   - Implement VPC peering configuration
-   - Add option for custom route table configurations
-   - Support for additional Gateway Endpoints
-
-3. **Security Enhancements**:
-   - Implement more granular NACL rules
-   - Add support for VPC endpoints for additional AWS services
-   - Enhanced security group configurations
-   - Implement network firewall integration
-
-4. **Monitoring and Maintenance**:
-   - Add automated log analysis and reporting
-   - Implement cost optimization recommendations
-   - Add support for automated backup and recovery
-   - Create default CloudWatch dashboards
-
-5. **Documentation and Examples**:
-   - Add more usage examples for different scenarios
-   - Create architecture diagrams
-   - Add troubleshooting guide
-   - Include cost estimation guidelines
 
 ---
 
-## **Authors**
+## **Best Practices**
 
-This module was developed following Terraform best practices, ensuring flexibility, scalability, and security. Contributions and feedback are highly appreciated!
+1. **Security**:
+   - Regularly review and update NACL rules to maintain security posture
+   - Restrict SSH access to known IP ranges
+   - Monitor VPC Flow Logs for suspicious activity
+
+2. **Scalability**:
+   - Size subnets appropriately for expected workload
+   - Reserve IP address space for future expansion
+   - Use consistent CIDR block allocation strategy
+
+3. **Monitoring**:
+   - Set up CloudWatch alarms for VPC Flow Logs delivery errors
+   - Monitor subnet IP address utilization
+   - Review Flow Logs regularly for security and performance insights
+
+4. **Maintenance**:
+   - Keep documentation updated
+   - Regularly review and update security configurations
+   - Test failover between availability zones
+
+---
+
+## Troubleshooting and Common Issues
+
+### 1. No Internet Access in Public Subnets
+**Cause:** Missing or incorrect route to the Internet Gateway (IGW) in the public route table.  
+**Solution:**  
+- Verify that the public route table contains the `0.0.0.0/0` route through the IGW.
+- Ensure the subnet is associated with the correct public route table.
+- Check that `map_public_ip_on_launch = true` is enabled for the public subnets.
+
+---
+
+### 2. NACL Blocking Traffic
+**Cause:** Network ACL rules block required traffic (HTTP/HTTPS/SSH or database ports).  
+**Solution:**  
+- Review the NACL rules with:
+  ```shell
+  aws ec2 describe-network-acls --network-acl-id <nacl-id>
+  ```
+- Ensure the correct `allow` rules exist for inbound/outbound traffic.
+- Validate ephemeral port ranges (1024-65535) are open for return traffic.
+
+---
+
+### 3. VPC Flow Logs Not Delivered to CloudWatch
+**Cause:** IAM Role missing permissions or KMS key policy does not allow CloudWatch access.  
+**Solution:**  
+- Check IAM role policies for:
+  - `logs:CreateLogStream`
+  - `logs:PutLogEvents`
+- Validate the KMS key policy allows the `logs.${var.aws_region}.amazonaws.com` principal.
+
+---
+
+### 4. Flow Logs Delivery Errors in CloudWatch Metrics
+**Cause:** Delivery failures due to permission or configuration issues.  
+**Solution:**  
+- Query the CloudWatch metric:
+  ```shell
+  aws cloudwatch get-metric-statistics \
+    --namespace "AWS/Logs" \
+    --metric-name "DeliveryErrors" \
+    --dimensions Name=LogGroupName,Value=/aws/vpc/flow-logs/<env> \
+    --start-time 2024-01-01T00:00:00Z \
+    --end-time 2024-01-02T00:00:00Z \
+    --period 300 \
+    --statistics Sum
+  ```
+- Check the CloudWatch alarm for Flow Logs delivery errors.
+- Verify the IAM role and KMS configuration.
+
+---
+
+### 5. Subnet Capacity Issues
+**Cause:** Subnet IP range exhausted due to small CIDR block or high instance count.  
+**Solution:**  
+- Recalculate subnet size based on instance requirements.
+- Monitor IP utilization:
+  ```shell
+  aws ec2 describe-subnets --subnet-ids <subnet-id>
+  ```
+
+---
+
+### 6. Gateway Endpoints Not Working (S3/DynamoDB)
+**Cause:** Missing or incorrect route table association for VPC Endpoints.  
+**Solution:**  
+- Ensure both private and public route tables include the VPC Endpoint routes.
+- Verify the endpoint status is `available`.
+
+---
+
+### 7. SSH Access Fails
+**Cause:** Incorrect Security Group or NACL configuration for SSH (port 22).  
+**Solution:**  
+- Ensure `ssh_allowed_cidr` is correctly set.
+- Confirm NACL rule `public_inbound_ssh` allows SSH traffic from your IP range.
+
+---
+
+## Notes:
+- Review Flow Logs directly:
+  ```shell
+  aws logs tail /aws/vpc/flow-logs/<env> --follow
+  ```
+- Keep an eye on CloudWatch Logs and delivery metrics to catch issues early.
 
 ---
 
@@ -329,3 +450,5 @@ This module was developed following Terraform best practices, ensuring flexibili
 - [VPC Flow Logs Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)
 - [CloudWatch Logs Pricing](https://aws.amazon.com/cloudwatch/pricing/)
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
+- [AWS Gateway Endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html)
+- [AWS Security Best Practices](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html)

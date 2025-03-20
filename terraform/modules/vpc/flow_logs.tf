@@ -33,7 +33,8 @@ data "aws_iam_policy_document" "vpc_flow_logs_cloudwatch_policy" {
       "logs:CreateLogStream",
       "logs:PutLogEvents",
       "logs:DescribeLogStreams",
-      "logs:DescribeLogGroups"
+      "logs:DescribeLogGroups",
+      "logs:PutRetentionPolicy"
     ]
     resources = [
       "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/vpc/flow-logs/${var.environment}:*",
@@ -48,13 +49,6 @@ resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   role   = aws_iam_role.vpc_flow_logs_role.name
   policy = data.aws_iam_policy_document.vpc_flow_logs_cloudwatch_policy.json
 }
-
-# --- VPC Flow Logs Configuration --- #
-# This configuration manages VPC Flow Logs with CloudWatch integration
-# Key components:
-# - IAM roles and policies for secure log delivery
-# - CloudWatch Log Group with KMS encryption
-# - VPC Flow Log with ALL traffic capture
 
 # --- CloudWatch Log Group for VPC Flow Logs --- #
 # Create CloudWatch log group with:
@@ -106,6 +100,39 @@ resource "aws_flow_log" "vpc_flow_log" {
   }
 }
 
+# --- CloudWatch Alarm for VPC Flow Logs Delivery Errors --- #
+# Monitors 'DeliveryErrors' metric to detect issues with Flow Logs delivery to CloudWatch.
+resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
+  alarm_name          = "${var.name_prefix}-vpc-flow-logs-delivery-errors"
+  alarm_description   = "Triggers if VPC Flow Logs fail to deliver logs to CloudWatch."
+  comparison_operator = "GreaterThanThreshold" # Alarm triggers if delivery errors > 0
+  evaluation_periods  = 1                      # Single evaluation period
+  metric_name         = "DeliveryErrors"       # Metric to monitor
+  namespace           = "AWS/Logs"             # Metric namespace
+  period              = 300                    # 5-minute period
+  statistic           = "Sum"                  # Sum of delivery errors in the period
+  threshold           = 0                      # Any error triggers the alarm
+
+  dimensions = {
+    LogGroupName = aws_cloudwatch_log_group.vpc_log_group.name # Target VPC Flow Logs log group
+  }
+
+  alarm_actions = [var.sns_topic_arn] # Optional: SNS topic for notifications
+  ok_actions    = [var.sns_topic_arn] # Optional: Notify when alarm clears
+
+  treat_missing_data = "missing" # Do not evaluate missing data (avoids false alarms)
+
+  tags = {
+    Name        = "${var.name_prefix}-flow-logs-delivery-alarm"
+    Environment = var.environment
+  }
+
+  # --- Notes --- #
+  # 1. Monitors CloudWatch delivery failures for VPC Flow Logs.
+  # 2. Triggers if Flow Logs fail to write data (critical visibility issue).
+  # 3. Recommended to subscribe SNS topic to email or other notification channels.
+}
+
 # --- Notes --- #
 # 1. Security and Permissions:
 #    - IAM role uses principle of least privilege
@@ -122,12 +149,17 @@ resource "aws_flow_log" "vpc_flow_log" {
 #    - prevent_destroy = false allows cleanup in test environments
 #    - Resources are properly tagged for cost allocation
 #
-# 4. Best Practices:
-#    - Review log retention periods regularly
-#    - Monitor CloudWatch costs
-#    - Consider sampling in high-traffic environments
-#
-# 5. Dependencies:
+# 4. Dependencies:
 #    - Requires valid KMS key for encryption
 #    - IAM role must be properly configured
 #    - VPC must exist before enabling flow logs
+#
+# 5. KMS Usage:
+#    - Ensure the KMS key policy allows CloudWatch Logs service principal to use the key.
+#    - Recommended: explicitly add `logs.${var.aws_region}.amazonaws.com` principal to the KMS policy.
+#
+# 6. Best Practices:
+#    - Review log retention periods regularly
+#    - Monitor CloudWatch costs
+#    - Consider sampling in high-traffic environments
+#    - Monitor 'DeliveryErrors' CloudWatch metric to detect log delivery failures.

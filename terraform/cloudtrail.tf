@@ -133,6 +133,7 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
   name = "${var.name_prefix}-cloudtrail-cloudwatch"
 
   # Trust relationship policy
+  # Note: Ensure CloudTrail has permissions to use the KMS key (module.kms).
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

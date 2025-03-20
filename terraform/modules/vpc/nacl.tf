@@ -73,6 +73,18 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   rule_action    = "allow"
 }
 
+# Optional: Allow ICMP (ping) for diagnostics
+# resource "aws_network_acl_rule" "public_inbound_icmp" {
+#   network_acl_id = aws_network_acl.public_nacl.id
+#   rule_number    = 140
+#   egress         = false
+#   protocol       = "icmp"
+#   from_port      = -1
+#   to_port        = -1
+#   cidr_block     = "0.0.0.0/0"
+#   rule_action    = "allow"
+# }
+
 ## Egress Rules: Allow all outbound traffic.
 
 # Rule allowing all outbound traffic
@@ -275,3 +287,6 @@ resource "aws_network_acl_association" "private_nacl_association_3" {
 # 4. ICMP rules are not included by default; add them if network diagnostics (ping, traceroute) are needed.
 # 5. Ensure that NACLs are correctly associated with the intended subnets to avoid connectivity issues.
 # 6. Regularly review NACL rules to maintain alignment with security best practices.
+# 7. DNS rules explicitly allow port 53 (TCP/UDP) for name resolution.
+# 8. Ephemeral port ranges (1024-65535) are allowed for return traffic and outbound connections.
+# 9. NACL rule numbers are spaced by 10 or more for easy future expansion.

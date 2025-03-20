@@ -19,6 +19,13 @@ terraform {
 provider "aws" {
   region  = var.aws_region
   profile = "default"
+
+  default_tags {
+    tags = {
+      Project = "Test"
+      Owner   = "Hetmanskyi"
+    }
+  }
 }
 
 # Configure the AWS alias provider and set the region for the replication bucket
@@ -26,6 +33,13 @@ provider "aws" {
   alias   = "replication"
   region  = var.replication_region
   profile = "default"
+
+  default_tags {
+    tags = {
+      Project = "Test"
+      Owner   = "Hetmanskyi"
+    }
+  }
 }
 
 # Define the Random provider for generating random strings if needed

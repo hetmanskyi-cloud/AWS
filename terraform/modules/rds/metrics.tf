@@ -15,7 +15,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
   namespace                 = "AWS/RDS"
   period                    = 300
   statistic                 = "Average"
-  threshold                 = var.rds_storage_threshold # Storage threshold from variable.
+  threshold                 = var.rds_storage_threshold # Threshold for low free storage space on RDS (in bytes, e.g., 10 GB = 10737418240)
   alarm_actions             = [var.sns_topic_arn]
   ok_actions                = [var.sns_topic_arn]
   insufficient_data_actions = [] # Insufficient data actions disabled for test environments.
@@ -96,7 +96,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
 }
 
 # --- Notes --- #
-
 # 1. Alarms are conditionally enabled via `enable_<alarm>` variables, allowing for granular control over monitoring.
 # 2. Thresholds for storage, CPU utilization, and database connections are customizable through variables.
 # 3. These alarms facilitate early detection of potential performance bottlenecks and issues for RDS instances.
@@ -105,3 +104,5 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
 #    - Storage: 1 period (immediate alert for critical storage issues).
 #    - CPU Utilization: 2 periods (mitigate false alarms from short CPU spikes).
 #    - Database Connections: 3 periods (tolerate temporary connection fluctuations).
+# 6. Production Recommendation:
+#    - Consider adding additional alarms (e.g., Read IOPS, Write IOPS, Replica Lag) for comprehensive monitoring in production.

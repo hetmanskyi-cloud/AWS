@@ -16,6 +16,7 @@ This module provisions a KMS key designed for encrypting various AWS resources, 
 - EC2 EBS volumes
 - WAFv2 logging
 - CloudTrail logs (when enabled via bucket configuration)
+- Secrets Manager
 - Optional support for:
   - DynamoDB
   - Kinesis Firehose
@@ -65,6 +66,7 @@ graph TD
     CloudWatch[CloudWatch Logs] --> |Encryption| KMSKey
     SSM[SSM] --> |Encryption| KMSKey
     EBS[EBS Volumes] --> |Encryption| KMSKey
+    SecretsManager[Secrets Manager] --> |Encryption| KMSKey
 
     %% Optional Services
     DynamoDB[DynamoDB] -.-> |Optional| KMSKey
@@ -88,7 +90,7 @@ graph TD
 
     class KMSKey primary
     class ReplicaKey,IAMRole,IAMPolicy,CWAlarm,SNSTopic,KMSGrant,VPCEndpoint optional
-    class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3 service
+    class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
 
 ```
 

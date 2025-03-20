@@ -103,6 +103,12 @@ resource "aws_vpc_endpoint" "s3" {
     aws_route_table.public_route_table.id
   ]
 
+  depends_on = [
+    aws_internet_gateway.igw,
+    aws_route_table.public_route_table,
+    aws_route_table.private_route_table
+  ]
+
   tags = {
     Name        = "${var.name_prefix}-s3-endpoint"
     Environment = var.environment
@@ -118,6 +124,12 @@ resource "aws_vpc_endpoint" "dynamodb" {
   route_table_ids = [
     aws_route_table.private_route_table.id,
     aws_route_table.public_route_table.id
+  ]
+
+  depends_on = [
+    aws_internet_gateway.igw,
+    aws_route_table.public_route_table,
+    aws_route_table.private_route_table
   ]
 
   tags = {
@@ -151,10 +163,12 @@ data "aws_prefix_list" "dynamodb" {
 #     in both public and private route tables.
 #   - This ensures that instances in a public subnet without a public IP can still
 #     communicate with S3 and DynamoDB over private AWS networking (no NAT required).
+#   - If you add services like CloudWatch Logs, consider Interface Endpoints for private subnet access.
 
 # 4. **Subnet associations**:
 #   - The public route table is associated with public subnets for internet access and AWS Gateway Endpoints.
 #   - The private route table is associated with private subnets for restricted access and Gateway Endpoints.
+#   - Route_table_ids include both public and private route tables to allow private access from ASG instances without public IPs.
 
 # 5. **Best practices**:
 #   - Ensure all route table associations match the intended subnet types to avoid connectivity issues.

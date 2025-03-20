@@ -2,6 +2,8 @@
 # This file defines a remote backend for Terraform state management.
 # Uncomment and configure the backend block to enable remote state storage.
 #
+## Example:
+#
 # terraform {
 #   backend "s3" {
 #     bucket         = "<S3_BUCKET_NAME>"                       # Replace with the name of your S3 bucket for state storage

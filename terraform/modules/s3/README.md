@@ -1,4 +1,4 @@
-# S3 Module for Terraform
+# AWS S3 Module for Terraform
 
 This module creates and manages S3 buckets for various use cases within a project. It includes configurations for encryption, logging, versioning, lifecycle policies, cross-region replication, and access control to ensure security and compliance with best practices.
 
@@ -41,6 +41,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 - **Conditional Resource Creation**:
   - DynamoDB Table: Created when enabled via `enable_dynamodb` (requires terraform_state bucket)
   - CORS: Enabled via `enable_cors` for WordPress media bucket
+  - CORS configuration for WordPress media bucket with configurable origins (restrict origins in production for security)
   - Replication: Enabled for buckets with replication property set to true
 
 - **Encryption and Security**:
@@ -63,6 +64,67 @@ This module creates and manages S3 buckets for various use cases within a projec
   - State locking table with TTL cleanup
   - Point-in-time recovery enabled by default
   - Cost-effective pay-per-request billing mode
+
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Default Region"
+        scripts["Scripts Bucket"]
+        logging["Logging Bucket"]
+        alb_logs["ALB Logs Bucket"]
+        cloudtrail["CloudTrail Bucket"]
+        terraform_state["Terraform State Bucket"]
+        wordpress_media["WordPress Media Bucket"]
+        
+        DynamoDB["DynamoDB Table\n(Terraform Locks)"]
+        KMS["KMS Key"]
+        SNS["SNS Topic"]
+        
+        terraform_state --> DynamoDB
+        scripts --> KMS
+        logging --> KMS
+        cloudtrail --> KMS
+        terraform_state --> KMS
+        wordpress_media --> KMS
+        
+        scripts --> SNS
+        logging --> SNS
+        alb_logs --> SNS
+        cloudtrail --> SNS
+        terraform_state --> SNS
+        wordpress_media --> SNS
+        
+        scripts --> logging
+        alb_logs --> logging
+        cloudtrail --> logging
+        terraform_state --> logging
+        wordpress_media --> logging
+    end
+    
+    subgraph "Replication Region"
+        rep_wordpress_media["WordPress Media Replica Bucket"]
+        rep_KMS["KMS Replica Key"]
+        rep_SNS["SNS Topic (Replication)"]
+        
+        rep_wordpress_media --> rep_KMS
+        rep_wordpress_media --> rep_SNS
+    end
+    
+    wordpress_media -.-> rep_wordpress_media
+    
+    subgraph "External Services"
+        ALB["Application Load Balancer"]
+        CloudTrail["AWS CloudTrail"]
+        S3Logs["S3 Access Logging"]
+        
+        ALB --> alb_logs
+        CloudTrail --> cloudtrail
+        S3Logs --> logging
+    end
+```
 
 ---
 
@@ -128,6 +190,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 | `terraform_locks_table_arn`                | ARN of DynamoDB table for Terraform state locking         |
 | `terraform_locks_table_name`               | Name of DynamoDB table for Terraform state locking        |
 | `enable_dynamodb`                          | DynamoDB enabled for state locking                        |
+| `all_enabled_buckets_names`                | List of all enabled S3 bucket names                       |
 
 ---
 
@@ -137,9 +200,10 @@ This module creates and manages S3 buckets for various use cases within a projec
   - All buckets are private by default
   - HTTPS-only access enforced
   - Least privilege IAM policies
+  - Review and restrict CORS `allowed_origins` in production environments
 
 - **Encryption**:
-  - Mandatory KMS encryption for all resources (except ALB logs bucket)
+  - Mandatory KMS encryption for all resources (except ALB logs bucket which uses SSE-S3)
   - Encryption enforced via bucket policies
   - Server-side encryption for all objects
   - Secure key management with KMS
@@ -163,93 +227,171 @@ This module creates and manages S3 buckets for various use cases within a projec
 module "s3" {
   source = "./modules/s3"
 
-  # General Configuration
-  aws_region       = "eu-west-1"
-  replication_region = "us-east-1"
-  environment      = "dev"
-  name_prefix      = "dev"
-  aws_account_id   = "123456789012"
+  aws_region         = "eu-west-1"
+  replication_region = "eu-central-1"
+  environment        = "dev"
+  name_prefix        = "myproject"
+  aws_account_id     = "123456789012"
   
-  # KMS Configuration
-  kms_key_arn      = aws_kms_key.s3_key.arn
-  kms_replica_key_arn = aws_kms_key.s3_replica_key.arn
+  # KMS and SNS configuration
+  kms_key_arn                      = module.kms.key_arn
+  kms_replica_key_arn              = module.kms_replica.key_arn
+  sns_topic_arn                    = module.sns.topic_arn
+  replication_region_sns_topic_arn = module.sns_replica.topic_arn
   
-  # SNS Configuration
-  sns_topic_arn    = aws_sns_topic.s3_notifications.arn
-  replication_region_sns_topic_arn = aws_sns_topic.replication_notifications.arn
+  # Versioning configuration
+  noncurrent_version_retention_days = 30
   
-  # Bucket Configuration
+  # Default region buckets
   default_region_buckets = {
     scripts = {
-      enabled = true
-      versioning = true
+      enabled               = true
+      versioning            = true
+      replication           = false
       server_access_logging = true
-    },
+    }
     logging = {
-      enabled = true
-      versioning = false
+      enabled               = true
+      versioning            = false
+      replication           = false
       server_access_logging = false
-    },
-    terraform_state = {
-      enabled = true
-      versioning = true
+    }
+    alb_logs = {
+      enabled               = true
+      versioning            = false
+      replication           = false
       server_access_logging = true
-    },
+    }
+    cloudtrail = {
+      enabled               = true
+      versioning            = true
+      replication           = false
+      server_access_logging = true
+    }
+    terraform_state = {
+      enabled               = true
+      versioning            = true
+      replication           = false
+      server_access_logging = true
+    }
     wordpress_media = {
-      enabled = true
-      versioning = true
-      replication = true
+      enabled               = true
+      versioning            = true
+      replication           = true
       server_access_logging = true
     }
   }
   
+  # Replication region buckets
   replication_region_buckets = {
     wordpress_media = {
-      enabled = true
-      versioning = true
+      enabled               = true
+      versioning            = true
       server_access_logging = true
-      region = "us-east-1"
+      region                = "eu-central-1"
     }
   }
   
-  # WordPress Configuration
-  enable_cors = true
-  allowed_origins = ["https://mywordpress.example.com"]
-  
-  # Script Upload Configuration
+  # WordPress scripts
   enable_s3_script = true
   s3_scripts = {
-    "deploy-wordpress.sh" = "scripts/deploy-wordpress.sh"
+    "scripts/setup.sh" = "scripts/setup.sh"
+    "scripts/backup.sh" = "scripts/backup.sh"
   }
   
-  # DynamoDB Configuration
-  enable_dynamodb = true
+  # CORS configuration (IMPORTANT: Restrict origins in production)
+  enable_cors = true
+  allowed_origins = ["https://myproject.example.com"]
   
-  # Lifecycle Configuration
-  noncurrent_version_retention_days = 30
+  # DynamoDB for state locking
+  enable_dynamodb = true
 }
 ```
+## Troubleshooting and Common Issues
+
+### 1. Replication Fails with Access Denied
+**Cause:** Missing or incorrect IAM role/policy for replication.  
+**Solution:**  
+- Ensure the replication role is created and attached correctly.
+- Verify KMS key permissions cover both source and replica buckets.
 
 ---
 
-## Future Improvements
-
-- Add support for additional replication regions beyond us-east-1 and eu-west-1
-- Implement S3 Object Lock for enhanced data protection
-- Add support for S3 Access Points
-- Implement cross-account access patterns
-- Add support for S3 Batch Operations
-- Implement automatic bucket policy validation
-- Add support for S3 event notifications to additional targets
-- Implement automatic backup verification
-- Add support for S3 Storage Lens
-- Enhanced cost allocation tagging
+### 2. ALB Logs Not Delivered to Bucket
+**Cause:** Missing bucket policy or incorrect ACL for ALB logs delivery.  
+**Solution:**  
+- Check that `delivery.logs.amazonaws.com` service has `s3:PutObject` permission.
+- Verify `bucket-owner-full-control` ACL is enforced.
 
 ---
 
-### Useful Resources
+### 3. Terraform Plan Fails: "DynamoDB requires terraform_state bucket"
+**Cause:** `enable_dynamodb = true`, but the `terraform_state` bucket is missing or disabled.  
+**Solution:**  
+- Ensure the `terraform_state` bucket is defined and `enabled = true`.
+- Re-run `terraform apply`.
 
-- [Amazon S3 Documentation](https://docs.aws.amazon.com/s3/index.html)
-- [AWS KMS Documentation](https://docs.aws.amazon.com/kms/index.html)
+---
+
+### 4. CORS Preflight Requests Failing
+**Cause:** Missing or incorrect CORS configuration on `wordpress_media` bucket.  
+**Solution:**  
+- Check that `enable_cors = true` and `allowed_origins` are properly configured.
+- Review allowed methods and headers.
+
+---
+
+### 5. "KMS Access Denied" on Replication
+**Cause:** `kms_replica_key_arn` not provided or IAM policy missing KMS permissions.  
+**Solution:**  
+- Validate that the correct KMS replica key ARN is set.
+- Ensure the replication role has access to both KMS keys (source and replica).
+
+---
+
+### 6. Lifecycle Rules Deleting Data Too Early
+**Cause:** The default test rule (`expiration.days = 1`) is active in production.  
+**Solution:**  
+- Increase `noncurrent_version_retention_days` in production.
+- Remove the 1-day expiration rule for production workloads.
+
+---
+
+### 7. S3 Bucket Destroy Fails Due to prevent_destroy
+**Cause:** `prevent_destroy = true` enabled on critical resources (e.g., DynamoDB or terraform_state bucket).  
+**Solution:**  
+- Temporarily remove or override the lifecycle block for testing or teardown.
+
+---
+
+### 8. WordPress Scripts Not Uploaded to S3
+**Cause:** `enable_s3_script = false` or `scripts` bucket disabled.  
+**Solution:**  
+- Set `enable_s3_script = true`.
+- Ensure `scripts` bucket is enabled in `default_region_buckets`.
+
+---
+
+## Notes
+
+- This module is designed with security best practices in mind, including encryption, access control, and monitoring.
+- The ALB logs bucket uses SSE-S3 encryption (AES256) as required by the AWS Elastic Load Balancing service.
+- For production environments, adjust the lifecycle rules to increase retention periods and remove the 1-day expiration rule.
+- When using replication, ensure that both source and destination buckets have versioning enabled.
+- The `terraform_state` bucket has special lifecycle rules to prevent accidental deletion of state files.
+- Always strictly validate and limit CORS `allowed_origins` in production environments to prevent cross-origin vulnerabilities and data leaks.
+
+---
+
+## Useful Resources
+
+- [AWS S3 Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
+- [S3 Bucket Encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html)
+- [S3 Bucket Policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-policies.html)
+- [S3 Lifecycle Management](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
 - [S3 Replication](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html)
-- [DynamoDB Best Practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html)
+- [S3 Access Points](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-points.html)
+- [S3 Inventory](https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-inventory.html)
+- [S3 Pricing](https://aws.amazon.com/s3/pricing/)
+- [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
+- [S3 Security Best Practices](https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html)

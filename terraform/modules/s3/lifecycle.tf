@@ -6,7 +6,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
-  # Rule: Delete objects after 1 day (TEST ENV ONLY!)
+  # Rule: Delete objects after 1 day (TEST ENV ONLY! Adjust for production)
   rule {
     id     = "${each.key}-delete-objects" # Rule ID: delete-objects
     status = "Enabled"                    # Rule status: Enabled
@@ -58,7 +58,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
   provider = aws.replication                                  # Use replication provider for replication buckets
   bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target replication bucket
 
-  # Rule: Delete objects after 1 day (TEST ENV ONLY!)
+  # Rule: Delete objects after 1 day (TEST ENV ONLY! Adjust for production)
   rule {
     id     = "replication-delete-objects"
     status = "Enabled"
@@ -138,21 +138,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_lifecycle" {
   }
 }
 
-# --- Module Notes --- #
-# General notes for S3 lifecycle configuration.
-
+# --- Notes --- #
 # 1. Default Region Lifecycle:
 #   - Cost optimization via lifecycle rules.
 #   - Includes version retention & abort incomplete uploads.
 #   - **`delete-objects` rule (days=1) applies ONLY to test environments.**
 #   - Production environments should **remove this rule** or **increase retention to 30+ days**.
-
+#
 # 2. Replication Lifecycle:
 #   - Separate lifecycle configuration for replication buckets.
 #   - Dynamically applied via `for_each` to all enabled replication buckets.
 #   - Includes version retention & abort incomplete uploads rules.
 #   - `abort_incomplete_multipart_upload` is set to 7 days, consistent with default buckets.
-
+#
 # 3. Terraform State Lifecycle:
 #   - Managed separately to prevent accidental state file deletion.
 #   - **No automatic deletion of objects.** All object versions are retained for 90 days.

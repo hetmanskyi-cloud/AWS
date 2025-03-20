@@ -116,10 +116,19 @@ variable "flow_logs_retention_in_days" {
   type        = number
 }
 
+# List of allowed CIDR blocks for SSH access to ASG instances
+# Recommended: Restrict in production via terraform.tfvars
 variable "ssh_allowed_cidr" {
   description = "List of allowed CIDR blocks for SSH access to ASG instances"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Open for development, restrict for production
+  default     = ["0.0.0.0/0"] # Open for development, restrict in production
+}
+
+# --- SNS Topic ARN for CloudWatch Alarms --- #
+variable "sns_topic_arn" {
+  description = "ARN of SNS Topic for CloudWatch Alarms notifications."
+  type        = string
+  default     = null
 }
 
 # --- Notes --- #
@@ -127,3 +136,5 @@ variable "ssh_allowed_cidr" {
 # 2. Ensure default values for variables are set appropriately for each environment (e.g., dev, prod).
 # 3. Use validations where applicable to enforce consistent and expected values.
 # 4. Regularly update variable descriptions to reflect changes in module functionality.
+# 5. Ensure KMS key provided has correct permissions for CloudWatch Logs (logs service principal).
+# 6. Flow Logs require proper KMS encryption and retention configuration for compliance.

@@ -48,7 +48,7 @@ variable "kms_key_arn" {
 
 # --- KMS Replica Key ARN --- #
 variable "kms_replica_key_arn" {
-  description = "ARN of KMS replica key in replication region for S3 bucket encryption."
+  description = "ARN of KMS replica key in replication region for S3 bucket encryption (optional, dynamically created if replication is enabled)"
   type        = string
   default     = null # May be null if replication is not used
 }
@@ -125,7 +125,7 @@ variable "enable_cors" {
 
 # --- Allowed Origins --- #
 variable "allowed_origins" {
-  description = "List of allowed origins for S3 CORS."
+  description = "List of allowed origins for S3 CORS. IMPORTANT: In production, restrict to trusted origins only."
   type        = list(string)
   default     = ["https://example.com"]
 }
@@ -142,9 +142,7 @@ variable "enable_dynamodb" {
   }
 }
 
-# --- Module Notes --- #
-# General notes for S3 module variables.
-#
+# --- Notes --- #
 # 1. Bucket Configuration: 'default_region_buckets' and 'replication_region_buckets' maps control bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.
 # 3. Replication: 'replication_region', ensure IAM permissions.
@@ -153,3 +151,4 @@ variable "enable_dynamodb" {
 # 6. Lifecycle: 'noncurrent_version_retention_days' for versioning.
 # 7. Notifications: 'sns_topic_arn' for bucket notifications.
 # 8. DynamoDB (Optional): DynamoDB state locking ('enable_dynamodb').
+# 9. Best Practice: Validate 'allowed_origins' and restrict in production to prevent CORS vulnerabilities.

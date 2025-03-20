@@ -133,7 +133,7 @@ resource "aws_iam_role_policy_attachment" "replication_policy_attachment" {
     if value.enabled && value.replication && local.replication_buckets_enabled
   })
 
-  role       = aws_iam_role.replication_role[0].name
+  role       = try(aws_iam_role.replication_role[0].name, "")
   policy_arn = aws_iam_policy.replication_policy[each.key].arn
 }
 
@@ -145,7 +145,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id
-  role   = aws_iam_role.replication_role[0].arn
+  role   = try(aws_iam_role.replication_role[0].arn, "")
 
   rule {
     id       = "ReplicationRule-${each.key}"
@@ -172,7 +172,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 
       encryption_configuration {
         # Using a replica KMS key for the replication region (best practice for key separation & regional compliance).
-        # Falls back to source KMS key (var.kms_key_arn) if var.kms_replica_key_arn is not provided (simpler setup, but potentially less secure/compliant).
+        # Fallback logic on KMS keys ensures dynamic replication configuration without failures when the replica key is not created.
         replica_kms_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn
       }
     }
@@ -190,9 +190,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
   ]
 }
 
-# --- Module Notes --- #
-# General notes for S3 replication configuration.
-#
+# --- Notes --- #
 # 1. IAM Role: Manages S3 cross-region replication permissions.
 # 2. IAM Policy: Fine-grained access control for replication (attached to Role).
 # 3. Replication Config: Applied only to default region buckets with replication enabled.
@@ -201,3 +199,10 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 #    - Replication is configured *only for SSE-KMS encrypted objects*.
 #    - Objects encrypted with SSE-S3 or no encryption are *NOT* replicated.
 #    - **If all objects replication is required, remove `source_selection_criteria` block or adjust configuration.
+# 6. Source Object Requirement:
+#    - Replication is configured ONLY for objects encrypted with SSE-KMS.
+#    - Ensure 'aws_s3_bucket_server_side_encryption_configuration' enables SSE-KMS for source buckets.
+#    - To replicate unencrypted or SSE-S3 objects, adjust or remove 'source_selection_criteria'.
+# 7. Replica KMS Key:
+#    - Recommended to specify 'kms_replica_key_arn' for compliance in the replication region.
+#    - Fallback to source KMS key if not provided.

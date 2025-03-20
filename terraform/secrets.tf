@@ -32,11 +32,11 @@ locals {
 
 # --- Create AWS Secrets Manager secret --- #
 # This resource represents the secret container (metadata).
-# Using default AWS managed key for simplicity in this test project.
-# In production, Customer Managed Keys (CMK) are recommended for better control and security.
 resource "aws_secretsmanager_secret" "wp_secrets" {
   name        = var.wordpress_secret_name
   description = "WordPress credentials for ${var.environment} environment"
+
+  kms_key_id = module.kms.kms_key_arn # Use Customer Managed KMS Key for encryption
 
   # Recommended: Add recovery window (e.g., 7 days)
   recovery_window_in_days = 0
@@ -51,7 +51,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
   lifecycle {
     prevent_destroy = false # Set to true in production to prevent accidental deletion
   }
-} # tfsec:ignore:aws-ssm-secret-use-customer-key
+}
 
 # Store the actual secret values (JSON) in the secret.
 # Merges both database and WordPress credentials into a single JSON string.
@@ -87,7 +87,6 @@ resource "aws_iam_role_policy" "secrets_access" {
 }
 
 # --- Notes --- #
-
 # 1. The secret name is constructed dynamically, but you can adjust naming
 #    conventions as needed.
 # 2. By default, Terraform tracks these resources in its state. Therefore,
@@ -96,3 +95,5 @@ resource "aws_iam_role_policy" "secrets_access" {
 # 3. For safety, you can set "recovery_window_in_days" on the secret if you
 #    want a delayed deletion period. You can also use the "prevent_destroy"
 #    lifecycle rule for extra protection.
+# 4. Encryption:
+#    - Secrets are encrypted using a Customer Managed KMS Key (CMK) for enhanced security.

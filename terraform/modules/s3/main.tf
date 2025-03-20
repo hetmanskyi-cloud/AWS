@@ -315,9 +315,7 @@ resource "random_string" "suffix" {
   # - Ensures unique bucket names.
 }
 
-# --- Module Notes --- #
-# General notes for the S3 module.
-#
+# --- Notes --- #
 # 1. Dynamic bucket creation from 'terraform.tfvars'.
 # 2. Manages default & replication region buckets.
 # 3. Unified config for versioning, notifications, encryption, public access block.

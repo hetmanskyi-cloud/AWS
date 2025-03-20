@@ -6,6 +6,13 @@ output "vpc_id" {
   value       = aws_vpc.vpc.id
 }
 
+# VPC ARN Output
+# Outputs the ARN of the VPC, useful for IAM policies, PrivateLink, and future integrations.
+output "vpc_arn" {
+  description = "The ARN of the VPC"
+  value       = aws_vpc.vpc.arn
+}
+
 # --- VPC CIDR Block Output --- #
 # Outputs the CIDR block of the VPC for use in other modules.
 output "vpc_cidr_block" {

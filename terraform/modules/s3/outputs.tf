@@ -130,9 +130,14 @@ output "enable_dynamodb" {
   value       = var.enable_dynamodb
 }
 
-# --- Module Notes --- #
-# General notes for S3 module outputs.
-#
+# --- All Enabled Default Region Buckets --- #
+# Outputs a list of all enabled S3 bucket names in the default region.
+output "all_enabled_buckets_names" {
+  description = "List of all enabled S3 bucket names"
+  value       = [for k, b in aws_s3_bucket.default_region_buckets : b.bucket]
+}
+
+# --- Notes --- #
 # 1. Bucket Outputs: For all configured (if enabled), null if disabled.
 # 2. WordPress Scripts: 'deploy_wordpress_scripts_files_etags_map' - ETags for uploaded scripts.
 # 3. DynamoDB: Outputs for state locking table (if enabled).

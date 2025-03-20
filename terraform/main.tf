@@ -57,6 +57,9 @@ module "vpc" {
   kms_key_arn                 = module.kms.kms_key_arn
   flow_logs_retention_in_days = var.flow_logs_retention_in_days
 
+  # SNS Topic for VPC Flow Logs Alarm Notifications
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+
   # General environment and naming configurations
   environment = var.environment
   name_prefix = var.name_prefix

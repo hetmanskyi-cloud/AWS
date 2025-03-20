@@ -77,6 +77,13 @@ output "db_status" {
   value       = aws_db_instance.db.status
 }
 
+# --- CloudWatch Log Group Names --- #
+# Outputs the names of the CloudWatch Log Groups created for RDS logs (error and slowquery).
+output "rds_log_group_names" {
+  description = "The names of the CloudWatch Log Groups for RDS logs (error and slowquery)"
+  value       = [for lg in aws_cloudwatch_log_group.rds_log_group : lg.name]
+}
+
 # --- Notes --- #
 # 1. Outputs provide essential details for connecting to and managing the RDS instance, including connection parameters (host, port, endpoint).
 # 2. 'rds_security_group_id' output allows for referencing the RDS Security Group in other modules for access control configuration.

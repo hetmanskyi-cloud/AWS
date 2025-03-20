@@ -79,14 +79,15 @@ locals {
   kms_services = distinct(concat(
     [
       # Regionless service principals:
-      "logs.amazonaws.com",          # CloudWatch Logs
-      "rds.amazonaws.com",           # RDS encryption
-      "elasticache.amazonaws.com",   # ElastiCache encryption
-      "s3.amazonaws.com",            # S3 encryption
-      "ssm.amazonaws.com",           # Systems Manager
-      "ec2.amazonaws.com",           # EBS encryption
-      "wafv2.amazonaws.com",         # WAFv2
-      "vpc-flow-logs.amazonaws.com", # VPC Flow Logs
+      "logs.amazonaws.com",           # CloudWatch Logs
+      "rds.amazonaws.com",            # RDS encryption
+      "elasticache.amazonaws.com",    # ElastiCache encryption
+      "s3.amazonaws.com",             # S3 encryption
+      "ssm.amazonaws.com",            # Systems Manager
+      "ec2.amazonaws.com",            # EBS encryption
+      "wafv2.amazonaws.com",          # WAFv2
+      "vpc-flow-logs.amazonaws.com",  # VPC Flow Logs
+      "secretsmanager.amazonaws.com", # Secrets Manager for Secrets encryption
     ],
     # Conditional services (enabled via variables):
     var.default_region_buckets["cloudtrail"].enabled ? ["cloudtrail.amazonaws.com"] : [], # CloudTrail Logging
@@ -184,37 +185,39 @@ resource "aws_kms_grant" "s3_replication_grant" {
 
 # --- Notes --- #
 # 1. Dynamic Service Permissions:
-#    - Base services (logs, rds, etc.) are always included.
-#    - Additional services are added via feature flags.
-#    - Cross-account access is NOT directly configured in this module.
-#    - Custom IAM roles and users via additional_principals (e.g., "arn:aws:iam::123456789012:role/example").
+#    - Base services (logs, rds, etc.) are always included.
+#    - secretsmanager.amazonaws.com is added by default for secrets encryption.
+#    - Additional services are added via feature flags.
+#    - Cross-account access is NOT directly configured in this module.
+#    - Custom IAM roles and users via additional_principals (e.g., "arn:aws:iam::123456789012:role/example").
 #
 # 2. Root Access Removal Process:
-#    - Initial root access is required for setup.
-#    - After setup:
-#      a. Set enable_kms_role = true in terraform.tfvars.
-#      b. Apply to create the IAM role (in key.tf).
-#      c. Remove the root access statement.
-#      d. Apply changes to enforce least privilege.
+#    - Initial root access is required for setup.
+#    - After setup:
+#      a. Set enable_kms_role = true in terraform.tfvars.
+#      b. Apply to create the IAM role (in key.tf).
+#      c. Remove the root access statement.
+#      d. Apply changes to enforce least privilege.
 #
 # 3. Key Rotation:
-#    - Automatic key rotation is enabled via enable_key_rotation.
-#    - AWS rotates the key annually.
-#    - Old versions are retained for decryption.
-#    - New data is encrypted with the latest version.
+#    - Automatic key rotation is enabled via enable_key_rotation.
+#    - AWS rotates the key annually.
+#    - Old versions are retained for decryption.
+#    - New data is encrypted with the latest version.
 #
 # 4. Monitoring and Security:
-#    - CloudTrail tracks key usage.
-#    - CloudWatch Logs are encrypted.
-#    - Consider CloudWatch Alarms for:
-#         * Failed operations,
-#         * Unusual usage patterns,
-#         * Access denials.
+#    - CloudTrail tracks key usage.
+#    - CloudWatch Logs are encrypted.
+#    - Consider CloudWatch Alarms for:
+#         * Failed operations,
+#         * Unusual usage patterns,
+#         * Access denials.
 #
 # 5. Replica Key Grant:
-#    - The replica key in the replication region cannot have its policy updated independently.
-#    - A separate KMS grant (aws_kms_grant.s3_replication_grant) is created to allow S3 to perform
-#      encryption and decryption operations necessary for replication.
-#    - Ensure that any changes in permissions required for S3 replication are reflected in this grant.
+#    - The replica key in the replication region cannot have its policy updated independently.
+#    - A separate KMS grant (aws_kms_grant.s3_replication_grant) is created to allow S3 to perform
+#      encryption and decryption operations necessary for replication.
+#    - Ensure that any changes in permissions required for S3 replication are reflected in this grant.
+#
 # 6. Replica KMS key and KMS Grant for S3 Replication on Replica Key are dynamically created only when replication buckets are enabled.
 #    Ensure replication_region in terraform.tfvars matches the replication_region_buckets configuration.

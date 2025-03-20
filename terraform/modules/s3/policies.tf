@@ -140,7 +140,7 @@ resource "aws_s3_bucket_policy" "replication_destination_policy" {
         Sid    = "AllowReplicationWrite"
         Effect = "Allow"
         Principal = {
-          AWS = aws_iam_role.replication_role[0].arn
+          AWS = try(aws_iam_role.replication_role[0].arn, "")
         }
         Action = [
           "s3:ReplicateObject",
@@ -287,8 +287,7 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   ]
 }
 
-# --- Module Notes --- #
-#
+# --- Notes --- #
 # 1. WordPress Media Bucket CORS Config:
 #    - CORS for 'wordpress_media' bucket.
 #    - Allows GET method, Content-Type header only.
@@ -322,3 +321,8 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 #   - **Policy for CloudTrail bucket is *not defined in this `s3/policies.tf` file*.**
 #   - **It is defined in `cloudtrail.tf` of the *main module*.
 #   - **Refer to the `cloudtrail.tf` file in the main module for CloudTrail bucket policy details.**
+#
+# 8. WordPress Media Bucket CORS Configuration:
+#    - Enables controlled cross-origin access to 'wordpress_media' bucket.
+#    - Allows only GET requests with 'Content-Type' header.
+#    - **Important:** 'allowed_origins' must be properly restricted in production for security.

@@ -17,50 +17,71 @@ resource "aws_db_instance" "db" {
   port              = var.db_port                                # Database port (e.g., 3306 for MySQL).
   multi_az          = var.multi_az                               # Enable Multi-AZ for high availability.
 
-  # --- Security and Networking --- #
+  # Security and Networking
   vpc_security_group_ids = [aws_security_group.rds_sg.id]           # Security Group for network access control.
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name # DB Subnet Group for private subnet placement.
 
-  # --- Storage Encryption --- #
+  # Storage Encryption
   storage_encrypted = true            # Enable encryption at rest.
   kms_key_id        = var.kms_key_arn # KMS Key ARN for storage encryption (from KMS module).
 
-  # --- Backup Configuration --- #
+  # Parameter Group for Enforcing TLS/SSL  
+  parameter_group_name = aws_db_parameter_group.rds_params.name
+
+  # Backup Configuration
   backup_retention_period = var.backup_retention_period # Backup retention period (days).
   backup_window           = var.backup_window           # Preferred backup window.
 
-  # --- Auto Minor Version Upgrade & Tagging --- #
+  # Auto Minor Version Upgrade & Tagging
   auto_minor_version_upgrade = true # Enable automatic minor version upgrades.
   copy_tags_to_snapshot      = true # Copy tags to DB snapshots.
 
-  # --- Deletion & Final Snapshot Configuration --- #
+  # Deletion & Final Snapshot Configuration
   deletion_protection       = var.rds_deletion_protection                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
   skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on instance deletion.
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name.
   delete_automated_backups  = true                                                                                    # Delete automated backups on instance deletion.
 
-  # --- Performance Insights --- #
+  # Performance Insights
   performance_insights_enabled    = var.performance_insights_enabled                          # Enable Performance Insights (controlled by variable).
   performance_insights_kms_key_id = var.performance_insights_enabled ? var.kms_key_arn : null # KMS key for Performance Insights encryption (if enabled).
 
-  # --- Enhanced Monitoring --- #
+  # Enhanced Monitoring
   monitoring_interval = var.enable_rds_monitoring ? 60 : 0                                                    # Enhanced Monitoring interval (seconds, 60 if enabled, 0 if disabled).
   monitoring_role_arn = var.enable_rds_monitoring ? try(aws_iam_role.rds_monitoring_role[0].arn, null) : null # IAM Role ARN for Enhanced Monitoring (conditional, uses 'try').
 
-  # --- CloudWatch Logs Configuration --- #
+  # CloudWatch Logs Configuration
   enabled_cloudwatch_logs_exports = [ # CloudWatch Logs exported (configurable).
     "error",                          # Critical errors and crashes.
     "slowquery"                       # Query performance tuning.
   ]
 
-  # --- Tags --- #
+  # Tags
   tags = {
     Name        = "${var.name_prefix}-db-${var.environment}" # Resource name tag.
     Environment = var.environment                            # Environment tag.
   }
 
-  # --- Dependencies --- #
+  # Dependencies
   depends_on = [aws_security_group.rds_sg, aws_cloudwatch_log_group.rds_log_group] # Ensure SG and Log Groups are created first.
+}
+
+# --- RDS Parameter Group for Enforcing TLS --- #
+# Enforces SSL/TLS connections to the RDS instance by setting 'require_secure_transport = 1'.
+resource "aws_db_parameter_group" "rds_params" {
+  name        = "${var.name_prefix}-rds-params-${var.environment}"
+  family      = "mysql8.0" # Required family for MySQL 8.0
+  description = "RDS parameter group enforcing TLS for MySQL 8.0"
+
+  parameter {
+    name  = "require_secure_transport"
+    value = "1"
+  }
+
+  tags = {
+    Name        = "${var.name_prefix}-rds-params-${var.environment}"
+    Environment = var.environment
+  }
 }
 
 # --- CloudWatch Log Groups for RDS --- #
@@ -72,7 +93,7 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
   ])
 
   name              = each.key
-  retention_in_days = var.rds_log_retention_days
+  retention_in_days = var.rds_log_retention_days # Adjust carefully to control CloudWatch costs
   kms_key_id        = var.kms_key_arn
 
   tags = {
@@ -90,7 +111,7 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
 resource "aws_cloudwatch_log_group" "rds_os_metrics" {
   count             = var.enable_rds_monitoring ? 1 : 0
   name              = "RDSOSMetrics"
-  retention_in_days = var.rds_log_retention_days
+  retention_in_days = var.rds_log_retention_days # Adjust carefully to control CloudWatch costs
   kms_key_id        = var.kms_key_arn
 
   tags = {
@@ -145,7 +166,7 @@ resource "aws_db_instance" "read_replica" {
   # --- Other Configurations --- #
   auto_minor_version_upgrade      = true                    # Enable automatic minor version upgrades.
   copy_tags_to_snapshot           = true                    # Copy tags to DB snapshots.
-  publicly_accessible             = false                   # Replicas should not be publicly accessible.
+  publicly_accessible             = false                   # Ensure read replicas are not publicly accessible for security best practices.
   skip_final_snapshot             = var.skip_final_snapshot # Skip final snapshot on deletion (for code consistency).
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
@@ -161,22 +182,25 @@ resource "aws_db_instance" "read_replica" {
 
 # --- Notes --- #
 # 1. Security:
-#    - Encryption at rest is enabled for the RDS instance. Encryption in transit should be enforced by connecting clients using TLS/SSL.
-#    - KMS keys are used for both storage and CloudWatch logs encryption.
+#    - Encryption at rest is enabled for the RDS instance using KMS.
+#    - Encryption in transit (TLS/SSL) is enforced by the DB Parameter Group ('require_secure_transport = 1').
+#    - KMS keys are used for both storage encryption and CloudWatch logs encryption.
 #
 # 2. High Availability:
-#    - Optional read replicas provide read load distribution.
-#    - Multi-AZ deployment for the primary instance is configurable via 'var.multi_az'.
+#    - Multi-AZ deployment is configurable via 'var.multi_az' for automatic failover.
+#    - Optional read replicas are created for read scaling and high availability.
 #
 # 3. Backup and Protection:
-#    - Configurable backup retention, final snapshots, and deletion protection.
-#    - Enhanced Monitoring is conditionally enabled using a dedicated IAM role.
+#    - Configurable backup retention and deletion protection to prevent accidental data loss.
+#    - Final snapshot creation is controlled via 'skip_final_snapshot' for production safety.
+#    - Enhanced Monitoring is conditionally enabled with a dedicated IAM role.
 #
 # 4. Logging Strategy:
-#    - For Test Environments: Error and slowquery logs are exported to CloudWatch for issue diagnosis and performance tuning.
-#    - Production Recommendations: Consider adding general logs for comprehensive activity monitoring and audit logs for compliance. Monitor CloudWatch costs, as log volume can increase expenses.
+#    - CloudWatch Log Groups are created for 'error' and 'slowquery' logs.
+#    - In production, consider enabling 'general' and 'audit' logs for better observability and compliance.
+#    - Monitor CloudWatch log volume to control operational costs.
 #
 # 5. Best Practices:
-#    - Regularly review and adjust log retention periods to manage storage and costs.
-#    - Monitor CloudWatch costs associated with logging, especially in production environments.
-#    - Maintain consistent tagging across all RDS resources for effective management and cost allocation.
+#    - Regularly review and adjust log retention periods to manage storage and expenses.
+#    - Maintain strict tagging for all RDS resources for easy identification and cost allocation.
+#    - Periodically validate parameter groups to ensure security and performance settings are up to date.

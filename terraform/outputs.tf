@@ -167,3 +167,20 @@ output "secret_name" {
   description = "Name of the secret in AWS Secrets Manager"
   value       = aws_secretsmanager_secret.wp_secrets.name
 }
+
+# --- S3 Module Outputs --- #
+
+# All Enabled Default Region Buckets
+# Outputs a list of all enabled S3 bucket names in the default region.
+output "all_enabled_buckets_names" {
+  description = "List of all enabled S3 bucket names"
+  value       = module.s3.all_enabled_buckets_names
+}
+
+# --- CloudTrail Output --- #
+# Outputs the ARN of the CloudTrail if enabled
+output "cloudtrail_arn" {
+  description = "ARN of the CloudTrail"
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail[0].arn : null
+}
+

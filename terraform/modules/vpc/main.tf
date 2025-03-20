@@ -108,6 +108,8 @@ resource "aws_subnet" "private_subnet_3" {
 resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.vpc.id # Associate with the created VPC
 
+  # By default, AWS allows all traffic within the default security group.
+  # This configuration removes all rules to enforce strict traffic control.
   # Remove all inbound and outbound rules to fully restrict traffic.
   ingress = []
   egress  = []
@@ -128,3 +130,7 @@ resource "aws_default_security_group" "default" {
 # 6. Default Security Group:
 #    - The default security group for the VPC is restricted to avoid unintended access.
 #    - It is recommended to use custom security groups for precise control over instance access.
+# 7. VPC Flow Logs:
+#    - Captures all traffic types for auditing and troubleshooting.
+#    - Logs are sent to CloudWatch with KMS encryption.
+#    - VPC Flow Logs are configured in vpc/flow_logs.tf
