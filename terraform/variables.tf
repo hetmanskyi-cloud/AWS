@@ -308,12 +308,6 @@ variable "wp_title" {
   sensitive   = true
 }
 
-variable "wp_admin" {
-  description = "Admin username for WordPress"
-  type        = string
-  sensitive   = true
-}
-
 variable "wp_admin_email" {
   description = "Admin email for WordPress"
   type        = string
@@ -647,13 +641,6 @@ variable "enable_redis_high_cpu_alarm" {
   default     = false # Set to true to enable the alarm
 }
 
-# Enable Redis Evictions Alarm
-variable "enable_redis_evictions_alarm" {
-  description = "Enable or disable the Redis evictions alarm."
-  type        = bool
-  default     = false # Set to true to enable the alarm
-}
-
 # --- Enable Replication Bytes Used Alarm --- #
 # Controls whether the CloudWatch alarm for ReplicationBytesUsed is created.
 # Relevant only when replicas are enabled (replicas_per_node_group > 0).
@@ -666,12 +653,6 @@ variable "enable_redis_replication_bytes_alarm" {
     condition     = !(var.enable_redis_replication_bytes_alarm && var.replicas_per_node_group == 0)
     error_message = "ReplicationBytesUsed alarm can only be enabled if replicas_per_node_group > 0."
   }
-}
-
-variable "redis_evictions_threshold" {
-  description = "Threshold for Redis evictions alarm (number of evictions)"
-  type        = number
-  default     = 1
 }
 
 variable "redis_cpu_credits_threshold" {

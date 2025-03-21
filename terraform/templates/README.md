@@ -12,6 +12,19 @@ This directory contains template files used by the Terraform modules to generate
 
 This template dynamically generates the user data script, which is executed when an EC2 instance starts. It automates the installation and configuration of WordPress, along with necessary dependencies.
 
+## User Data Execution Flow
+
+```mermaid
+graph TB
+  A[Start EC2 Instance] --> B[Run user_data.sh.tpl]
+  B --> C[Install Nginx, PHP, MySQL client]
+  C --> D[Fetch secrets from Secrets Manager]
+  D --> E[Configure WordPress]
+  E --> F[Deploy healthcheck.php]
+  F --> G[Start Nginx and PHP-FPM]
+  G --> H[WordPress Ready]
+```
+
 ### Why We Use This Template
 
 AWS limits the size of the user data script to 16 KB. To work around this limitation, we provide an option to download the script from S3 (`enable_s3_script = true`). This allows us to include larger scripts without exceeding AWS constraints. Additionally, using a template file avoids syntax issues when passing complex multi-line scripts in Terraform configurations.

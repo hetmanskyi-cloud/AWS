@@ -185,7 +185,7 @@ graph TB
 2. **Performance Monitoring**:
    - Use slowquery logs during development to identify and optimize problematic queries
    - Set up CloudWatch Alarms for critical metrics
-   - Enable Enhanced Monitoring for detailed performance insights
+   - Optional: Enable Performance Insights for in-depth database monitoring (disabled by default)
 
 3. **Security**:
    - Ensure KMS keys are properly managed for log encryption

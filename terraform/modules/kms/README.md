@@ -22,13 +22,6 @@ This module provisions a KMS key designed for encrypting various AWS resources, 
   - Kinesis Firehose
   - WAF (legacy logging)
 
-## Requirements
-
-| Name         | Version   |
-|--------------|-----------|
-| Terraform    | >= 1.0    |
-| AWS Provider | >= 5.0    |
-
 ## Module Architecture
 
 The module provisions:

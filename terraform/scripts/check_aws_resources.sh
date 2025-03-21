@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Function to check for existing resources, filtering out AWS default resources
+# --- Function to check for existing resources, filtering out AWS default resources --- #
 check_resources() {
     local service_name=$1
     local command=$2
@@ -23,7 +23,7 @@ check_resources() {
 
 echo "=== Checking remaining AWS resources ==="
 
-### === NETWORK RESOURCES === ###
+# --- NETWORK RESOURCES --- #
 check_resources "VPC" "aws ec2 describe-vpcs" "Vpcs[*].[VpcId,IsDefault]" true
 check_resources "Subnets" "aws ec2 describe-subnets" "Subnets[*].[SubnetId,CidrBlock]"
 check_resources "Route Tables" "aws ec2 describe-route-tables" "RouteTables[*].[RouteTableId,Associations[*].Main]" true
@@ -32,59 +32,70 @@ check_resources "Network ACLs" "aws ec2 describe-network-acls" "NetworkAcls[*].[
 check_resources "VPC Endpoints" "aws ec2 describe-vpc-endpoints" "VpcEndpoints[*].VpcEndpointId"
 check_resources "VPC Flow Logs" "aws ec2 describe-flow-logs" "FlowLogs[*].[FlowLogId,LogGroupName]"
 
-### === EC2 INSTANCES === ###
+# --- EC2 INSTANCES --- #
 check_resources "EC2 Instances" "aws ec2 describe-instances" "Reservations[*].Instances[*].[InstanceId,State.Name]"
 check_resources "EBS Volumes" "aws ec2 describe-volumes" "Volumes[*].[VolumeId,State]"
 check_resources "Elastic IPs" "aws ec2 describe-addresses" "Addresses[*].PublicIp"
 check_resources "EC2 Launch Templates" "aws ec2 describe-launch-templates" "LaunchTemplates[*].LaunchTemplateId"
 check_resources "Auto Scaling Groups" "aws autoscaling describe-auto-scaling-groups" "AutoScalingGroups[*].AutoScalingGroupName"
 
-### === LOAD BALANCING === ###
+# --- LOAD BALANCING --- #
 check_resources "ALB (Load Balancers)" "aws elbv2 describe-load-balancers" "LoadBalancers[*].[LoadBalancerName,DNSName]"
 check_resources "ALB Target Groups" "aws elbv2 describe-target-groups" "TargetGroups[*].TargetGroupName"
 check_resources "ALB Listeners" "aws elbv2 describe-listeners --load-balancer-arn \$(aws elbv2 describe-load-balancers --query 'LoadBalancers[*].LoadBalancerArn' --output text)" "Listeners[*].ListenerArn"
 
-### === DATABASES === ###
+# --- DATABASES --- #
 check_resources "RDS Instances" "aws rds describe-db-instances" "DBInstances[*].DBInstanceIdentifier"
 check_resources "ElastiCache Clusters" "aws elasticache describe-cache-clusters" "CacheClusters[*].CacheClusterId"
 check_resources "DynamoDB Tables" "aws dynamodb list-tables" "TableNames"
 check_resources "DynamoDB Streams" "aws dynamodb list-streams" "Streams[*].StreamArn"
 
-### === STORAGE SERVICES === ###
-check_resources "S3 Buckets" "aws s3 ls" ""
+# --- STORAGE SERVICES --- #
+check_resources "S3 Buckets" "aws s3api list-buckets" "Buckets[*].Name"
 check_resources "Kinesis Firehose Streams" "aws firehose list-delivery-streams" "DeliveryStreamNames"
 
-### === SECURITY SERVICES === ###
+# --- SECURITY SERVICES --- #
 check_resources "AWS WAF Web ACLs" "aws wafv2 list-web-acls --scope REGIONAL" "WebACLs[*].Name"
 
-### === ACCESS MANAGEMENT === ###
+# --- ACCESS MANAGEMENT --- #
 check_resources "IAM Roles" "aws iam list-roles" "Roles[*].[RoleName,Path]" true
 check_resources "IAM Policies" "aws iam list-policies" "Policies[*].[PolicyName,IsAttachable]" true
-check_resources "IAM Role Policies" "aws iam list-attached-role-policies --role-name \$(aws iam list-roles --query 'Roles[*].RoleName' --output text)" "AttachedPolicies[*].PolicyName"
 
-### === LOGGING SERVICES === ###
+# --- IAM Role Policies (Iterate through each role) --- #
+echo "=== Checking IAM Role Policies ==="
+for role in $(aws iam list-roles --query 'Roles[*].RoleName' --output text); do
+    check_resources "IAM Role Policies for $role" "aws iam list-attached-role-policies --role-name $role" "AttachedPolicies[*].PolicyName"
+done
+
+# --- LOGGING SERVICES --- #
 check_resources "CloudWatch Log Groups" "aws logs describe-log-groups" "logGroups[*].logGroupName"
 
-### === ENCRYPTION SERVICES === ###
+# --- ENCRYPTION SERVICES --- #
 check_resources "KMS Keys" "aws kms list-keys" "Keys[*].KeyId"
 
-### === NOTIFICATION SERVICES === ###
+# --- NOTIFICATION SERVICES --- #
 check_resources "SNS Topics" "aws sns list-topics" "Topics[*].TopicArn"
 check_resources "SNS Subscriptions" "aws sns list-subscriptions" "Subscriptions[*].SubscriptionArn"
 
-### === MONITORING SERVICES === ###
+# --- MONITORING SERVICES --- #
 check_resources "CloudWatch Alarms" "aws cloudwatch describe-alarms" "MetricAlarms[*].AlarmName"
 check_resources "CloudWatch Metrics" "aws cloudwatch list-metrics" "Metrics[*].MetricName"
 
-### === AUDIT SERVICES === ###
+# --- AUDIT SERVICES --- #
 check_resources "CloudTrail Trails" "aws cloudtrail describe-trails" "trailList[*].Name"
 
-### === SERVERLESS SERVICES === ###
+# --- SERVERLESS SERVICES --- #
 check_resources "Lambda Functions" "aws lambda list-functions" "Functions[*].FunctionName"
-check_resources "Lambda Permissions" "aws lambda get-policy --function-name \$(aws lambda list-functions --query 'Functions[*].FunctionName' --output text)" "Policy"
+
+# --- Lambda Permissions (Iterate through each Lambda function) --- #
+echo "=== Checking Lambda Permissions ==="
+for fn in $(aws lambda list-functions --query 'Functions[*].FunctionName' --output text); do
+    check_resources "Lambda Permission for $fn" "aws lambda get-policy --function-name $fn" "Policy"
+done
+
 check_resources "Lambda Event Source Mappings" "aws lambda list-event-source-mappings" "EventSourceMappings[*].UUID"
 
-### === SECRETS MANAGER === ###
+# --- SECRETS MANAGER --- #
 check_resources "AWS Secrets Manager Secrets" "aws secretsmanager list-secrets" "SecretList[*].Name"
 
 echo "=== AWS resource check completed. ==="

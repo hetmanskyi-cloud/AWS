@@ -1,62 +1,43 @@
 # AWS Infrastructure as Code with Terraform
 
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=flat-square&logo=amazonaws)
+![Terraform](https://img.shields.io/badge/Terraform-1.11%2B-623CE4?style=flat-square&logo=terraform)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+
 A comprehensive Terraform project for deploying a secure, scalable, and highly available AWS infrastructure with WordPress hosting capabilities.
+
+## Requirements
+
+| Name            | Version   |
+|-----------------|-----------|
+| Terraform       | >= 1.11   |
+| AWS Provider    | >= 5.0    |
+| Random Provider | >= 3.0    |
 
 ## Architecture Overview
 
 This project implements a production-ready AWS infrastructure with the following components:
 
-```
-                                     Internet
-                                        │
-                                        ▼
-                                  ┌──────────┐
-                                  │    WAF   │
-                                  └────┬─────┘
-                                       │
-                                       ▼
-                                  ┌──────────┐
-                                  │    ALB   │◄───── CloudWatch Alarms
-                                  └────┬─────┘       SNS Notifications
-                                       │
-                                       ▼
-                                  ┌──────────┐
-                                  │    ASG   │◄───── Launch Template
-                                  └────┬─────┘       Auto Scaling Policies
-                                       │
-                                       ▼
-┌─────────────┐              ┌─────────────────┐              ┌─────────────┐
-│             │              │                 │              │             │
-│  RDS MySQL  │◄────────────►│  EC2 Instances  │◄────────────►│ ElastiCache │
-│  (Primary/  │              │   (WordPress)   │              │   (Redis)   │
-│   Replica)  │              │                 │              │             │
-└─────────────┘              └─────────────────┘              └─────────────┘
-       ▲                              ▲                              ▲
-       │                              │                              │
-       └──────────────────────────────┼──────────────────────────────┘
-                                      │
-                                      ▼
-                               ┌─────────────┐
-                               │     VPC     │
-                               │             │
-                               │ Public and  │
-                               │   Private   │
-                               │  Subnets    │
-                               └─────────────┘
-                                      ▲
-                                      │
-                                      ▼
-                               ┌─────────────┐
-                               │     S3      │◄───── CloudTrail
-                               │  Buckets    │       ALB Logs
-                               └─────────────┘       WordPress Media
-                                      ▲
-                                      │
-                                      ▼
-                               ┌─────────────┐
-                               │    KMS      │
-                               │  Encryption │
-                               └─────────────┘
+graph TD
+  A[🌐 Internet] --> B[🛡️ WAF]
+  B --> C[⚖️ ALB]
+  C --> D[🚀 ASG - EC2 (WordPress)]
+  D --> E[🗄️ RDS MySQL (Primary/Replica)]
+  D --> F[📦 ElastiCache (Redis)]
+
+  C -- CloudWatch Alarms --> CW[📈 CloudWatch]
+  CW --> SNS[📨 SNS Notifications]
+
+  D --> VPC[🏗️ VPC (Public & Private Subnets)]
+  VPC -->|Stores Logs| S3[🪣 S3 Buckets]
+  S3 -->|Encrypted By| KMS[🔐 KMS Encryption]
+  VPC -->|VPC Flow Logs| CloudTrail[🔎 CloudTrail]
+
+  subgraph ☁️ Storage & Monitoring
+    S3
+    KMS
+    CloudTrail
+  end
 ```
 
 ## Features
@@ -185,8 +166,8 @@ terraform/                           # Main Terraform configuration directory
 
 ## Prerequisites
 
-- Terraform v1.11+
-- AWS CLI configured with appropriate credentials
+- Terraform v1.11+ (tested on v1.11.2)
+- AWS CLI v2.x configured with appropriate credentials
 - AWS Provider v5.0+ and Random Provider v3.0+
 - AWS account with permissions to create the required resources
 - Domain name (if using HTTPS with ACM certificates)
@@ -244,6 +225,10 @@ terraform apply tfplan
 
 ## Remote State Management
 
+# Remote State Must Be Configured First
+
+Important: If you skip this step, Terraform may recreate resources, causing downtime or duplication.
+
 This project uses S3 for remote state storage with DynamoDB for state locking. The configuration is in `remote_backend.tf`.
 
 To enable remote state storage:
@@ -258,6 +243,36 @@ terraform apply -target=module.s3 -target=aws_dynamodb_table.terraform_locks
 3. Replace the placeholder values with your actual S3 bucket name, DynamoDB table name, and AWS region
 4. Run `terraform init -reconfigure` to migrate the state to S3
 
+## Important: Remote State Migration
+
+If you initially deployed infrastructure using **local Terraform state (`terraform.tfstate`)**,  
+you **must migrate** the state file to the remote S3 backend **before** continuing to avoid resource duplication.
+
+### Migration Steps:
+1. Configure the remote backend in `remote_backend.tf`.
+2. Run the reconfiguration command to migrate the state:
+   ```bash
+   terraform init -reconfigure
+   ```
+3. Terraform will prompt:
+   ```
+   Do you want to copy the existing state to the new backend?
+     Enter "yes" to copy and "no" to start with an empty state.
+   ```
+4. Enter `yes` to migrate your existing local state to S3.
+
+---
+
+**Why is this important?**
+- Prevents resource duplication and accidental recreation
+- Ensures all future `terraform plan` and `apply` operations work from the same remote state
+- Allows team collaboration with a consistent state file
+
+After successful migration, **the local `terraform.tfstate` is no longer used**.  
+You can archive or delete it safely.
+
+---
+
 ## Security Considerations
 
 - All sensitive data is encrypted using KMS
@@ -267,6 +282,7 @@ terraform apply -target=module.s3 -target=aws_dynamodb_table.terraform_locks
 - Security groups follow the principle of least privilege
 - IAM roles use minimal permissions required for functionality
 - VPC endpoints are used to keep traffic within the AWS network
+- All KMS keys have automatic key rotation enabled where possible
 
 ## Cost Optimization
 
@@ -278,6 +294,8 @@ terraform apply -target=module.s3 -target=aws_dynamodb_table.terraform_locks
 
 ## Maintenance and Operations
 
+You can automate AMI updates using EC2 Image Builder or Packer for continuous delivery.
+
 ### Updating WordPress
 
 WordPress updates can be managed through the admin interface or by updating the AMI used by the Auto Scaling Group.
@@ -288,14 +306,15 @@ WordPress updates can be managed through the admin interface or by updating the 
 - Media files: S3 cross-region replication
 - Configuration: Terraform state in S3 with versioning
 
-### Monitoring
+## Monitoring and Observability
 
-- CloudWatch dashboards for key metrics
+- CloudWatch dashboards for EC2, ALB, RDS, ElastiCache, and KMS metrics
 - SNS notifications for alarms
 - CloudTrail for API activity logging
 - ALB Access Logs stored in S3 with region-specific bucket policies:
   - Each AWS region requires specific ELB account IDs in the bucket policy (e.g., 156460612806 for eu-west-1)
   - Proper S3 bucket permissions configured for log delivery
+  - Kinesis Firehose delivery of ALB logs for long-term storage and analytics
 
 ## Troubleshooting
 
@@ -321,12 +340,23 @@ WordPress updates can be managed through the admin interface or by updating the 
 2. Create a feature branch
 3. Submit a pull request with a clear description of changes
 
+## Limitations
+
+- The project does not automatically create Route53 zones (must be managed separately).
+- ACM certificates must be requested manually if DNS validation is required.
+
+## Project Status
+
+This project is production-ready, tested, and verified for AWS multi-AZ high availability deployments.
+
 ## License
 
-This project is licensed under the GNU General Public License v3 (GPL-3.0) - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
 
 ## References
 
 - [Terraform Documentation](https://www.terraform.io/docs)
 - [AWS Best Practices](https://aws.amazon.com/architecture/well-architected/)
 - [WordPress on AWS](https://aws.amazon.com/blogs/architecture/wordpress-best-practices-on-aws/)
+- [Terraform Releases](https://github.com/hashicorp/terraform/releases)

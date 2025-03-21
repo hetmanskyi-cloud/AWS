@@ -14,7 +14,7 @@ locals {
 
     # WordPress admin credentials
     wordpress = {
-      admin_user     = var.wp_admin
+      admin_user     = var.wp_admin_user
       admin_email    = var.wp_admin_email
       admin_password = var.wp_admin_password
     }

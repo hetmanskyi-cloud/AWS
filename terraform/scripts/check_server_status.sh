@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Exit on any error
+# --- Exit on any error --- #
 set -e
 
-# --- Script version ---
-SCRIPT_VERSION="1.1.0"
+# --- Script Version --- #
+SCRIPT_VERSION="1.0.0"
 
-# --- Timeout settings ---
+# --- Timeout Settings --- #
 CURL_TIMEOUT=10
 MYSQL_TIMEOUT=5
 PING_TIMEOUT=5
 DIG_TIMEOUT=5
 
-# Get instance metadata
+# --- Instance Metadata --- #
 INSTANCE_ID=$(curl -s --max-time "$CURL_TIMEOUT" http://169.254.169.254/latest/meta-data/instance-id || echo "UNKNOWN")
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 
@@ -28,24 +28,24 @@ echo "  - Availability Zone: $AZ"
 echo "  - Instance Type: $INSTANCE_TYPE"
 echo "  - Public IP: $PUBLIC_IP"
 
-# Check system resources with thresholds
+# --- System Resources Check --- #
 echo " 🔍 Checking system resources..."
 CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
-MEMORY_FREE=$(free -m | awk 'NR==2{printf "%.2f", $3*100/$2}')
+MEMORY_USED=$(free -m | awk 'NR==2{printf "%.2f", $3*100/$2}')
 DISK_USAGE=$(df -h / | awk 'NR==2{print $5}' | tr -d '%')
 
 echo " 📊 Resource usage:"
 echo "  - CPU: $CPU_USAGE%"
-echo "  - Memory: $MEMORY_FREE%"
+echo "  - Memory: $MEMORY_USED%"
 echo "  - Disk: $DISK_USAGE%"
 
-# Alert on high resource usage
-[ "${CPU_USAGE%.*}" -gt 80 ] && echo "⚠️  High CPU usage detected!"
-[ "${MEMORY_FREE%.*}" -gt 80 ] && echo "⚠️  High memory usage detected!"
-[ "${DISK_USAGE%.*}" -gt 80 ] && echo "⚠️  High disk usage detected!"
+[[ "${CPU_USAGE%.*}" -gt 80 ]] && echo " ⚠️  High CPU usage detected!"
+[[ "${MEMORY_USED%.*}" -gt 80 ]] && echo " ⚠️  High memory usage detected!"
+[[ "${DISK_USAGE%.*}" -gt 80 ]] && echo " ⚠️  High disk usage detected!"
 
-# Check Nginx and PHP-FPM
+# --- Nginx and PHP-FPM Check --- #
 echo " 🔍 Checking Nginx and PHP-FPM status..."
+
 if systemctl is-active --quiet nginx; then
   echo " ✅ Nginx is running"
 else
@@ -55,143 +55,126 @@ fi
 PHP_FPM_VERSION=$(php -v | grep -oP '^PHP \K[0-9]+\.[0-9]+' | head -n1)
 PHP_FPM_SERVICE="php${PHP_FPM_VERSION}-fpm"
 
-if systemctl is-active --quiet php8.3-fpm; then  # Исправлено на php8.3-fpm
+if systemctl is-active --quiet "$PHP_FPM_SERVICE"; then
   echo " ✅ PHP-FPM ($PHP_FPM_VERSION) is running"
 else
-  echo " ❌ PHP-FPM is NOT running!"
+  echo " ❌ PHP-FPM ($PHP_FPM_VERSION) is NOT running!"
 fi
 
-# Check database connection
-echo " 🔍 Checking database connection..."
+# --- Database Connection Check (TLS) --- #
+echo " 🔍 Checking database connection with TLS..."
 WP_CONFIG="/var/www/html/wordpress/wp-config.php"
+
 if [[ -f "$WP_CONFIG" ]]; then
-  # Extract database connection details from wp-config.php
-  DB_HOST=$(grep "DB_HOST" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
-  DB_NAME=$(grep "DB_NAME" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
-  DB_USER=$(grep "DB_USER" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
-  DB_PASSWORD=$(grep "DB_PASSWORD" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | tr -d ',' | xargs)
+  DB_HOST=$(grep "DB_HOST" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
+  DB_NAME=$(grep "DB_NAME" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
+  DB_USER=$(grep "DB_USER" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
+  DB_PASSWORD=$(grep "DB_PASSWORD" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
 
   if [[ -n "$DB_HOST" ]]; then
-    # --- Check DNS resolution ---
-    echo "  - Checking DNS resolution for database host..."
+    echo "  - Checking DNS resolution for DB host..."
     if dig +short "$DB_HOST" &>/dev/null; then
-      echo "  ✅ DNS resolution OK for database host: $DB_HOST"
+      echo "  ✅ DNS resolution OK: $DB_HOST"
     else
-      echo "  ❌ DNS resolution FAILED for database host: $DB_HOST"
-      echo "    Please check if the database hostname is correctly configured and DNS is working."
+      echo "  ❌ DNS resolution FAILED: $DB_HOST"
     fi
 
-    # --- Check VPC reachability (ping) ---
-    echo "  - Checking VPC reachability to database host (ping)..."
+    echo "  - Checking VPC reachability (ping)..."
     if ping -c 3 -W "$PING_TIMEOUT" "$DB_HOST" &>/dev/null; then
-      echo "  ✅ VPC reachability OK (ping to database host is successful)"
+      echo "  ✅ Ping to DB host successful"
     else
-      echo "  ❌ VPC reachability FAILED (ping to database host is unsuccessful)!"
-      echo "    Please check network connectivity to the RDS instance from this EC2 instance."
+      echo "  ❌ Ping to DB host FAILED!"
     fi
 
+    echo "  - Checking MySQL port (3306)..."
+    if timeout "$MYSQL_TIMEOUT" nc -zv "$DB_HOST" 3306 &>/dev/null; then
+      echo "  ✅ MySQL port 3306 is open"
 
-    # --- Check MySQL port ---
-    if timeout "$MYSQL_TIMEOUT" nc -zv "$DB_HOST" 3306 2>/dev/null; then
-      echo " ✅ Database port is accessible"
-      # Try to connect to database
-      if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SELECT 1" &>/dev/null; then
-        echo " ✅ Database connection successful"
-        # Get database size
-        DB_SIZE=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "
+      if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" --ssl-mode=REQUIRED "$DB_NAME" -e "SELECT 1" &>/dev/null; then
+        echo "  ✅ Database connection over TLS successful"
+        DB_SIZE=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" --ssl-mode=REQUIRED -e "
           SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1)
           FROM information_schema.tables
           WHERE table_schema = '$DB_NAME'
           GROUP BY table_schema;" 2>/dev/null)
-        echo "  - Database Size: ${DB_SIZE:-N/A} MB"
+        echo "   - Database Size: ${DB_SIZE:-N/A} MB"
       else
-        echo " ❌ Database connection failed"
+        echo "  ❌ Database TLS connection FAILED"
       fi
     else
-      echo " ❌ Database port is not accessible!"
+      echo "  ❌ MySQL port 3306 is NOT accessible!"
     fi
   else
-    echo " ❌ Could not extract database credentials from wp-config.php"
+    echo "  ❌ Failed to extract DB credentials from wp-config.php"
   fi
 else
-  echo " ❌ WordPress config file not found at $WP_CONFIG"
+  echo " ❌ WordPress config NOT found at $WP_CONFIG"
 fi
 
-# Check WordPress installation
+# --- WordPress Installation Check --- #
 echo " 🔍 Checking WordPress installation..."
-if [[ -f "/var/www/html/wordpress/wp-config.php" ]]; then
+if [[ -f "$WP_CONFIG" ]]; then
   echo " ✅ WordPress configuration found"
 else
   echo " ❌ WordPress configuration NOT found!"
 fi
 
-# --- Check WordPress Site URL ---
+# --- WordPress Site URL Check --- #
 echo " 🔍 Checking WordPress Site URL..."
 SITE_URL=$(grep "WP_SITEURL" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g")
 if [[ -n "$SITE_URL" ]]; then
-  echo " ✅ WordPress Site URL found: $SITE_URL"
+  echo " ✅ WP_SITEURL found: $SITE_URL"
 else
-  echo " ⚠️ WordPress Site URL (WP_SITEURL) not defined in wp-config.php"
-  echo "   This might cause issues with site access. Please check WP_SITEURL configuration."
+  echo " ⚠️ WP_SITEURL not defined in wp-config.php"
 fi
 
-
-# --- Check Nginx Configuration ---
-echo " 🔍 Checking Nginx Configuration..."
+# --- Nginx Configuration Validation --- #
+echo " 🔍 Checking Nginx configuration..."
 NGINX_TEST=$(nginx -t 2>&1)
 if echo "$NGINX_TEST" | grep -q "successful"; then
   echo " ✅ Nginx configuration is valid"
 else
-  echo " ❌ Nginx configuration is invalid!"
-  echo "   $(echo "$NGINX_TEST" | grep -v "nginx: ")"
+  echo " ❌ Nginx configuration is INVALID!"
+  echo "   $(echo "$NGINX_TEST" | grep -v 'nginx: ')"
 fi
 
+# --- Check ElastiCache (Redis) connection --- #
+echo " 🔍 Checking Redis (ElastiCache) connection..."
+REDIS_HOST=$(grep "REDIS_HOST" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
+REDIS_PORT=$(grep "REDIS_PORT" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
 
-echo " ✅ Check completed at $(date)"
+if [[ -n "$REDIS_HOST" && -n "$REDIS_PORT" ]]; then
+  if timeout "$MYSQL_TIMEOUT" nc -zv "$REDIS_HOST" "$REDIS_PORT" &>/dev/null; then
+    echo " ✅ Redis TCP connection OK at $REDIS_HOST:$REDIS_PORT"
 
-# ===========================================
-# NOTES
-# ===========================================
-#
-# 📌 Purpose:
-# This script performs comprehensive health checks on an AWS EC2 instance
-# running WordPress. It provides real-time insights into the server's
-# health, services, and configuration.
-#
-# 🛠 Features:
-# - Checks CPU, Memory, and Disk usage.
-# - Verifies Nginx and PHP-FPM services.
-# - Confirms database connectivity:
-#   - DNS resolution of DB_HOST
-#   - VPC reachability (ping) to DB_HOST
-#   - MySQL port accessibility
-#   - Database connection and size
-# - Ensures WordPress installation integrity.
-# - Checks WordPress Site URL configuration.
-# - Validates Nginx configuration syntax.
-# - Outputs results directly to the console.
-#
-# 🔹 How to Use:
-# 1️⃣ Copy the script to the instance:
-#   ```bash
-#   sudo cp check_server_status.sh /usr/local/bin/
-#   ```
-# 2️⃣ Set execution permissions:
-#   ```bash
-#   sudo chmod +x /usr/local/bin/check_server_status.sh
-#   ```
-# 3️⃣ Run the script:
-#   ```bash
-#   sudo /usr/local/bin/check_server_status.sh
-#   ```
-#
-# 📊 Expected Output:
-# ✅ CPU, Memory, and Disk usage stats.
-# ✅ Running status of Nginx and PHP-FPM.
-# ✅ Detailed database connectivity checks.
-# ✅ WordPress installation verification.
-# ✅ WordPress Site URL check.
-# ✅ Nginx configuration validation.
-#
-# 🔴 Error Handling:
-# If any service is down or misconfigured, the script will print ❌ warnings.
+    # Optional Redis PING check
+    if command -v redis-cli &>/dev/null; then
+      if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping | grep -q PONG; then
+        echo " ✅ Redis PING response: PONG"
+      else
+        echo " ❌ Redis PING failed!"
+      fi
+    fi
+  else
+    echo " ❌ Cannot connect to Redis at $REDIS_HOST:$REDIS_PORT"
+  fi
+else
+  echo " ⚠️ Redis connection details not found in wp-config.php"
+fi
+
+# --- Check ALB (Application Load Balancer) status --- #
+echo " 🔍 Checking ALB (Application Load Balancer)..."
+ALB_DNS=$(grep "ALB_DNS" "$WP_CONFIG" | grep -o "'.*'" | sed "s/'//g" | xargs)
+
+if [[ -n "$ALB_DNS" ]]; then
+  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$CURL_TIMEOUT" "http://$ALB_DNS")
+  if [[ "$HTTP_STATUS" -eq 200 ]]; then
+    echo " ✅ ALB is reachable and responds with HTTP 200"
+  else
+    echo " ❌ ALB is reachable but returned HTTP $HTTP_STATUS"
+  fi
+else
+  echo " ⚠️ ALB DNS not found in wp-config.php, skipping ALB check"
+fi
+
+echo "✅ Server check completed at $(date)"

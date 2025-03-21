@@ -1,6 +1,6 @@
 # --- Locals Block --- #
 locals {
-  # CIDR blocks
+  # CIDR blocks used for creating public and private subnets in the VPC
   public_subnet_cidr_blocks = [
     module.vpc.public_subnet_cidr_block_1,
     module.vpc.public_subnet_cidr_block_2,
@@ -79,8 +79,9 @@ module "kms" {
   environment = var.environment # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix # Prefix for naming resources
 
-  # Additional principals for KMS key access
-  additional_principals = var.additional_principals # List of ARNs for additional IAM roles or services
+  # Additional principals that require access to the KMS key:
+  # - Provide ARNs of IAM roles, users, or services that need encryption/decryption permissions
+  additional_principals = var.additional_principals
 
   # Key rotation and monitoring
   enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
@@ -137,7 +138,8 @@ module "asg" {
   network_in_threshold    = var.network_in_threshold
   network_out_threshold   = var.network_out_threshold
 
-  # CloudWatch Alarms for scaling and instance status
+  # CloudWatch Alarms for Auto Scaling and instance health monitoring:
+  # - Includes CPU utilization, network traffic, and EC2 status checks
   enable_scale_out_alarm        = var.enable_scale_out_alarm
   enable_scale_in_alarm         = var.enable_scale_in_alarm
   enable_asg_status_check_alarm = var.enable_asg_status_check_alarm
@@ -247,6 +249,7 @@ module "rds" {
   enable_rds_monitoring   = var.enable_rds_monitoring
 
   # RDS Alarm Thresholds
+  # Note: Fine-tune these thresholds based on expected workload and performance requirements
   rds_cpu_threshold_high    = var.rds_cpu_threshold_high
   rds_storage_threshold     = var.rds_storage_threshold
   rds_connections_threshold = var.rds_connections_threshold
@@ -271,8 +274,9 @@ module "rds" {
   depends_on = [module.vpc]
 }
 
-# --- S3 Module --- #
-# Configures the Simple Storage Service (S3) module for storing various data.
+# --- S3 Module Configuration --- #
+# - Manages S3 buckets for application media, logs, scripts, and replication
+# - Ensures proper encryption, versioning, and access controls
 module "s3" {
   source = "./modules/s3" # Path to S3 module
 
@@ -388,3 +392,9 @@ module "interface_endpoints" {
   private_subnet_ids         = local.private_subnet_ids
   enable_interface_endpoints = var.enable_interface_endpoints
 }
+
+# --- End of Main Configuration --- #
+# --- Notes and Recommendations --- #
+# 1. All modules are interconnected and rely on shared variables and outputs.
+# 2. Ensure that any changes in variables or outputs are reviewed across all dependent modules.
+# 3. Validate configurations after updates to avoid runtime errors or broken dependencies.

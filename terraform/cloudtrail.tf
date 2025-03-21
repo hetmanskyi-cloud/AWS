@@ -180,8 +180,7 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
   })
 }
 
-# Notes:
-#
+# --- Notes --- #
 # 1. CloudTrail Logging:
 #    - Logs API activity to a dedicated "cloudtrail" bucket if enabled.
 #    - Uses KMS encryption (via module.kms.kms_key_arn) for logs at rest.

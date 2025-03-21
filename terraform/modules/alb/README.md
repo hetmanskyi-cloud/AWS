@@ -105,13 +105,6 @@ graph TB
 - **WAF Integration** for protection against web-layer attacks
 - **Kinesis Firehose** for efficient WAF log delivery to S3
 
-## Requirements
-
-| Name         | Version   |
-|--------------|-----------|
-| Terraform    | >= 1.0    |
-| AWS Provider | >= 5.0    |
-
 ## Module Architecture
 
 This module provisions:
@@ -272,3 +265,4 @@ Integrates with:
 - [CloudWatch Metrics for ALB](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-cloudwatch-metrics.html)
 - [AWS Managed Rule Groups](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups.html)
 - [Kinesis Firehose for Logging](https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)
+- [Kinesis Firehose Best Practices](https://docs.aws.amazon.com/firehose/latest/dev/best-practices.html)
