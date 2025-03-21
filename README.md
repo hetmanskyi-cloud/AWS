@@ -20,25 +20,25 @@ This project implements a production-ready AWS infrastructure with the following
 
 ```mermaid
 graph TD
-  A[🌐 Internet] --> B[🛡️ WAF]
-  B --> C[⚖️ ALB]
-  C --> D[🚀 ASG - EC2 (WordPress)]
-  D --> E[🗄️ RDS MySQL (Primary/Replica)]
-  D --> F[📦 ElastiCache (Redis)]
-
-  C -- CloudWatch Alarms --> CW[📈 CloudWatch]
-  CW --> SNS[📨 SNS Notifications]
-
-  D --> VPC[🏗️ VPC (Public & Private Subnets)]
-  VPC -->|Stores Logs| S3[🪣 S3 Buckets]
-  S3 -->|Encrypted By| KMS[🔐 KMS Encryption]
-  VPC -->|VPC Flow Logs| CloudTrail[🔎 CloudTrail]
-
-  subgraph ☁️ Storage & Monitoring
-    S3
-    KMS
-    CloudTrail
-  end
+  A["Internet"] --> B["WAF"];
+  B --> C["ALB"];
+  C --> D["ASG - EC2 (WordPress)"];
+  D --> E["RDS MySQL (Primary/Replica)"];
+  D --> F["ElastiCache (Redis)"];
+  
+  C -- "CloudWatch Alarms" --> CW["CloudWatch"];
+  CW --> SNS["SNS Notifications"];
+  
+  D --> VPC["VPC (Public & Private Subnets)"];
+  VPC -->|Stores Logs| S3["S3 Buckets"];
+  S3 -->|Encrypted By| KMS["KMS Encryption"];
+  VPC -->|VPC Flow Logs| CloudTrail["CloudTrail"];
+  
+  subgraph "Storage & Monitoring"
+    S3;
+    KMS;
+    CloudTrail;
+  end;
 ```
 
 ## Features
