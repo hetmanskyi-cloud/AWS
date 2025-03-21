@@ -195,7 +195,7 @@ output "secret_name" {
 # Outputs the ARN of the CloudTrail if enabled
 output "cloudtrail_arn" {
   description = "ARN of the CloudTrail"
-  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail.0.arn : null
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail[0].arn : null
 }
 
 # --- Notes --- #

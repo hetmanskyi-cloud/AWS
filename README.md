@@ -18,6 +18,7 @@ A comprehensive Terraform project for deploying a secure, scalable, and highly a
 
 This project implements a production-ready AWS infrastructure with the following components:
 
+```mermaid
 graph TD
   A[🌐 Internet] --> B[🛡️ WAF]
   B --> C[⚖️ ALB]
@@ -65,6 +66,8 @@ This project consists of the following modules:
 | [s3](/terraform/modules/s3)                                  | S3 buckets with encryption, lifecycle policies, and replication      |
 | [kms](/terraform/modules/kms)                                | KMS keys for resource encryption                                     |
 | [interface_endpoints](/terraform/modules/interface_endpoints)| VPC interface endpoints with conditional creation                    |
+
+---
 
 ## Code Structure Overview
 
