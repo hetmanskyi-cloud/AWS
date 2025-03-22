@@ -38,12 +38,12 @@ graph LR
   classDef start fill:#FF9900,stroke:#232F3E,color:white
   classDef process fill:#1E8449,stroke:#232F3E,color:white
   classDef decision fill:#0066CC,stroke:#232F3E,color:white
-  classDef end fill:#7D3C98,stroke:#232F3E,color:white
+  classDef endstate fill:#7D3C98,stroke:#232F3E,color:white
   
   class A start
   class B,C,D,E,F,G,H,I process
   class B1 decision
-  class J end
+  class J endstate
   class B2,B3 process
 ```
 
