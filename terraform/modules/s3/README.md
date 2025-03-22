@@ -70,7 +70,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 ## Architecture Diagram
 
 ```mermaid
-graph TB
+graph LR
     %% Main S3 Components - Default Region
     scripts["Scripts Bucket"]
     logging["Logging Bucket"]
