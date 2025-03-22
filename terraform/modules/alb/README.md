@@ -18,35 +18,30 @@ graph TB
     KMS["KMS Key<br>(Encryption)"]
     SNS["SNS Topic<br>(Notifications)"]
     
-    %% ALB Components
-    subgraph "ALB Configuration"
-        HTTP["HTTP Listener<br>(Port 80)"]
-        HTTPS["HTTPS Listener<br>(Port 443, Optional)"]
-        TargetGroup["Target Group<br>(Health Checks & Stickiness)"]
-        AccessLogs["Access Logs<br>(Optional)"]
-    end
+    %% Listeners and Target Group
+    HTTP["HTTP Listener<br>(Port 80)"]
+    HTTPS["HTTPS Listener<br>(Port 443, Optional)"]
+    TargetGroup["Target Group<br>(Health Checks & Stickiness)"]
     
-    subgraph "Security"
-        ALB_SG["ALB Security Group"]
-        IngressRules["Ingress Rules<br>(HTTP/HTTPS)"]
-        EgressRules["Egress Rules<br>(To Targets)"]
-        WAF["Web Application Firewall<br>(Optional)"]
-        RateLimiting["Rate Limiting Rule"]
-    end
+    %% Security Components
+    ALB_SG["ALB Security Group"]
+    IngressRules["Ingress Rules<br>(HTTP/HTTPS)"]
+    EgressRules["Egress Rules<br>(To Targets)"]
+    WAF["Web Application Firewall<br>(Optional)"]
+    RateLimiting["Rate Limiting Rule"]
     
-    subgraph "Monitoring"
-        CWAlarms["CloudWatch Alarms"]
-        HighRequestAlarm["High Request Count Alarm"]
-        ErrorAlarm["5XX Errors Alarm"]
-        ResponseTimeAlarm["Target Response Time Alarm"]
-        UnhealthyHostAlarm["Unhealthy Host Alarm"]
-    end
+    %% Monitoring Components
+    CWAlarms["CloudWatch Alarms"]
+    HighRequestAlarm["High Request Count<br>Alarm"]
+    ErrorAlarm["5XX Errors<br>Alarm"]
+    ResponseTimeAlarm["Target Response Time<br>Alarm"]
+    UnhealthyHostAlarm["Unhealthy Host<br>Alarm"]
     
-    subgraph "Logging"
-        S3_ALB["S3 Bucket<br>(ALB Logs)"]
-        Firehose["Kinesis Firehose<br>(Optional)"]
-        S3_WAF["S3 Bucket<br>(WAF Logs)"]
-    end
+    %% Logging Components
+    AccessLogs["Access Logs<br>(Optional)"]
+    S3_ALB["S3 Bucket<br>(ALB Logs)"]
+    Firehose["Kinesis Firehose<br>(Optional)"]
+    S3_WAF["S3 Bucket<br>(WAF Logs)"]
     
     %% Network Structure
     VPC -->|"Contains"| PublicSubnets
@@ -95,8 +90,8 @@ graph TB
     class ALB,ASG,KMS,SNS aws;
     class ALB_SG,IngressRules,EgressRules,WAF,RateLimiting security;
     class CWAlarms,HighRequestAlarm,ErrorAlarm,ResponseTimeAlarm,UnhealthyHostAlarm monitoring;
-    class S3_ALB,Firehose,S3_WAF logging;
-    class HTTP,HTTPS,TargetGroup,AccessLogs config;
+    class S3_ALB,Firehose,S3_WAF,AccessLogs logging;
+    class HTTP,HTTPS,TargetGroup config;
     class VPC,PublicSubnets network;
 ```
 
