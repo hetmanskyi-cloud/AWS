@@ -15,14 +15,36 @@ This template dynamically generates the user data script, which is executed when
 ## User Data Execution Flow
 
 ```mermaid
-graph TB
-  A[Start EC2 Instance] --> B[Run user_data.sh.tpl]
-  B --> C[Install Nginx, PHP, MySQL client]
-  C --> D[Fetch secrets from Secrets Manager]
-  D --> E[Configure WordPress]
-  E --> F[Deploy healthcheck.php]
-  F --> G[Start Nginx and PHP-FPM]
-  G --> H[WordPress Ready]
+graph LR
+  %% Main Execution Steps
+  A["Start EC2 Instance"] --> B["Run user_data.sh.tpl"]
+  B --> C["Install AWS CLI v2"]
+  C --> D["Export Environment<br>Variables"]
+  D --> E["Install Nginx, PHP,<br>MySQL Client"]
+  E --> F["Fetch Secrets<br>from Secrets Manager"]
+  F --> G["Configure WordPress"]
+  G --> H["Deploy healthcheck.php"]
+  H --> I["Start Nginx<br>and PHP-FPM"]
+  I --> J["WordPress Ready"]
+  
+  %% Conditional Flow for Script Source
+  B --> B1{"enable_s3_script?"}
+  B1 -->|"Yes"| B2["Download Script<br>from S3"]
+  B1 -->|"No"| B3["Use Embedded<br>Script"]
+  B2 --> E
+  B3 --> E
+  
+  %% Styling
+  classDef start fill:#FF9900,stroke:#232F3E,color:white
+  classDef process fill:#1E8449,stroke:#232F3E,color:white
+  classDef decision fill:#0066CC,stroke:#232F3E,color:white
+  classDef end fill:#7D3C98,stroke:#232F3E,color:white
+  
+  class A start
+  class B,C,D,E,F,G,H,I process
+  class B1 decision
+  class J end
+  class B2,B3 process
 ```
 
 ### Why We Use This Template

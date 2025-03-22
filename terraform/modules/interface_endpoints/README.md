@@ -26,7 +26,7 @@ Using this module allows you to configure access to EC2 instances through AWS Sy
 ## Architecture Overview
 
 ```mermaid
-graph TB
+graph LR
     %% Main Components
     VPC["VPC"]
     PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
