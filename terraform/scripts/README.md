@@ -39,39 +39,57 @@ The script retrieves the following secrets from AWS Secrets Manager:
 ### WordPress Deployment Flow
 
 ```mermaid
-graph TB
-    A[Start] --> B[deploy_wordpress.sh]
-    B --> B1[Install PHP, Nginx, WP-CLI]
-    B1 --> B2[Fetch Secrets from AWS Secrets Manager]
-    B2 --> B3[Configure wp-config.php]
-    B3 --> B4[Install WordPress]
-    B4 --> B5[Configure RDS MySQL Connection]
-    B5 --> B6[Configure Redis (ElastiCache)]
-    B6 --> B7[Configure ALB Site URL]
-    B7 --> C[Deployment Completed]
+graph LR
+    %% Main Components
+    A["Start"] --> B["deploy_wordpress.sh"]
+    B --> B1["Install PHP, Nginx,<br>WP-CLI"]
+    B1 --> B2["Fetch Secrets from<br>AWS Secrets Manager"]
+    B2 --> B3["Configure<br>wp-config.php"]
+    B3 --> B4["Install WordPress"]
+    B4 --> B5["Configure RDS<br>MySQL Connection"]
+    B5 --> B6["Configure Redis<br>(ElastiCache)"]
+    B6 --> B7["Configure ALB<br>Site URL"]
+    B7 --> C["Deployment<br>Completed"]
 
-    A --> D[check_server_status.sh]
-    D --> D1[Check Instance Metadata]
-    D1 --> D2[Check CPU, Memory, Disk Usage]
-    D2 --> D3[Check Nginx & PHP-FPM Status]
-    D3 --> D4[Check RDS MySQL TLS Connection]
-    D4 --> D5[Check Redis TCP Connection]
-    D5 --> D6[Check ALB DNS / HTTP 200]
-    D6 --> D7[Check WordPress Health]
-    D7 --> D8[Check Nginx Config Syntax]
-    D8 --> E[Server Check Completed]
+    %% Server Status Check Flow
+    A --> D["check_server_status.sh"]
+    D --> D1["Check Instance<br>Metadata"]
+    D1 --> D2["Check CPU, Memory,<br>Disk Usage"]
+    D2 --> D3["Check Nginx &<br>PHP-FPM Status"]
+    D3 --> D4["Check RDS MySQL<br>TLS Connection"]
+    D4 --> D5["Check Redis<br>TCP Connection"]
+    D5 --> D6["Check ALB DNS /<br>HTTP 200"]
+    D6 --> D7["Check WordPress<br>Health"]
+    D7 --> D8["Check Nginx<br>Config Syntax"]
+    D8 --> E["Server Check<br>Completed"]
 
-    A --> F[check_aws_resources.sh]
-    F --> F1[Check VPC / Subnets / Routes]
-    F1 --> F2[Check EC2 / ASG / EBS]
-    F2 --> F3[Check ALB / TG / Listeners]
-    F3 --> F4[Check RDS / ElastiCache / DynamoDB]
-    F4 --> F5[Check CloudWatch / KMS / WAF / SNS]
-    F5 --> G[AWS Resource Check Completed]
+    %% AWS Resources Check Flow
+    A --> F["check_aws_resources.sh"]
+    F --> F1["Check VPC / Subnets /<br>Routes"]
+    F1 --> F2["Check EC2 / ASG /<br>EBS"]
+    F2 --> F3["Check ALB / TG /<br>Listeners"]
+    F3 --> F4["Check RDS / ElastiCache /<br>DynamoDB"]
+    F4 --> F5["Check CloudWatch /<br>KMS / WAF / SNS"]
+    F5 --> G["AWS Resource<br>Check Completed"]
 
-    B --> H[healthcheck-1.0.php - Simple ALB 200 OK]
-    B --> I[healthcheck-2.0.php - Full WP API Check]
+    %% Healthcheck Files
+    B --> H["healthcheck-1.0.php<br>Simple ALB 200 OK"]
+    B --> I["healthcheck-2.0.php<br>Full WP API Check"]
 
+    %% Styling
+    classDef start fill:#FF9900,stroke:#232F3E,color:white
+    classDef deploy fill:#1E8449,stroke:#232F3E,color:white
+    classDef status fill:#0066CC,stroke:#232F3E,color:white
+    classDef aws fill:#7D3C98,stroke:#232F3E,color:white
+    classDef health fill:#DD3522,stroke:#232F3E,color:white
+    classDef complete fill:#3F8624,stroke:#232F3E,color:white
+    
+    class A start
+    class B,B1,B2,B3,B4,B5,B6,B7 deploy
+    class D,D1,D2,D3,D4,D5,D6,D7,D8 status
+    class F,F1,F2,F3,F4,F5 aws
+    class H,I health
+    class C,E,G complete
 ```
 
 ### check_server_status.sh
