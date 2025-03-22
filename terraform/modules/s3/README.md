@@ -71,59 +71,117 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ```mermaid
 graph TB
-    subgraph "Default Region"
-        scripts["Scripts Bucket"]
-        logging["Logging Bucket"]
-        alb_logs["ALB Logs Bucket"]
-        cloudtrail["CloudTrail Bucket"]
-        terraform_state["Terraform State Bucket"]
-        wordpress_media["WordPress Media Bucket"]
-        
-        DynamoDB["DynamoDB Table\n(Terraform Locks)"]
-        KMS["KMS Key"]
-        SNS["SNS Topic"]
-        
-        terraform_state --> DynamoDB
-        scripts --> KMS
-        logging --> KMS
-        cloudtrail --> KMS
-        terraform_state --> KMS
-        wordpress_media --> KMS
-        
-        scripts --> SNS
-        logging --> SNS
-        alb_logs --> SNS
-        cloudtrail --> SNS
-        terraform_state --> SNS
-        wordpress_media --> SNS
-        
-        scripts --> logging
-        alb_logs --> logging
-        cloudtrail --> logging
-        terraform_state --> logging
-        wordpress_media --> logging
-    end
+    %% Main S3 Components - Default Region
+    scripts["Scripts Bucket"]
+    logging["Logging Bucket"]
+    alb_logs["ALB Logs Bucket<br>(SSE-S3 Encryption)"]
+    cloudtrail["CloudTrail Bucket"]
+    terraform_state["Terraform State Bucket"]
+    wordpress_media["WordPress Media Bucket<br>(CORS Enabled)"]
     
-    subgraph "Replication Region"
-        rep_wordpress_media["WordPress Media Replica Bucket"]
-        rep_KMS["KMS Replica Key"]
-        rep_SNS["SNS Topic (Replication)"]
-        
-        rep_wordpress_media --> rep_KMS
-        rep_wordpress_media --> rep_SNS
-    end
+    %% Infrastructure Components - Default Region
+    DynamoDB["DynamoDB Table<br>(Terraform Locks)"]
+    KMS["KMS Key"]
+    SNS["SNS Topic"]
     
-    wordpress_media -.-> rep_wordpress_media
+    %% IAM Components
+    IAMRole["IAM Replication Role"]
+    IAMPolicy["IAM Replication Policy"]
     
-    subgraph "External Services"
-        ALB["Application Load Balancer"]
-        CloudTrail["AWS CloudTrail"]
-        S3Logs["S3 Access Logging"]
-        
-        ALB --> alb_logs
-        CloudTrail --> cloudtrail
-        S3Logs --> logging
-    end
+    %% Replication Region Components
+    rep_wordpress_media["WordPress Media<br>Replica Bucket"]
+    rep_KMS["KMS Replica Key"]
+    rep_SNS["SNS Topic<br>(Replication Region)"]
+    
+    %% External Services
+    ALB["Application Load Balancer"]
+    CloudTrail["AWS CloudTrail"]
+    S3Logs["S3 Access Logging"]
+    
+    %% Bucket Configurations - Default Region
+    scripts -->|"Versioning"| scripts
+    logging -->|"Versioning"| logging
+    cloudtrail -->|"Versioning"| cloudtrail
+    terraform_state -->|"Versioning"| terraform_state
+    wordpress_media -->|"Versioning"| wordpress_media
+    
+    %% CORS Configuration
+    wordpress_media -->|"CORS Config<br>(Allowed Origins)"| wordpress_media
+    
+    %% Bucket Policies
+    scripts -->|"HTTPS Only<br>Policy"| scripts
+    terraform_state -->|"HTTPS Only<br>Policy"| terraform_state
+    wordpress_media -->|"HTTPS Only<br>Policy"| wordpress_media
+    logging -->|"Log Delivery<br>Policy"| logging
+    alb_logs -->|"ELB Access<br>Policy"| alb_logs
+    cloudtrail -->|"CloudTrail<br>Policy"| cloudtrail
+    
+    %% Encryption Connections
+    KMS -->|"Encrypts"| scripts
+    KMS -->|"Encrypts"| logging
+    KMS -->|"Encrypts"| cloudtrail
+    KMS -->|"Encrypts"| terraform_state
+    KMS -->|"Encrypts"| wordpress_media
+    
+    %% Logging Connections
+    scripts -->|"Access Logs"| logging
+    alb_logs -->|"Access Logs"| logging
+    cloudtrail -->|"Access Logs"| logging
+    terraform_state -->|"Access Logs"| logging
+    wordpress_media -->|"Access Logs"| logging
+    
+    %% Notification Connections
+    scripts -->|"Events"| SNS
+    logging -->|"Events"| SNS
+    alb_logs -->|"Events"| SNS
+    cloudtrail -->|"Events"| SNS
+    terraform_state -->|"Events"| SNS
+    wordpress_media -->|"Events"| SNS
+    
+    %% DynamoDB Integration
+    terraform_state -->|"State Locking"| DynamoDB
+    
+    %% IAM for Replication
+    IAMRole -->|"Assumes"| IAMPolicy
+    IAMPolicy -->|"Grants Access"| scripts
+    IAMPolicy -->|"Grants Access"| wordpress_media
+    IAMPolicy -->|"Grants Access"| rep_wordpress_media
+    IAMPolicy -->|"Grants Access"| KMS
+    IAMPolicy -->|"Grants Access"| rep_KMS
+    
+    %% Replication Connections
+    wordpress_media -->|"Cross-Region<br>Replication"| rep_wordpress_media
+    rep_KMS -->|"Encrypts"| rep_wordpress_media
+    rep_wordpress_media -->|"Events"| rep_SNS
+    rep_wordpress_media -->|"HTTPS Only<br>Policy"| rep_wordpress_media
+    
+    %% Lifecycle Rules
+    scripts -->|"Lifecycle<br>Rules"| scripts
+    logging -->|"Lifecycle<br>Rules"| logging
+    cloudtrail -->|"Lifecycle<br>Rules"| cloudtrail
+    terraform_state -->|"Special Lifecycle<br>Rules"| terraform_state
+    wordpress_media -->|"Lifecycle<br>Rules"| wordpress_media
+    rep_wordpress_media -->|"Lifecycle<br>Rules"| rep_wordpress_media
+    
+    %% External Service Connections
+    ALB -->|"Logs"| alb_logs
+    CloudTrail -->|"API Activity"| cloudtrail
+    S3Logs -->|"Access Logs"| logging
+    
+    %% Styling
+    classDef primary fill:#FF9900,stroke:#232F3E,color:white
+    classDef replication fill:#3F8624,stroke:#232F3E,color:white
+    classDef infrastructure fill:#1E8449,stroke:#232F3E,color:white
+    classDef external fill:#7D3C98,stroke:#232F3E,color:white
+    classDef encryption fill:#DD3522,stroke:#232F3E,color:white
+    classDef iam fill:#0066CC,stroke:#232F3E,color:white
+    
+    class scripts,logging,alb_logs,cloudtrail,terraform_state,wordpress_media primary
+    class rep_wordpress_media replication
+    class DynamoDB,SNS infrastructure
+    class ALB,CloudTrail,S3Logs external
+    class KMS,rep_KMS encryption
+    class IAMRole,IAMPolicy iam
 ```
 
 ---
