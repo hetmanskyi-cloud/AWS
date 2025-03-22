@@ -9,46 +9,95 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 ## Architecture Diagram
 
 ```mermaid
-graph TD
-  WAF["WAF WebACL"]
-  WAF --> ALB["ALB"]
-
-  ALB --> SG["Security Group"]
-  ALB --> HTTP["HTTP Listener :80"]
-  ALB --> HTTPS["HTTPS Listener :443 (Optional)"]
-  ALB --> TG["Target Group (EC2 Auto Scaling Group)"]
-  ALB --> S3_ALB["S3 (ALB Access Logs)"]
-  ALB --> CW_5xx["CloudWatch Alarm: 5XX Errors"]
-  ALB --> CW_Latency["CloudWatch Alarm: Latency"]
-  ALB --> CW_Requests["CloudWatch Alarm: High Requests"]
-
-  WAF --> Firehose["Kinesis Firehose"]
-  Firehose --> S3_WAF["S3 (WAF Logs)"]
-
-  ALB --> VPC["VPC & Subnets"]
-
-  %% Class assignments
-  class ALB alb;
-  class SG sg;
-  class TG tg;
-  class HTTP,HTTPS listener;
-  class WAF waf;
-  class Firehose firehose;
-  class S3_WAF,S3_ALB s3;
-  class CW_5xx,CW_Latency,CW_Requests cloudwatch;
-  class VPC vpc;
-
-  %% Class definitions (colors)
-  classDef alb fill:#E6E6FA,stroke:#333,stroke-width:2px;
-  classDef sg fill:#FFDAB9,stroke:#333,stroke-width:2px;
-  classDef tg fill:#D0F0C0,stroke:#333,stroke-width:2px;
-  classDef listener fill:#ADD8E6,stroke:#333,stroke-width:2px;
-  classDef waf fill:#FFB6C1,stroke:#333,stroke-width:2px;
-  classDef firehose fill:#FFE4B5,stroke:#333,stroke-width:2px;
-  classDef s3 fill:#87CEFA,stroke:#333,stroke-width:2px;
-  classDef cloudwatch fill:#F08080,stroke:#333,stroke-width:2px;
-  classDef vpc fill:#C1FFC1,stroke:#333,stroke-width:2px;
-
+graph TB
+    %% Main Components
+    VPC["VPC"]
+    PublicSubnets["Public Subnets"]
+    ALB["Application Load Balancer<br>(ALB)"]
+    ASG["Auto Scaling Group<br>(Target)"]
+    KMS["KMS Key<br>(Encryption)"]
+    SNS["SNS Topic<br>(Notifications)"]
+    
+    %% ALB Components
+    subgraph "ALB Configuration"
+        HTTP["HTTP Listener<br>(Port 80)"]
+        HTTPS["HTTPS Listener<br>(Port 443, Optional)"]
+        TargetGroup["Target Group<br>(Health Checks & Stickiness)"]
+        AccessLogs["Access Logs<br>(Optional)"]
+    end
+    
+    subgraph "Security"
+        ALB_SG["ALB Security Group"]
+        IngressRules["Ingress Rules<br>(HTTP/HTTPS)"]
+        EgressRules["Egress Rules<br>(To Targets)"]
+        WAF["Web Application Firewall<br>(Optional)"]
+        RateLimiting["Rate Limiting Rule"]
+    end
+    
+    subgraph "Monitoring"
+        CWAlarms["CloudWatch Alarms"]
+        HighRequestAlarm["High Request Count Alarm"]
+        ErrorAlarm["5XX Errors Alarm"]
+        ResponseTimeAlarm["Target Response Time Alarm"]
+        UnhealthyHostAlarm["Unhealthy Host Alarm"]
+    end
+    
+    subgraph "Logging"
+        S3_ALB["S3 Bucket<br>(ALB Logs)"]
+        Firehose["Kinesis Firehose<br>(Optional)"]
+        S3_WAF["S3 Bucket<br>(WAF Logs)"]
+    end
+    
+    %% Network Structure
+    VPC -->|"Contains"| PublicSubnets
+    PublicSubnets -->|"Hosts"| ALB
+    
+    %% ALB Configuration
+    ALB -->|"Has"| HTTP
+    ALB -->|"Has (Optional)"| HTTPS
+    ALB -->|"Routes to"| TargetGroup
+    TargetGroup -->|"Forwards to"| ASG
+    ALB -->|"Generates"| AccessLogs
+    
+    %% Security
+    ALB -->|"Uses"| ALB_SG
+    ALB_SG -->|"Contains"| IngressRules
+    ALB_SG -->|"Contains"| EgressRules
+    WAF -->|"Protects"| ALB
+    WAF -->|"Includes"| RateLimiting
+    
+    %% Monitoring
+    ALB -->|"Monitored by"| CWAlarms
+    CWAlarms -->|"Includes"| HighRequestAlarm
+    CWAlarms -->|"Includes"| ErrorAlarm
+    CWAlarms -->|"Includes"| ResponseTimeAlarm
+    CWAlarms -->|"Includes"| UnhealthyHostAlarm
+    
+    HighRequestAlarm -->|"Notifies"| SNS
+    ErrorAlarm -->|"Notifies"| SNS
+    ResponseTimeAlarm -->|"Notifies"| SNS
+    UnhealthyHostAlarm -->|"Notifies"| SNS
+    
+    %% Logging
+    AccessLogs -->|"Stored in"| S3_ALB
+    WAF -->|"Logs via"| Firehose
+    Firehose -->|"Delivers to"| S3_WAF
+    KMS -->|"Encrypts"| Firehose
+    
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
+    classDef security fill:#DD3522,stroke:#232F3E,color:white;
+    classDef monitoring fill:#3F8624,stroke:#232F3E,color:white;
+    classDef logging fill:#1A73E8,stroke:#232F3E,color:white;
+    classDef config fill:#7D3C98,stroke:#232F3E,color:white;
+    classDef network fill:#1E8449,stroke:#232F3E,color:white;
+    
+    class ALB,ASG,KMS,SNS aws;
+    class ALB_SG,IngressRules,EgressRules,WAF,RateLimiting security;
+    class CWAlarms,HighRequestAlarm,ErrorAlarm,ResponseTimeAlarm,UnhealthyHostAlarm monitoring;
+    class S3_ALB,Firehose,S3_WAF logging;
+    class HTTP,HTTPS,TargetGroup,AccessLogs config;
+    class VPC,PublicSubnets network;
 ```
 
 ### Key Features:
