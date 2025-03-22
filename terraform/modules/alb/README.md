@@ -10,43 +10,22 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 
 ```mermaid
 graph TD
-  subgraph "Application Load Balancer (ALB)"
-    ALB["ALB"]
-    SG["Security Group"]
-    TG["Target Group (EC2 Auto Scaling Group)"]
-    HTTP["HTTP Listener :80"]
-    HTTPS["HTTPS Listener :443 (Optional)"]
-    ALB --> SG
-    ALB --> HTTP
-    ALB --> HTTPS
-    ALB --> TG
-  end
+  WAF["WAF WebACL"]
+  WAF --> ALB["ALB"]
 
-  subgraph "Web Application Firewall (WAF)"
-    WAF["WAF WebACL"]
-    WAF --> ALB
-  end
+  ALB --> SG["Security Group"]
+  ALB --> HTTP["HTTP Listener :80"]
+  ALB --> HTTPS["HTTPS Listener :443 (Optional)"]
+  ALB --> TG["Target Group (EC2 Auto Scaling Group)"]
+  ALB --> S3_ALB["S3 (ALB Access Logs)"]
+  ALB --> CW_5xx["CloudWatch Alarm: 5XX Errors"]
+  ALB --> CW_Latency["CloudWatch Alarm: Latency"]
+  ALB --> CW_Requests["CloudWatch Alarm: High Requests"]
 
-  subgraph "WAF Logging"
-    Firehose["Kinesis Firehose"]
-    WAF --> Firehose
-    Firehose --> S3_WAF["S3 (WAF Logs)"]
-  end
+  WAF --> Firehose["Kinesis Firehose"]
+  Firehose --> S3_WAF["S3 (WAF Logs)"]
 
-  subgraph "Monitoring & Alarms"
-    CW_5xx["CloudWatch Alarm: 5XX Errors"]
-    CW_Latency["CloudWatch Alarm: Latency"]
-    CW_Requests["CloudWatch Alarm: High Requests"]
-    ALB --> CW_5xx
-    ALB --> CW_Latency
-    ALB --> CW_Requests
-  end
-
-  subgraph "VPC Integration"
-    VPC["VPC & Subnets"]
-    ALB --> VPC
-    ALB --> S3_ALB["S3 (ALB Access Logs)"]
-  end
+  ALB --> VPC["VPC & Subnets"]
 
   %% Class assignments
   class ALB alb;
@@ -55,10 +34,9 @@ graph TD
   class HTTP,HTTPS listener;
   class WAF waf;
   class Firehose firehose;
-  class S3_WAF,s3_alb s3;
+  class S3_WAF,S3_ALB s3;
   class CW_5xx,CW_Latency,CW_Requests cloudwatch;
   class VPC vpc;
-  class S3_ALB s3;
 
   %% Class definitions (colors)
   classDef alb fill:#E6E6FA,stroke:#333,stroke-width:2px;
@@ -70,6 +48,7 @@ graph TD
   classDef s3 fill:#87CEFA,stroke:#333,stroke-width:2px;
   classDef cloudwatch fill:#F08080,stroke:#333,stroke-width:2px;
   classDef vpc fill:#C1FFC1,stroke:#333,stroke-width:2px;
+
 ```
 
 ### Key Features:
