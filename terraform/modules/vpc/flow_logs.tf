@@ -127,7 +127,7 @@ resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
     Environment = var.environment
   }
 
-  # --- Notes --- #
+  # Notes:
   # 1. Monitors CloudWatch delivery failures for VPC Flow Logs.
   # 2. Triggers if Flow Logs fail to write data (critical visibility issue).
   # 3. Recommended to subscribe SNS topic to email or other notification channels.

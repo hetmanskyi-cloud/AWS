@@ -22,7 +22,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
   description = "WAF for ALB to protect against basic attacks"
 
-  # --- Default Action --- #
+  # Default Action
   # Default action is to allow all requests if no rules match.
   # - In case no rules match, allow all incoming requests.
   # - Can be changed to `block {}` for stricter security if required.
@@ -30,7 +30,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     allow {}
   }
 
-  # --- Rate Limiting Rule --- #
+  # Rate Limiting Rule
   # Simple rate limiting rule to prevent abuse and brute force attacks.
   # Limits requests from a single IP to 1000 requests per 5-minute period.
   # For production, complement it with AWS Managed Rules covering OWASP Top 10 threats.
@@ -57,7 +57,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     }
   }
 
-  # --- Visibility Configuration --- #
+  # Visibility Configuration
   # Enable detailed logging for monitoring WAF activity.
   visibility_config {
     cloudwatch_metrics_enabled = true      # Enable detailed metrics

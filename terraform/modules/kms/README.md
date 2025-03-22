@@ -1,10 +1,21 @@
 # AWS KMS Terraform Module
 
-Terraform module to create and manage a general-purpose AWS KMS (Key Management Service) key. It provides secure encryption for AWS resources, supports automatic key rotation, IAM-managed administrative roles, and integrates with CloudWatch for monitoring key usage.
+---
 
-## Overview
+## 1. Overview
 
-This module provisions a KMS key (Customer managed key)designed for encrypting various AWS resources, supporting cross-region replication, customizable permissions, and monitoring through CloudWatch.
+This Terraform module provisions a general-purpose AWS KMS (Key Management Service) Customer Managed Key (CMK) for encrypting a wide range of AWS resources. It supports automatic key rotation, cross-region replication, customizable IAM permissions, and CloudWatch monitoring of key usage. The module is designed to provide secure, flexible, and production-ready encryption management within your infrastructure.
+
+---
+
+## 2. Prerequisites / Requirements
+
+- **AWS Provider Configuration**:
+  - AWS region and account configuration should be defined in the root Terraform block (`providers.tf`).
+- **Existing SNS Topic** (required if key monitoring is enabled):
+  - SNS topic ARN for alarm notifications.
+- **VPC Considerations**:
+  - If EC2 instances are in private subnets without internet access, consider enabling KMS VPC Interface Endpoints.
 
 ### Supported AWS Resource Encryption:
 - CloudWatch Logs
@@ -22,16 +33,9 @@ This module provisions a KMS key (Customer managed key)designed for encrypting v
   - Kinesis Firehose
   - WAF (legacy logging)
 
-## Module Architecture
+---
 
-The module provisions:
-- **Primary KMS Key** for general encryption purposes.
-- **Optional Replica KMS Key** for cross-region S3 replication (automatically created when replication buckets are enabled).
-- **IAM Role and Policy** for administrative key management (optional).
-- **CloudWatch Alarms** for monitoring KMS key usage (currently monitoring decrypt operations).
-- **KMS Grants** for S3 replication when using replica keys.
-
-### Architecture Diagram
+## 3. Architecture Diagram
 
 ```mermaid
 graph LR
@@ -126,17 +130,33 @@ graph LR
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
     class CWAlarm,SNSTopic monitoring
 ```
+---
 
-## Prerequisites
+## 4. Features
 
-- **AWS Provider Configuration**:
-  - AWS region and account configuration should be defined in the root Terraform block (`providers.tf`).
-- **Existing SNS Topic** (required if key monitoring is enabled):
-  - SNS topic ARN for alarm notifications.
-- **VPC Considerations**:
-  - If EC2 instances are in private subnets without internet access, consider enabling KMS VPC Interface Endpoints.
+- Provisions a **general-purpose KMS key** for encrypting AWS resources.
+- Supports **automatic key rotation**.
+- Optionally creates **cross-region replica KMS keys** for S3 replication.
+- Manages **IAM roles and policies** for administrative control.
+- Integrates with **CloudWatch Alarms** for decrypt operation monitoring.
+- Supports **KMS Grants** for S3 replication and service-specific encryption (DynamoDB, Firehose, WAF).
+- Fully supports **environment-specific key separation** (`dev`, `stage`, `prod`).
 
-## Module Files Structure
+---
+
+## 5. Module Architecture
+
+This module provisions:
+- A **Primary KMS Key** with optional automatic rotation.
+- An **optional Replica KMS Key** for cross-region S3 replication.
+- **IAM Role and Policy** for administrative management (optional).
+- **KMS Grants** for S3 replication and other services.
+- **CloudWatch Alarms** monitoring decrypt operations.
+- Supports encryption for a wide range of AWS services: S3, RDS, ElastiCache, EBS, CloudWatch, SSM, Secrets Manager, and optionally DynamoDB, Firehose, WAF.
+
+---
+
+## 6. Module Files Structure
 
 | File             | Description                                                         |
 |------------------|---------------------------------------------------------------------|
@@ -146,7 +166,9 @@ graph LR
 | `variables.tf`   | Input variables and validation rules for customization.             |
 | `outputs.tf`     | Module outputs including ARNs and IDs of created resources.         |
 
-## Inputs
+---
+
+## 7. Inputs
 
 | Name                        | Type           | Description                                                         | Default / Required               |
 |-----------------------------|----------------|---------------------------------------------------------------------|----------------------------------|
@@ -167,43 +189,9 @@ graph LR
 | `enable_firehose`           | `bool`         | Allow Kinesis Firehose usage                                        | `false`                          |
 | `enable_waf_logging`        | `bool`         | Allow WAF logging usage                                             | `false`                          |
 
-### S3 Bucket Configuration Details
+---
 
-#### `default_region_buckets`
-```hcl
-default_region_buckets = {
-  bucket_name = {
-    enabled     = bool    # Optional, default: true
-    versioning  = bool    # Optional, default: false
-    replication = bool    # Optional, default: false
-    logging     = bool    # Optional, default: false
-    region      = string  # Optional, defaults to provider region if not set
-  }
-}
-```
-
-#### `replication_region_buckets`
-```hcl
-replication_region_buckets = {
-  bucket_name = {
-    enabled     = bool    # Optional, default: true
-    versioning  = bool    # Optional, default: true (required for replication destinations)
-    replication = bool    # Optional, default: false (not applicable for replication buckets)
-    logging     = bool    # Optional, default: false
-    region      = string  # Required - AWS region for the replication bucket
-  }
-}
-```
-
-#### CloudTrail Integration
-To enable CloudTrail integration, include a `cloudtrail` bucket in your configuration:
-```hcl
-default_region_buckets = {
-  cloudtrail = { enabled = true }
-}
-```
-
-## Outputs
+## 8. Outputs
 
 | Name                        | Description                                                 |
 |-----------------------------|-------------------------------------------------------------|
@@ -215,7 +203,9 @@ default_region_buckets = {
 | `kms_management_policy_arn` | ARN of the IAM policy for key management (if created)       |
 | `kms_decrypt_alarm_arn`     | ARN of the CloudWatch decrypt alarm (if created)            |
 
-## Usage Example
+---
+
+## 9. Usage Example
 
 ```hcl
 module "kms" {
@@ -259,7 +249,50 @@ module "kms" {
   depends_on = [aws_sns_topic.cloudwatch_alarms]
 }
 ```
-## Security
+### S3 Bucket Configuration Details
+
+#### `default_region_buckets`
+```hcl
+default_region_buckets = {
+  bucket_name = {
+    enabled     = bool    # Optional, default: true
+    versioning  = bool    # Optional, default: false
+    replication = bool    # Optional, default: false
+    logging     = bool    # Optional, default: false
+    region      = string  # Optional, defaults to provider region if not set
+  }
+}
+```
+#### `replication_region_buckets`
+```hcl
+replication_region_buckets = {
+  bucket_name = {
+    enabled     = bool    # Optional, default: true
+    versioning  = bool    # Optional, default: true (required for replication destinations)
+    replication = bool    # Optional, default: false (not applicable for replication buckets)
+    logging     = bool    # Optional, default: false
+    region      = string  # Required - AWS region for the replication bucket
+  }
+}
+```
+#### CloudTrail Integration
+To enable CloudTrail integration, include a `cloudtrail` bucket in your configuration:
+```hcl
+default_region_buckets = {
+  cloudtrail = { enabled = true }
+}
+```
+---
+
+## 10. Security Considerations / Recommendations
+
+- **Root access** is granted temporarily during setup and must be manually removed.
+- **IAM roles and policies** should follow the least privilege principle.
+- Enable **automatic key rotation** to reduce the risk of key compromise.
+- Use **VPC Interface Endpoints** for KMS when instances operate in private subnets.
+- Monitor key usage and unusual activity using **CloudWatch Alarms**.
+
+### Security
 - **Initial root access** granted temporarily for key setup (must be manually revoked after initial setup).
 - **IAM role** replaces root account for ongoing administrative management (optional).
 - **CloudWatch Alarms** monitor abnormal or unauthorized key usage.
@@ -270,7 +303,7 @@ module "kms" {
 3. Manually remove the root access statement from the KMS key policy
 4. Apply changes to enforce least privilege
 
-## CloudWatch Monitoring
+### CloudWatch Monitoring
 The module currently implements monitoring for:
 - **Decrypt Operations**: Alerts when the number of decrypt operations exceeds the configured threshold
 - Alarm configuration:
@@ -278,24 +311,42 @@ The module currently implements monitoring for:
   - Consecutive periods: 3 (to reduce false positives)
   - Datapoints to alarm: 2 (alarm triggers if 2 out of 3 periods exceed threshold)
 
-## KMS Grants for Replication
+### KMS Grants for Replication
 When cross-region replication is enabled, the module automatically:
 1. Creates a replica KMS key in the specified replication region
 2. Sets up KMS grants to allow S3 service to use the replica key for replication
 3. Configures appropriate permissions for cross-region data transfer
 
-## Best Practices
+---
+
+## 11. Conditional Resource Creation
+
+This module supports conditional creation of certain resources based on input variables:
+
+- **Primary KMS Key** is always created when the module is enabled.
+- **Cross-region Replica KMS Key** is created only if the `replication_region_buckets` map is defined and not empty.
+- **KMS Grants** for S3 replication are created automatically **if cross-region replication is configured** (i.e., at least one `replication_region_bucket` is enabled).
+- **IAM Role and Policy for KMS administration** are created only if `create_admin_role = true`.
+- **CloudWatch Alarms** for monitoring decryption operations are created only if `enable_decrypt_alarm = true`.
+
+---
+
+## 12. Best Practices
 - **Automatic Key Rotation**: Reduces risk of key compromise.
 - **Least Privilege Access**: Limit permissions strictly to necessary IAM roles and AWS services.
 - **Environment-specific Keys**: Maintain separate KMS keys per environment (`dev`, `stage`, `prod`).
 - **Monitoring**: Actively monitor KMS usage through CloudWatch.
 - **VPC Endpoints**: Consider using KMS VPC Interface Endpoints for private subnet scenarios.
 
-## Integration
+---
+
+## 13. Integration
 Integrates seamlessly with other modules:
 - **VPC, ASG, ALB, RDS, S3, ElastiCache Modules**: Encryption at rest for data stored or transmitted by these services.
 
-## Future Improvements
+---
+
+## 14. Future Improvements
 
 - **Enhanced Policy Flexibility:**  
   Allow finer-grained permissions customization per AWS service and principal.
@@ -311,7 +362,7 @@ Integrates seamlessly with other modules:
 
 ---
 
-## Troubleshooting and Common Issues
+## 15. Troubleshooting and Common Issues
 
 ### 1. KMS Decrypt Operations Alarm Constantly Triggering
 **Cause:** Threshold for `DecryptCount` is too low for the workload.  
@@ -395,5 +446,20 @@ Integrates seamlessly with other modules:
 
 ---
 
-For additional details, see [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html).
-For detailed AWS recommendations, see [AWS KMS Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html).
+## 16. Notes
+
+- Cross-region replication support is triggered automatically based on `replication_region_buckets`.
+- Default CloudWatch monitoring covers **decrypt operations only**; additional metrics can be added manually if needed.
+- Root access removal is a manual step and must be enforced post-deployment.
+
+---
+
+## 17. Useful Resources
+
+- [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
+- [AWS KMS Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html)
+- [AWS KMS Key Policy Examples](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-examples.html)
+- [AWS KMS Grants Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/grants.html)
+- [Terraform aws_kms_key Resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key)
+
+---

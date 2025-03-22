@@ -111,7 +111,7 @@ graph LR
 
 ---
 
-### 4. Features:
+## 4. Features:
 - **Public-facing ALB** handling HTTP/HTTPS traffic
 - **Target Group** configured with advanced health checks and session stickiness
 - **Security Group** with controlled inbound/outbound traffic rules
@@ -199,7 +199,7 @@ This module provisions:
 ---
 
 ## 9. Example Usage
-# Example usage for production environment with full features enabled (WAF, logging, HTTPS)
+### Example usage for production environment with full features enabled (WAF, logging, HTTPS)
 
 ```hcl
 module "alb" {
@@ -235,7 +235,7 @@ module "alb" {
 - Enable HTTPS Listener with a valid SSL certificate.
 - Adjust alarm thresholds according to real-world traffic.
 
-## Security Best Practices
+### Security Best Practices
 - Always enable WAF for production to protect against common web attacks.
 - Store ALB and WAF logs securely in S3 with **KMS encryption**.
 - Review and tighten Security Group rules periodically.

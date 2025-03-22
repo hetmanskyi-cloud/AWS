@@ -13,7 +13,7 @@ resource "aws_security_group" "redis_sg" {
     create_before_destroy = true
   }
 
-  # --- Tags for Resource Identification --- #
+  # Tags for Resource Identification
   tags = {
     Name        = "${var.name_prefix}-redis-sg-${var.environment}" # Name tag for identifying the Security Group.
     Environment = var.environment                                  # Environment tag for resource management.
@@ -48,7 +48,6 @@ resource "aws_security_group_rule" "redis_ingress_from_asg" {
 # addresses or CIDR blocks and the required ports.
 
 # --- Notes --- #
-
 # 1. **Ingress Rules**:
 #    - Ingress rule to allow Redis traffic from ASG instances is defined as a separate 'aws_security_group_rule' resource.
 #    - This rule restricts access to the ElastiCache Redis, allowing inbound traffic only from the specified ASG Security Group.

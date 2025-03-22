@@ -49,7 +49,7 @@ resource "aws_lb_target_group" "wordpress" {
   protocol = "HTTP"                            # Protocol for traffic
   vpc_id   = var.vpc_id                        # VPC where the target group exists
 
-  # --- Health check configuration for monitoring target instance health --- #
+  # Health check configuration for monitoring target instance health
   # Verify that the health check path and thresholds align with the application requirements.
   # Proper configuration ensures fast failure detection and prevents routing traffic to unhealthy instances.
   # Consider stricter criteria for critical applications:
@@ -73,7 +73,7 @@ resource "aws_lb_target_group" "wordpress" {
   deregistration_delay = 300 # 5 minutes delay before deregistering targets (increased for installation)
   slow_start           = 300 # Gradual traffic increase for new targets over 5 minutes
 
-  # --- Stickiness Configuration --- #
+  # Stickiness Configuration
   # Ensures clients are routed to the same target for the duration of their session.
   # Useful for WordPress to maintain session consistency and avoid issues with login or caching.
   stickiness {
@@ -86,7 +86,7 @@ resource "aws_lb_target_group" "wordpress" {
     create_before_destroy = true
   }
 
-  # --- Tags --- #
+  # Tags
   tags = {
     Name        = "${var.name_prefix}-wordpress-tg" # Name tag for resource identification
     Environment = var.environment                   # Environment tag for organization

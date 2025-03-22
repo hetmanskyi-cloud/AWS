@@ -40,13 +40,13 @@ resource "aws_autoscaling_group" "asg" {
   # If an immediate replacement is required, the newest instance will be terminated first.
   termination_policies = ["OldestInstance", "NewestInstance"]
 
-  # --- Lifecycle Configuration --- #
+  # Lifecycle Configuration
   # Ensures rolling updates by creating new instances before terminating old ones, avoiding downtime
   lifecycle {
     create_before_destroy = true
   }
 
-  # --- Dependencies --- #
+  # Dependencies
   # Ensure ASG depends on the latest Launch Template
   # This guarantees that the Auto Scaling Group always uses the most up-to-date configuration.
   depends_on = [aws_launch_template.asg_launch_template]

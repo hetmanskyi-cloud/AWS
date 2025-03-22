@@ -27,16 +27,16 @@ resource "aws_elasticache_replication_group" "redis" {
   subnet_group_name          = aws_elasticache_subnet_group.redis_subnet_group.name   # Subnet group for deployment.
   security_group_ids         = [aws_security_group.redis_sg.id]                       # Security group for controlling network access.
 
-  # --- Notes on KMS Key Usage --- #
+  # Notes on KMS Key Usage
   # Ensure the kms_key_arn is specified to enable data encryption at rest.
   # If left empty, data encryption will not be applied, which is not recommended for production environments.
   kms_key_id = var.kms_key_arn # KMS key for encrypting data at rest.
 
-  # --- Backup Configuration --- #
+  # Backup Configuration
   snapshot_retention_limit = var.snapshot_retention_limit # Number of days to retain backups.
   snapshot_window          = var.snapshot_window          # Preferred time window for snapshots.
 
-  # --- Security and Encryption --- #
+  # Security and Encryption
   at_rest_encryption_enabled = true # Encrypts data at rest using KMS.
   transit_encryption_enabled = true # Encrypts data in transit between nodes.
 

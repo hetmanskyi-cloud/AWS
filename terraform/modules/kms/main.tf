@@ -161,7 +161,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
     ])
   })
 
-  # --- Notes --- #
+  # Notes:
   # 1. Currently, the KMS key is accessed without using a KMS VPC Interface Endpoint, meaning encryption traffic
   #    goes through the public internet.
   # 2. If EC2 instances are later moved to private subnets without internet access, ensure the KMS VPC Endpoint

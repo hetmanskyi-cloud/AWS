@@ -7,7 +7,7 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
   name        = "aws-waf-logs-${var.name_prefix}-waf-logs"
   destination = "extended_s3" # Destination is an S3 bucket with extended configuration.
 
-  # --- Extended S3 Configuration --- #
+  # Extended S3 Configuration
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose_role[0].arn # IAM Role for Firehose permissions.
     bucket_arn = var.logging_bucket_arn            # Target S3 bucket for logs.

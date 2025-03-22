@@ -48,7 +48,7 @@ locals {
   # the script is fetched from S3 using the bucket name; otherwise, the local script is used.
   wordpress_script_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
 
-  # --- Script Content --- #
+  # Script Content
   # When enable_s3_script is true, we assume the script is retrieved from S3, so we set script_content to an empty string.
   # Otherwise, we read the local deploy_wordpress.sh file.
   script_content = var.enable_s3_script ? "" : file("${path.root}/scripts/deploy_wordpress.sh")
