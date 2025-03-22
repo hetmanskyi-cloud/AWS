@@ -1,10 +1,24 @@
-# ElastiCache Module for Terraform
-
-This module creates and manages an ElastiCache Redis cluster in AWS, including a replication group, subnet group, parameter group, CloudWatch alarms for monitoring, and security group management for controlled access.
+# AWS ElastiCache Module for Terraform
 
 ---
 
-## Architecture Diagram
+## 1. Overview
+
+This module provisions an AWS ElastiCache Redis cluster with full support for high availability, security, monitoring, and backups. It creates a replication group, subnet group, parameter group, and security group, while enabling automatic failover, encryption (at-rest and in-transit), and CloudWatch alarms. Designed for production-ready workloads, the module ensures controlled access and seamless integration with application layers.
+
+---
+
+## 2. Prerequisites / Requirements
+
+- AWS provider must be configured in the root module.
+- Existing **VPC** with **private subnets** is required.
+- Valid **KMS Key ARN** must be provided for at-rest encryption.
+- An **Auto Scaling Group Security Group ID** is required to allow access from the application layer.
+- **SNS Topic ARN** must exist for CloudWatch alarm notifications.
+
+---
+
+## 3. Architecture Diagram
 
 ```mermaid
 graph TB
@@ -59,6 +73,8 @@ graph TB
     ParamGroup -->|"Configures"| Redis
     Redis -->|"Creates"| RedisNodes
     Redis -->|"Enables when<br>replicas > 0"| FailoverMech
+    Redis -->|"Exposes"| ReaderEndpoint
+    class ReaderEndpoint config;
     
     %% Security
     KMS -->|"Provides keys for"| Encryption
@@ -96,7 +112,7 @@ graph TB
     class VPC,PrivateSubnets network;
 ```
 
-## Features
+## 4. Features
 
 - **ElastiCache Subnet Group**:
   - Creates a subnet group for ElastiCache Redis deployment.
@@ -137,7 +153,21 @@ graph TB
 
 ---
 
-## Module Files Structure
+## 5. Module Architecture
+
+This module provisions the following AWS resources:
+
+- **ElastiCache Subnet Group**: Defines where Redis nodes are deployed.
+- **Replication Group**: Creates the Redis cluster with replicas and failover.
+- **Parameter Group**: Manages Redis configuration.
+- **Security Group**: Restricts inbound access from specified sources.
+- **CloudWatch Alarms**: Monitors CPU, memory, replication bytes, and CPU credits.
+- **Automated Backups**: Configures snapshot retention and backup window.
+- **KMS Encryption**: Secures data at rest.
+
+---
+
+## 6. Module Files Structure
 
 | File                 | Description                                              |
 |----------------------|----------------------------------------------------------|
@@ -149,7 +179,7 @@ graph TB
 
 ---
 
-## Input Variables
+## 7. Input Variables
 
 | Name                                  | Type          | Description                               | Default/Required  |
 |---------------------------------------|---------------|-------------------------------------------|-------------------|
@@ -180,7 +210,7 @@ graph TB
 
 ---
 
-## Outputs
+## 8. Outputs
 
 | Name                           | Description                                          |
 |--------------------------------|------------------------------------------------------|
@@ -194,7 +224,97 @@ graph TB
 
 ---
 
-## Troubleshooting and Common Issues
+## 9. Example Usage
+
+```hcl
+module "elasticache" {
+  source = "./modules/elasticache"
+
+  name_prefix = "dev"
+  environment = "dev"
+
+  vpc_id                = "vpc-0123456789abcdef0"
+  private_subnet_ids    = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
+  asg_security_group_id = "sg-0123456789abcdef0"
+
+  redis_version = "7.1"
+  node_type     = "cache.t3.micro"
+
+  replicas_per_node_group = 1
+  num_node_groups         = 2
+  enable_failover         = true
+
+  snapshot_retention_limit = 7
+  redis_cpu_threshold      = 80
+  redis_memory_threshold   = 104857600
+
+  # Enable CloudWatch alarms
+  enable_redis_low_memory_alarm = true
+  enable_redis_high_cpu_alarm = true
+  enable_redis_replication_bytes_alarm = true
+  enable_redis_low_cpu_credits_alarm = true
+
+  sns_topic_arn = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
+  kms_key_arn   = "arn:aws:kms:eu-west-1:123456789012:key/example"
+}
+
+```
+
+## 10. Security Considerations / Recommendations
+
+- Place Redis in private subnets only.
+- Restrict Redis access strictly to allowed Security Groups (e.g., ASG).
+- Enable **KMS encryption** for data at rest.
+- Use in-transit encryption (enabled by default).
+- Monitor CloudWatch alarms and SNS notifications for proactive alerts.
+- Validate IAM permissions for KMS and CloudWatch access.
+
+---
+
+## 11. Conditional Resource Creation
+
+This module supports conditional creation of certain resources based on input variables:
+
+- **CloudWatch Alarms** are created only if corresponding `enable_redis_*_alarm` variables are set to `true`.
+- **Automatic Failover** is enabled only if `enable_failover = true`.
+- **KMS Encryption** is enforced using the provided `kms_key_arn`.
+- **Replication Bytes Alarm** triggers only if replicas are configured.
+
+---
+
+## 12. Best Practices
+
+- Always deploy Redis clusters in **private subnets** for security.
+- Enable **automatic failover** in production for high availability.
+- Monitor Redis performance with **CloudWatch Alarms** on CPU, memory, and replication metrics.
+- Regularly review **snapshot retention settings** and adjust based on RPO requirements.
+- Use **KMS encryption** for securing sensitive data at rest.
+- Validate and restrict **security group rules** to minimize exposure.
+- Use **parameter groups** to fine-tune Redis performance for specific workloads.
+
+---
+
+## 13. Integration
+
+This module integrates with the following components:
+
+- **ASG Module**: Grants access to Redis from application servers.
+- **VPC Module**: Provides networking, private subnets, and routing.
+- **KMS Module**: Supplies encryption keys for Redis at-rest data.
+- **Monitoring Module**: Delivers CloudWatch Alarms and SNS notifications.
+
+---
+
+## 14. Future Improvements
+
+1. **IAM Authentication** for enhanced security.
+2. Integration with **AWS Secrets Manager** for credential management.
+3. Automated Redis parameter tuning based on usage.
+4. Implement Redis Cluster Auto Scaling.
+
+---
+
+## 15. Troubleshooting and Common Issues
 
 ### 1. Redis Cluster Not Accessible
 **Cause:** Security group misconfiguration or incorrect port settings.  
@@ -235,54 +355,20 @@ graph TB
 
 ---
 
-## Future Improvements
+## 16. Notes
 
-1. **IAM Authentication** for enhanced security.
-2. Integration with **AWS Secrets Manager** for credential management.
-3. Automated Redis parameter tuning based on usage.
-4. Implement Redis Cluster Auto Scaling.
+- Redis cluster is designed for **high availability** but requires at least one replica per node group for failover.
+- Default Redis port `6379` is configurable but ensure matching inbound rules.
+- The module does not handle **IAM roles or policies** — ensure your environment grants required permissions for KMS and CloudWatch.
+- `replication_bytes_alarm` is only meaningful when replicas are present.
 
 ---
 
-## Usage Example
-
-```hcl
-module "elasticache" {
-  source = "./modules/elasticache"
-
-  name_prefix = "dev"
-  environment = "dev"
-
-  vpc_id                = "vpc-0123456789abcdef0"
-  private_subnet_ids    = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
-  asg_security_group_id = "sg-0123456789abcdef0"
-
-  redis_version = "7.1"
-  node_type     = "cache.t3.micro"
-
-  replicas_per_node_group = 1
-  num_node_groups         = 2
-  enable_failover         = true
-
-  snapshot_retention_limit = 7
-  redis_cpu_threshold      = 80
-  redis_memory_threshold   = 104857600
-
-  # Enable CloudWatch alarms
-  enable_redis_low_memory_alarm = true
-  enable_redis_high_cpu_alarm = true
-  enable_redis_replication_bytes_alarm = true
-  enable_redis_low_cpu_credits_alarm = true
-
-  sns_topic_arn = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
-  kms_key_arn   = "arn:aws:kms:eu-west-1:123456789012:key/example"
-}
-
-```
-
-## Useful Resources
+## 17. Useful Resources
 
 - [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/WhatIs.html)
 - [AWS CloudWatch Metrics](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.html)
 - [AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
 - [ElastiCache Best Practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/BestPractices.html)
+
+---

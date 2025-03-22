@@ -1,12 +1,10 @@
 # AWS Auto Scaling Group (ASG) Terraform Module
 
-This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) with all supporting resources required to host a scalable WordPress application. It integrates seamlessly with the Application Load Balancer (ALB), RDS MySQL, ElastiCache Redis, and optionally uses S3 for media storage and deployment scripts.
-
 ---
 
 ## 1. Overview
 
-This module provisions an Auto Scaling Group (ASG) with complete support for WordPress workloads, including EC2 configuration, scaling policies, monitoring, security, and integrations with ALB, RDS, Redis, and S3.
+This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) with all supporting resources required to host a scalable WordPress application. It includes EC2 instance configuration, launch template, scaling policies, security groups, and CloudWatch monitoring. The module seamlessly integrates with the Application Load Balancer (ALB), RDS MySQL, ElastiCache Redis, and optionally uses S3 for media storage and deployment scripts.
 
 ---
 
@@ -387,3 +385,5 @@ _No specific notes for this module._
 - [AWS EC2 IMDSv2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
 - [AWS CloudWatch Alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)
 - [AWS Systems Manager (SSM)](https://docs.aws.amazon.com/systems-manager/)
+
+---

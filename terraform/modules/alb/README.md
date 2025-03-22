@@ -1,10 +1,12 @@
 # AWS Application Load Balancer (ALB) Terraform Module
 
-Terraform module to provision and manage an AWS Application Load Balancer (ALB) with integrated security, monitoring, logging, and Web Application Firewall (WAF) support.
+---
 
 ## 1. Overview
 
-This module creates and manages an Application Load Balancer (ALB) in AWS for handling HTTP/HTTPS traffic. It includes comprehensive configurations for monitoring, logging, security, and WAF integration while adhering to Terraform and AWS best practices.
+This Terraform module provisions and manages an AWS Application Load Balancer (ALB) with full support for HTTP and HTTPS traffic. It includes integrated security groups, monitoring, access logging, and Web Application Firewall (WAF) protection, following Terraform and AWS best practices.
+
+---
 
 ## 2. Prerequisites / Requirements
 
@@ -13,6 +15,8 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 - Valid **ACM SSL Certificate ARN** is required if HTTPS Listener is enabled.
 - **KMS Key ARN** is required if Kinesis Firehose is enabled for WAF logging.
 - **S3 Bucket** for ALB Access Logs if logging is enabled.
+
+---
 
 ## 3. Architecture Diagram
 
@@ -113,6 +117,8 @@ graph LR
 - **WAF Integration** for protection against web-layer attacks
 - **Kinesis Firehose** for efficient WAF log delivery to S3
 
+---
+
 ## 5. Module Architecture
 
 This module provisions:
@@ -123,6 +129,8 @@ This module provisions:
 - **AWS WAF** with rate-based rules and conditional logging
 - **CloudWatch Alarms** for proactive monitoring
 - **Kinesis Firehose** for log processing (conditional)
+
+---
 
 ## 6. Module Files Structure
 - The module is organized into logical files for clarity and maintainability:
@@ -136,6 +144,8 @@ This module provisions:
 | `metrics.tf`         | Contains CloudWatch Alarms for monitoring ALB performance and errors.     |
 | `variables.tf`       | Defines all configurable variables with validation and defaults.          |
 | `outputs.tf`         | Exposes module outputs for integration with other modules or environments.|
+
+---
 
 ## 7. Inputs
 
@@ -165,6 +175,8 @@ This module provisions:
 | `enable_5xx_alarm`                 | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors              | Default: `false`                    |
 | `enable_target_response_time_alarm`| `bool`      | Enable CloudWatch alarm for Target Response Time            | Default: `false`                    |
 
+---
+
 ## 8. Outputs
 
 | **Name**                            | **Description**                                    |
@@ -181,6 +193,8 @@ This module provisions:
 | `alb_5xx_errors_alarm_arn`          | ARN for 5XX error alarm                            |
 | `alb_target_response_time_alarm_arn`| ARN for target response time alarm                 |
 | `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                    |
+
+---
 
 ## 9. Example Usage
 # Example usage for production environment with full features enabled (WAF, logging, HTTPS)
@@ -225,6 +239,8 @@ module "alb" {
 - Configure CloudWatch alarms with SNS notifications for proactive monitoring.
 - Ensure `enable_firehose` is enabled if WAF logging is required.
 
+---
+
 ## 11. Conditional Resource Creation
 
 This module supports conditional creation of certain resources based on input variables:
@@ -239,6 +255,8 @@ This module supports conditional creation of certain resources based on input va
   - `enable_5xx_alarm`
   - `enable_target_response_time_alarm`
 
+---
+
 ## 12. Best Practices
 - Enable HTTPS Listener with valid SSL certificate.
 - Adjust alarm thresholds according to real-world traffic.
@@ -251,11 +269,15 @@ This module supports conditional creation of certain resources based on input va
 - Configure CloudWatch alarms with SNS notifications for proactive monitoring.
 - Ensure `enable_firehose` is enabled if WAF logging is required.
 
+---
+
 ## 13. Integration
 Integrates with:
 - **VPC Module:** Network infrastructure.
 - **ASG Module:** Backend instances.
 - **KMS Module:** Log encryption.
+
+---
 
 ## 14. Future Improvements
 - **Enhanced WAF Rules:** Integrate AWS Managed Rule Groups for comprehensive protection:
@@ -266,6 +288,8 @@ Integrates with:
   - BotControlRuleSet
 - **Advanced Traffic Insights:** Add CloudWatch dashboards and additional metrics.
 - **Automated SSL management:** Integrate automatic ACM certificate rotation.
+
+---
 
 ## 15. Troubleshooting and Common Issues
 
@@ -295,6 +319,8 @@ Integrates with:
 
 _No specific notes for this module._
 
+---
+
 ## 17. Useful Resources
 
 - [ALB Documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
@@ -304,3 +330,5 @@ _No specific notes for this module._
 - [AWS Managed Rule Groups](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups.html)
 - [Kinesis Firehose for Logging](https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)
 - [Kinesis Firehose Best Practices](https://docs.aws.amazon.com/firehose/latest/dev/best-practices.html)
+
+---
