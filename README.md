@@ -14,7 +14,7 @@ A comprehensive Terraform project for deploying a secure, scalable, and highly a
 | AWS Provider    | >= 5.0    |
 | Random Provider | >= 3.0    |
 
-## Architecture Overview
+## Architecture Diagram
 
 This project implements a production-ready AWS infrastructure with the following components:
 

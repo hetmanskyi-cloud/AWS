@@ -144,7 +144,7 @@ resource "aws_db_instance" "read_replica" {
 
   identifier = "${var.name_prefix}-replica${count.index}-${var.environment}"
 
-  # --- Inherited Configuration from Primary Instance --- #
+  # Inherited Configuration from Primary Instance
   instance_class          = aws_db_instance.db.instance_class
   engine                  = aws_db_instance.db.engine
   engine_version          = aws_db_instance.db.engine_version
@@ -159,24 +159,24 @@ resource "aws_db_instance" "read_replica" {
   monitoring_interval     = aws_db_instance.db.monitoring_interval
   monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
 
-  # --- Performance Insights --- #
+  # Performance Insights
   performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
   performance_insights_kms_key_id = aws_db_instance.db.performance_insights_kms_key_id
 
-  # --- Other Configurations --- #
+  # Other Configurations
   auto_minor_version_upgrade      = true                    # Enable automatic minor version upgrades.
   copy_tags_to_snapshot           = true                    # Copy tags to DB snapshots.
   publicly_accessible             = false                   # Ensure read replicas are not publicly accessible for security best practices.
   skip_final_snapshot             = var.skip_final_snapshot # Skip final snapshot on deletion (for code consistency).
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
-  # --- Tags --- #
+  # Tags
   tags = merge(
     aws_db_instance.db.tags,
     { Name = "${var.name_prefix}-replica-${count.index}" } # Read Replica specific Name tag.
   )
 
-  # --- Dependencies --- #
+  # Dependencies
   depends_on = [aws_db_instance.db] # Ensure replica creation after primary instance.
 }
 

@@ -32,7 +32,7 @@ enable_interface_endpoints = true
 
 ---
 
-## 3. Architecture Overview
+## 3. Architecture Diagram
 
 ```mermaid
 graph LR

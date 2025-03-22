@@ -64,7 +64,7 @@ graph TB
     
     %% Connections
     ASG -->|"Connects to"| Redis
-    ASG_SG -->|"Allows traffic to"| IngressRule
+    ASG_SG -->|"Allows Redis (6379)"| IngressRule
     IngressRule -->|"Controls access to"| RedisSG
     RedisSG -->|"Secures"| Redis
     
@@ -181,7 +181,7 @@ This module provisions the following AWS resources:
 
 ---
 
-## 7. Input Variables
+## 7. Inputs
 
 | Name                                  | Type          | Description                               | Default/Required  |
 |---------------------------------------|---------------|-------------------------------------------|-------------------|

@@ -12,7 +12,7 @@ resource "aws_security_group" "rds_sg" {
     create_before_destroy = true # Ensures new SG creation before old one is destroyed to prevent downtime during updates.
   }
 
-  # --- Tags for Resource Identification --- #
+  # Tags for Resource Identification
   tags = {
     Name        = "${var.name_prefix}-rds-sg-${var.environment}" # Name tag for identifying the Security Group.
     Environment = var.environment                                # Environment tag for resource management.
@@ -38,7 +38,6 @@ resource "aws_security_group_rule" "rds_ingress_from_asg" {
 # For environments requiring strict outbound control, consider Network ACLs or custom egress rules.
 
 # --- Notes --- #
-
 # 1. **Ingress Rule for ASG Access**:
 #    - Ingress is configured via 'aws_security_group_rule' to allow database traffic from the Application Security Group (ASG).
 #    - This restricts access to the RDS instance, permitting inbound connections only from the specified ASG Security Group, enhancing security.

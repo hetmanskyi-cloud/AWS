@@ -205,7 +205,7 @@ This module provisions:
 
 ---
 
-## 9. Usage Example
+## 9. Example Usage
 
 ```hcl
 module "kms" {
