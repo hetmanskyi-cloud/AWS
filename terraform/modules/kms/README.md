@@ -34,7 +34,7 @@ The module provisions:
 ### Architecture Diagram
 
 ```mermaid
-graph TD
+graph LR
     %% Main KMS Components
     KMSKey[Primary KMS Key]
     KeyPolicy[Key Policy]

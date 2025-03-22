@@ -9,7 +9,7 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 ## Architecture Diagram
 
 ```mermaid
-graph TB
+graph LR
     %% Main Components
     VPC["VPC"]
     PublicSubnets["Public Subnets"]
