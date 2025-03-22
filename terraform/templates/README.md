@@ -15,7 +15,7 @@ This template dynamically generates the user data script, which is executed when
 ## User Data Execution Flow
 
 ```mermaid
-graph LR
+graph TD
   %% Main Execution Steps
   A["Start EC2 Instance"] --> B["Run user_data.sh.tpl"]
   B --> C["Install AWS CLI v2"]
