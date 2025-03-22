@@ -31,25 +31,19 @@ graph TB
     VPC["VPC"]
     PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
     EC2["EC2 Instances<br>(Private Subnets)"]
+    AWSServices["AWS Services<br>(SSM, CloudWatch, KMS)"]
     
-    %% Endpoint Components
-    subgraph "Interface VPC Endpoints"
-        SSM["Systems Manager<br>(SSM)"]
-        SSMMessages["SSM Messages"]
-        EC2Messages["EC2 Messages<br>(ASG Communication)"]
-        CWLogs["CloudWatch Logs"]
-        KMS["Key Management<br>Service (KMS)"]
-    end
+    %% Security Components
+    EndpointsSG["Endpoints Security Group"]
+    IngressRule["Ingress Rule<br>(HTTPS/443 from VPC CIDR)"]
+    EgressRule["Egress Rule<br>(HTTPS/443 to AWS Services)"]
     
-    subgraph "Security"
-        EndpointsSG["Endpoints Security Group"]
-        IngressRule["Ingress Rule<br>(HTTPS/443 from VPC CIDR)"]
-        EgressRule["Egress Rule<br>(HTTPS/443 to AWS Services)"]
-    end
-    
-    subgraph "AWS Services Cloud"
-        AWSServices["AWS Services<br>(SSM, CloudWatch, KMS)"]
-    end
+    %% VPC Endpoints
+    SSM["Systems Manager<br>(SSM)"]
+    SSMMessages["SSM Messages<br>Endpoint"]
+    EC2Messages["EC2 Messages<br>(ASG Communication)"]
+    CWLogs["CloudWatch Logs<br>Endpoint"]
+    KMS["Key Management<br>Service (KMS)"]
     
     %% Network Structure
     VPC -->|"Contains"| PrivateSubnets
@@ -74,11 +68,11 @@ graph TB
     EndpointsSG -->|"Secures"| KMS
     
     %% Service Connections
-    EC2 -->|"Private Access<br>via Endpoints"| SSM
-    EC2 -->|"Private Access<br>via Endpoints"| SSMMessages
-    EC2 -->|"Private Access<br>via Endpoints"| EC2Messages
-    EC2 -->|"Private Access<br>via Endpoints"| CWLogs
-    EC2 -->|"Private Access<br>via Endpoints"| KMS
+    EC2 -->|"Private Access"| SSM
+    EC2 -->|"Private Access"| SSMMessages
+    EC2 -->|"Private Access"| EC2Messages
+    EC2 -->|"Private Access"| CWLogs
+    EC2 -->|"Private Access"| KMS
     
     SSM -->|"Private Connection"| AWSServices
     SSMMessages -->|"Private Connection"| AWSServices
