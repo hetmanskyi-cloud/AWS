@@ -91,7 +91,7 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
     Environment = var.environment           # Environment tag
   }
 
-  # --- Notes --- #
+  # Notes:
   # - Uploads scripts to 'scripts' bucket (defined in 'var.s3_scripts').
 }
 
@@ -186,7 +186,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bu
     prevent_destroy = false # Allow destroy for updates/replacements
   }
 
-  # --- Notes --- #
+  # Notes:
   # ALB Logs Bucket Encryption Exception:
   # The 'alb_logs' bucket is intentionally excluded from this resource and
   # configured separately in 'aws_s3_bucket_server_side_encryption_configuration.alb_logs_bucket'.
@@ -310,7 +310,7 @@ resource "random_string" "suffix" {
   lower   = true  # Lowercase letters allowed
   numeric = true  # Numeric chars allowed
 
-  # --- Notes --- #
+  # Notes:
   # - 5-char random suffix (lowercase, numeric).
   # - Ensures unique bucket names.
 }

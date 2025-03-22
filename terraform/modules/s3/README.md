@@ -1,10 +1,14 @@
 # AWS S3 Module for Terraform
 
+---
+
+## 1. Overview
+
 This module creates and manages S3 buckets for various use cases within a project. It includes configurations for encryption, logging, versioning, lifecycle policies, cross-region replication, and access control to ensure security and compliance with best practices.
 
 ---
 
-### Prerequisites
+## 2. Prerequisites / Requirements
 
 - **AWS Provider Configuration**:  
   The `aws` provider configuration, including the region and credentials, must be set in the root block of the Terraform project. An additional provider configuration for replication is required with the alias `aws.replication`.
@@ -17,57 +21,7 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ---
 
-## Features
-
-- **S3 Bucket Management**:
-  - **Default region buckets**: Created based on the `default_region_buckets` map variable
-  - **Replication region buckets**: Created based on the `replication_region_buckets` map variable
-  - Dynamic bucket creation with configurable properties (versioning, replication, server access logging)
-  - CORS configuration for WordPress media bucket with configurable origins
-
-- **Logging Configuration**:
-  - Centralized logging bucket for all S3 access logs
-  - CloudTrail integration for API activity logging in dedicated bucket
-  - Bucket policy configured for secure log delivery
-  - ALB logs bucket with appropriate permissions for Elastic Load Balancing service
-
-- **Lifecycle Management**:
-  - Configurable versioning per bucket via bucket configuration
-  - Automatic cleanup of noncurrent versions after specified retention period
-  - Incomplete multipart upload cleanup
-  - DynamoDB TTL for state locks with automatic cleanup
-  - Special lifecycle rules for terraform_state bucket to prevent accidental deletion
-
-- **Conditional Resource Creation**:
-  - DynamoDB Table: Created when enabled via `enable_dynamodb` (requires terraform_state bucket)
-  - CORS: Enabled via `enable_cors` for WordPress media bucket
-  - CORS configuration for WordPress media bucket with configurable origins (restrict origins in production for security)
-  - Replication: Enabled for buckets with replication property set to true
-
-- **Encryption and Security**:
-  - Mandatory KMS encryption for all buckets (except ALB logs bucket which uses SSE-S3)
-  - Enforced HTTPS-only access
-  - Public access blocked by default
-  - Bucket key enabled for KMS cost optimization
-
-- **Monitoring and Alerting**:
-  - SNS notifications for bucket events
-  - Centralized logging bucket with proper access controls
-
-- **Cross-Region Replication**:
-  - Replication to specified region for eligible buckets
-  - IAM roles and policies for secure replication
-  - Replication status monitoring
-  - Support for KMS encrypted objects
-
-- **DynamoDB Integration**:
-  - State locking table with TTL cleanup
-  - Point-in-time recovery enabled by default
-  - Cost-effective pay-per-request billing mode
-
----
-
-## Architecture Diagram
+## 3. Architecture Diagram
 
 ```mermaid
 graph LR
@@ -183,10 +137,89 @@ graph LR
     class KMS,rep_KMS encryption
     class IAMRole,IAMPolicy iam
 ```
+---
+
+## 4. Features
+
+- **S3 Bucket Management**:
+  - **Default region buckets**: Created based on the `default_region_buckets` map variable
+  - **Replication region buckets**: Created based on the `replication_region_buckets` map variable
+  - Dynamic bucket creation with configurable properties (versioning, replication, server access logging)
+  - CORS configuration for WordPress media bucket with configurable origins
+
+- **Logging Configuration**:
+  - Centralized logging bucket for all S3 access logs
+  - CloudTrail integration for API activity logging in dedicated bucket
+  - Bucket policy configured for secure log delivery
+  - ALB logs bucket with appropriate permissions for Elastic Load Balancing service
+
+- **Lifecycle Management**:
+  - Configurable versioning per bucket via bucket configuration
+  - Automatic cleanup of noncurrent versions after specified retention period
+  - Incomplete multipart upload cleanup
+  - DynamoDB TTL for state locks with automatic cleanup
+  - Special lifecycle rules for terraform_state bucket to prevent accidental deletion
+
+- **Conditional Resource Creation**:
+  - DynamoDB Table: Created when enabled via `enable_dynamodb` (requires terraform_state bucket)
+  - CORS: Enabled via `enable_cors` for WordPress media bucket
+  - CORS configuration for WordPress media bucket with configurable origins (restrict origins in production for security)
+  - Replication: Enabled for buckets with replication property set to true
+
+- **Encryption and Security**:
+  - Mandatory KMS encryption for all buckets (except ALB logs bucket which uses SSE-S3)
+  - Enforced HTTPS-only access
+  - Public access blocked by default
+  - Bucket key enabled for KMS cost optimization
+
+- **Monitoring and Alerting**:
+  - SNS notifications for bucket events
+  - Centralized logging bucket with proper access controls
+
+- **Cross-Region Replication**:
+  - Replication to specified region for eligible buckets
+  - IAM roles and policies for secure replication
+  - Replication status monitoring
+  - Support for KMS encrypted objects
+
+- **DynamoDB Integration**:
+  - State locking table with TTL cleanup
+  - Point-in-time recovery enabled by default
+  - Cost-effective pay-per-request billing mode
 
 ---
 
-## Module Files Structure
+## 5. Module Architecture
+
+This module provisions the following AWS resources:
+
+- **S3 Buckets**:
+  - `terraform_state`: Stores Terraform remote state with versioning and encryption.
+  - `wordpress_media`: Stores WordPress media files, with optional replication.
+  - `scripts`: Stores deployment scripts, optionally uploaded by the module.
+  - `alb_logs`: Stores ALB access logs with predefined lifecycle policies.
+  - `cloudtrail`: Stores CloudTrail logs for auditing.
+  - `logging`: Centralized bucket for S3 access logs.
+
+- **DynamoDB Table** (optional):
+  - Provides state locking for Terraform to avoid concurrent modifications.
+
+- **KMS Keys**:
+  - Used for server-side encryption (SSE-KMS) of S3 objects and DynamoDB.
+  - Supports cross-region replica KMS key for replication buckets.
+
+- **IAM Policies**:
+  - Grants necessary permissions for accessing the S3 buckets and DynamoDB table.
+
+- **S3 Replication** (optional):
+  - Enables cross-region replication of the `wordpress_media` bucket.
+
+- **Lifecycle Policies**:
+  - Applied to specific buckets like `alb_logs` to manage object expiration.
+
+---
+
+## 6. Module Files Structure
 
 | **File**          | **Description**                                                                          |
 |-------------------|------------------------------------------------------------------------------------------|
@@ -200,7 +233,7 @@ graph LR
 
 ---
 
-## Input Variables
+## 7. Inputs
 
 | **Name**                           | **Type**      | **Description**                                          | **Default**             |
 |------------------------------------|---------------|----------------------------------------------------------|-------------------------|
@@ -224,7 +257,7 @@ graph LR
 
 ---
 
-## Outputs
+## 8. Outputs
 
 | **Name**                                   | **Description**                                           |
 |--------------------------------------------|-----------------------------------------------------------|
@@ -252,34 +285,7 @@ graph LR
 
 ---
 
-## Security Best Practices
-
-- **Access Control**:
-  - All buckets are private by default
-  - HTTPS-only access enforced
-  - Least privilege IAM policies
-  - Review and restrict CORS `allowed_origins` in production environments
-
-- **Encryption**:
-  - Mandatory KMS encryption for all resources (except ALB logs bucket which uses SSE-S3)
-  - Encryption enforced via bucket policies
-  - Server-side encryption for all objects
-  - Secure key management with KMS
-  - Bucket key enabled for cost optimization
-
-- **Monitoring**:
-  - SNS notifications for bucket events
-  - Centralized logging with retention
-  - Point-in-time recovery for DynamoDB
-
-- **Cost Optimization**:
-  - Pay-per-request billing for DynamoDB
-  - Lifecycle policies for old versions
-  - Bucket key enabled for KMS optimization
-
----
-
-## Usage Example
+## 9. Example Usage
 
 ```hcl
 module "s3" {
@@ -365,7 +371,80 @@ module "s3" {
   enable_dynamodb = true
 }
 ```
-## Troubleshooting and Common Issues
+---
+
+## 10. Security Considerations / Recommendations
+
+- **Access Control**:
+  - All buckets are private by default
+  - HTTPS-only access enforced
+  - Least privilege IAM policies
+  - Review and restrict CORS `allowed_origins` in production environments
+
+- **Encryption**:
+  - Mandatory KMS encryption for all resources (except ALB logs bucket which uses SSE-S3)
+  - Encryption enforced via bucket policies
+  - Server-side encryption for all objects
+  - Secure key management with KMS
+  - Bucket key enabled for cost optimization
+
+- **Monitoring**:
+  - SNS notifications for bucket events
+  - Centralized logging with retention
+  - Point-in-time recovery for DynamoDB
+
+- **Cost Optimization**:
+  - Pay-per-request billing for DynamoDB
+  - Lifecycle policies for old versions
+  - Bucket key enabled for KMS optimization
+
+---
+
+## 11. Conditional Resource Creation
+
+- **DynamoDB Table** is created only if `enable_dynamodb = true`.
+- **CORS Configuration** is applied only if `enable_cors = true`.
+- **Scripts Upload** happens only if `enable_s3_script = true`.
+- **Cross-Region Replication** is configured only if bucket's `replication = true`.
+
+---
+
+## 12. Best Practices
+
+- **Enable Versioning**: Protect against accidental deletions and enable recovery of previous object versions.
+- **Use KMS Encryption**: Always enable server-side encryption with KMS for compliance and data protection.
+- **Implement Lifecycle Policies**: Clean up old logs and data regularly to optimize costs, especially for `alb_logs`.
+- **Separate Buckets by Purpose**: Store Terraform state, application data, and logs in dedicated buckets for clarity and security.
+- **Enable Access Logging**: Monitor access to critical buckets to detect potential unauthorized access.
+- **Review IAM Policies**: Ensure minimal permissions are granted to each principal interacting with the buckets.
+- **Test Cross-Region Replication**: Verify replication works as intended and monitor for failures.
+
+---
+
+## 13. Integration
+
+This S3 module integrates with the following modules and AWS services:
+
+- **Terraform Backend**: Provides remote state storage using the `terraform_state` bucket and optional DynamoDB lock table.
+- **WordPress ASG Module**: Delivers the `wordpress_media` bucket for media uploads and content storage.
+- **ALB Module**: Stores Application Load Balancer access logs in the `alb_logs` bucket.
+- **CloudTrail**: Archives audit logs in the `cloudtrail` bucket.
+- **KMS Module**: Provides encryption keys used by the S3 buckets and replication.
+- **SNS Module** (optional): Receives monitoring or replication failure notifications.
+
+---
+
+## 14. Future Improvements
+
+- Implement S3 Object Lock for compliance workloads.
+- Add support for Intelligent-Tiering storage class.
+- Integrate S3 Inventory for large-scale bucket audits.
+- Enhance monitoring with CloudWatch Metrics and custom alarms for replication failures.
+- Expand support for AWS S3 Access Points for granular access control.
+
+---
+
+## 15. Troubleshooting and Common Issues
 
 ### 1. Replication Fails with Access Denied
 **Cause:** Missing or incorrect IAM role/policy for replication.  
@@ -430,7 +509,7 @@ module "s3" {
 
 ---
 
-## Notes
+## 16. Notes
 
 - This module is designed with security best practices in mind, including encryption, access control, and monitoring.
 - The ALB logs bucket uses SSE-S3 encryption (AES256) as required by the AWS Elastic Load Balancing service.
@@ -441,7 +520,7 @@ module "s3" {
 
 ---
 
-## Useful Resources
+## 17. Useful Resources
 
 - [AWS S3 Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
 - [S3 Bucket Encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html)
@@ -453,3 +532,5 @@ module "s3" {
 - [S3 Pricing](https://aws.amazon.com/s3/pricing/)
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
 - [S3 Security Best Practices](https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html)
+
+---

@@ -17,7 +17,7 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
     max_age_seconds = 3000                # Cache preflight: 3000s
   }
 
-  # --- CORS Notes --- #
+  # CORS Notes:
   # 1. Purpose: Browser access to 'wordpress_media' bucket.
   # 2. Security: CRITICAL! Restrict 'allowed_origins' in production!
   # 3. Methods: GET only (read-only).

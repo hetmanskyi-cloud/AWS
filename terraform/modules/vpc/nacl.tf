@@ -100,8 +100,8 @@ resource "aws_network_acl_rule" "public_outbound_allow_all" {
 }
 
 # --- Private Network ACL Configuration --- #
-# Definition of the private NACL for controlling traffic in private subnets.
 
+# Definition of the private NACL for controlling traffic in private subnets.
 resource "aws_network_acl" "private_nacl" {
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
@@ -178,7 +178,7 @@ resource "aws_network_acl_rule" "private_outbound_elasticache" {
   rule_action    = "allow"
 }
 
-# Rule for outbound DNS traffic (ports 53 TCP/UDP)
+# Rule for outbound DNS traffic (ports 53 TCP)
 # NACL rules for DNS (port 53) are required for DNS queries
 resource "aws_network_acl_rule" "private_outbound_dns_tcp" {
   network_acl_id = aws_network_acl.private_nacl.id
@@ -191,6 +191,8 @@ resource "aws_network_acl_rule" "private_outbound_dns_tcp" {
   rule_action    = "allow"
 }
 
+# Rule for outbound DNS traffic (ports 53 UDP)
+# NACL rules for DNS (port 53) are required for DNS queries
 resource "aws_network_acl_rule" "private_outbound_dns_udp" {
   network_acl_id = aws_network_acl.private_nacl.id
   rule_number    = 230

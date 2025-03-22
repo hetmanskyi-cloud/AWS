@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
   # Table name is constructed dynamically using a project-specific prefix and a random suffix for uniqueness.
   name = "${lower(var.name_prefix)}-terraform-locks-${random_string.suffix.result}" # Dynamic table name
 
-  # --- Billing Mode --- #
+  # Billing Mode
   # PAY_PER_REQUEST: You only pay for the read/write operations your application actually performs.
   billing_mode = "PAY_PER_REQUEST" # Billing mode: PAY_PER_REQUEST
 
