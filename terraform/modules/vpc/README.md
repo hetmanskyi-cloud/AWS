@@ -1,10 +1,30 @@
 # AWS VPC Module for Terraform
 
+---
+
+## 1. Overview
+
 This module creates and manages a Virtual Private Cloud (VPC) in AWS, including public and private subnets, route tables, Internet Gateway, Network ACLs (NACLs), and VPC Flow Logs. It provides a secure, scalable, and configurable networking foundation for AWS infrastructure.
 
 ---
 
-## **Architecture Overview**
+## 2. Prerequisites / Requirements
+
+- **AWS Provider Configuration**:
+  - The AWS provider (`aws`) must be properly configured in the root module with region and credentials.
+  
+- **KMS Key for Flow Logs**:
+  - An existing KMS key ARN is required for encrypting VPC Flow Logs.
+
+- **IAM Role for Flow Logs (optional)**:
+  - If not created by this module, an existing IAM role with `logs:PutLogEvents` and `logs:CreateLogStream` permissions must be provided.
+
+- **S3 and DynamoDB Endpoints (optional)**:
+  - Ensure the corresponding services (S3, DynamoDB) are available if `enable_interface_endpoints = true`.
+
+---
+
+## 3. Architecture Diagram
 
 ```mermaid
 graph LR
@@ -94,8 +114,9 @@ graph LR
     class IAMRole,IAMPolicy iam
     class S3EP,DynamoEP endpoints
 ```
+---
 
-## **Features**
+## 4. Features
 
 - **VPC Creation**:
   - Creates a VPC with a configurable CIDR block and DNS support.
@@ -140,90 +161,23 @@ graph LR
 
 ---
 
-## **Security**
+## 5. Module Architecture
 
-1. **Network ACLs (NACLs)**:
-   - Public subnets:
-     - SSH access is configurable with CIDR restrictions
-     - Ephemeral ports open for return traffic
-   - Private subnets:
-     - Allow only necessary ports (MySQL, Redis, DNS)
-     - Restricted to VPC CIDR for internal communication
-   
-2. **Flow Logs Security**:
-   - KMS encryption for all log data
-   - IAM roles follow principle of least privilege
-   - CloudWatch Logs permissions scoped to specific log groups
-   - CloudWatch alarm for monitoring Flow Logs delivery errors
-   - Optional SNS notifications for immediate alerts on delivery failures
-
-3. **Security Considerations**:
-   - Public IP assignment is restricted to public subnets only
-   - Gateway Endpoints provide secure access to AWS services
-   - NACL rules are stateless and provide additional security layer
-   - Default Security Group is fully restricted (no ingress/egress)
-
-> Note: Some tfsec rules are intentionally ignored with proper documentation (e.g., public IP assignment in public subnets).
-
-## NACL Rules Comparison Table
-
-| Rule Number | Direction | Protocol | Port Range       | Source/Destination CIDR | Action | Description                                    |
-|------------ |---------- |--------- |----------------- |------------------------ |------- |------------------------------------------------|
-| **Public NACL**                                                                                                                           |
-| 100         | Inbound   | TCP      | 80               | 0.0.0.0/0               | ALLOW  | Allow HTTP traffic for ALB                     |
-| 110         | Inbound   | TCP      | 443              | 0.0.0.0/0               | ALLOW  | Allow HTTPS traffic for ALB                    |
-| 120         | Inbound   | TCP      | 22               | var.ssh_allowed_cidr[0] | ALLOW  | Allow SSH traffic (configurable CIDR)          |
-| 130         | Inbound   | TCP      | 1024-65535       | 0.0.0.0/0               | ALLOW  | Allow ephemeral ports for return traffic       |
-| 100         | Outbound  | ALL      | ALL              | 0.0.0.0/0               | ALLOW  | Allow all outbound traffic                     |
-|                                                                                                                                           |
-| **Private NACL**                                                                                                                          |
-| 200         | Inbound   | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL from within VPC                    |
-| 210         | Inbound   | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis from within VPC                    |
-| 220         | Inbound   | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports for return traffic       |
-| 250         | Inbound   | TCP      | 443              | VPC CIDR                | ALLOW  | Allow HTTPS to VPC Endpoints (SSM, etc.)       |
-| 200         | Outbound  | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL outbound to VPC                    |
-| 210         | Outbound  | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis outbound to VPC                    |
-| 220         | Outbound  | TCP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS TCP queries                          |
-| 230         | Outbound  | UDP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS UDP queries                          |
-| 240         | Outbound  | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports within VPC               |
-| 260         | Outbound  | TCP      | 443              | VPC CIDR                | ALLOW  | Allow SSM traffic to VPC Endpoints             |
+This module provisions the following AWS resources:
+- **VPC** with customizable CIDR block
+- **Public and Private Subnets** across three Availability Zones
+- **Internet Gateway** for internet access
+- **Route Tables** for public and private routing
+- **Network ACLs (NACLs)** with detailed inbound/outbound rules
+- **VPC Gateway Endpoints** for S3 and DynamoDB
+- **VPC Flow Logs** with CloudWatch Log Group and KMS encryption
+- **CloudWatch Alarm** for Flow Logs delivery errors
+- **IAM Role and Policy** for Flow Logs permissions
+- **Default Security Group** locked by default
 
 ---
 
-> *Note:* Adjust `ssh_allowed_cidr`, CIDRs, and port ranges per environment for production hardening.
-
----
-
-🔹 **Notes:**
-- **Public NACL** allows only web traffic and SSH for testing.
-- **Private NACL** strictly controls traffic: only MySQL, Redis, DNS, and SSM are allowed.
-- All ephemeral port ranges are open for necessary return traffic.
-- Rule numbers correspond to Terraform `aws_network_acl_rule` resources for clarity.
-
----
-
-## **Cost Management**
-
-1. **VPC Components**:
-   - VPC itself - no cost
-   - Internet Gateway - no cost
-   - Gateway Endpoints - no cost
-   - Route Tables - no cost
-
-2. **Flow Logs Costs**:
-   - CloudWatch Logs ingestion and storage fees apply
-   - Costs vary by region and log volume
-   - Example cost calculation:
-     ```
-     1GB logs/day * 30 days * $0.50/GB = $15/month
-     ```
-
-3. **Cost Optimization**:
-   - Use log retention policies
-   - Consider sampling for high-traffic environments
-   - Monitor CloudWatch Logs usage
-
-## **Module Files Structure**
+## 6. Module Files Structure
 
 | **File**              | **Description**                                                                 |
 |-----------------------|---------------------------------------------------------------------------------|
@@ -236,7 +190,7 @@ graph LR
 
 ---
 
-## **Input Variables**
+## 7. Inputs
 
 | **Name**                         | **Type**       | **Description**                                      | **Default/Required**       |
 |----------------------------------|----------------|------------------------------------------------------|----------------------------|
@@ -262,7 +216,9 @@ graph LR
 | `ssh_allowed_cidr`               | `list(string)` | List of allowed CIDR blocks for SSH access.          | `["0.0.0.0/0"]` (Optional) |
 | `sns_topic_arn`                  | `string`       | ARN of SNS Topic for CloudWatch Alarms notifications.| `null` (Optional)          |
 
-## **Outputs**
+---
+
+## 8. Outputs
 
 | **Name**                         | **Description**                                                      |
 |----------------------------------|----------------------------------------------------------------------|
@@ -302,7 +258,9 @@ graph LR
 | `availability_zone_private_3`    | Availability Zone for private subnet 3                               |
 | `internet_gateway_id`            | The ID of the Internet Gateway                                       |
 
-## **Example Usage**
+---
+
+## 9. Example Usage
 
 ```hcl
 module "vpc" {
@@ -340,10 +298,74 @@ module "vpc" {
   sns_topic_arn                 = "arn:aws:sns:eu-west-1:123456789012:vpc-alerts"
 }
 ```
+---
+
+## 10. Security Considerations / Recommendations
+
+1. **Network ACLs (NACLs)**:
+   - Public subnets:
+     - SSH access is configurable with CIDR restrictions
+     - Ephemeral ports open for return traffic
+   - Private subnets:
+     - Allow only necessary ports (MySQL, Redis, DNS)
+     - Restricted to VPC CIDR for internal communication
+   
+2. **Flow Logs Security**:
+   - KMS encryption for all log data
+   - IAM roles follow principle of least privilege
+   - CloudWatch Logs permissions scoped to specific log groups
+   - CloudWatch alarm for monitoring Flow Logs delivery errors
+   - Optional SNS notifications for immediate alerts on delivery failures
+
+3. **Security Considerations**:
+   - Public IP assignment is restricted to public subnets only
+   - Gateway Endpoints provide secure access to AWS services
+   - NACL rules are stateless and provide additional security layer
+   - Default Security Group is fully restricted (no ingress/egress)
+
+> Note: Some tfsec rules are intentionally ignored with proper documentation (e.g., public IP assignment in public subnets).
+
+### NACL Rules Comparison Table
+
+| Rule Number | Direction | Protocol | Port Range       | Source/Destination CIDR | Action | Description                                    |
+|------------ |---------- |--------- |----------------- |------------------------ |------- |------------------------------------------------|
+| **Public NACL**                                                                                                                           |
+| 100         | Inbound   | TCP      | 80               | 0.0.0.0/0               | ALLOW  | Allow HTTP traffic for ALB                     |
+| 110         | Inbound   | TCP      | 443              | 0.0.0.0/0               | ALLOW  | Allow HTTPS traffic for ALB                    |
+| 120         | Inbound   | TCP      | 22               | var.ssh_allowed_cidr[0] | ALLOW  | Allow SSH traffic (configurable CIDR)          |
+| 130         | Inbound   | TCP      | 1024-65535       | 0.0.0.0/0               | ALLOW  | Allow ephemeral ports for return traffic       |
+| 100         | Outbound  | ALL      | ALL              | 0.0.0.0/0               | ALLOW  | Allow all outbound traffic                     |
+|                                                                                                                                           |
+| **Private NACL**                                                                                                                          |
+| 200         | Inbound   | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL from within VPC                    |
+| 210         | Inbound   | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis from within VPC                    |
+| 220         | Inbound   | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports for return traffic       |
+| 250         | Inbound   | TCP      | 443              | VPC CIDR                | ALLOW  | Allow HTTPS to VPC Endpoints (SSM, etc.)       |
+| 200         | Outbound  | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL outbound to VPC                    |
+| 210         | Outbound  | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis outbound to VPC                    |
+| 220         | Outbound  | TCP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS TCP queries                          |
+| 230         | Outbound  | UDP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS UDP queries                          |
+| 240         | Outbound  | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports within VPC               |
+| 260         | Outbound  | TCP      | 443              | VPC CIDR                | ALLOW  | Allow SSM traffic to VPC Endpoints             |
 
 ---
 
-## **Best Practices**
+> *Note:* Adjust `ssh_allowed_cidr`, CIDRs, and port ranges per environment for production hardening.
+
+---
+
+## 11. Conditional Resource Creation
+
+This module supports conditional creation of several resources based on input variables:
+
+- **VPC Flow Logs**: Created only if `enable_flow_logs = true`.
+- **VPC Endpoints (S3, DynamoDB)**: Created only if `enable_interface_endpoints = true`.
+- **Public and Private NACLs**: Created by default with customizable rules.
+- **CloudWatch Alarms for Flow Logs**: Created only if `enable_flow_logs_monitoring = true`.
+
+---
+
+## 12. Best Practices
 
 1. **Security**:
    - Regularly review and update NACL rules to maintain security posture
@@ -367,7 +389,28 @@ module "vpc" {
 
 ---
 
-## Troubleshooting and Common Issues
+## 13. Integration
+
+This VPC module is designed to integrate with:
+- **ALB Module** — for public access to application load balancer
+- **ASG Module** — for EC2 auto-scaling groups deployed in public/private subnets
+- **RDS Module** — for database instances located in private subnets
+- **ElastiCache Module** — for in-memory caching layer inside private subnets
+- **S3 and DynamoDB Modules** — utilizing Gateway Endpoints for optimized access
+
+---
+
+## 14. Future Improvements
+
+- Add **NAT Gateway** support for private subnet internet access.
+- Implement **Transit Gateway integration** for multi-VPC architecture.
+- Add **custom DHCP options set** support.
+- Extend VPC Flow Logs with **Athena query support** for deeper analysis.
+- Provide **IPv6 support** for modern workloads.
+
+---
+
+## 15. Troubleshooting and Common Issues
 
 ### 1. No Internet Access in Public Subnets
 **Cause:** Missing or incorrect route to the Internet Gateway (IGW) in the public route table.  
@@ -446,16 +489,42 @@ module "vpc" {
 
 ---
 
-## Notes:
+## 16. Notes
 - Review Flow Logs directly:
   ```shell
   aws logs tail /aws/vpc/flow-logs/<env> --follow
   ```
 - Keep an eye on CloudWatch Logs and delivery metrics to catch issues early.
 
+- **Public NACL** allows only web traffic and SSH for testing.
+- **Private NACL** strictly controls traffic: only MySQL, Redis, DNS, and SSM are allowed.
+- All ephemeral port ranges are open for necessary return traffic.
+- Rule numbers correspond to Terraform `aws_network_acl_rule` resources for clarity.
+
+### **Cost Management**
+
+1. **VPC Components**:
+   - VPC itself - no cost
+   - Internet Gateway - no cost
+   - Gateway Endpoints - no cost
+   - Route Tables - no cost
+
+2. **Flow Logs Costs**:
+   - CloudWatch Logs ingestion and storage fees apply
+   - Costs vary by region and log volume
+   - Example cost calculation:
+     ```
+     1GB logs/day * 30 days * $0.50/GB = $15/month
+     ```
+
+3. **Cost Optimization**:
+   - Use log retention policies
+   - Consider sampling for high-traffic environments
+   - Monitor CloudWatch Logs usage
+
 ---
 
-## **Useful Resources**
+## 17. Useful Resources
 
 - [AWS VPC Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html)
 - [Terraform VPC Module Guide](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest)
@@ -465,3 +534,5 @@ module "vpc" {
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/latest/developerguide/overview.html)
 - [AWS Gateway Endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html)
 - [AWS Security Best Practices](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html)
+
+---
