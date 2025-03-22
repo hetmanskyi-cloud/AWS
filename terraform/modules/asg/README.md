@@ -98,6 +98,8 @@ graph TB
     class ScaleOut,ScaleIn,TargetTracking policy;
 ```
 
+---
+
 ## 4. Features
 
 - Automatically scale EC2 instances based on load.
@@ -223,6 +225,8 @@ module "asg" {
   healthcheck_version = "2.0"
 }
 ```
+
+---
 
 ## 10. Security Considerations / Recommendations
 

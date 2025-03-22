@@ -112,6 +112,8 @@ graph TB
     class VPC,PrivateSubnets network;
 ```
 
+---
+
 ## 4. Features
 
 - **ElastiCache Subnet Group**:
@@ -257,8 +259,8 @@ module "elasticache" {
   sns_topic_arn = "arn:aws:sns:eu-west-1:123456789012:cloudwatch-alarms"
   kms_key_arn   = "arn:aws:kms:eu-west-1:123456789012:key/example"
 }
-
 ```
+---
 
 ## 10. Security Considerations / Recommendations
 

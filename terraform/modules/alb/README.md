@@ -109,6 +109,8 @@ graph LR
     class VPC,PublicSubnets network;
 ```
 
+---
+
 ### 4. Features:
 - **Public-facing ALB** handling HTTP/HTTPS traffic
 - **Target Group** configured with advanced health checks and session stickiness
@@ -220,6 +222,8 @@ module "alb" {
   sns_topic_arn                  = module.monitoring.sns_topic_arn
 }
 ```
+
+---
 
 ## 10. Security Considerations / Recommendations
 - **HTTPS recommended** for encrypted client communication.
