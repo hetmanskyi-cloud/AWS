@@ -2,11 +2,19 @@
 
 Terraform module to provision and manage an AWS Application Load Balancer (ALB) with integrated security, monitoring, logging, and Web Application Firewall (WAF) support.
 
-## Overview
+## 1. Overview
 
 This module creates and manages an Application Load Balancer (ALB) in AWS for handling HTTP/HTTPS traffic. It includes comprehensive configurations for monitoring, logging, security, and WAF integration while adhering to Terraform and AWS best practices.
 
-## Architecture Diagram
+## 2. Prerequisites / Requirements
+
+- AWS provider must be configured in the root module.
+- Existing **VPC** and **Public Subnets** must be provided.
+- Valid **ACM SSL Certificate ARN** is required if HTTPS Listener is enabled.
+- **KMS Key ARN** is required if Kinesis Firehose is enabled for WAF logging.
+- **S3 Bucket** for ALB Access Logs if logging is enabled.
+
+## 3. Architecture Diagram
 
 ```mermaid
 graph LR
@@ -53,6 +61,8 @@ graph LR
     ALB -->|"Routes to"| TargetGroup
     TargetGroup -->|"Forwards to"| ASG
     ALB -->|"Generates"| AccessLogs
+    ALB -->|"DNS Name"| DNS["ALB DNS Name (Output)"]
+    ALB -->|"Deletion Protection"| Protection["Deletion Protection Enabled (Optional)"]
     
     %% Security
     ALB -->|"Uses"| ALB_SG
@@ -95,7 +105,7 @@ graph LR
     class VPC,PublicSubnets network;
 ```
 
-### Key Features:
+### 4. Features:
 - **Public-facing ALB** handling HTTP/HTTPS traffic
 - **Target Group** configured with advanced health checks and session stickiness
 - **Security Group** with controlled inbound/outbound traffic rules
@@ -103,7 +113,7 @@ graph LR
 - **WAF Integration** for protection against web-layer attacks
 - **Kinesis Firehose** for efficient WAF log delivery to S3
 
-## Module Architecture
+## 5. Module Architecture
 
 This module provisions:
 - **Application Load Balancer (ALB)**
@@ -114,7 +124,7 @@ This module provisions:
 - **CloudWatch Alarms** for proactive monitoring
 - **Kinesis Firehose** for log processing (conditional)
 
-## Module Files Structure
+## 6. Module Files Structure
 - The module is organized into logical files for clarity and maintainability:
 
 | **File**             | **Description**                                                           |
@@ -127,7 +137,7 @@ This module provisions:
 | `variables.tf`       | Defines all configurable variables with validation and defaults.          |
 | `outputs.tf`         | Exposes module outputs for integration with other modules or environments.|
 
-## Inputs
+## 7. Inputs
 
 | Name                               | Type           | Description                                              | Validation                          |
 |------------------------------------|----------------|----------------------------------------------------------|-------------------------------------|
@@ -155,7 +165,7 @@ This module provisions:
 | `enable_5xx_alarm`                 | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors              | Default: `false`                    |
 | `enable_target_response_time_alarm`| `bool`      | Enable CloudWatch alarm for Target Response Time            | Default: `false`                    |
 
-## Outputs
+## 8. Outputs
 
 | **Name**                            | **Description**                                    |
 |-------------------------------------|----------------------------------------------------|
@@ -172,7 +182,7 @@ This module provisions:
 | `alb_target_response_time_alarm_arn`| ARN for target response time alarm                 |
 | `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                    |
 
-## Example Usage
+## 9. Example Usage
 # Example usage for production environment with full features enabled (WAF, logging, HTTPS)
 
 ```hcl
@@ -197,11 +207,15 @@ module "alb" {
 }
 ```
 
-## Security
+## 10. Security Considerations / Recommendations
 - **HTTPS recommended** for encrypted client communication.
 - **WAF** protects against common attacks like rate-limiting and injection.
 - **Firehose** delivers encrypted logs securely to S3.
 - **CloudWatch alarms** proactively monitor ALB health.
+
+### General Recommendations
+- Enable HTTPS Listener with a valid SSL certificate.
+- Adjust alarm thresholds according to real-world traffic.
 
 ## Security Best Practices
 - Always enable WAF for production to protect against common web attacks.
@@ -211,17 +225,39 @@ module "alb" {
 - Configure CloudWatch alarms with SNS notifications for proactive monitoring.
 - Ensure `enable_firehose` is enabled if WAF logging is required.
 
-## Best Practices
+## 11. Conditional Resource Creation
+
+This module supports conditional creation of certain resources based on input variables:
+
+- **HTTPS Listener** is created only if `enable_https_listener = true`.
+- **ALB Access Logging** is enabled only if `enable_alb_access_logs = true`.
+- **Kinesis Firehose** is provisioned only if `enable_firehose = true`.
+- **AWS WAF** is created and attached to ALB only if `enable_waf = true`.
+- **WAF Logging** is enabled only if both `enable_waf_logging = true` and `enable_firehose = true`.
+- **CloudWatch Alarms** are created based on the following flags:
+  - `enable_high_request_alarm`
+  - `enable_5xx_alarm`
+  - `enable_target_response_time_alarm`
+
+## 12. Best Practices
 - Enable HTTPS Listener with valid SSL certificate.
 - Adjust alarm thresholds according to real-world traffic.
 
-## Integration
+### Security Best Practices
+- Always enable WAF for production to protect against common web attacks.
+- Store ALB and WAF logs securely in S3 with **KMS encryption**.
+- Review and tighten Security Group rules periodically.
+- Regularly audit IAM roles and policies for least privilege.
+- Configure CloudWatch alarms with SNS notifications for proactive monitoring.
+- Ensure `enable_firehose` is enabled if WAF logging is required.
+
+## 13. Integration
 Integrates with:
 - **VPC Module:** Network infrastructure.
 - **ASG Module:** Backend instances.
 - **KMS Module:** Log encryption.
 
-## Future Improvements
+## 14. Future Improvements
 - **Enhanced WAF Rules:** Integrate AWS Managed Rule Groups for comprehensive protection:
   - CommonRuleSet
   - SQLiRuleSet
@@ -231,7 +267,7 @@ Integrates with:
 - **Advanced Traffic Insights:** Add CloudWatch dashboards and additional metrics.
 - **Automated SSL management:** Integrate automatic ACM certificate rotation.
 
-## Troubleshooting and Common Issues
+## 15. Troubleshooting and Common Issues
 
 ### 1. HTTPS Listener not working
 - **Cause:** Missing or invalid `certificate_arn`
@@ -255,7 +291,11 @@ Integrates with:
 
 ---
 
-## Useful Resources
+## 16. Notes
+
+_No specific notes for this module._
+
+## 17. Useful Resources
 
 - [ALB Documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
 - [ALB Best Practices](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancer-best-practices.html)
