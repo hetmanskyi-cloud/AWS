@@ -19,7 +19,7 @@ A comprehensive Terraform project for deploying a secure, scalable, and highly a
 This project implements a production-ready AWS infrastructure with the following components:
 
 ```mermaid
-graph LR
+graph TD
     %% Style definitions
     classDef aws_vpc fill:#F2F2F2,stroke:#FF9900,stroke-width:2px
     classDef aws_alb fill:#FF9900,stroke:#232F3E,stroke-width:1px,color:#232F3E
