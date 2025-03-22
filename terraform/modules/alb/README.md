@@ -9,92 +9,46 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 ## Architecture Diagram
 
 ```mermaid
-graph TB
-    %% Main Components and Traffic Flow
-    Internet((Internet)) -->|""| WAF[AWS WAF\n(Optional)]
-    WAF -->|""| ALB[Application Load Balancer\nPublic-facing]
-    
-    %% Security Group Details
-    subgraph SG["Security Group"]
-        direction TB
-        Ingress["Ingress Rules:\n- Port 80 (HTTP)\n- Port 443 (HTTPS, Optional)"]
-        Egress["Egress Rules:\n- All Traffic (0.0.0.0/0)"]
-    end
-    SG --- ALB
-    
-    %% Listeners and Routing Logic
-    subgraph Listeners["ALB Listeners"]
-        direction LR
-        HTTP[HTTP Listener\nPort 80]
-        HTTPS[HTTPS Listener\nPort 443\n(Optional)]
-    end
-    ALB -->|""| Listeners
-    
-    %% HTTP Listener Logic
-    HTTP -->|"If HTTPS Enabled"| Redirect[Redirect to HTTPS\nHTTP 301]
-    HTTP -->|"If HTTPS Disabled"| TG[Target Group\nPort 80]
-    
-    %% HTTPS Listener Logic
-    HTTPS -->|""| TG
-    
-    %% Target Group Configuration
-    subgraph TargetConfig["Target Group Configuration"]
-        direction TB
-        HC[Health Check\nPath: /healthcheck.php\nInterval: 10s\nTimeout: 3s\nHealthy: 2 successes\nUnhealthy: 3 failures]
-        ST[Stickiness\nEnabled: true\nType: lb_cookie\nDuration: 1 day]
-        DR[Deregistration Delay: 300s\nSlow Start: 300s]
-    end
-    TG -->|""| TargetConfig
-    TG -->|""| ASG[EC2 Instances\nin Auto Scaling Group]
-    
-    %% Monitoring System
-    subgraph Monitoring["CloudWatch Monitoring"]
-        direction TB
-        HighReq[High Request Count Alarm\n(Optional)]
-        Errors5xx[5XX Error Alarm\n(Optional)]
-        RespTime[Target Response Time Alarm\n(Optional)]
-        UnhealthyHosts[Unhealthy Hosts Alarm]
-    end
-    ALB -->|""| Monitoring
-    
-    %% Notifications
-    Monitoring -->|""| SNS[SNS Topic\nAlerts & Notifications]
-    
-    %% WAF Configuration
-    subgraph WAFConfig["WAF Configuration"]
-        direction TB
-        RateLimit[Rate Limit Rule\n1000 req/5min per IP]
-        ManagedRules["AWS Managed Rules\n(Recommended for Production)"]
-    end
-    WAF -->|""| WAFConfig
-    
-    %% Logging System
-    subgraph Logging["Logging System"]
-        direction TB
-        ALBLogs[ALB Access Logs\n(Optional)]
-        WafLogs[WAF Logs\n(Optional)]
-    end
-    ALB -->|"Access Logs"| Logging
-    WAF -->|"WAF Logs"| Logging
-    
-    %% Log Delivery
-    WafLogs -->|""| Firehose[Kinesis Firehose\nGZIP Compression\n(Optional)]
-    ALBLogs -->|""| S3[S3 Bucket\nKMS Encryption\nSecure Access]
-    Firehose -->|""| S3
-    
-    %% Styling
-    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E,stroke-width:2px
-    classDef security fill:#DD3522,stroke:#232F3E,color:white,stroke-width:2px
-    classDef logging fill:#3F8624,stroke:#232F3E,color:white,stroke-width:2px
-    classDef optional fill:#1E88E5,stroke:#232F3E,color:white,stroke-width:2px
-    classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white,stroke-width:2px
-    
-    class Internet,ALB,ASG,TG aws
-    class SG,Ingress,Egress security
-    class S3,ALBLogs,WafLogs,Firehose logging
-    class Monitoring,HighReq,Errors5xx,RespTime,UnhealthyHosts,SNS monitoring
-    class WAF,HTTPS,HighReq,Errors5xx,RespTime,WafLogs,ALBLogs,Firehose,ManagedRules optional
-    class SG,Listeners,TargetConfig,WAFConfig,Logging subgraph
+graph TD
+  ALB["ALB (Application Load Balancer)"]
+  TG["Target Group (EC2 - WordPress Instances)"]
+  HTTP["HTTP Listener"]
+  HTTPS["HTTPS Listener (Optional)"]
+  SG["Security Group (Ingress/Egress Rules)"]
+  WAF["WAF (Web ACL) (Optional)"]
+  LOGS["Access Logs to S3 (Optional)"]
+  FIREHOSE["Kinesis Firehose (Optional)"]
+  CW["CloudWatch Alarms (Optional)"]
+
+  CW5xx["High 5XX Errors Alarm"]
+  CWReq["High Request Count Alarm"]
+  CWResp["Target Response Time Alarm"]
+
+  S3["S3 Bucket for ALB Logs"]
+  KMS["KMS Encryption (Optional)"]
+  WAFScope["WAF Scope: REGIONAL"]
+  WAFLogs["WAF Logs to S3 (Optional)"]
+
+  ALB --> TG
+  ALB --> HTTP
+  ALB --> HTTPS
+  ALB --> SG
+  ALB --> WAF
+  ALB --> LOGS
+  ALB --> FIREHOSE
+  ALB --> CW
+
+  CW --> CW5xx
+  CW --> CWReq
+  CW --> CWResp
+
+  LOGS --> S3
+  FIREHOSE --> S3
+  S3 --> KMS
+
+  WAF --> WAFScope
+  WAF --> WAFLogs
+
 ```
 
 ### Key Features:
