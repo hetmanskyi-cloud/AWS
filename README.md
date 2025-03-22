@@ -19,26 +19,62 @@ A comprehensive Terraform project for deploying a secure, scalable, and highly a
 This project implements a production-ready AWS infrastructure with the following components:
 
 ```mermaid
-graph TD
-  A["Internet"] --> B["WAF"];
-  B --> C["ALB"];
-  C --> D["ASG - EC2 (WordPress)"];
-  D --> E["RDS MySQL (Primary/Replica)"];
-  D --> F["ElastiCache (Redis)"];
-  
-  C -- "CloudWatch Alarms" --> CW["CloudWatch"];
-  CW --> SNS["SNS Notifications"];
-  
-  D --> VPC["VPC (Public & Private Subnets)"];
-  VPC -->|Stores Logs| S3["S3 Buckets"];
-  S3 -->|Encrypted By| KMS["KMS Encryption"];
-  VPC -->|VPC Flow Logs| CloudTrail["CloudTrail"];
-  
-  subgraph "Storage & Monitoring"
-    S3;
-    KMS;
-    CloudTrail;
-  end;
+graph LR
+    %% Style definitions
+    classDef aws_vpc fill:#F2F2F2,stroke:#FF9900,stroke-width:2px
+    classDef aws_alb fill:#FF9900,stroke:#232F3E,stroke-width:1px,color:#232F3E
+    classDef aws_asg fill:#FF9900,stroke:#232F3E,stroke-width:1px,color:#232F3E
+    classDef aws_db fill:#3B48CC,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_cache fill:#3B48CC,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_s3 fill:#4CAF50,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_kms fill:#FF4F8B,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_monitor fill:#CC2264,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_security fill:#7D3C98,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_endpoint fill:#232F3E,stroke:#FF9900,stroke-width:1px,color:white
+    
+    %% Network components
+    Internet["Internet"] --> WAF["AWS WAF"]
+    WAF --> ALB["Application Load Balancer<br/>with TLS termination"]
+    
+    %% Compute and database components
+    ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM"]
+    ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas"]
+    ASG --> Redis["ElastiCache Redis<br/>Replication Groups"]
+    
+    %% Storage and encryption
+    ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication"]
+    S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies"]
+    RDS --> KMS
+    Redis --> KMS
+    
+    %% Monitoring and logging
+    ALB --> CloudWatch["CloudWatch<br/>Metrics, Logs, Alarms"]
+    ASG --> CloudWatch
+    RDS --> CloudWatch
+    Redis --> CloudWatch
+    VPC --> CloudWatch
+    CloudWatch --> SNS["SNS Notifications"]
+    
+    %% VPC and security
+    ASG --> VPC["VPC<br/>Public & Private Subnets<br/>NACLs, Route Tables"]
+    RDS --> VPC
+    Redis --> VPC
+    ALB --> VPC
+    VPC --> Endpoints["VPC Interface Endpoints<br/>Secure AWS Service Access"]
+    VPC --> S3
+    
+    %% Apply styles
+    class VPC aws_vpc
+    class ALB aws_alb
+    class ASG aws_asg
+    class RDS aws_db
+    class Redis aws_cache
+    class S3 aws_s3
+    class KMS aws_kms
+    class CloudWatch aws_monitor
+    class SNS aws_monitor
+    class WAF aws_security
+    class Endpoints aws_endpoint
 ```
 
 ## Features
@@ -167,6 +203,49 @@ terraform/                           # Main Terraform configuration directory
     └── README.md                    # Templates documentation
 ```
 
+## Monitoring and Logging
+
+This project implements comprehensive monitoring and logging to ensure visibility and troubleshooting capabilities:
+
+### CloudWatch Integration
+
+- **Alarms**: Configured for critical metrics across all services
+- **Dashboards**: Custom dashboards for infrastructure overview
+- **Metrics**: Detailed metrics for VPC, EC2, RDS, ElastiCache, and ALB
+
+### Centralized Logging
+
+- **ALB Access Logs**: Stored in S3 with proper bucket policies
+  - Region-specific ELB account permissions (e.g., 156460612806 for eu-west-1)
+  - Configured with `s3:PutObject` and `s3:GetBucketAcl` permissions
+  - Bucket ownership controls set to `BucketOwnerPreferred`
+- **VPC Flow Logs**: Network traffic analysis stored in CloudWatch Logs
+- **CloudTrail**: API activity tracking with S3 storage
+
+### Notification System
+
+- **SNS Topics**: Configured for critical alerts
+- **Email Notifications**: Sent for threshold breaches
+- **Integration**: Compatible with external monitoring tools
+
+## Security Considerations
+
+- **Data Encryption**: All sensitive data is encrypted using KMS
+- **Secrets Management**: Secrets Manager securely stores WordPress and database credentials
+- **S3 Security**:
+  - Public access to S3 buckets is blocked
+  - Bucket policies enforce HTTPS-only access
+  - Proper IAM permissions for service access (e.g., ALB logging)
+  - Object lifecycle management for compliance
+- **Network Security**:
+  - HTTPS is enforced for all web traffic
+  - Security groups follow the principle of least privilege
+  - NACLs provide additional network protection
+- **Identity and Access**:
+  - IAM roles use minimal permissions required for functionality
+  - VPC endpoints are used to keep traffic within the AWS network
+  - All KMS keys have automatic key rotation enabled where possible
+
 ## Prerequisites
 
 - Terraform v1.11+ (tested on v1.11.2)
@@ -276,17 +355,6 @@ You can archive or delete it safely.
 
 ---
 
-## Security Considerations
-
-- All sensitive data is encrypted using KMS
-- Secrets Manager securely stores WordPress and database credentials
-- Public access to S3 buckets is blocked
-- HTTPS is enforced for all web traffic
-- Security groups follow the principle of least privilege
-- IAM roles use minimal permissions required for functionality
-- VPC endpoints are used to keep traffic within the AWS network
-- All KMS keys have automatic key rotation enabled where possible
-
 ## Cost Optimization
 
 - Use Auto Scaling to match capacity with demand
@@ -308,16 +376,6 @@ WordPress updates can be managed through the admin interface or by updating the 
 - Database: Automated RDS snapshots
 - Media files: S3 cross-region replication
 - Configuration: Terraform state in S3 with versioning
-
-## Monitoring and Observability
-
-- CloudWatch dashboards for EC2, ALB, RDS, ElastiCache, and KMS metrics
-- SNS notifications for alarms
-- CloudTrail for API activity logging
-- ALB Access Logs stored in S3 with region-specific bucket policies:
-  - Each AWS region requires specific ELB account IDs in the bucket policy (e.g., 156460612806 for eu-west-1)
-  - Proper S3 bucket permissions configured for log delivery
-  - Kinesis Firehose delivery of ALB logs for long-term storage and analytics
 
 ## Troubleshooting
 
