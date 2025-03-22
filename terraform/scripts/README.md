@@ -39,7 +39,7 @@ The script retrieves the following secrets from AWS Secrets Manager:
 ### WordPress Deployment Flow
 
 ```mermaid
-graph LR
+graph TD
     %% Main Components
     A["Start"] --> B["deploy_wordpress.sh"]
     B --> B1["Install PHP, Nginx,<br>WP-CLI"]
