@@ -6,42 +6,70 @@ This module provisions and manages an RDS (Relational Database Service) instance
 
 ```mermaid
 graph TB
-    subgraph "VPC"
-        subgraph "Private Subnets"
-            RDS["RDS Primary Instance<br>(Encrypted at Rest)"]
-            Replicas["Read Replicas<br>(Optional)"]
-            
-            RDS --> Replicas
-        end
-        
-        subgraph "Application Layer"
-            ASG["Auto Scaling Group"]
-        end
-        
-        ASG -- "DB Traffic<br>(Port 3306/5432)" --> RDS
-    end
+    %% Main RDS Components
+    RDS["RDS Primary Instance"]
+    Replicas["Read Replicas"]
+    DBSubnetGroup["DB Subnet Group"]
+    DBParamGroup["RDS Parameter Group<br>(TLS Enforcement)"]
     
-    subgraph "AWS Services"
-        CW["CloudWatch"]
-        SNS["SNS Topic"]
-        KMS["KMS Key"]
-        IAM["IAM Role<br>(Monitoring)"]
-    end
+    %% Security Components
+    RDSSG["RDS Security Group"]
+    ASGSG["ASG Security Group"]
     
-    RDS -- "Enhanced Monitoring" --> IAM
-    IAM -- "Metrics" --> CW
-    RDS -- "Logs<br>(Error, Slowquery)" --> CW
-    CW -- "Alarms<br>(CPU, Storage, Connections)" --> SNS
-    KMS -- "Encryption" --> RDS
-    KMS -- "Encryption" --> CW
+    %% Monitoring Components
+    IAMRole["IAM Role<br>(Enhanced Monitoring)"]
+    CWLogs["CloudWatch Logs<br>(Error, Slowquery)"]
+    CWAlarms["CloudWatch Alarms"]
+    SNSTopic["SNS Topic<br>(Notifications)"]
     
-    classDef aws fill:#FF9900,stroke:#232F3E,color:white;
-    classDef vpc fill:#F58536,stroke:#232F3E,color:white;
-    classDef subnet fill:#7AA116,stroke:#232F3E,color:white;
+    %% Infrastructure Components
+    VPC["VPC"]
+    PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
+    ASG["Auto Scaling Group<br>(Application Servers)"]
     
-    class CW,SNS,KMS,IAM aws;
-    class VPC vpc;
-    class RDS,Replicas,ASG subnet;
+    %% Encryption Components
+    KMS["KMS Key"]
+    
+    %% Network Structure
+    VPC -->|"Contains"| PrivateSubnets
+    PrivateSubnets -->|"Host"| RDS
+    PrivateSubnets -->|"Host"| Replicas
+    PrivateSubnets -->|"Host"| ASG
+    
+    %% RDS Configuration
+    RDS -->|"Creates"| Replicas
+    RDS -->|"Uses"| DBSubnetGroup
+    RDS -->|"Uses"| DBParamGroup
+    PrivateSubnets -->|"Referenced in"| DBSubnetGroup
+    
+    %% Security Configuration
+    RDS -->|"Protected by"| RDSSG
+    ASG -->|"Protected by"| ASGSG
+    ASGSG -->|"Allows Traffic to"| RDSSG
+    
+    %% Monitoring Configuration
+    RDS -->|"Sends Metrics via"| IAMRole
+    RDS -->|"Exports Logs to"| CWLogs
+    IAMRole -->|"Enables"| CWAlarms
+    CWAlarms -->|"Notify"| SNSTopic
+    
+    %% Encryption
+    KMS -->|"Encrypts"| RDS
+    KMS -->|"Encrypts"| Replicas
+    KMS -->|"Encrypts"| CWLogs
+    
+    %% Styling
+    classDef primary fill:#FF9900,stroke:#232F3E,color:white
+    classDef security fill:#DD3522,stroke:#232F3E,color:white
+    classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
+    classDef network fill:#1E8449,stroke:#232F3E,color:white
+    classDef encryption fill:#3F8624,stroke:#232F3E,color:white
+    
+    class RDS,Replicas,DBSubnetGroup,DBParamGroup primary
+    class RDSSG,ASGSG security
+    class IAMRole,CWLogs,CWAlarms,SNSTopic monitoring
+    class VPC,PrivateSubnets,ASG network
+    class KMS encryption
 ```
 
 ---

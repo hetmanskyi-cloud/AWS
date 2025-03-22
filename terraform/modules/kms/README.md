@@ -4,7 +4,7 @@ Terraform module to create and manage a general-purpose AWS KMS (Key Management 
 
 ## Overview
 
-This module provisions a KMS key designed for encrypting various AWS resources, supporting cross-region replication, customizable permissions, and monitoring through CloudWatch.
+This module provisions a KMS key (Customer managed key)designed for encrypting various AWS resources, supporting cross-region replication, customizable permissions, and monitoring through CloudWatch.
 
 ### Supported AWS Resource Encryption:
 - CloudWatch Logs
