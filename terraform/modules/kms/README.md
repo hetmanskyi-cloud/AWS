@@ -36,55 +36,95 @@ The module provisions:
 ```mermaid
 graph TD
     %% Main KMS Components
-    KMSKey[Primary KMS Key] --> KeyPolicy[Key Policy]
-    KMSKey --> KeyRotation[Automatic Key Rotation]
-
+    KMSKey[Primary KMS Key]
+    KeyPolicy[Key Policy]
+    KeyRotation[Automatic Key Rotation]
+    
     %% Replication Components
-    KMSKey --> |Multi-Region| ReplicaKey[Replica KMS Key]
-    ReplicaKey --> KMSGrant[KMS Grants for S3]
-
+    ReplicaKey[Replica KMS Key]
+    KMSGrant[KMS Grants for S3]
+    
     %% IAM Components
-    KMSKey --> |Optional| IAMRole[IAM Role]
-    IAMRole --> IAMPolicy[KMS Management Policy]
-
+    IAMRole[IAM Role]
+    IAMPolicy[KMS Management Policy]
+    
     %% Monitoring Components
-    KMSKey --> |Optional| CWAlarm[CloudWatch Alarm]
-    CWAlarm --> SNSTopic[SNS Topic]
-
-    %% AWS Services Integration
-    S3[S3 Buckets] --> |Encryption| KMSKey
-    CloudTrail[CloudTrail] --> |Encryption| KMSKey
-    RDS[RDS] --> |Encryption| KMSKey
-    ElastiCache[ElastiCache] --> |Encryption| KMSKey
-    CloudWatch[CloudWatch Logs] --> |Encryption| KMSKey
-    SSM[SSM] --> |Encryption| KMSKey
-    EBS[EBS Volumes] --> |Encryption| KMSKey
-    SecretsManager[Secrets Manager] --> |Encryption| KMSKey
-
-    %% Optional Services
-    DynamoDB[DynamoDB] -.-> |Optional| KMSKey
-    Firehose[Kinesis Firehose] -.-> |Optional| KMSKey
-    WAF[WAF Logging] -.-> |Optional| KMSKey
-
+    CWAlarm[CloudWatch Alarm]
+    SNSTopic[SNS Topic]
+    
+    %% AWS Services Integration - Core Services
+    S3[S3 Buckets]
+    CloudTrail[CloudTrail]
+    RDS[RDS]
+    ElastiCache[ElastiCache]
+    CloudWatch[CloudWatch Logs]
+    SSM[SSM]
+    EBS[EBS Volumes]
+    SecretsManager[Secrets Manager]
+    
+    %% AWS Services Integration - Optional Services
+    DynamoDB[DynamoDB]
+    Firehose[Kinesis Firehose]
+    WAF[WAF Logging]
+    
     %% Cross-Region Replication
-    S3 --> |Cross-Region Replication| ReplicaS3[S3 Replica Buckets]
-    ReplicaS3 --> |Encryption| ReplicaKey
-
-    %% CloudTrail Audit of KMS Usage
-    KMSKey --> |Audit Logs| CloudTrail
-
+    ReplicaS3[S3 Replica Buckets]
+    
     %% Optional KMS VPC Interface Endpoint
-    KMSKey --> |Optional| VPCEndpoint[KMS VPC Endpoint]
-
+    VPCEndpoint[KMS VPC Endpoint]
+    
+    %% Connections - Main KMS Structure
+    KMSKey -->|Defines| KeyPolicy
+    KMSKey -->|Enables| KeyRotation
+    
+    %% Connections - Replication
+    KMSKey -->|Multi-Region| ReplicaKey
+    ReplicaKey -->|Authorizes| KMSGrant
+    
+    %% Connections - IAM
+    KMSKey -->|Managed by| IAMRole
+    IAMRole -->|Uses| IAMPolicy
+    
+    %% Connections - Monitoring
+    KMSKey -->|Monitored by| CWAlarm
+    CWAlarm -->|Notifies| SNSTopic
+    
+    %% Connections - Core Services
+    S3 -->|Encrypted with| KMSKey
+    CloudTrail -->|Encrypted with| KMSKey
+    RDS -->|Encrypted with| KMSKey
+    ElastiCache -->|Encrypted with| KMSKey
+    CloudWatch -->|Encrypted with| KMSKey
+    SSM -->|Encrypted with| KMSKey
+    EBS -->|Encrypted with| KMSKey
+    SecretsManager -->|Encrypted with| KMSKey
+    
+    %% Connections - Optional Services
+    DynamoDB -.->|Optional Encryption| KMSKey
+    Firehose -.->|Optional Encryption| KMSKey
+    WAF -.->|Optional Encryption| KMSKey
+    
+    %% Connections - Cross-Region Replication
+    S3 -->|Cross-Region Replication| ReplicaS3
+    ReplicaS3 -->|Encrypted with| ReplicaKey
+    
+    %% Connections - Audit
+    KMSKey -->|Audit Logs| CloudTrail
+    
+    %% Connections - VPC Endpoint
+    KMSKey -.->|Optional Access via| VPCEndpoint
+    
     %% Styling
-    classDef primary fill:#f9f,stroke:#333,stroke-width:2px
-    classDef optional fill:#bbf,stroke:#33f,stroke-width:1px,stroke-dasharray: 5 5
-    classDef service fill:#dfd,stroke:#080
-
-    class KMSKey primary
-    class ReplicaKey,IAMRole,IAMPolicy,CWAlarm,SNSTopic,KMSGrant,VPCEndpoint optional
+    classDef primary fill:#FF9900,stroke:#232F3E,color:white
+    classDef optional fill:#3F8624,stroke:#232F3E,color:white,stroke-dasharray:5 5
+    classDef service fill:#1E8449,stroke:#232F3E,color:white
+    classDef security fill:#DD3522,stroke:#232F3E,color:white
+    classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
+    
+    class KMSKey,KeyPolicy,KeyRotation primary
+    class ReplicaKey,IAMRole,IAMPolicy,KMSGrant,VPCEndpoint optional
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
-
+    class CWAlarm,SNSTopic monitoring
 ```
 
 ## Prerequisites

@@ -105,13 +105,6 @@ This architecture enables EC2 instances in private subnets (without internet acc
 
 Endpoints are deployed across all private subnets, ensuring high availability across multiple Availability Zones (AZ).
 
-## Requirements
-
-| Name         | Version   |
-|--------------|-----------|
-| Terraform    | >= 1.0    |
-| AWS Provider | >= 5.0    |
-
 ## Module Architecture
 
 This module provisions:
