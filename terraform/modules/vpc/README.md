@@ -7,7 +7,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 ## **Architecture Overview**
 
 ```mermaid
-graph TD
+graph LR
     %% Main VPC Component
     VPC["VPC<br/>(CIDR Block)"] 
     
@@ -41,9 +41,13 @@ graph TD
     
     %% Flow Logs and Monitoring
     FlowLogs["VPC Flow Logs"]
-    LogGroup["CloudWatch Log Group"]
+    LogGroup["CloudWatch Log Group<br/>(KMS Encrypted)"]
     CWAlarm["CloudWatch Alarm<br/>(Flow Logs Delivery Errors)"]
     SNS["SNS Topic<br/>(Optional)"]
+    
+    %% IAM Components for Flow Logs
+    IAMRole["IAM Role<br/>(VPC Flow Logs)"]
+    IAMPolicy["IAM Policy<br/>(CloudWatch Logs)"]
     
     %% Default Security Group
     DefSG["Default Security Group<br/>(Locked Down)"]
@@ -53,33 +57,42 @@ graph TD
     VPC --> PubSub1 & PubSub2 & PubSub3
     VPC --> PrivSub1 & PrivSub2 & PrivSub3
     VPC --> S3EP & DynamoEP
-    VPC --> FlowLogs
+    VPC -->|"Captures Traffic"| FlowLogs
     VPC --> DefSG
     
-    PubSub1 & PubSub2 & PubSub3 --> PubRT
-    PrivSub1 & PrivSub2 & PrivSub3 --> PrivRT
+    PubSub1 & PubSub2 & PubSub3 -->|"Associated with"| PubRT
+    PrivSub1 & PrivSub2 & PrivSub3 -->|"Associated with"| PrivRT
     
-    PubSub1 & PubSub2 & PubSub3 --> PubNACL
-    PrivSub1 & PrivSub2 & PrivSub3 --> PrivNACL
+    PubSub1 & PubSub2 & PubSub3 -->|"Protected by"| PubNACL
+    PrivSub1 & PrivSub2 & PrivSub3 -->|"Protected by"| PrivNACL
     
-    PubRT --> IGW
+    PubRT -->|"Routes to"| IGW
+    PubRT -->|"Routes to"| S3EP & DynamoEP
+    PrivRT -->|"Routes to"| S3EP & DynamoEP
     
-    FlowLogs --> LogGroup
-    LogGroup --> CWAlarm
-    CWAlarm --> SNS
+    FlowLogs -->|"Stores in"| LogGroup
+    LogGroup -->|"Monitored by"| CWAlarm
+    CWAlarm -->|"Notifies"| SNS
+    
+    %% IAM Connections
+    IAMRole -->|"Assumes"| IAMPolicy
+    IAMPolicy -->|"Grants Access"| LogGroup
+    FlowLogs -->|"Uses"| IAMRole
     
     %% Styling
-    classDef vpc fill:#f9f,stroke:#333,stroke-width:2px
-    classDef subnet fill:#bbf,stroke:#333,stroke-width:1px
-    classDef endpoint fill:#bfb,stroke:#333,stroke-width:1px
-    classDef security fill:#fbb,stroke:#333,stroke-width:1px
-    classDef monitoring fill:#fbf,stroke:#333,stroke-width:1px
+    classDef primary fill:#FF9900,stroke:#232F3E,color:white
+    classDef networking fill:#3F8624,stroke:#232F3E,color:white
+    classDef security fill:#DD3522,stroke:#232F3E,color:white
+    classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
+    classDef iam fill:#0066CC,stroke:#232F3E,color:white
+    classDef endpoints fill:#1E8449,stroke:#232F3E,color:white
     
-    class VPC vpc
-    class PubSub1,PubSub2,PubSub3,PrivSub1,PrivSub2,PrivSub3 subnet
-    class S3EP,DynamoEP endpoint
+    class VPC,IGW primary
+    class PubSub1,PubSub2,PubSub3,PrivSub1,PrivSub2,PrivSub3,PubRT,PrivRT networking
     class PubNACL,PrivNACL,DefSG security
     class FlowLogs,LogGroup,CWAlarm,SNS monitoring
+    class IAMRole,IAMPolicy iam
+    class S3EP,DynamoEP endpoints
 ```
 
 ## **Features**
