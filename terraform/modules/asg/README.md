@@ -25,36 +25,36 @@ This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) wi
 ```mermaid
 graph TB
     %% Main Components
-    CloudWatch("CloudWatch Alarms")
-    SNS("SNS Topic")
-    ASG("Auto Scaling Group (ASG)")
-    LT("Launch Template")
-    EC2("EC2 Instances (WordPress)")
-    ALB("Application Load Balancer")
-    RDS("RDS Database")
-    Redis("ElastiCache Redis")
-    S3Media("S3 Bucket (WordPress Media)")
-    S3Scripts("S3 Bucket (Deployment Scripts)")
-    SecretsManager("AWS Secrets Manager")
+    CloudWatch["CloudWatch Alarms"]
+    SNS["SNS Topic<br>(Notifications)"]
+    ASG["Auto Scaling Group<br>(ASG)"]
+    LT["Launch Template"]
+    EC2["EC2 Instances<br>(WordPress)"]
+    ALB["Application Load Balancer"]
+    RDS["RDS Database"]
+    Redis["ElastiCache Redis"]
+    S3Media["S3 Bucket<br>(WordPress Media)"]
+    S3Scripts["S3 Bucket<br>(Deployment Scripts)"]
+    SecretsManager["AWS Secrets Manager"]
     
     %% Subgraphs for organization
     subgraph "Security"
-        SG("Security Group")
-        IAM("IAM Role & Instance Profile")
-        KMS("KMS Encryption")
-        IMDSv2("IMDSv2 Metadata Security")
+        SG["Security Group"]
+        IAM["IAM Role & Instance Profile"]
+        KMS["KMS Encryption"]
+        IMDSv2["IMDSv2 Metadata Security"]
     end
     
     subgraph "Scaling Policies"
-        ScaleOut("Scale-Out Policy")
-        ScaleIn("Scale-In Policy")
-        TargetTracking("Target Tracking Policy")
+        ScaleOut["Scale-Out Policy<br>(High CPU)"]
+        ScaleIn["Scale-In Policy<br>(Low CPU)"]
+        TargetTracking["Target Tracking Policy<br>(Optional)"]
     end
     
     subgraph "Monitoring"
-        CPUAlarms("CPU Utilization Alarms")
-        StatusAlarms("Instance Status Alarms")
-        NetworkAlarms("Network Traffic Alarms")
+        CPUAlarms["CPU Utilization Alarms"]
+        StatusAlarms["Instance Status Alarms"]
+        NetworkAlarms["Network Traffic Alarms"]
     end
     
     %% Connections
