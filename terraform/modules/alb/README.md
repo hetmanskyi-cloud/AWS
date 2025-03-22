@@ -10,45 +10,66 @@ This module creates and manages an Application Load Balancer (ALB) in AWS for ha
 
 ```mermaid
 graph TD
-  ALB["ALB (Application Load Balancer)"]
-  TG["Target Group (EC2 - WordPress Instances)"]
-  HTTP["HTTP Listener"]
-  HTTPS["HTTPS Listener (Optional)"]
-  SG["Security Group (Ingress/Egress Rules)"]
-  WAF["WAF (Web ACL) (Optional)"]
-  LOGS["Access Logs to S3 (Optional)"]
-  FIREHOSE["Kinesis Firehose (Optional)"]
-  CW["CloudWatch Alarms (Optional)"]
+  subgraph "Application Load Balancer (ALB)"
+    ALB["ALB"]
+    SG["Security Group"]
+    TG["Target Group (EC2 Auto Scaling Group)"]
+    HTTP["HTTP Listener :80"]
+    HTTPS["HTTPS Listener :443 (Optional)"]
+    ALB --> SG
+    ALB --> HTTP
+    ALB --> HTTPS
+    ALB --> TG
+  end
 
-  CW5xx["High 5XX Errors Alarm"]
-  CWReq["High Request Count Alarm"]
-  CWResp["Target Response Time Alarm"]
+  subgraph "Web Application Firewall (WAF)"
+    WAF["WAF WebACL"]
+    WAF --> ALB
+  end
 
-  S3["S3 Bucket for ALB Logs"]
-  KMS["KMS Encryption (Optional)"]
-  WAFScope["WAF Scope: REGIONAL"]
-  WAFLogs["WAF Logs to S3 (Optional)"]
+  subgraph "WAF Logging"
+    Firehose["Kinesis Firehose"]
+    WAF --> Firehose
+    Firehose --> S3_WAF["S3 (WAF Logs)"]
+  end
 
-  ALB --> TG
-  ALB --> HTTP
-  ALB --> HTTPS
-  ALB --> SG
-  ALB --> WAF
-  ALB --> LOGS
-  ALB --> FIREHOSE
-  ALB --> CW
+  subgraph "Monitoring & Alarms"
+    CW_5xx["CloudWatch Alarm: 5XX Errors"]
+    CW_Latency["CloudWatch Alarm: Latency"]
+    CW_Requests["CloudWatch Alarm: High Requests"]
+    ALB --> CW_5xx
+    ALB --> CW_Latency
+    ALB --> CW_Requests
+  end
 
-  CW --> CW5xx
-  CW --> CWReq
-  CW --> CWResp
+  subgraph "VPC Integration"
+    VPC["VPC & Subnets"]
+    ALB --> VPC
+    ALB --> S3_ALB["S3 (ALB Access Logs)"]
+  end
 
-  LOGS --> S3
-  FIREHOSE --> S3
-  S3 --> KMS
+  %% Class assignments
+  class ALB alb;
+  class SG sg;
+  class TG tg;
+  class HTTP,HTTPS listener;
+  class WAF waf;
+  class Firehose firehose;
+  class S3_WAF,s3_alb s3;
+  class CW_5xx,CW_Latency,CW_Requests cloudwatch;
+  class VPC vpc;
+  class S3_ALB s3;
 
-  WAF --> WAFScope
-  WAF --> WAFLogs
-
+  %% Class definitions (colors)
+  classDef alb fill:#E6E6FA,stroke:#333,stroke-width:2px;
+  classDef sg fill:#FFDAB9,stroke:#333,stroke-width:2px;
+  classDef tg fill:#D0F0C0,stroke:#333,stroke-width:2px;
+  classDef listener fill:#ADD8E6,stroke:#333,stroke-width:2px;
+  classDef waf fill:#FFB6C1,stroke:#333,stroke-width:2px;
+  classDef firehose fill:#FFE4B5,stroke:#333,stroke-width:2px;
+  classDef s3 fill:#87CEFA,stroke:#333,stroke-width:2px;
+  classDef cloudwatch fill:#F08080,stroke:#333,stroke-width:2px;
+  classDef vpc fill:#C1FFC1,stroke:#333,stroke-width:2px;
 ```
 
 ### Key Features:
