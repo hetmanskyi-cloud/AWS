@@ -1,151 +1,199 @@
-# Terraform Templates
+# AWS Terraform Templates
 
-This directory contains template files used by the Terraform modules to generate dynamic content for AWS resources. The primary template, `user_data.sh.tpl`, generates the user data script executed on EC2 instances at launch.
+---
 
-## Template Files Structure
+## 1. Overview
 
-| File               | Description                                     |
-|--------------------|-------------------------------------------------|
-| `user_data.sh.tpl` | EC2 user data template for WordPress deployment |
+This directory contains Terraform template files used to dynamically generate scripts and configurations required during infrastructure deployment. The primary template, `user_data.sh.tpl`, generates the EC2 instance bootstrap script for automated WordPress deployment.
 
-## `user_data.sh.tpl`
+---
 
-This template dynamically generates the user data script, which is executed when an EC2 instance starts. It automates the installation and configuration of WordPress, along with necessary dependencies.
+## 2. Prerequisites / Requirements
 
-## User Data Execution Flow
+- **Terraform Project Context**:
+  - Templates are designed for use within this Terraform project and depend on specific variables.
+
+- **AWS CLI**:
+  - `user_data.sh.tpl` assumes AWS CLI v2 is installed or installable on the EC2 instance.
+
+- **IAM Permissions**:
+  - The EC2 instance requires IAM permissions to access Secrets Manager and optionally S3 for script downloads.
+
+---
+
+## 3. Architecture Diagram
 
 ```mermaid
 graph TD
-  %% Main Execution Steps
-  A["Start EC2 Instance"] --> B["Run user_data.sh.tpl"]
-  B --> C["Install AWS CLI v2"]
-  C --> D["Export Environment<br>Variables"]
-  D --> E["Install Nginx, PHP,<br>MySQL Client"]
-  E --> F["Fetch Secrets<br>from Secrets Manager"]
-  F --> G["Configure WordPress"]
-  G --> H["Deploy healthcheck.php"]
-  H --> I["Start Nginx<br>and PHP-FPM"]
-  I --> J["WordPress Ready"]
+  %% Main Components
+  EC2["EC2 Instance"]
+  UserData["user_data.sh.tpl"]
+  AWSCLI["AWS CLI v2"]
+  EnvVars["Environment Variables"]
+  SecretsManager["AWS Secrets Manager"]
+  WPScript["WordPress Deployment Script"]
+  WordPress["WordPress Configuration"]
+  Healthcheck["Healthcheck Endpoint"]
+  WebServer["Nginx + PHP-FPM"]
   
-  %% Conditional Flow for Script Source
-  B --> B1{"enable_s3_script?"}
-  B1 -->|"Yes"| B2["Download Script<br>from S3"]
-  B1 -->|"No"| B3["Use Embedded<br>Script"]
-  B2 --> E
-  B3 --> E
+  %% S3 Components
+  S3Script["S3 Bucket<br>(Deployment Scripts)"]
+  
+  %% Conditional Components
+  ScriptDecision{"enable_s3_script?"}
+  EmbeddedScript["Embedded Script"]
+  
+  %% Main Flow
+  EC2 -->|"Startup"| UserData
+  UserData -->|"Installs"| AWSCLI
+  UserData -->|"Sets"| EnvVars
+  EnvVars -->|"Provides Config"| WPScript
+  UserData -->|"Evaluates"| ScriptDecision
+  
+  ScriptDecision -->|"Yes"| S3Script
+  ScriptDecision -->|"No"| EmbeddedScript
+  S3Script -->|"Downloads"| WPScript
+  EmbeddedScript -->|"Uses"| WPScript
+  
+  UserData -->|"Retrieves Secrets"| SecretsManager
+  SecretsManager -->|"Provides Credentials"| WPScript
+  
+  WPScript -->|"Configures"| WordPress
+  WPScript -->|"Deploys"| Healthcheck
+  WPScript -->|"Starts"| WebServer
+  WebServer -->|"Serves"| WordPress
   
   %% Styling
-  classDef start fill:#FF9900,stroke:#232F3E,color:white
-  classDef process fill:#1E8449,stroke:#232F3E,color:white
+  classDef compute fill:#FF9900,stroke:#232F3E,color:white
+  classDef storage fill:#1E8449,stroke:#232F3E,color:white
+  classDef security fill:#DD3522,stroke:#232F3E,color:white
   classDef decision fill:#0066CC,stroke:#232F3E,color:white
-  classDef endstate fill:#7D3C98,stroke:#232F3E,color:white
+  classDef service fill:#7D3C98,stroke:#232F3E,color:white
   
-  class A start
-  class B,C,D,E,F,G,H,I process
-  class B1 decision
-  class J endstate
-  class B2,B3 process
+  class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer compute
+  class S3Script storage
+  class SecretsManager security
+  class ScriptDecision decision
 ```
+---
 
-### Why We Use This Template
+## 4. Features
 
-AWS limits the size of the user data script to 16 KB. To work around this limitation, we provide an option to download the script from S3 (`enable_s3_script = true`). This allows us to include larger scripts without exceeding AWS constraints. Additionally, using a template file avoids syntax issues when passing complex multi-line scripts in Terraform configurations.
+- Dynamic user data generation for EC2 instances
+- Automatic retrieval of secrets from AWS Secrets Manager
+- Optional deployment script and healthcheck file download from S3
+- Configurable environment variable injection for WordPress setup
 
-### Configuration Parameters
+---
 
-| Parameter                 | Description                                | Required                       |
-|---------------------------|--------------------------------------------|--------------------------------|
-| `wp_config`               | Map of WordPress configuration variables   | Yes                            |
-| `healthcheck_content_b64` | Base64-encoded content for healthcheck.php | Yes                            |
-| `aws_region`              | AWS region for resource access             | Yes                            |
-| `enable_s3_script`        | Boolean flag to download script from S3    | Yes                            |
-| `wordpress_script_path`   | S3 path to WordPress deployment script     | If `enable_s3_script` is true  |
-| `script_content`          | Embedded script content                    | If `enable_s3_script` is false |
-| `healthcheck_s3_path`     | S3 path to healthcheck file                | If `enable_s3_script` is true  |
+## 5. Files Structure
 
-### Template Functionality
+| File               | Description                                                       |
+|--------------------|-------------------------------------------------------------------|
+| `user_data.sh.tpl` | Template for EC2 User Data script rendering WordPress deployment  |
 
-1. **AWS CLI Installation**
-   - Ensures AWS CLI v2 is installed.
-   - Handles different package managers (yum, dnf, apt-get) to maintain compatibility across AMIs.
+---
 
-2. **Environment Variables**
-   - Dynamically exports WordPress configuration variables to `/etc/environment`.
-   - Sets AWS region and healthcheck content.
-   - Allows Terraform to pass critical instance-specific parameters dynamically.
+## 6. Required Variables
 
-3. **Script Deployment**
-   - If `enable_s3_script` is `true`, downloads the deployment script from S3 to bypass AWS user data size limits.
-   - Otherwise, embeds the script directly in user data for execution.
+| Variable                 | Type        | Description                                                      |
+|--------------------------|-------------|------------------------------------------------------------------|
+| `wp_config`              | map(string) | WordPress configuration values                                   |
+| `aws_region`             | string      | AWS Region                                                       |
+| `enable_s3_script`       | bool        | Flag to download deployment script from S3                       |
+| `wordpress_script_path`  | string      | S3 path to the WordPress deployment script                       |
+| `script_content`         | string      | Embedded WordPress deployment script content                     |
+| `healthcheck_content_b64`| string      | Base64-encoded content for healthcheck.php                       |
+| `wordpress_secrets_arn`  | string      | ARN of Secrets Manager secret for WordPress                      |
 
-4. **Healthcheck File**
-   - If `enable_s3_script` is `true`, downloads the healthcheck file from S3.
-   - Otherwise, generates the healthcheck file from the provided Base64-encoded content.
+---
 
-5. **Execution**
-   - Executes the WordPress deployment script.
-   - Logs all output to `/var/log/user-data.log` for troubleshooting.
-
-### Usage Example
+## 7. Example Usage
 
 ```hcl
-module "asg" {
-  source = "./modules/asg"
-  
-  # User data template configuration
-  user_data_vars = {
-    wp_config = {
-      DB_HOST     = module.rds.endpoint # Dynamically assigned
-      DB_PORT     = "3306"              # Default MySQL port
-      SECRET_NAME = aws_secretsmanager_secret.wordpress.name
-      PHP_VERSION = "8.3"
-      REDIS_HOST  = module.elasticache.endpoint # Dynamically assigned
-      REDIS_PORT  = "6379"              # Default Redis port
-      AWS_LB_DNS  = module.alb.dns_name # Dynamically assigned
-      WP_TITLE    = "My WordPress Site"
+locals {
+  rendered_user_data = templatefile(
+    "${path.module}/../../templates/user_data.sh.tpl",
+    {
+      wp_config               = local.wp_config,
+      aws_region              = var.aws_region,
+      enable_s3_script        = var.enable_s3_script,
+      wordpress_script_path   = local.wordpress_script_path,
+      script_content          = local.script_content,
+      healthcheck_content_b64 = local.healthcheck_b64,
+      wordpress_secrets_arn   = var.wordpress_secrets_arn
     }
-    healthcheck_content_b64 = base64encode(file("${path.root}/scripts/healthcheck-2.0.php"))
-    aws_region              = var.aws_region # Set dynamically by Terraform
-    enable_s3_script        = false
-    script_content          = file("${path.root}/scripts/deploy_wordpress.sh")
-  }
+  )
+}
+
+resource "aws_launch_template" "asg_launch_template" {
+  user_data = base64encode(local.rendered_user_data)
 }
 ```
+---
 
-## Troubleshooting
+## 8. Security Considerations / Recommendations
 
-### Common Issues
+- **Secrets Retrieval**: Sensitive credentials are securely retrieved from AWS Secrets Manager.
+- **IAM Restrictions**: Ensure the EC2 instance role has only necessary permissions.
+- **No Hardcoded Secrets**: Avoid embedding any sensitive data in templates or variables.
 
-1. **Script Execution Failures**
-   - Check EC2 instance logs at `/var/log/user-data.log`.
-   - Ensure IAM permissions allow S3 access when `enable_s3_script` is enabled.
-   - Verify that all required variables are correctly passed to the template.
+---
 
-2. **AWS CLI Installation Problems**
-   - Check internet connectivity from the EC2 instance.
-   - Look for package manager errors in logs.
-   - Ensure the instance has sufficient disk space for installation.
+## 9. Conditional Resource Creation
 
-3. **Environment Variable Issues**
-   - Ensure variables are correctly exported to `/etc/environment`.
-   - Check for special characters that may require escaping.
-   - Confirm that the script has the necessary permissions to modify `/etc/environment`.
+- WordPress deployment script is either downloaded from S3 or embedded locally based on enable_s3_script variable
+- Healthcheck file is either fetched from S3 or embedded depending on the same condition
+- Secrets retrieval is dynamically configured through the secrets.tf block in the main module, which passes the Secrets Manager ARN to the template only if secret usage is enabled.
 
-### Debugging Tips
+---
 
-- Add `echo` statements within the template to output variable values for debugging.
-- Use `set -x` in the script for verbose execution output.
-- Check EC2 system logs in CloudWatch for additional error messages.
+## 10. Best Practices
 
-## Security Considerations
+- **Validate Templates**: Always validate template rendering before deployment.
+- **Use SSM**: Prefer SSM Parameters for non-sensitive configuration.
+- **Idempotency**: Ensure the generated user data script is idempotent.
+- **Logging**: Maintain proper logging during user data execution for debugging.
 
-- Secrets and credentials are retrieved securely via AWS Secrets Manager.
-- File permissions are strictly set to restrict unauthorized access.
-- All scripts follow least privilege principles and enforce logging for traceability.
+---
 
-## Best Practices
+## 11. Integration
 
-- Ensure scripts are executed with necessary permissions.
-- Regularly update AWS CLI and dependencies.
-- Customize health checks based on instance-specific monitoring needs.
-- Use Terraform to dynamically generate and validate configuration values before deployment.
+- ASG Module – uses the template to generate user data for EC2 instances
+- Secrets Manager – provides sensitive data during deployment
+- S3 Module – stores deployment scripts and healthcheck files (if enabled)
+
+---
+
+## 12. Future Improvements
+
+- Add support for fetching additional configuration files from S3
+- Implement templating logic for multi-application deployment scenarios
+- Consider switching to SSM Parameter Store for some environment variables
+
+---
+
+## 13. Troubleshooting and Common Issues
+
+- **Failure to Download Script**: Verify S3 permissions and correct path.
+- **Secrets Retrieval Errors**: Check IAM role policies for Secrets Manager access.
+- **WordPress Install Fails**: Inspect `/var/log/wordpress_install.log` inside the instance.
+- **User Data Fails**: Check `/var/log/user-data.log` for syntax or runtime errors.
+
+---
+
+## 14. Notes
+
+- This template is tightly coupled with the project modules.
+- Modifications require testing to prevent deployment failures.
+- Designed for EC2 Linux instances with Amazon Linux or Ubuntu base images.
+
+---
+
+## 15. Useful Resources
+
+- [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html)
+- [AWS User Data Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
+- [Terraform Templatefile Function](https://developer.hashicorp.com/terraform/language/functions/templatefile)
+
+---
