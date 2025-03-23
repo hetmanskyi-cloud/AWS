@@ -52,8 +52,36 @@ graph LR
     CloudTrail["AWS CloudTrail"]
     S3Logs["S3 Access Logging"]
     
-    %% Bucket Configurations - Default Region
+    %% Configuration Components
     Versioning["Versioning Config"]
+    CORSConfig["CORS Config<br>(Allowed Origins)"]
+    OwnershipControls["Ownership Controls<br>(BucketOwnerPreferred)"]
+    PublicAccessBlock["Public Access Block<br>(Block All Public Access)"]
+    
+    %% Policy Components
+    HTTPSPolicy["HTTPS Only Policy"]
+    LogDeliveryPolicy["Log Delivery Policy"]
+    ELBAccessPolicy["ELB Access Policy"]
+    CloudTrailPolicy["CloudTrail Policy"]
+    
+    %% Encryption Components
+    KMSEncryption["KMS Encryption<br>(aws:kms)"]
+    SSE_S3Encryption["SSE-S3 Encryption<br>(AES256)"]
+    
+    %% Lifecycle Components
+    LifecycleRules["Standard Lifecycle Rules"]
+    SpecialLifecycleRules["Special Lifecycle Rules<br>(terraform_state)"]
+    ExpirationRules["Expiration Rules<br>(1 day - Test Only)"]
+    MultipartCleanup["Multipart Upload Cleanup<br>(7 days)"]
+    VersionRetention["Noncurrent Version Retention<br>(Configurable Days)"]
+    
+    %% Replication Components
+    ReplicationConfig["Replication Configuration"]
+    ReplicationMetrics["Replication Metrics"]
+    SSEReplication["SSE-KMS Replication"]
+    DeleteMarkerReplication["Delete Marker Replication"]
+    
+    %% Bucket Configurations - Default Region
     Versioning --> scripts
     Versioning --> logging
     Versioning --> cloudtrail
@@ -61,31 +89,46 @@ graph LR
     Versioning --> wordpress_media
     
     %% CORS Configuration
-    CORSConfig["CORS Config<br>(Allowed Origins)"]
     CORSConfig --> wordpress_media
     
+    %% Ownership & Access Controls
+    OwnershipControls --> scripts
+    OwnershipControls --> logging
+    OwnershipControls --> alb_logs
+    OwnershipControls --> cloudtrail
+    OwnershipControls --> terraform_state
+    OwnershipControls --> wordpress_media
+    
+    PublicAccessBlock --> scripts
+    PublicAccessBlock --> logging
+    PublicAccessBlock --> alb_logs
+    PublicAccessBlock --> cloudtrail
+    PublicAccessBlock --> terraform_state
+    PublicAccessBlock --> wordpress_media
+    PublicAccessBlock --> rep_wordpress_media
+    
     %% Bucket Policies
-    HTTPSPolicy["HTTPS Only Policy"]
     HTTPSPolicy --> scripts
     HTTPSPolicy --> terraform_state
     HTTPSPolicy --> wordpress_media
     HTTPSPolicy --> rep_wordpress_media
     
-    LogDeliveryPolicy["Log Delivery Policy"]
     LogDeliveryPolicy --> logging
     
-    ELBAccessPolicy["ELB Access Policy"]
     ELBAccessPolicy --> alb_logs
     
-    CloudTrailPolicy["CloudTrail Policy"]
     CloudTrailPolicy --> cloudtrail
     
     %% Encryption Connections
-    KMS -->|"Encrypts"| scripts
-    KMS -->|"Encrypts"| logging
-    KMS -->|"Encrypts"| cloudtrail
-    KMS -->|"Encrypts"| terraform_state
-    KMS -->|"Encrypts"| wordpress_media
+    KMSEncryption --> scripts
+    KMSEncryption --> logging
+    KMSEncryption --> cloudtrail
+    KMSEncryption --> terraform_state
+    KMSEncryption --> wordpress_media
+    
+    KMS --> KMSEncryption
+    
+    SSE_S3Encryption --> alb_logs
     
     %% Logging Connections
     scripts -->|"Access Logs"| logging
@@ -114,25 +157,39 @@ graph LR
     IAMPolicy -->|"Grants Access"| rep_KMS
     
     %% Replication Connections
+    ReplicationConfig --> wordpress_media
     wordpress_media -->|"Cross-Region<br>Replication"| rep_wordpress_media
     rep_KMS -->|"Encrypts"| rep_wordpress_media
     rep_wordpress_media -->|"Events"| rep_SNS
     
+    ReplicationConfig --> ReplicationMetrics
+    ReplicationConfig --> SSEReplication
+    ReplicationConfig --> DeleteMarkerReplication
+    
     %% Lifecycle Rules
-    LifecycleRules["Lifecycle Rules"]
     LifecycleRules --> scripts
     LifecycleRules --> logging
     LifecycleRules --> cloudtrail
     LifecycleRules --> wordpress_media
     LifecycleRules --> rep_wordpress_media
     
-    SpecialLifecycleRules["Special Lifecycle Rules"]
     SpecialLifecycleRules --> terraform_state
+    
+    LifecycleRules --> ExpirationRules
+    LifecycleRules --> MultipartCleanup
+    LifecycleRules --> VersionRetention
+    
+    SpecialLifecycleRules --> MultipartCleanup
+    SpecialLifecycleRules --> VersionRetention
     
     %% External Service Connections
     ALB -->|"Logs"| alb_logs
     CloudTrail -->|"API Activity"| cloudtrail
     S3Logs -->|"Access Logs"| logging
+    
+    %% WordPress Scripts
+    WordPressScripts["WordPress Scripts<br>(S3 Objects)"]
+    WordPressScripts --> scripts
     
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
@@ -142,15 +199,20 @@ graph LR
     classDef encryption fill:#DD3522,stroke:#232F3E,color:white
     classDef iam fill:#0066CC,stroke:#232F3E,color:white
     classDef config fill:#5D6D7E,stroke:#232F3E,color:white
+    classDef lifecycle fill:#E67E22,stroke:#232F3E,color:white
+    classDef security fill:#2C3E50,stroke:#232F3E,color:white
     
     class scripts,logging,alb_logs,cloudtrail,terraform_state,wordpress_media primary
     class rep_wordpress_media replication
     class DynamoDB,SNS infrastructure
     class ALB,CloudTrail,S3Logs external
-    class KMS,rep_KMS encryption
+    class KMS,rep_KMS,KMSEncryption,SSE_S3Encryption encryption
     class IAMRole,IAMPolicy iam
-    class Versioning,CORSConfig,HTTPSPolicy,LogDeliveryPolicy,ELBAccessPolicy,CloudTrailPolicy,LifecycleRules,SpecialLifecycleRules config
+    class Versioning,CORSConfig,HTTPSPolicy,LogDeliveryPolicy,ELBAccessPolicy,CloudTrailPolicy,ReplicationConfig,ReplicationMetrics,SSEReplication,DeleteMarkerReplication,WordPressScripts config
+    class LifecycleRules,SpecialLifecycleRules,ExpirationRules,MultipartCleanup,VersionRetention lifecycle
+    class OwnershipControls,PublicAccessBlock security
 ```
+
 ---
 
 ## 4. Features
