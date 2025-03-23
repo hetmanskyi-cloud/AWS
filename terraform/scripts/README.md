@@ -94,10 +94,20 @@ graph TD
     class ServerStatus,AWSResources,VPC,EC2 monitoring
     class Deploy primary
 ```
+---
+
+## 4. Features
+
+- Automated WordPress deployment with Nginx and PHP-FPM
+- Secure retrieval of secrets from AWS Secrets Manager
+- Health checks for WordPress, database, Redis, and services
+- Validation of AWS infrastructure resources
+- Logging and error handling for troubleshooting
+- Support for dynamic health check versions (1.0 / 2.0)
 
 ---
 
-## 4. Scripts Structure
+## 5. Scripts Structure
 
 | Script                   | Description                                                                                 |
 |--------------------------|---------------------------------------------------------------------------------------------|
@@ -109,9 +119,9 @@ graph TD
 
 ---
 
-## 5. Script Details
+## 6. Script Details
 
-### 5.1 `deploy_wordpress.sh`
+### 6.1 deploy_wordpress.sh
 
 This script automates the installation and configuration of WordPress on an EC2 instance. It handles the installation of required packages, configuration of Nginx and PHP-FPM, WordPress setup, and integration with AWS services.
 
@@ -139,7 +149,7 @@ The script retrieves the following secrets from AWS Secrets Manager:
 - `admin_email`: WordPress admin email
 - `admin_password`: WordPress admin password
 
-### 5.2 `check_server_status.sh`
+### 6.2 `check_server_status.sh`
 
 This script performs comprehensive health checks on an EC2 instance running WordPress. It validates the instance configuration, service status, and connectivity to external AWS services.
 
@@ -154,7 +164,7 @@ This script performs comprehensive health checks on an EC2 instance running Word
 - WordPress installation health
 - Configuration syntax validation
 
-### 5.3 `check_aws_resources.sh`
+### 6.3 `check_aws_resources.sh`
 
 This script validates AWS resources provisioned by Terraform to identify any undeleted or orphaned resources. It helps maintain a clean AWS environment and prevent unnecessary costs.
 
@@ -167,7 +177,7 @@ This script validates AWS resources provisioned by Terraform to identify any und
 - Cache resources (ElastiCache clusters)
 - Monitoring resources (CloudWatch alarms, logs)
 
-### 5.4 `healthcheck-1.0.php` and `healthcheck-2.0.php`
+### 6.4 `healthcheck-1.0.php` and `healthcheck-2.0.php`
 
 These PHP files provide health check endpoints for the Application Load Balancer:
 - `healthcheck-1.0.php`: Simple health check that returns HTTP 200
@@ -175,7 +185,7 @@ These PHP files provide health check endpoints for the Application Load Balancer
 
 ---
 
-## 6. Example Usage
+## 7. Example Usage
 
 The scripts are primarily used by the Terraform modules in this project, but can also be executed manually for troubleshooting or custom deployments.
 
@@ -204,7 +214,7 @@ export WP_TITLE="My WordPress Site"
 
 ---
 
-## 7. Security Considerations / Recommendations
+## 8. Security Considerations / Recommendations
 
 - **Secrets Management**: Credentials are retrieved securely from AWS Secrets Manager.
 - **File Permissions**: Scripts set appropriate file permissions to restrict access.
@@ -213,7 +223,14 @@ export WP_TITLE="My WordPress Site"
 
 ---
 
-## 8. Best Practices
+## 9. Conditional Resource Creation
+
+- WordPress health check script version is selected based on the healthcheck_version variable
+- The deployment script can be fetched from S3 or embedded, based on the enable_s3_script flag
+- PHP health check verifies connection to RDS and Redis only if endpoints are provided
+- AWS resource checks run conditionally based on environment and resource existence
+
+## 10. Best Practices
 
 - **Error Handling**: Scripts include comprehensive error handling and logging.
 - **Idempotency**: Scripts are designed to be idempotent and can be run multiple times.
@@ -223,7 +240,31 @@ export WP_TITLE="My WordPress Site"
 
 ---
 
-## 9. Troubleshooting and Common Issues
+## 11. Integration
+
+This script package integrates with the following modules and AWS services:
+
+- ASG Module – provides EC2 instances for running scripts
+- RDS Module – supplies database connection for WordPress
+- ElastiCache Module – integrates Redis caching
+- ALB Module – routes health check requests
+- Secrets Manager – securely stores and retrieves sensitive credentials
+- S3 Module – optional source for deployment scripts
+- CloudWatch – logs script operations and health status
+
+---
+
+## 12. Future Improvements
+
+- Add SSM Parameter Store support as an alternative for some environment variables
+- Extend monitoring scripts with CloudWatch metrics validation
+- Implement automatic error reporting to SNS
+- Add support for multi-region resource validation
+- Enhance Redis and MySQL TLS checks with certificate validation
+
+---
+
+## 13. Troubleshooting and Common Issues
 
 - **Deployment Failures**: Check `/var/log/wordpress_install.log` for detailed error messages.
 - **Health Check Failures**: Run `check_server_status.sh` to identify specific issues.
@@ -232,7 +273,7 @@ export WP_TITLE="My WordPress Site"
 
 ---
 
-## 10. Notes
+## 14. Notes
 
 - Scripts are designed to work with the specific Terraform modules in this project.
 - Modifications may be required for different environments or configurations.
@@ -240,9 +281,11 @@ export WP_TITLE="My WordPress Site"
 
 ---
 
-## 11. Useful Resources
+## 15. Useful Resources
 
 - [WordPress CLI Documentation](https://developer.wordpress.org/cli/commands/)
 - [AWS CLI Documentation](https://awscli.amazonaws.com/v2/documentation/api/latest/index.html)
 - [Nginx Documentation](https://nginx.org/en/docs/)
 - [PHP-FPM Configuration](https://www.php.net/manual/en/install.fpm.configuration.php)
+
+---
