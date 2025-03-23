@@ -37,7 +37,7 @@ if ! command -v aws &> /dev/null; then
 fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Retrieving secrets from AWS Secrets Manager..."
-SECRETS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_NAME}" --query 'SecretString' --output text)
+SECRETS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query 'SecretString' --output text)
 
 # Verify secrets retrieval
 if [ -z "$SECRETS" ]; then

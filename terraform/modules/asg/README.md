@@ -223,6 +223,10 @@ module "asg" {
   kms_key_arn       = module.kms.kms_key_arn
   enable_s3_script  = true
   healthcheck_version = "2.0"
+
+  # Optionally pass the ARN of your secrets in AWS Secrets Manager
+  # If you are storing WordPress and DB credentials there:
+  wordpress_secrets_arn = module.secrets.secret_arn
 }
 ```
 
@@ -237,6 +241,8 @@ module "asg" {
 - Monitor scaling events and instance health with **CloudWatch Alarms**.
 - Use **VPC Interface Endpoints** to avoid exposing traffic to the public internet when possible.
 - Validate **Security Group rules** to minimize open access and reduce the attack surface.
+- Use AWS Secrets Manager (via wordpress_secrets_arn) to avoid storing sensitive credentials in Terraform variables or state.
+- Restrict IAM policy so only EC2 instances in this ASG can access that secret.
 
 ---
 

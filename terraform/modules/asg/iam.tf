@@ -116,7 +116,7 @@ resource "aws_iam_policy" "wordpress_instance_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.wordpress_secret_name}"
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.wordpress_secrets_arn}"
       }
     ]
   })
@@ -256,3 +256,8 @@ data "aws_caller_identity" "current" {}
 #    - Use conditional policy creation to avoid empty resource lists.
 #    - Ensure fine-grained access to avoid privilege escalation.
 #    - Enable CloudTrail logging for IAM actions to track access.
+# 9. Secrets Manager integration:
+#    - A dedicated IAM policy grants ASG instances read-only access (Get/Describe) to the 
+#      specified secret in AWS Secrets Manager.
+#    - This avoids storing raw passwords in Terraform variables and leverages AWS-native
+#      encryption and secret rotation.

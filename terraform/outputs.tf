@@ -179,15 +179,9 @@ output "wordpress_tg_arn" {
 # --- Secrets Manager Outputs --- #
 
 # Output the ARN of the WordPress secrets
-output "secret_arn" {
+output "wordpress_secrets_arn" {
   description = "ARN of the WordPress secrets in AWS Secrets Manager"
   value       = aws_secretsmanager_secret.wp_secrets.arn
-}
-
-# Output the name of the secret
-output "secret_name" {
-  description = "Name of the secret in AWS Secrets Manager"
-  value       = aws_secretsmanager_secret.wp_secrets.name
 }
 
 # --- CloudTrail Output --- #

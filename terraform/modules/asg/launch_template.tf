@@ -5,21 +5,15 @@
 locals {
   # WordPress configuration parameters
   wp_config = {
-    DB_HOST           = var.db_host
-    DB_PORT           = var.db_port
-    DB_NAME           = var.db_name
-    DB_USER           = var.db_username
-    DB_PASSWORD       = var.db_password
-    WP_TITLE          = var.wp_title
-    WP_ADMIN          = var.wp_admin_user
-    WP_ADMIN_PASSWORD = var.wp_admin_password
-    WP_ADMIN_EMAIL    = var.wp_admin_email
-    PHP_VERSION       = var.php_version
-    PHP_FPM_SERVICE   = "php${var.php_version}-fpm"
-    REDIS_HOST        = var.redis_endpoint
-    REDIS_PORT        = var.redis_port
-    AWS_LB_DNS        = var.alb_dns_name
-    SECRET_NAME       = var.wordpress_secret_name
+    DB_HOST         = var.db_host
+    DB_PORT         = var.db_port
+    DB_NAME         = var.db_name
+    WP_TITLE        = var.wp_title
+    PHP_VERSION     = var.php_version
+    PHP_FPM_SERVICE = "php${var.php_version}-fpm"
+    REDIS_HOST      = var.redis_endpoint
+    REDIS_PORT      = var.redis_port
+    AWS_LB_DNS      = var.alb_dns_name
   }
 
   # Health check file selection based on healthcheck_version variable
@@ -68,6 +62,7 @@ locals {
       healthcheck_file        = local.healthcheck_file
       healthcheck_content_b64 = local.healthcheck_b64
       healthcheck_s3_path     = local.healthcheck_s3_path
+      wordpress_secrets_arn   = var.wordpress_secrets_arn
     }
   )
 }
@@ -205,3 +200,9 @@ resource "aws_launch_template" "asg_launch_template" {
 # 9. **AMI Updates and Rolling Deployments**:
 #    - Regularly update the AMI ID to include OS and security patches.
 #    - Consider enabling rolling updates for the Auto Scaling Group to avoid downtime during redeployments.
+#
+# 10. **AWS Secrets Manager**:
+#    - If WordPress and database credentials are stored in Secrets Manager, verify that:
+#      - The user_data script fetches them correctly via `aws secretsmanager get-secret-value`
+#      - The instance IAM role has `secretsmanager:GetSecretValue` (and `DescribeSecret`) permissions
+#    - Ensure the secret's ARN is properly passed to user_data instead of plain credentials.

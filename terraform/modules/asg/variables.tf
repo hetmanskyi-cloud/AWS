@@ -231,36 +231,6 @@ variable "db_port" {
   type        = number
 }
 
-variable "db_username" {
-  description = "Username for the WordPress database"
-  type        = string
-}
-
-variable "db_password" {
-  description = "Password for the WordPress database"
-  type        = string
-  sensitive   = true
-}
-
-# --- WordPress Admin Configuration --- #
-variable "wp_admin_user" {
-  description = "WordPress admin username"
-  type        = string
-  default     = "admin"
-}
-
-variable "wp_admin_password" {
-  description = "WordPress admin password"
-  type        = string
-  sensitive   = true
-}
-
-variable "wp_admin_email" {
-  description = "WordPress admin email"
-  type        = string
-  default     = "admin@example.com"
-}
-
 # --- PHP configuration for WordPress setup --- #
 variable "php_version" {
   description = "PHP version used for WordPress installation"
@@ -285,8 +255,8 @@ variable "alb_dns_name" {
   type        = string
 }
 
-variable "wordpress_secret_name" {
-  description = "The name of the Secrets Manager secret for WordPress credentials (must exist in Secrets Manager)"
+variable "wordpress_secrets_arn" {
+  description = "ARN of the WordPress Secrets stored in AWS Secrets Manager"
   type        = string
 }
 
@@ -435,7 +405,6 @@ variable "enable_interface_endpoints" {
 }
 
 # --- Notes --- #
-
 # 1. **Variable Grouping:**
 #    - Variables are grouped by functionality for easier management.
 #
@@ -452,6 +421,7 @@ variable "enable_interface_endpoints" {
 #    - Use different values for `ssh_allowed_cidr` in production.
 #    - Set appropriate autoscaling thresholds based on traffic patterns.
 #    - Consider enabling EBS encryption in production environments.
+#    - Prefer storing credentials in Secrets Manager to avoid embedding them in Terraform state.
 #
 # 5. **Production Recommendations:**
 #    - Set `enable_ebs_encryption = true` to protect data at rest.
@@ -459,3 +429,4 @@ variable "enable_interface_endpoints" {
 #    - Monitor `scale_in_cpu_threshold` and `scale_out_cpu_threshold` carefully to avoid aggressive scaling.
 #    - Enable `enable_interface_endpoints = true` when placing instances in private subnets without NAT.
 #    - Use encrypted S3 buckets (`wordpress_media_bucket_arn` and `scripts_bucket_arn`) for sensitive data.
+#    - Store WordPress and DB credentials in AWS Secrets Manager, passing `wordpress_secrets_arn` to the module.
