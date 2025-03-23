@@ -495,7 +495,7 @@ This project is designed for seamless integration between modules:
 - **Evaluate AWS Shield Advanced** for enhanced DDoS protection
 
 > **Note:** Graviton (`t4g.*`) ARM instances are not included in the AWS Free Tier. 
-> Use `t2.micro` or `t3.micro` instance types to stay within Free Tier limits.
+> Use `t2.micro` instance types to stay within Free Tier limits.
 
 ---
 

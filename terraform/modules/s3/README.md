@@ -53,22 +53,32 @@ graph LR
     S3Logs["S3 Access Logging"]
     
     %% Bucket Configurations - Default Region
-    scripts -->|"Versioning"| scripts
-    logging -->|"Versioning"| logging
-    cloudtrail -->|"Versioning"| cloudtrail
-    terraform_state -->|"Versioning"| terraform_state
-    wordpress_media -->|"Versioning"| wordpress_media
+    Versioning["Versioning Config"]
+    Versioning --> scripts
+    Versioning --> logging
+    Versioning --> cloudtrail
+    Versioning --> terraform_state
+    Versioning --> wordpress_media
     
     %% CORS Configuration
-    wordpress_media -->|"CORS Config<br>(Allowed Origins)"| wordpress_media
+    CORSConfig["CORS Config<br>(Allowed Origins)"]
+    CORSConfig --> wordpress_media
     
     %% Bucket Policies
-    scripts -->|"HTTPS Only<br>Policy"| scripts
-    terraform_state -->|"HTTPS Only<br>Policy"| terraform_state
-    wordpress_media -->|"HTTPS Only<br>Policy"| wordpress_media
-    logging -->|"Log Delivery<br>Policy"| logging
-    alb_logs -->|"ELB Access<br>Policy"| alb_logs
-    cloudtrail -->|"CloudTrail<br>Policy"| cloudtrail
+    HTTPSPolicy["HTTPS Only Policy"]
+    HTTPSPolicy --> scripts
+    HTTPSPolicy --> terraform_state
+    HTTPSPolicy --> wordpress_media
+    HTTPSPolicy --> rep_wordpress_media
+    
+    LogDeliveryPolicy["Log Delivery Policy"]
+    LogDeliveryPolicy --> logging
+    
+    ELBAccessPolicy["ELB Access Policy"]
+    ELBAccessPolicy --> alb_logs
+    
+    CloudTrailPolicy["CloudTrail Policy"]
+    CloudTrailPolicy --> cloudtrail
     
     %% Encryption Connections
     KMS -->|"Encrypts"| scripts
@@ -107,15 +117,17 @@ graph LR
     wordpress_media -->|"Cross-Region<br>Replication"| rep_wordpress_media
     rep_KMS -->|"Encrypts"| rep_wordpress_media
     rep_wordpress_media -->|"Events"| rep_SNS
-    rep_wordpress_media -->|"HTTPS Only<br>Policy"| rep_wordpress_media
     
     %% Lifecycle Rules
-    scripts -->|"Lifecycle<br>Rules"| scripts
-    logging -->|"Lifecycle<br>Rules"| logging
-    cloudtrail -->|"Lifecycle<br>Rules"| cloudtrail
-    terraform_state -->|"Special Lifecycle<br>Rules"| terraform_state
-    wordpress_media -->|"Lifecycle<br>Rules"| wordpress_media
-    rep_wordpress_media -->|"Lifecycle<br>Rules"| rep_wordpress_media
+    LifecycleRules["Lifecycle Rules"]
+    LifecycleRules --> scripts
+    LifecycleRules --> logging
+    LifecycleRules --> cloudtrail
+    LifecycleRules --> wordpress_media
+    LifecycleRules --> rep_wordpress_media
+    
+    SpecialLifecycleRules["Special Lifecycle Rules"]
+    SpecialLifecycleRules --> terraform_state
     
     %% External Service Connections
     ALB -->|"Logs"| alb_logs
@@ -129,6 +141,7 @@ graph LR
     classDef external fill:#7D3C98,stroke:#232F3E,color:white
     classDef encryption fill:#DD3522,stroke:#232F3E,color:white
     classDef iam fill:#0066CC,stroke:#232F3E,color:white
+    classDef config fill:#5D6D7E,stroke:#232F3E,color:white
     
     class scripts,logging,alb_logs,cloudtrail,terraform_state,wordpress_media primary
     class rep_wordpress_media replication
@@ -136,6 +149,7 @@ graph LR
     class ALB,CloudTrail,S3Logs external
     class KMS,rep_KMS encryption
     class IAMRole,IAMPolicy iam
+    class Versioning,CORSConfig,HTTPSPolicy,LogDeliveryPolicy,ELBAccessPolicy,CloudTrailPolicy,LifecycleRules,SpecialLifecycleRules config
 ```
 ---
 
