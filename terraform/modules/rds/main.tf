@@ -204,3 +204,13 @@ resource "aws_db_instance" "read_replica" {
 #    - Regularly review and adjust log retention periods to manage storage and expenses.
 #    - Maintain strict tagging for all RDS resources for easy identification and cost allocation.
 #    - Periodically validate parameter groups to ensure security and performance settings are up to date.
+#
+# 6. Secrets and Password Management:
+#    - RDS credentials (username and password) are passed directly via Terraform variables (db_username, db_password).
+#    - Password is stored in the Terraform state file but marked as sensitive to reduce accidental exposure.
+#    - Direct integration with AWS Secrets Manager is NOT required here; application (e.g., WordPress) pulls credentials from a secret independently.
+#    - If needed, password rotation should be managed externally or via additional automation (AWS Lambda, Secrets Manager rotation).
+#
+# 7. Future Consideration:
+#    - For better scalability and high availability, consider migrating to Amazon Aurora in the future.
+#    - Aurora provides built-in clustering, shared storage, and improved read scaling with 'aws_rds_cluster' resources.
