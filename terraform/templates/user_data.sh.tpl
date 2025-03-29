@@ -41,13 +41,15 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Exporting environment variables..."
 {
   %{ for key, value in wp_config }
-    if [[ "${key}" != "DB_USERNAME" && "${key}" != "DB_PASSWORD" ]]; then
+    if [[ "${key}" != "DB_USER" && "${key}" != "DB_PASSWORD" ]]; then
       echo "export ${key}=\"${value}\""
     fi
   %{ endfor }
   echo "export SECRET_NAME='${wordpress_secrets_name}'"
   echo "export HEALTHCHECK_CONTENT_B64='${healthcheck_content_b64}'"
   echo "export AWS_DEFAULT_REGION=\"${aws_region}\""
+  echo "# Set HOME directory for www-data user when running wp-cli commands"
+  echo "alias wp='sudo -u www-data HOME=/tmp wp'"
 } | sudo tee -a /etc/environment > /dev/null
 
 # 3. Reload environment variables

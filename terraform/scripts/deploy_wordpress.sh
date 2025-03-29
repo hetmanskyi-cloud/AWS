@@ -70,15 +70,28 @@ export NONCE_SALT=$(echo "$SECRETS" | jq -r '.nonce_salt')
 # Extract values from the JSON and export those that must be used in other processes
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing and exporting secrets..."
 
+# Debug: Print the structure of the secrets
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: Secrets structure:"
+echo "$SECRETS" | jq '.'
+
 export DB_NAME=$(echo "$SECRETS" | jq -r '.db_name')
-export DB_USERNAME=$(echo "$SECRETS" | jq -r '.db_username')
+export DB_USER=$(echo "$SECRETS" | jq -r '.db_user')
 export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.db_password')
 export WP_ADMIN=$(echo "$SECRETS" | jq -r '.admin_user')
 export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.admin_email')
 export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.admin_password')
 
+# Debug: Print the values of the exported variables
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: Exported variables:"
+echo "DB_NAME=$DB_NAME"
+echo "DB_USER=$DB_USER"
+echo "DB_PASSWORD=${DB_PASSWORD:0:3}***" # Print only first 3 chars for security
+echo "WP_ADMIN=$WP_ADMIN"
+echo "WP_ADMIN_EMAIL=$WP_ADMIN_EMAIL"
+echo "WP_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD:0:3}***" # Print only first 3 chars for security
+
 # Verify all required values are present
-for VAR in DB_NAME DB_USERNAME DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD; do
+for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD; do
   if [ -z "${!VAR}" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Required secret variable $VAR is empty."
     exit 1
@@ -178,9 +191,9 @@ systemctl restart nginx
 # Optimizations for scalability (Auto Scaling group)
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Adjusting Nginx for high load and Auto Scaling..."
 
-# Optimize Nginx for Auto Scaling (without overwriting full config)
+# Optimize Nginx for Auto Scaling (safe edit inside events block)
+sed -i 's/^\s*worker_connections\s\+[0-9]\+;/    worker_connections 1024;/' /etc/nginx/nginx.conf
 sed -i 's/worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
-echo "worker_connections 1024;" >> /etc/nginx/nginx.conf
 
 # --- 6. Download and install WordPress --- #
 
@@ -258,14 +271,14 @@ if [ ! -f "/tmp/wp-config-template.php" ]; then
 fi
 
 # Export all required env variables
-export DB_NAME DB_USERNAME DB_PASSWORD DB_HOST DB_PORT \
+export DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
         WP_TITLE PHP_VERSION REDIS_HOST REDIS_PORT AWS_LB_DNS \
         AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT
 
 # Generate wp-config.php from template
 # Use envsubst with an explicit list to avoid replacing PHP variables
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing wp-config-template.php with envsubst..."
-envsubst '${DB_NAME} ${DB_USERNAME} ${DB_PASSWORD} ${DB_HOST} \
+envsubst '${DB_NAME} ${DB_PASSWORD} ${DB_HOST} ${DB_USER} \
 ${AUTH_KEY} ${SECURE_AUTH_KEY} ${LOGGED_IN_KEY} ${NONCE_KEY} \
 ${AUTH_SALT} ${SECURE_AUTH_SALT} ${LOGGED_IN_SALT} ${NONCE_SALT} \
 ${AWS_LB_DNS} ${REDIS_HOST} ${REDIS_PORT}' \
@@ -320,8 +333,25 @@ sudo chown -R www-data:www-data /var/www/html
 sudo find /var/www/html -type d -exec chmod 755 {} \;
 sudo find /var/www/html -type f -exec chmod 644 {} \;
 
+# Wait until wp db check succeeds (max 60s)
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for WordPress DB connection via wp-cli..."
+for i in {1..12}; do
+  if sudo -u www-data HOME=/tmp wp db check >/dev/null 2>&1; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp db check succeeded after $((i * 5)) seconds."
+    break
+  fi
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempt $i: wp db check failed. Retrying in 5s..."
+  sleep 5
+done
+
+# Final check
+if ! sudo -u www-data HOME=/tmp wp db check >/dev/null 2>&1; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ ERROR: wp db check still failing after 60s. Exiting."
+  exit 1
+fi
+
 # Install WordPress using WP-CLI as www-data user
-sudo -u www-data wp core install \
+sudo -u www-data HOME=/tmp wp core install \
   --url="http://${AWS_LB_DNS}" \
   --title="${WP_TITLE}" \
   --admin_user="${WP_ADMIN}" \
@@ -330,7 +360,7 @@ sudo -u www-data wp core install \
   --skip-email
 
 # Verify WordPress installation succeeded
-if ! sudo -u www-data wp core is-installed; then
+if ! sudo -u www-data HOME=/tmp wp core is-installed; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WordPress CLI installation failed!"
   exit 1
 fi
