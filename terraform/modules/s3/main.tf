@@ -2,21 +2,18 @@
 # Defines S3 buckets and core configurations.
 
 # --- Terraform Configuration --- #
-# Defines Terraform provider and version.
+# Defines Terraform provider and version, and configuration aliases for providers.
 terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
+      configuration_aliases = [
+        aws,             # Alias for the default AWS provider
+        aws.replication, # Alias for the AWS provider in the replication region
+      ]
     }
   }
-}
-
-# --- AWS Provider for Replication Region --- #
-# Configures AWS provider for replication region.
-provider "aws" {
-  alias  = "replication"          # Replication provider alias
-  region = var.replication_region # Replication region
 }
 
 # --- Default Region Buckets --- #

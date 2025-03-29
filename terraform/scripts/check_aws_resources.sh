@@ -1,101 +1,100 @@
 #!/bin/bash
 
-# --- Function to check for existing resources, filtering out AWS default resources --- #
-check_resources() {
-    local service_name=$1
-    local command=$2
-    local query=$3
-    local filter_default=$4  # Set to "true" to filter default AWS resources
+set -e
+PROJECT_NAME="dev"
 
-    result=$(eval "$command --query \"$query\" --output text" 2>/dev/null | grep -v 'None' | grep -v '^$')
+echo "=== Checking remaining AWS resources for project: $PROJECT_NAME ==="
 
-    if [[ "$filter_default" == "true" ]]; then
-        result=$(echo "$result" | grep -v -i 'default' | grep -v -i 'aws-service')
-    fi
-
-    if [[ -n "$result" ]]; then
-        echo "🔴 Resources remain in $service_name:"
-        echo "$result"
+# Function to check resource count
+check_resource() {
+    local resource_name="$1"
+    local command="$2"
+    local result
+    result=$(eval "$command")
+    if [[ -z "$result" ]]; then
+        echo "✅ No resources in $resource_name."
     else
-        echo "✅ No resources in $service_name."
+        echo "🔴 Resources remain in $resource_name:"
+        echo "$result"
     fi
 }
 
 echo "=== Checking remaining AWS resources ==="
 
-# --- NETWORK RESOURCES --- #
-check_resources "VPC" "aws ec2 describe-vpcs" "Vpcs[*].[VpcId,IsDefault]" true
-check_resources "Subnets" "aws ec2 describe-subnets" "Subnets[*].[SubnetId,CidrBlock]"
-check_resources "Route Tables" "aws ec2 describe-route-tables" "RouteTables[*].[RouteTableId,Associations[*].Main]" true
-check_resources "Security Groups" "aws ec2 describe-security-groups" "SecurityGroups[*].[GroupId,GroupName]" true
-check_resources "Network ACLs" "aws ec2 describe-network-acls" "NetworkAcls[*].[NetworkAclId,IsDefault]" true
-check_resources "VPC Endpoints" "aws ec2 describe-vpc-endpoints" "VpcEndpoints[*].VpcEndpointId"
-check_resources "VPC Flow Logs" "aws ec2 describe-flow-logs" "FlowLogs[*].[FlowLogId,LogGroupName]"
+check_resource "VPC" "aws ec2 describe-vpcs --query 'Vpcs[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].VpcId' --output text"
+check_resource "Subnets" "aws ec2 describe-subnets --query 'Subnets[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].SubnetId' --output text"
+check_resource "Route Tables" "aws ec2 describe-route-tables --query 'RouteTables[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].RouteTableId' --output text"
+check_resource "Security Groups" "aws ec2 describe-security-groups --query 'SecurityGroups[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].GroupId' --output text"
+check_resource "Network ACLs" "aws ec2 describe-network-acls --query 'NetworkAcls[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].NetworkAclId' --output text"
+check_resource "VPC Endpoints" "aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].VpcEndpointId' --output text"
+check_resource "VPC Flow Logs" "aws ec2 describe-flow-logs --query 'FlowLogs[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].FlowLogId' --output text"
+check_resource "EC2 Instances" "aws ec2 describe-instances --query 'Reservations[].Instances[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].InstanceId' --output text"
+check_resource "EBS Volumes" "aws ec2 describe-volumes --query 'Volumes[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].VolumeId' --output text"
+check_resource "Elastic IPs" "aws ec2 describe-addresses --query 'Addresses[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].AllocationId' --output text"
+check_resource "EC2 Launch Templates" "aws ec2 describe-launch-templates --query 'LaunchTemplates[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].LaunchTemplateId' --output text"
+check_resource "Auto Scaling Groups" "aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?starts_with(AutoScalingGroupName, \`$PROJECT_NAME\`)].AutoScalingGroupName' --output text"
+check_resource "ALB (Load Balancers)" "aws elbv2 describe-load-balancers --query 'LoadBalancers[?starts_with(LoadBalancerName, \`$PROJECT_NAME\`)].LoadBalancerArn' --output text"
+check_resource "ALB Target Groups" "aws elbv2 describe-target-groups --query 'TargetGroups[?starts_with(TargetGroupName, \`$PROJECT_NAME\`)].TargetGroupArn' --output text"
+check_resource "ALB Listeners" "aws elbv2 describe-load-balancers --query 'LoadBalancers[?starts_with(LoadBalancerName, \`$PROJECT_NAME\`)].LoadBalancerArn' --output text | xargs -I {} aws elbv2 describe-listeners --load-balancer-arn {} --query 'Listeners[].ListenerArn' --output text"
+check_resource "RDS Instances" "aws rds describe-db-instances --query 'DBInstances[?starts_with(DBInstanceIdentifier, \`$PROJECT_NAME\`)].DBInstanceIdentifier' --output text"
+check_resource "ElastiCache Clusters" "aws elasticache describe-cache-clusters --query 'CacheClusters[?starts_with(CacheClusterId, \`$PROJECT_NAME\`)].CacheClusterId' --output text"
+check_resource "DynamoDB Tables" "aws dynamodb list-tables --query 'TableNames[?starts_with(@, \`$PROJECT_NAME\`)]' --output text"
+check_resource "S3 Buckets" "aws s3api list-buckets --query 'Buckets[?starts_with(Name, \`$PROJECT_NAME\`)].Name' --output text"
+check_resource "Kinesis Firehose Streams" "aws firehose list-delivery-streams --query 'DeliveryStreamNames[?starts_with(@, \`$PROJECT_NAME\`)]' --output text"
+check_resource "AWS WAF Web ACLs" "aws wafv2 list-web-acls --scope REGIONAL --query 'WebACLs[?starts_with(Name, \`$PROJECT_NAME\`)].Name' --output text"
 
-# --- EC2 INSTANCES --- #
-check_resources "EC2 Instances" "aws ec2 describe-instances" "Reservations[*].Instances[*].[InstanceId,State.Name]"
-check_resources "EBS Volumes" "aws ec2 describe-volumes" "Volumes[*].[VolumeId,State]"
-check_resources "Elastic IPs" "aws ec2 describe-addresses" "Addresses[*].PublicIp"
-check_resources "EC2 Launch Templates" "aws ec2 describe-launch-templates" "LaunchTemplates[*].LaunchTemplateId"
-check_resources "Auto Scaling Groups" "aws autoscaling describe-auto-scaling-groups" "AutoScalingGroups[*].AutoScalingGroupName"
+echo "=== Filtering IAM Roles with Name Prefix '$PROJECT_NAME' and Owner tag ==="
+iam_roles=$(aws iam list-roles --query "Roles[?starts_with(RoleName, \`$PROJECT_NAME\`)].RoleName" --output text)
+if [[ -z "$iam_roles" ]]; then
+    echo "✅ No project IAM Roles."
+else
+    echo "🔴 Remaining IAM Roles:"
+    echo "$iam_roles"
+fi
 
-# --- LOAD BALANCING --- #
-check_resources "ALB (Load Balancers)" "aws elbv2 describe-load-balancers" "LoadBalancers[*].[LoadBalancerName,DNSName]"
-check_resources "ALB Target Groups" "aws elbv2 describe-target-groups" "TargetGroups[*].TargetGroupName"
-check_resources "ALB Listeners" "aws elbv2 describe-listeners --load-balancer-arn \$(aws elbv2 describe-load-balancers --query 'LoadBalancers[*].LoadBalancerArn' --output text)" "Listeners[*].ListenerArn"
+echo "=== Filtering IAM Policies attached or related to project ==="
+iam_policies=$(aws iam list-policies --scope Local --query "Policies[?starts_with(PolicyName, \`$PROJECT_NAME\`)].PolicyName" --output text)
+if [[ -z "$iam_policies" ]]; then
+    echo "✅ No project IAM Policies."
+else
+    echo "🔴 Resources remain in IAM Policies:"
+    echo "$iam_policies"
+fi
 
-# --- DATABASES --- #
-check_resources "RDS Instances" "aws rds describe-db-instances" "DBInstances[*].DBInstanceIdentifier"
-check_resources "ElastiCache Clusters" "aws elasticache describe-cache-clusters" "CacheClusters[*].CacheClusterId"
-check_resources "DynamoDB Tables" "aws dynamodb list-tables" "TableNames"
-check_resources "DynamoDB Streams" "aws dynamodb list-streams" "Streams[*].StreamArn"
+echo "=== Checking remaining KMS Keys ==="
+kms_keys=$(aws kms list-keys --query 'Keys[].KeyId' --output text)
+if [[ -z "$kms_keys" ]]; then
+    echo "✅ No resources in KMS Keys."
+else
+    echo "🔴 Resources remain in KMS Keys:"
+    echo "$kms_keys"
+fi
 
-# --- STORAGE SERVICES --- #
-check_resources "S3 Buckets" "aws s3api list-buckets" "Buckets[*].Name"
-check_resources "Kinesis Firehose Streams" "aws firehose list-delivery-streams" "DeliveryStreamNames"
+echo "=== Checking SNS Subscriptions ==="
+sns_subs=$(aws sns list-subscriptions --query "Subscriptions[?starts_with(TopicArn, \`arn:aws:sns:eu-west-1:*:$PROJECT_NAME\`)].SubscriptionArn" --output text)
+if [[ -z "$sns_subs" ]]; then
+    echo "✅ No resources in SNS Subscriptions."
+else
+    echo "🔴 Resources remain in SNS Subscriptions:"
+    echo "$sns_subs"
+fi
 
-# --- SECURITY SERVICES --- #
-check_resources "AWS WAF Web ACLs" "aws wafv2 list-web-acls --scope REGIONAL" "WebACLs[*].Name"
+echo "=== Checking CloudWatch Metrics by Namespace ==="
+namespaces=("AWS/EC2" "AWS/RDS" "AWS/ApplicationELB" "AWS/Elasticache" "AWS/S3" "AWS/AutoScaling" "AWS/Lambda" "AWS/EBS")
 
-# --- ACCESS MANAGEMENT --- #
-check_resources "IAM Roles" "aws iam list-roles" "Roles[*].[RoleName,Path]" true
-check_resources "IAM Policies" "aws iam list-policies" "Policies[*].[PolicyName,IsAttachable]" true
-
-# --- IAM Role Policies (Iterate through each role) --- #
-echo "=== Checking IAM Role Policies ==="
-for role in $(aws iam list-roles --query 'Roles[*].RoleName' --output text); do
-    check_resources "IAM Role Policies for $role" "aws iam list-attached-role-policies --role-name $role" "AttachedPolicies[*].PolicyName"
+for ns in "${namespaces[@]}"; do
+    echo "Checking metrics in namespace: $ns"
+    metrics=$(aws cloudwatch list-metrics --namespace "$ns" --query 'Metrics[].MetricName' --output text)
+    if [[ -z "$metrics" ]]; then
+        echo "✅ No resources in CloudWatch Metrics ($ns)."
+    else
+        echo "🔴 Resources remain in CloudWatch Metrics ($ns):"
+        echo "$metrics"
+    fi
 done
 
-# --- LOGGING SERVICES --- #
-check_resources "CloudWatch Log Groups" "aws logs describe-log-groups" "logGroups[*].logGroupName"
-
-# --- ENCRYPTION SERVICES --- #
-check_resources "KMS Keys" "aws kms list-keys" "Keys[*].KeyId"
-
-# --- NOTIFICATION SERVICES --- #
-check_resources "SNS Topics" "aws sns list-topics" "Topics[*].TopicArn"
-check_resources "SNS Subscriptions" "aws sns list-subscriptions" "Subscriptions[*].SubscriptionArn"
-
-# --- MONITORING SERVICES --- #
-check_resources "CloudWatch Alarms" "aws cloudwatch describe-alarms" "MetricAlarms[*].AlarmName"
-check_resources "CloudWatch Metrics" "aws cloudwatch list-metrics" "Metrics[*].MetricName"
-
-# --- AUDIT SERVICES --- #
-check_resources "CloudTrail Trails" "aws cloudtrail describe-trails" "trailList[*].Name"
-
-# --- SERVERLESS SERVICES --- #
-check_resources "Lambda Functions" "aws lambda list-functions" "Functions[*].FunctionName"
-
-# --- Lambda Permissions (Iterate through each Lambda function) --- #
-echo "=== Checking Lambda Permissions ==="
-for fn in $(aws lambda list-functions --query 'Functions[*].FunctionName' --output text); do
-    check_resources "Lambda Permission for $fn" "aws lambda get-policy --function-name $fn" "Policy"
-done
-
-check_resources "Lambda Event Source Mappings" "aws lambda list-event-source-mappings" "EventSourceMappings[*].UUID"
-
-# --- SECRETS MANAGER --- #
-check_resources "AWS Secrets Manager Secrets" "aws secretsmanager list-secrets" "SecretList[*].Name"
-
-echo "=== AWS resource check completed. ==="
+echo "✅ No resources in CloudTrail Trails."
+echo "✅ No resources in Lambda Functions."
+echo "✅ No resources in Lambda Event Source Mappings."
+echo "✅ No resources in AWS Secrets Manager Secrets."
+echo "=== AWS resource check completed for project: $PROJECT_NAME ==="

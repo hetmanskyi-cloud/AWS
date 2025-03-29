@@ -181,19 +181,19 @@ module "asg" {
   db_endpoint = module.rds.db_endpoint
 
   # WordPress Configuration
-  db_name         = var.db_name
-  db_port         = var.db_port
-  wp_title        = var.wp_title
-  alb_dns_name    = module.alb.alb_dns_name
-  php_version     = var.php_version
-  php_fpm_service = "php${var.php_version}-fpm"
-  redis_endpoint  = module.elasticache.redis_endpoint
-  redis_port      = var.redis_port
-
+  db_name             = var.db_name
+  db_port             = var.db_port
+  wp_title            = var.wp_title
+  alb_dns_name        = module.alb.alb_dns_name
+  php_version         = var.php_version
+  php_fpm_service     = "php${var.php_version}-fpm"
+  redis_endpoint      = module.elasticache.redis_endpoint
+  redis_port          = var.redis_port
   healthcheck_version = var.healthcheck_version
 
   # Secrets Configuration  
-  wordpress_secrets_arn = aws_secretsmanager_secret.wp_secrets.arn
+  wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
+  wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn
 
   depends_on = [module.vpc,
     module.s3, aws_secretsmanager_secret_version.wp_secrets_version
@@ -275,6 +275,12 @@ module "rds" {
 module "s3" {
   source = "./modules/s3" # Path to S3 module
 
+  # Providers
+  providers = {
+    aws             = aws.default
+    aws.replication = aws.replication
+  }
+
   # S3 configuration
   aws_region                        = var.aws_region
   aws_account_id                    = var.aws_account_id
@@ -287,6 +293,7 @@ module "s3" {
   enable_s3_script                  = var.enable_s3_script
   s3_scripts                        = var.s3_scripts
 
+  # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
   replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
 
@@ -298,7 +305,12 @@ module "s3" {
   default_region_buckets     = var.default_region_buckets
   replication_region_buckets = var.replication_region_buckets
 
+  # Replication region
   replication_region = var.replication_region
+
+  depends_on = [
+    aws_sns_topic.cloudwatch_alarms
+  ]
 }
 
 # --- Elasticache Module Configuration --- #

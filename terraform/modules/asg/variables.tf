@@ -255,8 +255,13 @@ variable "alb_dns_name" {
   type        = string
 }
 
+variable "wordpress_secrets_name" {
+  description = "The name of the WordPress Secrets Manager secret"
+  type        = string
+}
+
 variable "wordpress_secrets_arn" {
-  description = "ARN of the WordPress Secrets stored in AWS Secrets Manager"
+  description = "The ARN of the WordPress Secrets Manager secret"
   type        = string
 }
 
@@ -429,4 +434,4 @@ variable "enable_interface_endpoints" {
 #    - Monitor `scale_in_cpu_threshold` and `scale_out_cpu_threshold` carefully to avoid aggressive scaling.
 #    - Enable `enable_interface_endpoints = true` when placing instances in private subnets without NAT.
 #    - Use encrypted S3 buckets (`wordpress_media_bucket_arn` and `scripts_bucket_arn`) for sensitive data.
-#    - Store WordPress and DB credentials in AWS Secrets Manager, passing `wordpress_secrets_arn` to the module.
+#    - Store WordPress and DB credentials in AWS Secrets Manager, passing `wordpress_secrets_name` to the module.

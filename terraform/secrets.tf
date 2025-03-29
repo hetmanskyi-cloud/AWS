@@ -1,6 +1,59 @@
 # --- AWS Secrets Manager configuration for WordPress deployment --- #
 # Stores sensitive credentials for database and admin access
 
+# --- Random String Generation --- #
+# Generates random strings for WordPress security keys.
+# These are used to enhance the security of the WordPress installation.
+resource "random_string" "auth_key" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "secure_auth_key" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "logged_in_key" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "nonce_key" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "auth_salt" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "secure_auth_salt" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "logged_in_salt" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_string" "nonce_salt" {
+  length           = 64
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# --- Local Values --- #
+# Contains configuration values for the secret, split into database and WordPress credentials.
 locals {
 
   # Configuration values for the secret, split into database and WordPress credentials.
@@ -12,11 +65,19 @@ locals {
       db_password = var.db_password
     }
 
-    # WordPress admin credentials
+    # WordPress admin credentials and WordPress security keys
     wordpress = {
-      admin_user     = var.wp_admin_user
-      admin_email    = var.wp_admin_email
-      admin_password = var.wp_admin_password
+      admin_user       = var.wp_admin_user
+      admin_email      = var.wp_admin_email
+      admin_password   = var.wp_admin_password
+      auth_key         = random_string.auth_key.result
+      secure_auth_key  = random_string.secure_auth_key.result
+      logged_in_key    = random_string.logged_in_key.result
+      nonce_key        = random_string.nonce_key.result
+      auth_salt        = random_string.auth_salt.result
+      secure_auth_salt = random_string.secure_auth_salt.result
+      logged_in_salt   = random_string.logged_in_salt.result
+      nonce_salt       = random_string.nonce_salt.result
     }
   }
 
@@ -87,13 +148,20 @@ resource "aws_iam_role_policy" "secrets_access" {
 }
 
 # --- Notes --- #
-# 1. The secret name is constructed dynamically, but you can adjust naming
-#    conventions as needed.
-# 2. By default, Terraform tracks these resources in its state. Therefore,
-#    running "terraform destroy" will remove the secret and its version,
-#    as well as the IAM policy resources.
-# 3. For safety, you can set "recovery_window_in_days" on the secret if you
-#    want a delayed deletion period. You can also use the "prevent_destroy"
-#    lifecycle rule for extra protection.
-# 4. Encryption:
-#    - Secrets are encrypted using a Customer Managed KMS Key (CMK) for enhanced security.
+# 1. Secret Structure:
+#    - The secret contains both database credentials and WordPress security keys
+#    - All values are merged into a single JSON object for easier retrieval
+# 2. Security Features:
+#    - Random string generation for all WordPress security keys and salts
+#    - Secrets are encrypted using a Customer Managed KMS Key (CMK) for enhanced security
+#    - IAM permissions are scoped to only the specific secret ARN
+# 3. Access Control:
+#    - EC2 instances in the ASG are granted read-only access via IAM role policy
+#    - Only GetSecretValue and DescribeSecret permissions are granted
+# 4. Lifecycle Management:
+#    - Recovery window is set to 0 days (immediate deletion) - adjust for production
+#    - prevent_destroy is set to false - consider changing to true for production
+# 5. Best Practices:
+#    - Secret values are not stored in Terraform state (using write-only attribute)
+#    - Tags are applied for better resource tracking and cost allocation
+#    - Secret name is environment-specific to prevent cross-environment access

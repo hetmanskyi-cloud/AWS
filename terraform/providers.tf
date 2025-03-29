@@ -15,8 +15,9 @@ terraform {
   }
 }
 
-# Configure the AWS provider and set the default region from a variable
+# Configure the AWS alias provider and set the default region from a variable
 provider "aws" {
+  alias   = "default"
   region  = var.aws_region
   profile = "default"
 

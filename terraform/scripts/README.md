@@ -131,7 +131,7 @@ This script automates the installation and configuration of WordPress on an EC2 
 |--------------------------|--------------------------------------------------------|----------|---------------------|
 | `DB_HOST`                | RDS endpoint for MySQL database                        | Yes      | -                   |
 | `DB_PORT`                | MySQL port (typically 3306)                            | Yes      | 3306                |
-| `SECRET_ARN`             | AWS Secrets Manager ARN containing credentials         | Yes      | -                   |
+| `SECRET_NAME`            | AWS Secrets Manager NAME containing credentials        | Yes      | -                   |
 | `PHP_VERSION`            | PHP version to install (e.g., "8.3")                   | Yes      | 8.3                 |
 | `REDIS_HOST`             | ElastiCache Redis endpoint                             | Yes      | -                   |
 | `REDIS_PORT`             | Redis port (typically 6379)                            | Yes      | 6379                |
@@ -195,7 +195,7 @@ The scripts are primarily used by the Terraform modules in this project, but can
 # Set required environment variables
 export DB_HOST=mydb.cluster-abc123.us-west-2.rds.amazonaws.com
 export DB_PORT=3306
-export SECRET_ARN=arn:aws:secretsmanager:us-west-2:123456789012:secret:wordpress-secrets
+export SECRET_NAME="dev-wp-secrets"
 export PHP_VERSION=8.3
 export REDIS_HOST=myredis.abc123.ng.0001.usw2.cache.amazonaws.com
 export REDIS_PORT=6379

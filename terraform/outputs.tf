@@ -178,9 +178,15 @@ output "wordpress_tg_arn" {
 
 # --- Secrets Manager Outputs --- #
 
+# Output the Name of the WordPress secrets
+output "wordpress_secrets_name" {
+  description = "The name of the WordPress secret for ASG consumption"
+  value       = aws_secretsmanager_secret.wp_secrets.name
+}
+
 # Output the ARN of the WordPress secrets
 output "wordpress_secrets_arn" {
-  description = "ARN of the WordPress secrets in AWS Secrets Manager"
+  description = "The ARN of the WordPress Secrets Manager secret"
   value       = aws_secretsmanager_secret.wp_secrets.arn
 }
 

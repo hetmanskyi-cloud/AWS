@@ -104,7 +104,7 @@ graph TD
 | `wordpress_script_path`  | string      | S3 path to the WordPress deployment script                       |
 | `script_content`         | string      | Embedded WordPress deployment script content                     |
 | `healthcheck_content_b64`| string      | Base64-encoded content for healthcheck.php                       |
-| `wordpress_secrets_arn`  | string      | ARN of Secrets Manager secret for WordPress                      |
+| `wordpress_secrets_name` | string      | NAME of Secrets Manager secret for WordPress                     |
 
 ---
 
@@ -121,7 +121,7 @@ locals {
       wordpress_script_path   = local.wordpress_script_path,
       script_content          = local.script_content,
       healthcheck_content_b64 = local.healthcheck_b64,
-      wordpress_secrets_arn   = var.wordpress_secrets_arn
+      wordpress_secrets_name  = var.wordpress_secrets_name
     }
   )
 }
@@ -144,7 +144,7 @@ resource "aws_launch_template" "asg_launch_template" {
 
 - WordPress deployment script is either downloaded from S3 or embedded locally based on enable_s3_script variable
 - Healthcheck file is either fetched from S3 or embedded depending on the same condition
-- Secrets retrieval is dynamically configured through the secrets.tf block in the main module, which passes the Secrets Manager ARN to the template only if secret usage is enabled.
+- Secrets retrieval is dynamically configured through the secrets.tf block in the main module, which passes the Secrets Manager name to the template only if secret usage is enabled.
 
 ---
 

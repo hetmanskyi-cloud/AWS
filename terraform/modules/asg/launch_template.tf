@@ -42,6 +42,9 @@ locals {
   # the script is fetched from S3 using the bucket name; otherwise, the local script is used.
   wordpress_script_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
 
+  # Path to wp-config-template.php: either from S3 or local scripts directory
+  wp_config_template_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/wp-config-template.php" : "${path.root}/scripts/wp-config-template.php"
+
   # Script Content
   # When enable_s3_script is true, we assume the script is retrieved from S3, so we set script_content to an empty string.
   # Otherwise, we read the local deploy_wordpress.sh file.
@@ -56,13 +59,14 @@ locals {
       aws_region              = var.aws_region
       enable_s3_script        = var.enable_s3_script
       wordpress_script_path   = local.wordpress_script_path
+      wp_config_template_path = local.wp_config_template_path
       script_content          = local.script_content
       retry_max_retries       = local.retry_config.MAX_RETRIES
       retry_retry_interval    = local.retry_config.RETRY_INTERVAL
       healthcheck_file        = local.healthcheck_file
       healthcheck_content_b64 = local.healthcheck_b64
       healthcheck_s3_path     = local.healthcheck_s3_path
-      wordpress_secrets_arn   = var.wordpress_secrets_arn
+      wordpress_secrets_name  = var.wordpress_secrets_name
     }
   )
 }
