@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e # Exit script if any command fails
+set -euxo pipefail  # Fail fast: exit on error, undefined variables, or pipeline failure; print each command
 
 # Ensure /var/log directory exists for the user_data script
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ensuring /var/log directory exists..."
@@ -38,17 +38,31 @@ fi
 
 # 2. Export WordPress-related environment variables
 # This section exports environment variables for WordPress to be used in the deployment script.
+# Note: Only non-sensitive variables are exported here. Secret variables (e.g., database credentials)
+#       are fetched by the deploy_wordpress.sh script from AWS Secrets Manager.
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Exporting environment variables..."
 {
-  %{ for key, value in wp_config }
-    if [[ "${key}" != "DB_USER" && "${key}" != "DB_PASSWORD" ]]; then
-      echo "export ${key}=\"${value}\""
-    fi
-  %{ endfor }
+  # Export DB, Redis, and WordPress related configuration values
+  echo "export DB_HOST='${wp_config.DB_HOST}'"
+  echo "export DB_PORT='${wp_config.DB_PORT}'"  
+  echo "export WP_TITLE='${wp_config.WP_TITLE}'"
+  echo "export PHP_VERSION='${wp_config.PHP_VERSION}'"
+  echo "export PHP_FPM_SERVICE='php${wp_config.PHP_VERSION}-fpm'"
+  echo "export REDIS_HOST='${wp_config.REDIS_HOST}'"
+  echo "export REDIS_PORT='${wp_config.REDIS_PORT}'"
+  echo "export AWS_LB_DNS='${wp_config.AWS_LB_DNS}'"
+  
+  # Export other necessary environment variables
   echo "export SECRET_NAME='${wordpress_secrets_name}'"
   echo "export HEALTHCHECK_CONTENT_B64='${healthcheck_content_b64}'"
-  echo "export AWS_DEFAULT_REGION=\"${aws_region}\""
-  echo "# Set HOME directory for www-data user when running wp-cli commands"
+  echo "export AWS_DEFAULT_REGION='${aws_region}'"
+
+  # Export retry configuration variables
+  echo "export RETRY_MAX_RETRIES='${retry_max_retries}'"
+  echo "export RETRY_RETRY_INTERVAL='${retry_retry_interval}'"
+  
+  # Set HOME directory for wp-cli commands
   echo "alias wp='sudo -u www-data HOME=/tmp wp'"
 } | sudo tee -a /etc/environment > /dev/null
 

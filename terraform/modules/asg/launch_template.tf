@@ -7,7 +7,6 @@ locals {
   wp_config = {
     DB_HOST         = var.db_host
     DB_PORT         = var.db_port
-    DB_NAME         = var.db_name
     WP_TITLE        = var.wp_title
     PHP_VERSION     = var.php_version
     PHP_FPM_SERVICE = "php${var.php_version}-fpm"
@@ -43,7 +42,7 @@ locals {
   wordpress_script_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
 
   # Path to wp-config-template.php: either from S3 or local scripts directory
-  wp_config_template_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/wp-config-template.php" : "${path.root}/scripts/wp-config-template.php"
+  wp_config_template_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/wp-config-template.php" : "${path.root}/templates/wp-config-template.php"
 
   # Script Content
   # When enable_s3_script is true, we assume the script is retrieved from S3, so we set script_content to an empty string.

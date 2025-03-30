@@ -60,35 +60,26 @@ locals {
   secret_values = {
     # Database credentials
     database = {
-      db_name     = var.db_name
-      db_user     = var.db_username
-      db_password = var.db_password
+      DB_NAME     = var.db_name
+      DB_USER     = var.db_username
+      DB_PASSWORD = var.db_password
     }
 
     # WordPress admin credentials and WordPress security keys
     wordpress = {
-      admin_user       = var.wp_admin_user
-      admin_email      = var.wp_admin_email
-      admin_password   = var.wp_admin_password
-      auth_key         = random_string.auth_key.result
-      secure_auth_key  = random_string.secure_auth_key.result
-      logged_in_key    = random_string.logged_in_key.result
-      nonce_key        = random_string.nonce_key.result
-      auth_salt        = random_string.auth_salt.result
-      secure_auth_salt = random_string.secure_auth_salt.result
-      logged_in_salt   = random_string.logged_in_salt.result
-      nonce_salt       = random_string.nonce_salt.result
+      ADMIN_USER       = var.wp_admin_user
+      ADMIN_EMAIL      = var.wp_admin_email
+      ADMIN_PASSWORD   = var.wp_admin_password
+      AUTH_KEY         = random_string.auth_key.result
+      SECURE_AUTH_KEY  = random_string.secure_auth_key.result
+      LOGGED_IN_KEY    = random_string.logged_in_key.result
+      NONCE_KEY        = random_string.nonce_key.result
+      AUTH_SALT        = random_string.auth_salt.result
+      SECURE_AUTH_SALT = random_string.secure_auth_salt.result
+      LOGGED_IN_SALT   = random_string.logged_in_salt.result
+      NONCE_SALT       = random_string.nonce_salt.result
     }
   }
-
-  # Combine the database and WordPress credentials into a single JSON string.
-  # This allows the aws_secretsmanager_secret_version resource to store them as one merged secret.
-  wp_secrets_payload = jsonencode(
-    merge(
-      local.secret_values.database,
-      local.secret_values.wordpress
-    )
-  )
 }
 
 # --- Create AWS Secrets Manager secret --- #
@@ -115,12 +106,16 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
 }
 
 # Store the actual secret values (JSON) in the secret.
-# Merges both database and WordPress credentials into a single JSON string.
 resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   secret_id = aws_secretsmanager_secret.wp_secrets.id
 
   # Use the write-only attribute so the secret is not stored in Terraform state
-  secret_string = local.wp_secrets_payload
+  secret_string = jsonencode(
+    merge(
+      local.secret_values.database,
+      local.secret_values.wordpress
+    )
+  )
 }
 
 # Define an IAM policy document that grants read access to the secret.

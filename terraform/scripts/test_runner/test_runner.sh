@@ -1,5 +1,7 @@
 #!/bin/bash
-set -euxo pipefail
+set -euxo pipefail  # Fail fast: exit on error, undefined variables, or pipeline failure; print each command
+
+# Enable debug mode for detailed logging in the test environment
 export DEBUG=true
 [ "${DEBUG:-false}" = "true" ] && set -x
 

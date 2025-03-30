@@ -1,13 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail  # Exit on error, undefined variables, and pipe failures
-
-# Enable debug mode
-export DEBUG=true
-[ "${DEBUG:-false}" = "true" ] && set -x
-
-# Load environment variables (AWS_DEFAULT_REGION, SECRET_NAME, etc.)
-source /etc/environment
+set -euxo pipefail  # Fail fast: exit on error, undefined variables, or pipeline failure; print each command
 
 # Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
 mkdir -p /var/log
@@ -58,6 +51,15 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Secrets retrieved successfully."
 
 # Export secrets for WordPress configuration
+export DB_NAME=$(echo "$SECRETS" | jq -r '.db_name')
+export DB_USER=$(echo "$SECRETS" | jq -r '.db_user')
+export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.db_password')
+
+export WP_ADMIN=$(echo "$SECRETS" | jq -r '.admin_user')
+export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.admin_email')
+export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.admin_password')
+
+# Export WordPress security keys
 export AUTH_KEY=$(echo "$SECRETS" | jq -r '.auth_key')
 export SECURE_AUTH_KEY=$(echo "$SECRETS" | jq -r '.secure_auth_key')
 export LOGGED_IN_KEY=$(echo "$SECRETS" | jq -r '.logged_in_key')
@@ -67,36 +69,16 @@ export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.secure_auth_salt')
 export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.logged_in_salt')
 export NONCE_SALT=$(echo "$SECRETS" | jq -r '.nonce_salt')
 
-# Extract values from the JSON and export those that must be used in other processes
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing and exporting secrets..."
-
-# Debug: Print the structure of the secrets
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: Secrets structure:"
-echo "$SECRETS" | jq '.'
-
-export DB_NAME=$(echo "$SECRETS" | jq -r '.db_name')
-export DB_USER=$(echo "$SECRETS" | jq -r '.db_user')
-export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.db_password')
-export WP_ADMIN=$(echo "$SECRETS" | jq -r '.admin_user')
-export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.admin_email')
-export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.admin_password')
-
-# Debug: Print the values of the exported variables
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: Exported variables:"
-echo "DB_NAME=$DB_NAME"
-echo "DB_USER=$DB_USER"
-echo "DB_PASSWORD=${DB_PASSWORD:0:3}***" # Print only first 3 chars for security
-echo "WP_ADMIN=$WP_ADMIN"
-echo "WP_ADMIN_EMAIL=$WP_ADMIN_EMAIL"
-echo "WP_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD:0:3}***" # Print only first 3 chars for security
-
 # Verify all required values are present
-for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD; do
+for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD \
+           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT; do
   if [ -z "${!VAR}" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Required secret variable $VAR is empty."
     exit 1
   fi
 done
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] All secrets successfully retrieved and exported."
 
 # --- 4. Install WordPress dependencies (Nginx, PHP, MySQL client, etc.) --- #
 
@@ -124,6 +106,12 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress dependencies installed successful
 # --- 5. Configure Nginx --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring Nginx..."
+
+# Ensure /var/www/html exists before configuring Nginx
+if [ ! -d "/var/www/html" ]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: /var/www/html directory does not exist! Creating..."
+  mkdir -p /var/www/html
+fi
 
 # Detect correct PHP-FPM socket path dynamically
 PHP_SOCK=$(find /run /var/run -name "php${PHP_VERSION}-fpm.sock" 2>/dev/null | head -n 1)
@@ -195,12 +183,13 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Adjusting Nginx for high load and Auto Scal
 sed -i 's/^\s*worker_connections\s\+[0-9]\+;/    worker_connections 1024;/' /etc/nginx/nginx.conf
 sed -i 's/worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
 
+# Restart Nginx to apply the new configuration
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Restarting Nginx to apply new configuration..."
+systemctl restart nginx
+
 # --- 6. Download and install WordPress --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading and installing WordPress from GitHub..."
-
-# Ensure target directory exists
-mkdir -p /var/www/html
 
 # Remove any previous WordPress installation (if files exist)
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing old WordPress installation if files exist..."
@@ -232,90 +221,88 @@ find /var/www/html -type f -exec chmod 644 {} \;
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation completed successfully!"
 
-# --- 7. Configure WordPress (wp-config.php) for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
+# --- 7. Configure wp-config.php for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring WordPress..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring wp-config.php for WordPress..."
 
-# Move into WordPress root directory
-cd /var/www/html || { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Cannot access /var/www/html!"; exit 1; }
-
-# Ensure wp-config-sample.php exists; if missing, download a fresh copy
-if [ ! -f "wp-config-sample.php" ]; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: wp-config-sample.php not found! Downloading..."
-  curl -O https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
+# Ensure wp-config-sample.php exists; if missing, download it
+if [ ! -f "/var/www/html/wp-config-sample.php" ]; then
+  echo "WARNING: wp-config-sample.php not found! Downloading..."
+  curl -o /var/www/html/wp-config-sample.php https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
 fi
 
-# Log to verify wp-config-sample.php now exists
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config-sample.php found."
-
-# Copy sample configuration to wp-config.php if it doesn't already exist
-if [ ! -f "wp-config.php" ]; then
-  cp wp-config-sample.php wp-config.php
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created from wp-config-sample.php"
-fi
-
-# Set correct ownership and permissions for wp-config.php
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting correct ownership and permissions for wp-config.php..."
-chown www-data:www-data /var/www/html/wp-config.php
-chmod 644 /var/www/html/wp-config.php
-
-# Log wp-config.php details for verification
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php exists at: $(ls -l /var/www/html/wp-config.php)"
-
-# --- Replace with custom template using envsubst --- #
-
-# Check that wp-config-template.php is available
+# Ensure wp-config-template.php is available for substitution
 if [ ! -f "/tmp/wp-config-template.php" ]; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: wp-config-template.php is missing in /tmp/"
+  echo "ERROR: wp-config-template.php is missing in /tmp/"
   exit 1
 fi
 
-# Export all required env variables
-export DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
-        WP_TITLE PHP_VERSION REDIS_HOST REDIS_PORT AWS_LB_DNS \
-        AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT
+# Check if necessary environment variables are set
+for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
+           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY \
+           AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT \
+           AWS_LB_DNS REDIS_HOST REDIS_PORT; do
+  if [ -z "${!VAR}" ]; then
+    echo "ERROR: Missing required environment variable $VAR!"
+    exit 1
+  fi
+done
 
-# Generate wp-config.php from template
-# Use envsubst with an explicit list to avoid replacing PHP variables
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing wp-config-template.php with envsubst..."
-envsubst '${DB_NAME} ${DB_PASSWORD} ${DB_HOST} ${DB_USER} \
+# Replace variables in wp-config-template.php using envsubst
+echo "Processing wp-config-template.php with envsubst..."
+envsubst '${DB_NAME} ${DB_USER} ${DB_PASSWORD} ${DB_HOST} ${DB_PORT} \
 ${AUTH_KEY} ${SECURE_AUTH_KEY} ${LOGGED_IN_KEY} ${NONCE_KEY} \
 ${AUTH_SALT} ${SECURE_AUTH_SALT} ${LOGGED_IN_SALT} ${NONCE_SALT} \
 ${AWS_LB_DNS} ${REDIS_HOST} ${REDIS_PORT}' \
 < /tmp/wp-config-template.php > /var/www/html/wp-config.php
 
-# Verify the result
+# Verify wp-config.php was successfully created
 if [ ! -f "/var/www/html/wp-config.php" ]; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to create wp-config.php!"
+  echo "ERROR: wp-config.php creation failed!"
   exit 1
-else
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created successfully."
 fi
 
-# Set ownership and permissions again after replacement
-chown www-data:www-data /var/www/html/wp-config.php
-chmod 644 /var/www/html/wp-config.php
+# Set correct ownership and permissions AFTER generating wp-config.php
+sudo chown www-data:www-data /var/www/html/wp-config.php
+sudo chmod 644 /var/www/html/wp-config.php
+echo "Ownership and permissions set for wp-config.php"
 
-# Log debug output of the generated config
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Debug: Content of final wp-config.php"
-cat /var/www/html/wp-config.php
+# Test database connection using credentials from wp-config.php
+WP_DB_NAME=$(sed -n "s/.*DB_NAME',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
+WP_DB_USER=$(sed -n "s/.*DB_USER',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
+WP_DB_PASSWORD=$(sed -n "s/.*DB_PASSWORD',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
+WP_DB_HOST=$(sed -n "s/.*DB_HOST',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress configuration completed successfully!"
+# Debug output for database connection
+echo "Verifying database connection with the following parameters:"
+echo "DB_NAME=$WP_DB_NAME"
+echo "DB_USER=$WP_DB_USER"
+echo "DB_HOST=$WP_DB_HOST"
 
-# --- 8. Install WP-CLI and run initial WordPress setup --- #
+# Try connecting to the database
+if mysql -h "$WP_DB_HOST" -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" -e "SHOW DATABASES;" > /dev/null 2>&1; then
+  echo "Database connection successful!"
+else
+  echo "ERROR: Unable to connect to the database. Check your credentials and network connectivity."
+  exit 1
+fi
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created and validated successfully."
+
+# --- 8. Install WordPress with WP-CLI --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WP-CLI..."
 
-# Download the official WP-CLI Phar package
+# Download WP-CLI
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 
-# Verify WP-CLI download is valid
+# Verify WP-CLI download
 if ! php wp-cli.phar --info > /dev/null 2>&1; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WP-CLI download failed or is corrupted!"
+  echo "ERROR: WP-CLI download failed or is corrupted!"
   exit 1
 fi
 
-# Make it executable and move to global location
+# Make WP-CLI executable and move to global location
 chmod +x wp-cli.phar
 sudo mv wp-cli.phar /usr/local/bin/wp
 
@@ -325,47 +312,44 @@ export WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running WordPress core installation..."
 
-# Navigate to the WordPress root directory
-cd /var/www/html
-
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting WordPress file permissions before WP-CLI..."
+# Ensure correct file permissions for WordPress
 sudo chown -R www-data:www-data /var/www/html
 sudo find /var/www/html -type d -exec chmod 755 {} \;
 sudo find /var/www/html -type f -exec chmod 644 {} \;
 
-# Wait until wp db check succeeds (max 60s)
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for WordPress DB connection via wp-cli..."
-for i in {1..12}; do
-  if sudo -u www-data HOME=/tmp wp db check >/dev/null 2>&1; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp db check succeeded after $((i * 5)) seconds."
-    break
-  fi
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempt $i: wp db check failed. Retrying in 5s..."
-  sleep 5
-done
-
-# Final check
-if ! sudo -u www-data HOME=/tmp wp db check >/dev/null 2>&1; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ ERROR: wp db check still failing after 60s. Exiting."
+# Verify database connection and permissions
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Verifying database connection..."
+if ! mysql -h "$WP_DB_HOST" -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" -e "USE $WP_DB_NAME;" 2>/dev/null; then
+  echo "ERROR: Cannot access database '$WP_DB_NAME'. Check credentials and database existence."
   exit 1
 fi
 
-# Install WordPress using WP-CLI as www-data user
-sudo -u www-data HOME=/tmp wp core install \
-  --url="http://${AWS_LB_DNS}" \
-  --title="${WP_TITLE}" \
-  --admin_user="${WP_ADMIN}" \
-  --admin_password="${WP_ADMIN_PASSWORD}" \
-  --admin_email="${WP_ADMIN_EMAIL}" \
-  --skip-email
+# Install WordPress using WP-CLI if not already installed
+if sudo -u www-data HOME=/tmp wp core is-installed; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress is already installed. Skipping installation step."
+else
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WordPress..."
+  sudo -u www-data HOME=/tmp wp core install \
+      --url="http://${AWS_LB_DNS}" \
+      --title="${WP_TITLE}" \
+      --admin_user="${WP_ADMIN}" \
+      --admin_password="${WP_ADMIN_PASSWORD}" \
+      --admin_email="${WP_ADMIN_EMAIL}" \
+      --skip-email \
+      --dbuser="$DB_USER" \
+      --dbpass="$DB_PASSWORD" \
+      --dbname="${DB_NAME}" \
+      --dbhost="${DB_HOST}"
 
-# Verify WordPress installation succeeded
-if ! sudo -u www-data HOME=/tmp wp core is-installed; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WordPress CLI installation failed!"
+# Verify installation
+if sudo -u www-data HOME=/tmp wp core is-installed; then
+  echo "WordPress installation completed successfully!"
+else
+  echo "ERROR: WordPress installation failed!"
   exit 1
 fi
 
-# Clean up WP-CLI cache to free up space
+# Clean up WP-CLI cache
 rm -rf /tmp/wp-cli-cache
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress core installation completed successfully!"
@@ -374,20 +358,39 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress core installation completed succe
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing common WordPress plugins..."
 
-# Install and activate plugins using WP-CLI
-sudo -u www-data wp plugin install \
-  wp-super-cache \
-  wordfence \
-  --activate || {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to install some plugins!"
-    exit 1
-}
+# Ensure WordPress is installed before proceeding
+if ! sudo -u www-data HOME=/tmp wp core is-installed; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WordPress is not installed. Cannot proceed with plugin installation."
+  exit 1
+fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Common WordPress plugins installed and activated successfully!"
+# List of plugins to install
+PLUGINS=("wp-super-cache" "wordfence")
+
+# Install and activate each plugin individually
+for PLUGIN in "${PLUGINS[@]}"; do
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing plugin: $PLUGIN"
+  if sudo -u www-data wp plugin install "$PLUGIN" --activate; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Plugin $PLUGIN installed and activated successfully."
+  else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to install or activate plugin: $PLUGIN"
+    exit 1
+  fi
+done
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] All common WordPress plugins installed and activated successfully!"
 
 # --- 10. Configure and enable Redis Object Cache --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up Redis Object Cache..."
+
+# Log Redis host and port for reference
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Using Redis at ${REDIS_HOST}:${REDIS_PORT}"
+
+# Check if Redis server is reachable before enabling the plugin
+if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Redis server is not reachable at ${REDIS_HOST}:${REDIS_PORT}"
+fi
 
 # Install and activate the Redis Object Cache plugin (safe to run multiple times)
 sudo -u www-data wp plugin install redis-cache --activate
@@ -417,29 +420,38 @@ if [ $? -ne 0 ]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to download healthcheck.php from S3"
   exit 1
 else
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB healthcheck endpoint created successfully!"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB health check endpoint created successfully from S3"
 fi
 %{ else }
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Embedding local healthcheck content..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing embedded healthcheck content..."
 echo "${healthcheck_content_b64}" | base64 --decode > /var/www/html/healthcheck.php
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB healthcheck endpoint created successfully!"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB health check endpoint created successfully from embedded content"
 %{ endif }
 
-# Set correct ownership and permissions for healthcheck file
+# Set ownership and permissions for healthcheck file
 sudo chown www-data:www-data /var/www/html/healthcheck.php
 sudo chmod 644 /var/www/html/healthcheck.php
 
 # --- 12. Safe system update and cleanup --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Performing safe system update..."
+
+# Update packages without interactive prompts
 DEBIAN_FRONTEND=noninteractive apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --only-upgrade
 DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y --no-install-recommends
+
+# Clean up unused packages and cache
 apt-get autoremove -y --purge
 apt-get clean
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] System update and cleanup completed successfully!"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress Deployment Script Version: 1.0.0 installed successfully!"
+# Final hardening: restrict wp-config.php permissions
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applying final permissions to wp-config.php..."
+sudo chmod 640 /var/www/html/wp-config.php
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php permissions set to 640 (owner read/write only)."
 
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress Deployment Script Version: 1.0.0 installed successfully!"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress deployment completed successfully. Exiting..."
 exit 0
