@@ -340,6 +340,7 @@ else
       --dbpass="$DB_PASSWORD" \
       --dbname="${DB_NAME}" \
       --dbhost="${DB_HOST}"
+fi
 
 # Verify installation
 if sudo -u www-data HOME=/tmp wp core is-installed; then
