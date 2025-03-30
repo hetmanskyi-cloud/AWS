@@ -51,23 +51,23 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Secrets retrieved successfully."
 
 # Export secrets for WordPress configuration
-export DB_NAME=$(echo "$SECRETS" | jq -r '.db_name')
-export DB_USER=$(echo "$SECRETS" | jq -r '.db_user')
-export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.db_password')
+export DB_NAME=$(echo "$SECRETS" | jq -r '.DB_NAME')
+export DB_USER=$(echo "$SECRETS" | jq -r '.DB_USER')
+export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.DB_PASSWORD')
 
-export WP_ADMIN=$(echo "$SECRETS" | jq -r '.admin_user')
-export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.admin_email')
-export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.admin_password')
+export WP_ADMIN=$(echo "$SECRETS" | jq -r '.ADMIN_USER')
+export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.ADMIN_EMAIL')
+export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.ADMIN_PASSWORD')
 
 # Export WordPress security keys
-export AUTH_KEY=$(echo "$SECRETS" | jq -r '.auth_key')
-export SECURE_AUTH_KEY=$(echo "$SECRETS" | jq -r '.secure_auth_key')
-export LOGGED_IN_KEY=$(echo "$SECRETS" | jq -r '.logged_in_key')
-export NONCE_KEY=$(echo "$SECRETS" | jq -r '.nonce_key')
-export AUTH_SALT=$(echo "$SECRETS" | jq -r '.auth_salt')
-export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.secure_auth_salt')
-export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.logged_in_salt')
-export NONCE_SALT=$(echo "$SECRETS" | jq -r '.nonce_salt')
+export AUTH_KEY=$(echo "$SECRETS" | jq -r '.AUTH_KEY')
+export SECURE_AUTH_KEY=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_KEY')
+export LOGGED_IN_KEY=$(echo "$SECRETS" | jq -r '.LOGGED_IN_KEY')
+export NONCE_KEY=$(echo "$SECRETS" | jq -r '.NONCE_KEY')
+export AUTH_SALT=$(echo "$SECRETS" | jq -r '.AUTH_SALT')
+export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_SALT')
+export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.LOGGED_IN_SALT')
+export NONCE_SALT=$(echo "$SECRETS" | jq -r '.NONCE_SALT')
 
 # Verify all required values are present
 for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD \
