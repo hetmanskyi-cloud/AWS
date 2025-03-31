@@ -76,7 +76,26 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Loading environment variables..."
 source /etc/environment
 env | grep DB_  # Debugging step to check environment variables
 
-# --- 4. Retrieve or embed the WordPress deployment script --- #
+# --- 4. Download Amazon RDS root SSL certificate --- #
+
+# This certificate is required to establish SSL connections to RDS when require_secure_transport=ON
+# Reference: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading RDS SSL certificate..."
+curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /tmp/rds-combined-ca-bundle.pem
+
+# Ensure it's readable by all processes (e.g., PHP, MySQL CLI)
+chmod 644 /tmp/rds-combined-ca-bundle.pem
+
+# Validate certificate was downloaded
+if [ ! -s /tmp/rds-combined-ca-bundle.pem ]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to download RDS SSL certificate!"
+  exit 1
+else
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] RDS SSL certificate downloaded successfully."
+fi
+
+# --- 5. Retrieve or embed the WordPress deployment script --- #
 
 # This step either downloads the WordPress deployment script from S3 or embeds it directly.
 %{ if enable_s3_script }
@@ -98,12 +117,12 @@ END_SCRIPT
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Local deploy_wordpress.sh embedded successfully."
 %{ endif }
 
-# --- 5. Ensure /var/www/html directory exists --- #
+# --- 6. Ensure /var/www/html directory exists --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ensuring /var/www/html directory exists..."
 sudo mkdir -p /var/www/html
 
-# --- 6. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+# --- 7. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating temporary healthcheck file..."
 echo "<?php http_response_code(200); ?>" | sudo tee /var/www/html/healthcheck.php > /dev/null
@@ -116,7 +135,7 @@ else
   exit 1
 fi
 
-# --- 7. Execute the deployment script --- #
+# --- 8. Execute the deployment script --- #
 
 chmod +x /tmp/deploy_wordpress.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running /tmp/deploy_wordpress.sh..."

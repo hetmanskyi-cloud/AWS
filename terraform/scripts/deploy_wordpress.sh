@@ -305,11 +305,15 @@ sudo chown www-data:www-data /var/www/html/wp-config.php
 sudo chmod 644 /var/www/html/wp-config.php
 echo "Ownership and permissions set temporarily for wp-config.php"
 
-# Test database connection explicitly
-if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" > /dev/null 2>&1; then
-  echo "Database connection successful!"
+# Verify database connection using MySQL CLI with SSL
+# This checks that we can securely connect to RDS using the downloaded Amazon SSL certificate.
+# If the connection fails — script stops with an error.
+if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" \
+    --ssl-ca=/tmp/rds-combined-ca-bundle.pem \
+    -e "USE $DB_NAME;" > /dev/null 2>&1; then
+  echo "Database SSL connection successful via CLI."
 else
-  echo "ERROR: Unable to connect to the database. Check your credentials and network connectivity."
+  echo "ERROR: Unable to connect to the database with SSL."
   exit 1
 fi
 
@@ -317,7 +321,28 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created and validated success
 
 # --- 9. Initialize WordPress database and admin user --- #
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Initializing WordPress database and admin user..."
+# Verify database connection using PHP mysqli with SSL
+# This ensures that PHP can also securely connect to RDS using the same certificate.
+# It mimics how WordPress itself connects, so this is the final SSL verification before install.
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Testing DB SSL connection via PHP:"
+php -r '
+$mysqli = mysqli_init();
+$mysqli->ssl_set(null, null, getenv("SSL_CA_PATH") ?: "/tmp/rds-combined-ca-bundle.pem", null, null);
+$mysqli->real_connect(
+    getenv("DB_HOST"),
+    getenv("DB_USER"),
+    getenv("DB_PASSWORD"),
+    getenv("DB_NAME"),
+    (int)getenv("DB_PORT"),
+    null,
+    MYSQLI_CLIENT_SSL
+);
+if ($mysqli->connect_errno) {
+    echo "PHP SSL connection failed: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error . PHP_EOL;
+    exit(1);
+}
+echo "PHP SSL connection successful via mysqli!" . PHP_EOL;
+'
 
 # Check if WordPress is already installed before attempting installation
 if sudo -u www-data HOME=/tmp wp core is-installed --path=/var/www/html; then
