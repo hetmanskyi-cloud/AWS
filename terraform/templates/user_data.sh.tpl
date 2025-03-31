@@ -10,7 +10,8 @@ sudo mkdir -p /var/log
 exec 1> >(tee -a /var/log/user-data.log| tee /dev/tty) 2>&1
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting user-data script..."
 
-# 1. Ensure AWS CLI (v2) is installed, if not already
+# --- 1. Ensure AWS CLI (v2) is installed, if not already --- #
+
 # This step checks if AWS CLI is installed and installs it if necessary.
 if ! command -v aws >/dev/null 2>&1; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing AWS CLI v2..."
@@ -38,11 +39,11 @@ else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] AWS CLI is already installed."
 fi
 
-# 2. Export WordPress-related environment variables
+# --- 2. Export WordPress-related environment variables --- #
+
 # This section exports environment variables for WordPress to be used in the deployment script.
 # Note: Only non-sensitive variables are exported here. Secret variables (e.g., database credentials)
 #       are fetched by the deploy_wordpress.sh script from AWS Secrets Manager.
-
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Exporting environment variables..."
 {
   # Export DB, Redis, and WordPress related configuration values
@@ -68,13 +69,15 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Exporting environment variables..."
   echo "alias wp='sudo -u www-data HOME=/tmp wp'"
 } | sudo tee -a /etc/environment > /dev/null
 
-# 3. Reload environment variables
+# --- 3. Reload environment variables --- #
+
 # Loads the newly exported environment variables to make them available for the session.
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Loading environment variables..."
 source /etc/environment
 env | grep DB_  # Debugging step to check environment variables
 
-# 4. Retrieve or embed the WordPress deployment script
+# --- 4. Retrieve or embed the WordPress deployment script --- #
+
 # This step either downloads the WordPress deployment script from S3 or embeds it directly.
 %{ if enable_s3_script }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading script from S3: ${wordpress_script_path}"
@@ -95,11 +98,13 @@ END_SCRIPT
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Local deploy_wordpress.sh embedded successfully."
 %{ endif }
 
-# 5. Ensure /var/www/html directory exists
+# --- 5. Ensure /var/www/html directory exists --- #
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ensuring /var/www/html directory exists..."
 sudo mkdir -p /var/www/html
 
-# 6. Create a temporary simple healthcheck file (placeholder) for WordPress
+# --- 6. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating temporary healthcheck file..."
 echo "<?php http_response_code(200); ?>" | sudo tee /var/www/html/healthcheck.php > /dev/null
 
@@ -111,10 +116,12 @@ else
   exit 1
 fi
 
-# 7. Execute the deployment script
+# --- 7. Execute the deployment script --- #
+
 chmod +x /tmp/deploy_wordpress.sh
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running /tmp/deploy_wordpress.sh..."
 /tmp/deploy_wordpress.sh
 
 # Final message indicating the script has completed
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] User-data script completed!"
+# --- End of Script --- #

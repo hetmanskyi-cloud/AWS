@@ -351,6 +351,7 @@ fi
 rm -rf /tmp/wp-cli-cache
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress initialization completed successfully!"
+fi
 
 # --- 10. Install common WordPress plugins --- #
 
@@ -455,3 +456,4 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php permissions set to 640 (owner
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress Deployment Script Version: 1.0.0 installed successfully!"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress deployment completed successfully. Exiting..."
 exit 0
+# --- End of Script --- #
