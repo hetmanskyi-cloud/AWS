@@ -62,6 +62,10 @@ locals {
       healthcheck_content_b64 = local.healthcheck_b64
       healthcheck_s3_path     = local.healthcheck_s3_path
       wordpress_secrets_name  = var.wordpress_secrets_name
+
+      # Default paths for WordPress deployment (used in user_data)
+      WP_TMP_DIR = "/tmp/wordpress-setup"
+      WP_PATH    = "/var/www/html"
     }
   )
 }
