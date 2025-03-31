@@ -221,75 +221,7 @@ find /var/www/html -type f -exec chmod 644 {} \;
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress installation completed successfully!"
 
-# --- 7. Configure wp-config.php for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
-
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring wp-config.php for WordPress..."
-
-# Ensure wp-config-sample.php exists; if missing, download it
-if [ ! -f "/var/www/html/wp-config-sample.php" ]; then
-  echo "WARNING: wp-config-sample.php not found! Downloading..."
-  curl -o /var/www/html/wp-config-sample.php https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
-fi
-
-# Ensure wp-config-template.php is available for substitution
-if [ ! -f "/tmp/wp-config-template.php" ]; then
-  echo "ERROR: wp-config-template.php is missing in /tmp/"
-  exit 1
-fi
-
-# Check if necessary environment variables are set
-for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
-           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY \
-           AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT \
-           AWS_LB_DNS REDIS_HOST REDIS_PORT; do
-  if [ -z "${!VAR}" ]; then
-    echo "ERROR: Missing required environment variable $VAR!"
-    exit 1
-  fi
-done
-
-# Replace variables in wp-config-template.php using envsubst
-echo "Processing wp-config-template.php with envsubst..."
-envsubst '${DB_NAME} ${DB_USER} ${DB_PASSWORD} ${DB_HOST} ${DB_PORT} \
-${AUTH_KEY} ${SECURE_AUTH_KEY} ${LOGGED_IN_KEY} ${NONCE_KEY} \
-${AUTH_SALT} ${SECURE_AUTH_SALT} ${LOGGED_IN_SALT} ${NONCE_SALT} \
-${AWS_LB_DNS} ${REDIS_HOST} ${REDIS_PORT}' \
-< /tmp/wp-config-template.php > /var/www/html/wp-config.php
-
-# Verify wp-config.php was successfully created
-if [ ! -f "/var/www/html/wp-config.php" ]; then
-  echo "ERROR: wp-config.php creation failed!"
-  exit 1
-fi
-
-# Set correct ownership and permissions AFTER generating wp-config.php
-sudo chown www-data:www-data /var/www/html/wp-config.php
-sudo chmod 644 /var/www/html/wp-config.php
-echo "Ownership and permissions set for wp-config.php"
-
-# Test database connection using credentials from wp-config.php
-WP_DB_NAME=$(sed -n "s/.*DB_NAME',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
-WP_DB_USER=$(sed -n "s/.*DB_USER',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
-WP_DB_PASSWORD=$(sed -n "s/.*DB_PASSWORD',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
-WP_DB_HOST=$(sed -n "s/.*DB_HOST',\s*'\([^']*\)'.*/\1/p" /var/www/html/wp-config.php)
-
-# Debug output for database connection
-echo "Verifying database connection with the following parameters:"
-echo "DB_NAME=$WP_DB_NAME"
-echo "DB_USER=$WP_DB_USER"
-echo "DB_HOST=$WP_DB_HOST"
-
-# Try connecting to the database
-if mysql -h "$WP_DB_HOST" -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" -e "SHOW DATABASES;" > /dev/null 2>&1; then
-  echo "Database connection successful!"
-else
-  echo "ERROR: Unable to connect to the database. Check your credentials and network connectivity."
-  exit 1
-fi
-
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created and validated successfully."
-
-# --- 8. Install WordPress with WP-CLI --- #
+# --- 7. Install WP-CLI --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WP-CLI..."
 
@@ -310,57 +242,122 @@ sudo mv wp-cli.phar /usr/local/bin/wp
 mkdir -p /tmp/wp-cli-cache
 export WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running WordPress core installation..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WP-CLI installed successfully!"
 
-# Ensure correct file permissions for WordPress
-sudo chown -R www-data:www-data /var/www/html
-sudo find /var/www/html -type d -exec chmod 755 {} \;
-sudo find /var/www/html -type f -exec chmod 644 {} \;
+# --- 8. Configure wp-config.php for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
 
-# Verify database connection and permissions
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Verifying database connection..."
-if ! mysql -h "$WP_DB_HOST" -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" -e "USE $WP_DB_NAME;" 2>/dev/null; then
-  echo "ERROR: Cannot access database '$WP_DB_NAME'. Check credentials and database existence."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Configuring wp-config.php for WordPress..."
+
+# Ensure wp-config-sample.php exists; if missing, download it
+if [ ! -f "/var/www/html/wp-config-sample.php" ]; then
+  echo "WARNING: wp-config-sample.php not found! Downloading..."
+  curl -o /var/www/html/wp-config-sample.php https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
+fi
+
+# Check if necessary environment variables are set
+for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
+           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY \
+           AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT \
+           AWS_LB_DNS REDIS_HOST REDIS_PORT; do
+  if [ -z "${!VAR}" ]; then
+    echo "ERROR: Missing required environment variable $VAR!"
+    exit 1
+  fi
+done
+
+# Generate wp-config.php safely using WP-CLI
+sudo -u www-data HOME=/tmp wp config create --path=/var/www/html \
+  --dbname="$DB_NAME" \
+  --dbuser="$DB_USER" \
+  --dbpass="$DB_PASSWORD" \
+  --dbhost="$DB_HOST" \
+  --dbprefix="wp_" \
+  --skip-check \
+  --force
+
+# Insert additional constants (security keys, Redis settings, ALB configuration)
+sudo -u www-data HOME=/tmp wp config set AUTH_KEY "$AUTH_KEY" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set SECURE_AUTH_KEY "$SECURE_AUTH_KEY" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set LOGGED_IN_KEY "$LOGGED_IN_KEY" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set NONCE_KEY "$NONCE_KEY" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set AUTH_SALT "$AUTH_SALT" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set SECURE_AUTH_SALT "$SECURE_AUTH_SALT" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set LOGGED_IN_SALT "$LOGGED_IN_SALT" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set NONCE_SALT "$NONCE_SALT" --path=/var/www/html
+
+# Configure Redis object cache settings
+sudo -u www-data HOME=/tmp wp config set WP_REDIS_HOST "$REDIS_HOST" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set WP_REDIS_PORT "$REDIS_PORT" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set WP_CACHE "true" --raw --path=/var/www/html
+
+# Set the correct protocol and domain dynamically from ALB
+sudo -u www-data HOME=/tmp wp config set WP_SITEURL "http://$AWS_LB_DNS" --path=/var/www/html
+sudo -u www-data HOME=/tmp wp config set WP_HOME "http://$AWS_LB_DNS" --path=/var/www/html
+
+# Verify wp-config.php was successfully created
+if [ ! -f "/var/www/html/wp-config.php" ]; then
+  echo "ERROR: wp-config.php creation failed!"
   exit 1
 fi
 
-# Install WordPress using WP-CLI if not already installed
-if sudo -u www-data HOME=/tmp wp core is-installed; then
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress is already installed. Skipping installation step."
+# Set correct ownership and permissions (final hardening will be at the end)
+sudo chown www-data:www-data /var/www/html/wp-config.php
+sudo chmod 644 /var/www/html/wp-config.php
+echo "Ownership and permissions set temporarily for wp-config.php"
+
+# Test database connection explicitly
+if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME;" > /dev/null 2>&1; then
+  echo "Database connection successful!"
 else
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WordPress..."
-  sudo -u www-data HOME=/tmp wp core install \
-      --url="http://${AWS_LB_DNS}" \
-      --title="${WP_TITLE}" \
-      --admin_user="${WP_ADMIN}" \
-      --admin_password="${WP_ADMIN_PASSWORD}" \
-      --admin_email="${WP_ADMIN_EMAIL}" \
-      --skip-email \
-      --dbuser="$DB_USER" \
-      --dbpass="$DB_PASSWORD" \
-      --dbname="${DB_NAME}" \
-      --dbhost="${DB_HOST}"
+  echo "ERROR: Unable to connect to the database. Check your credentials and network connectivity."
+  exit 1
 fi
 
-# Verify installation
-if sudo -u www-data HOME=/tmp wp core is-installed; then
-  echo "WordPress installation completed successfully!"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php created and validated successfully."
+
+# --- 9. Initialize WordPress database and admin user --- #
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Initializing WordPress database and admin user..."
+
+# Check if WordPress is already installed before attempting installation
+if sudo -u www-data HOME=/tmp wp core is-installed --path=/var/www/html; then
+    # Exit code 0 means WordPress IS installed
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress is already installed. Skipping core installation."
+else    
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress not installed. Proceeding with core installation..."
+
+# Initialize WordPress using WP-CLI
+sudo -u www-data HOME=/tmp wp core install --path=/var/www/html \
+  --url="http://${AWS_LB_DNS}" \
+  --title="${WP_TITLE}" \
+  --admin_user="${WP_ADMIN}" \
+  --admin_password="${WP_ADMIN_PASSWORD}" \
+  --admin_email="${WP_ADMIN_EMAIL}" \
+  --skip-email \
+  --dbuser="$DB_USER" \
+  --dbpass="$DB_PASSWORD" \
+  --dbname="${DB_NAME}" \
+  --dbhost="${DB_HOST}"
+
+# Verify WordPress Initialization
+if sudo -u www-data HOME=/tmp wp core is-installed --path=/var/www/html; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress initialization completed successfully!"
 else
-  echo "ERROR: WordPress installation failed!"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WordPress initialization failed!"
   exit 1
 fi
 
 # Clean up WP-CLI cache
 rm -rf /tmp/wp-cli-cache
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress core installation completed successfully!"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] WordPress initialization completed successfully!"
 
-# --- 9. Install common WordPress plugins --- #
+# --- 10. Install common WordPress plugins --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing common WordPress plugins..."
 
 # Ensure WordPress is installed before proceeding
-if ! sudo -u www-data HOME=/tmp wp core is-installed; then
+if ! sudo -u www-data HOME=/tmp wp core is-installed --path=/var/www/html; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: WordPress is not installed. Cannot proceed with plugin installation."
   exit 1
 fi
@@ -371,7 +368,7 @@ PLUGINS=("wp-super-cache" "wordfence")
 # Install and activate each plugin individually
 for PLUGIN in "${PLUGINS[@]}"; do
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing plugin: $PLUGIN"
-  if sudo -u www-data wp plugin install "$PLUGIN" --activate; then
+  if sudo -u www-data HOME=/tmp wp plugin install "$PLUGIN" --activate --path=/var/www/html; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Plugin $PLUGIN installed and activated successfully."
   else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to install or activate plugin: $PLUGIN"
@@ -381,7 +378,7 @@ done
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] All common WordPress plugins installed and activated successfully!"
 
-# --- 10. Configure and enable Redis Object Cache --- #
+# --- 11. Configure and enable Redis Object Cache --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting up Redis Object Cache..."
 
@@ -394,17 +391,17 @@ if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
 fi
 
 # Install and activate the Redis Object Cache plugin (safe to run multiple times)
-sudo -u www-data wp plugin install redis-cache --activate
+sudo -u www-data HOME=/tmp wp plugin install redis-cache --activate --path=/var/www/html
 
 # Enable Redis object caching; fail the script if unsuccessful
-if ! sudo -u www-data wp redis enable; then
+if ! sudo -u www-data HOME=/tmp wp redis enable --path=/var/www/html; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Failed to enable Redis caching."
 else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Redis caching enabled successfully."
 fi
 
 # Optional: Check Redis connection status
-REDIS_STATUS=$(sudo -u www-data wp redis status | grep -i "Status: Connected" || true)
+REDIS_STATUS=$(sudo -u www-data HOME=/tmp wp redis status --path=/var/www/html | grep -i "Status: Connected" || true)
 
 if [ -n "$REDIS_STATUS" ]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Redis is connected successfully."
@@ -412,7 +409,7 @@ else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Redis is not connected properly."
 fi
 
-# --- 11. Create ALB health check endpoint using provided content --- #
+# --- 12. Create ALB health check endpoint using provided content --- #
 
 %{ if enable_s3_script }
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading healthcheck file from S3: ${healthcheck_s3_path}"
@@ -433,7 +430,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] ALB health check endpoint created successfu
 sudo chown www-data:www-data /var/www/html/healthcheck.php
 sudo chmod 644 /var/www/html/healthcheck.php
 
-# --- 12. Safe system update and cleanup --- #
+# --- 13. Safe system update and cleanup --- #
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Performing safe system update..."
 
@@ -448,7 +445,9 @@ apt-get clean
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] System update and cleanup completed successfully!"
 
-# Final hardening: restrict wp-config.php permissions
+# --- 14. Final hardening --- # 
+
+# Restrict wp-config.php permissions
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applying final permissions to wp-config.php..."
 sudo chmod 640 /var/www/html/wp-config.php
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config.php permissions set to 640 (owner read/write only)."

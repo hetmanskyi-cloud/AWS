@@ -84,16 +84,7 @@ env | grep DB_  # Debugging step to check environment variables
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] deploy_wordpress.sh downloaded successfully."
   fi
 
-# 4.1 Download wp-config-template.php from S3 to /tmp/
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading wp-config-template.php from S3..."
-  aws s3 cp "${wp_config_template_path}" /tmp/wp-config-template.php --region ${aws_region}
-  if [ $? -ne 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to download wp-config-template.php!"
-    exit 1
-  else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] wp-config-template.php downloaded successfully."
-  fi
-
+# Embed the WordPress local deployment script
 %{ else }
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Embedding local script into /tmp/deploy_wordpress.sh..."
   cat <<'END_SCRIPT' > /tmp/deploy_wordpress.sh
