@@ -32,6 +32,8 @@ if ! command -v aws >/dev/null 2>&1; then
   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
   unzip -q awscliv2.zip
   sudo ./aws/install --update
+  rm -f awscliv2.zip
+  rm -rf aws
 else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] AWS CLI is already installed."
 fi
