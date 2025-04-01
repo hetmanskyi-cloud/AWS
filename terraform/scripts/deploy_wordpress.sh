@@ -74,9 +74,29 @@ export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_SALT')
 export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.LOGGED_IN_SALT')
 export NONCE_SALT=$(echo "$SECRETS" | jq -r '.NONCE_SALT')
 
+# Retrieve Redis AUTH token from AWS Secrets Manager
+log "Retrieving Redis AUTH token from AWS Secrets Manager..."
+REDIS_AUTH_SECRETS=$(aws secretsmanager get-secret-value \
+  --region "${AWS_DEFAULT_REGION}" \
+  --secret-id "${REDIS_AUTH_SECRET_NAME}" \
+  --query 'SecretString' \
+  --output text)
+
+# Verify secrets retrieval
+if [ -z "$REDIS_AUTH_SECRETS" ]; then
+  log "WARNING: Failed to retrieve Redis AUTH secret from AWS Secrets Manager"
+  exit 1
+fi
+
+log "Redis AUTH secret retrieved successfully."
+  
+# Export Redis AUTH token for WordPress configuration
+export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
+
 # Verify all required values are present
 for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD \
-           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT; do
+           AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT \
+           LOGGED_IN_SALT NONCE_SALT REDIS_AUTH_TOKEN; do
   if [ -z "${!VAR}" ]; then
     log "ERROR: Required secret variable $VAR is empty."
     exit 1
@@ -263,7 +283,7 @@ fi
 for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
            AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY \
            AUTH_SALT SECURE_AUTH_SALT LOGGED_IN_SALT NONCE_SALT \
-           AWS_LB_DNS REDIS_HOST REDIS_PORT; do
+           AWS_LB_DNS REDIS_HOST REDIS_PORT REDIS_AUTH_TOKEN; do
   if [ -z "${!VAR}" ]; then
     log "ERROR: Missing required environment variable $VAR!"
     exit 1
@@ -293,6 +313,7 @@ wp config set NONCE_SALT "$NONCE_SALT" --path=$WP_PATH
 # Configure Redis object cache settings
 wp config set WP_REDIS_HOST "$REDIS_HOST" --path=$WP_PATH
 wp config set WP_REDIS_PORT "$REDIS_PORT" --path=$WP_PATH
+wp config set WP_REDIS_PASSWORD "$REDIS_AUTH_TOKEN" --path=$WP_PATH
 wp config set WP_CACHE "true" --raw --path=$WP_PATH
 
 # Set the correct protocol and domain dynamically from ALB

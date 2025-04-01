@@ -11,6 +11,19 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   }
 }
 
+# --- Redis AUTH Token from Secrets Manager --- #
+# Retrieves the Redis AUTH token from AWS Secrets Manager for secure authentication
+data "aws_secretsmanager_secret" "redis_auth" {
+  count = var.redis_auth_secret_name != "" ? 1 : 0
+  name  = var.redis_auth_secret_name
+}
+
+# Retrieves the secret version from AWS Secrets Manager
+data "aws_secretsmanager_secret_version" "redis_auth" {
+  count     = var.redis_auth_secret_name != "" ? 1 : 0
+  secret_id = data.aws_secretsmanager_secret.redis_auth[0].id
+}
+
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
 resource "aws_elasticache_replication_group" "redis" {
@@ -39,6 +52,7 @@ resource "aws_elasticache_replication_group" "redis" {
   # Security and Encryption
   at_rest_encryption_enabled = true # Encrypts data at rest using KMS.
   transit_encryption_enabled = true # Encrypts data in transit between nodes.
+  auth_token                 = var.redis_auth_secret_name != "" ? jsondecode(data.aws_secretsmanager_secret_version.redis_auth[0].secret_string).REDIS_AUTH_TOKEN : null
 
   lifecycle {
     prevent_destroy = false # Prevent accidental deletion
@@ -67,8 +81,13 @@ resource "aws_elasticache_parameter_group" "redis_params" {
 
 # --- Notes --- #
 # 1. The ElastiCache Subnet Group ensures Redis is deployed in the specified private subnets.
-# 2. The Replication Group includes encryption at rest and in transit for enhanced security.
-# 3. Backups are retained for the configured number of days (snapshot_retention_limit).
-# 4. Automatic failover is enabled when replicas are configured for high availability.
-# 5. Parameter Group uses dynamic Redis family based on the specified version.
-# 6. All resources use consistent tagging for proper resource management.
+# 2. The Replication Group includes:
+#    - Encryption at rest using KMS (enabled via kms_key_id and at_rest_encryption_enabled = true)
+#    - Encryption in transit (TLS) between clients and Redis (transit_encryption_enabled = true)
+#    - Authentication via Redis AUTH token (auth_token), required when TLS is enabled
+# 3. The Redis AUTH token is securely retrieved from AWS Secrets Manager using the secret name
+#    passed to this module via the `redis_auth_secret_name` variable.
+# 4. Backups are retained based on `snapshot_retention_limit` and scheduled using `snapshot_window`.
+# 5. Automatic failover is enabled when replica nodes are present for high availability.
+# 6. A custom parameter group is dynamically configured for the selected Redis version.
+# 7. All resources are tagged consistently using `name_prefix` and `environment` for tracking and cost allocation.

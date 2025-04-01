@@ -200,6 +200,12 @@ variable "redis_security_group_id" {
   default     = null
 }
 
+variable "redis_auth_secret_name" {
+  description = "Name of the Secrets Manager secret containing the Redis AUTH token"
+  type        = string
+  default     = ""
+}
+
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting Redis data at rest"
   type        = string
@@ -208,6 +214,7 @@ variable "kms_key_arn" {
     error_message = "The kms_key_arn variable cannot be empty. Please provide a valid ARN for encrypting data at rest."
   }
 }
+
 
 # --- Notes --- #
 # 1. Resource Naming:
@@ -222,6 +229,7 @@ variable "kms_key_arn" {
 #    - Supports Redis 7.x with version validation
 #    - Flexible cluster architecture with configurable replicas and shards
 #    - Automatic failover requires at least one replica
+#    - Supports AUTH token when transit encryption is enabled
 #
 # 4. Monitoring Strategy:
 #    - Comprehensive CloudWatch alarms for performance metrics

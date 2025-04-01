@@ -73,6 +73,7 @@ log "Exporting environment variables..."
   
   # Export other necessary environment variables
   echo "export SECRET_NAME='${wordpress_secrets_name}'"
+  echo "export REDIS_AUTH_SECRET_NAME='${redis_auth_secret_name}'"
   echo "export HEALTHCHECK_CONTENT_B64='${healthcheck_content_b64}'"
   echo "export AWS_DEFAULT_REGION='${aws_region}'"
 

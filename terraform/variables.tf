@@ -325,6 +325,11 @@ variable "wordpress_secret_name" {
   type        = string
 }
 
+variable "redis_auth_secret_name" {
+  description = "The name of the Secrets Manager secret for Redis AUTH token"
+  type        = string
+}
+
 variable "healthcheck_version" {
   type        = string
   default     = "1.0"
@@ -437,8 +442,6 @@ variable "rds_log_retention_days" {
   type        = number
   default     = 30
 }
-
-# --- RDS Module Variables --- #
 
 # Threshold for CPU utilization alarm
 variable "rds_cpu_threshold_high" {
@@ -641,9 +644,7 @@ variable "enable_redis_high_cpu_alarm" {
   default     = false # Set to true to enable the alarm
 }
 
-# --- Enable Replication Bytes Used Alarm --- #
-# Controls whether the CloudWatch alarm for ReplicationBytesUsed is created.
-# Relevant only when replicas are enabled (replicas_per_node_group > 0).
+# Enable Replication Bytes Used Alarm
 variable "enable_redis_replication_bytes_alarm" {
   description = "Enable or disable the ReplicationBytesUsed alarm. Relevant only for configurations with replicas."
   type        = bool
@@ -661,8 +662,7 @@ variable "redis_cpu_credits_threshold" {
   default     = 5
 }
 
-# --- Threshold for Replication Bytes Used Alarm --- #
-# Threshold for triggering the replication bytes used alarm.
+# Threshold for Replication Bytes Used Alarm
 variable "redis_replication_bytes_threshold" {
   description = "Threshold (in bytes) for replication bytes used alarm in Redis."
   type        = number
@@ -678,7 +678,7 @@ variable "enable_redis_low_cpu_credits_alarm" {
 
 # --- ALB Module Variables --- #
 
-# --- Deletion Protection Variable for ALB --- #
+# Deletion Protection Variable for ALB
 # This variable is specific to the ALB module and controls deletion protection for the ALB.
 # - Default value: false (in `alb/variables.tf`).
 # - Recommended: Set to true for production (prod) in `terraform.tfvars` for enhanced safety.
@@ -734,7 +734,7 @@ variable "enable_waf" {
   default     = false                           # Default value is false
 }
 
-# --- Enable WAF Logging --- #
+# Enable WAF Logging
 # This variable controls the creation of WAF logging resources. WAF logging will be enabled only if:
 # 1. `enable_waf_logging` is set to true.
 # 2. Firehose (`enable_firehose`) is also enabled, as it is required for delivering logs.

@@ -118,45 +118,61 @@ resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   )
 }
 
-# Define an IAM policy document that grants read access to the secret.
-# This policy will allow the instance to retrieve and describe the secret.
-data "aws_iam_policy_document" "secrets_access" {
-  statement {
-    sid    = "AllowWordPressSecretsAccess"
-    effect = "Allow"
+# --- Redis AUTH Token for ElastiCache (optional encryption in transit) --- #
+# This section provisions a secure password for Redis AUTH when transit_encryption_enabled = true.
 
-    actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret"
-    ]
+# Randomly generated AUTH token (at least 16 characters recommended by AWS)
+resource "random_password" "redis_auth_token" {
+  length  = 32
+  special = false
+}
 
-    resources = [aws_secretsmanager_secret.wp_secrets.arn]
+# Store Redis AUTH token in Secrets Manager (separate secret)
+resource "aws_secretsmanager_secret" "redis_auth" {
+  name        = var.redis_auth_secret_name
+  description = "Redis AUTH token used for connecting to ElastiCache in ${var.environment} environment"
+
+  kms_key_id = module.kms.kms_key_arn
+
+  recovery_window_in_days = 0
+
+  tags = {
+    Name        = "${var.name_prefix}-redis-auth-secret"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    prevent_destroy = false
   }
 }
 
-# Attach the policy to the ASG (EC2) instance role.
-# Ensures that WordPress instances can fetch the secret at runtime.
-resource "aws_iam_role_policy" "secrets_access" {
-  name   = "${var.wordpress_secret_name}-access"
-  role   = module.asg.instance_role_id
-  policy = data.aws_iam_policy_document.secrets_access.json
+# Store the actual auth_token
+resource "aws_secretsmanager_secret_version" "redis_auth_version" {
+  secret_id     = aws_secretsmanager_secret.redis_auth.id
+  secret_string = jsonencode({ REDIS_AUTH_TOKEN = random_password.redis_auth_token.result })
 }
 
 # --- Notes --- #
 # 1. Secret Structure:
-#    - The secret contains both database credentials and WordPress security keys
-#    - All values are merged into a single JSON object for easier retrieval
+#    - The WordPress secret contains database credentials and WordPress security keys
+#    - The Redis secret contains a single key: REDIS_AUTH_TOKEN
+#    - Both secrets are stored separately for security and modularity
+#
 # 2. Security Features:
-#    - Random string generation for all WordPress security keys and salts
-#    - Secrets are encrypted using a Customer Managed KMS Key (CMK) for enhanced security
-#    - IAM permissions are scoped to only the specific secret ARN
+#    - All secrets are encrypted using a Customer Managed KMS Key (CMK)
+#    - WordPress salts and Redis AUTH token are generated using secure random strings
+#
 # 3. Access Control:
-#    - EC2 instances in the ASG are granted read-only access via IAM role policy
-#    - Only GetSecretValue and DescribeSecret permissions are granted
+#    - Access to these secrets is managed in the ASG module (modules/asg/iam.tf)
+#    - The ARN of the WordPress secret is passed to the ASG module via wordpress_secrets_arn variable
+#    - The Redis AUTH secret ARN should be passed to the ASG module to grant access
+#
 # 4. Lifecycle Management:
-#    - Recovery window is set to 0 days (immediate deletion) - adjust for production
-#    - prevent_destroy is set to false - consider changing to true for production
+#    - Recovery window is set to 0 days (immediate deletion) — adjust for production environments
+#    - prevent_destroy is set to false — consider setting to true for critical secrets
+#
 # 5. Best Practices:
-#    - Secret values are not stored in Terraform state (using write-only attribute)
-#    - Tags are applied for better resource tracking and cost allocation
-#    - Secret name is environment-specific to prevent cross-environment access
+#    - Secret values **are stored** in Terraform state (no write-only workaround is used)
+#    - Ensure the Terraform state is protected (e.g., S3 with encryption + access controls)
+#    - Disable `terraform plan`/`apply` logs in CI/CD to avoid leaking secrets
+#    - Secrets are environment-scoped to prevent accidental cross-environment use

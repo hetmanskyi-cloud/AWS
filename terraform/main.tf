@@ -194,6 +194,8 @@ module "asg" {
   # Secrets Configuration  
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
   wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn
+  redis_auth_secret_arn  = aws_secretsmanager_secret.redis_auth.arn
+  redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
   depends_on = [module.vpc,
     module.s3, aws_secretsmanager_secret_version.wp_secrets_version
@@ -353,6 +355,12 @@ module "elasticache" {
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+
+  depends_on = [
+    module.vpc,
+    aws_secretsmanager_secret_version.redis_auth_version,
+    module.kms
+  ]
 }
 
 # --- ALB Module --- #

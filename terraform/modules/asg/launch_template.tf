@@ -62,6 +62,7 @@ locals {
       healthcheck_content_b64 = local.healthcheck_b64
       healthcheck_s3_path     = local.healthcheck_s3_path
       wordpress_secrets_name  = var.wordpress_secrets_name
+      redis_auth_secret_name  = var.redis_auth_secret_name
 
       # Default paths for WordPress deployment (used in user_data)
       WP_TMP_DIR = "/tmp/wordpress-setup"

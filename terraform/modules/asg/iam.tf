@@ -128,16 +128,31 @@ resource "aws_iam_role_policy_attachment" "wordpress_instance_policy_attachment"
   policy_arn = aws_iam_policy.wordpress_instance_policy.arn
 }
 
-# --- IAM Instance Profile --- #
-# Links the IAM role to ASG instances for accessing AWS services.
-resource "aws_iam_instance_profile" "asg_instance_profile" {
-  name = "${var.name_prefix}-asg-instance-profile"
-  role = aws_iam_role.asg_role.name
+# --- Redis AUTH Secret Access Policy --- #
+# Allows ASG instances to retrieve Redis AUTH token from AWS Secrets Manager.
+resource "aws_iam_policy" "redis_auth_policy" {
+  name        = "${var.name_prefix}-redis-auth-policy"
+  description = "Allows WordPress instances to retrieve Redis AUTH token from AWS Secrets Manager"
 
-  tags = {
-    Name        = "${var.name_prefix}-asg-instance-profile"
-    Environment = var.environment
-  }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.redis_auth_secret_arn
+      }
+    ]
+  })
+}
+
+# Attach Redis AUTH policy to the role only if ARN is provided
+resource "aws_iam_role_policy_attachment" "redis_auth_policy_attachment" {
+  role       = aws_iam_role.asg_role.name
+  policy_arn = aws_iam_policy.redis_auth_policy.arn
 }
 
 # --- KMS Decryption Policy --- #
@@ -218,6 +233,18 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
   policy_arn = aws_iam_policy.kms_decrypt_policy[0].arn
 }
 
+# --- IAM Instance Profile --- #
+# Links the IAM role to ASG instances for accessing AWS services.
+resource "aws_iam_instance_profile" "asg_instance_profile" {
+  name = "${var.name_prefix}-asg-instance-profile"
+  role = aws_iam_role.asg_role.name
+
+  tags = {
+    Name        = "${var.name_prefix}-asg-instance-profile"
+    Environment = var.environment
+  }
+}
+
 # --- Data Sources for Region and Account --- #
 # These data sources fetch the current AWS region and account ID dynamically
 # Useful for constructing ARNs or conditional logic based on the environment.
@@ -260,4 +287,7 @@ data "aws_caller_identity" "current" {}
 #    - A dedicated IAM policy grants ASG instances read-only access (Get/Describe) to the 
 #      specified secret in AWS Secrets Manager.
 #    - This avoids storing raw passwords in Terraform variables and leverages AWS-native
-#      encryption and secret rotation.
+#      secrets management.
+#    - Two separate policies are created for WordPress secrets and Redis AUTH token:
+#      * wordpress_instance_policy: Always created, grants access to WordPress secrets
+#      * redis_auth_policy: Provides access to Redis AUTH token secret

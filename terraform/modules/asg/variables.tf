@@ -381,6 +381,18 @@ variable "redis_port" {
   type        = number
 }
 
+variable "redis_auth_secret_arn" {
+  description = "ARN of the Redis AUTH secret in AWS Secrets Manager"
+  type        = string
+  default     = ""
+}
+
+variable "redis_auth_secret_name" {
+  description = "Name of the Redis AUTH secret in AWS Secrets Manager"
+  type        = string
+  default     = ""
+}
+
 # --- Additional Variables --- #
 
 variable "enable_s3_script" {
