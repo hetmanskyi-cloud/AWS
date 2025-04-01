@@ -7,6 +7,9 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
+# Set alias for wp-cli to run as www-data user
+alias wp='sudo -u www-data HOME=$WP_TMP_DIR wp'
+
 # Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
 mkdir -p /var/log
 exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
