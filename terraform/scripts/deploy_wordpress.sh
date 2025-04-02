@@ -7,11 +7,7 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# Set alias for wp-cli to run as www-data user
-alias wp='sudo -u www-data HOME=$WP_TMP_DIR wp'
-
 # Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
-mkdir -p /var/log
 exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
 log "Starting WordPress installation..."
 
@@ -87,7 +83,7 @@ REDIS_AUTH_SECRETS=$(aws secretsmanager get-secret-value \
 
 # Verify secrets retrieval
 if [ -z "$REDIS_AUTH_SECRETS" ]; then
-  log "WARNING: Failed to retrieve Redis AUTH secret from AWS Secrets Manager"
+  log "ERROR: Failed to retrieve Redis AUTH secret from AWS Secrets Manager"
   exit 1
 fi
 
@@ -138,7 +134,7 @@ log "Configuring Nginx..."
 # Ensure $WP_PATH (/var/www/html) exists before configuring Nginx
 if [ ! -d "$WP_PATH" ]; then
   log "ERROR: $WP_PATH directory does not exist! Creating..."
-  sudo mkdir -p "$WP_PATH"
+  mkdir -p "$WP_PATH"
 fi
 
 # Detect correct PHP-FPM socket path dynamically
@@ -253,24 +249,31 @@ log "WordPress installation completed successfully!"
 
 log "Installing WP-CLI..."
 
-# Download WP-CLI
-curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+# Define WP_CLI path in temporary directory
+export WP_CLI_PHAR_PATH="${WP_TMP_DIR}/wp-cli.phar"
+
+# Ensure WP-CLI cache directory is writable by www-data
+mkdir -p "${WP_TMP_DIR}/.wp-cli/cache"
+chown -R www-data:www-data "${WP_TMP_DIR}/.wp-cli"
+chmod -R 755 "${WP_TMP_DIR}/.wp-cli"
+
+# Download WP-CLI to temporary directory
+curl -o "$WP_CLI_PHAR_PATH" https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 
 # Verify WP-CLI download
-if ! php wp-cli.phar --info > /dev/null 2>&1; then
+if ! php "$WP_CLI_PHAR_PATH" --info > /dev/null 2>&1; then
   log "ERROR: WP-CLI download failed or is corrupted!"
   exit 1
 fi
 
-# Make WP-CLI executable and move to global location
-chmod +x wp-cli.phar
-sudo mv wp-cli.phar /usr/local/bin/wp
+# Make WP-CLI executable
+chmod +x "$WP_CLI_PHAR_PATH"
 
 # WP-CLI Cache Setup
 mkdir -p "${WP_TMP_DIR}/wp-cli-cache"
 export WP_CLI_CACHE_DIR="${WP_TMP_DIR}/wp-cli-cache"
 
-log "WP-CLI installed successfully!"
+log "WP-CLI downloaded and made executable at ${WP_CLI_PHAR_PATH}."
 
 # --- 8. Configure wp-config.php for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
 
@@ -279,7 +282,7 @@ log "Configuring wp-config.php for WordPress..."
 # Ensure wp-config-sample.php exists; if missing, download it
 if [ ! -f "$WP_PATH/wp-config-sample.php" ]; then
   log "WARNING: wp-config-sample.php not found! Downloading..."
-  curl -o $WP_PATH/wp-config-sample.php https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
+  curl -o "$WP_PATH/wp-config-sample.php" https://raw.githubusercontent.com/WordPress/WordPress/master/wp-config-sample.php
 fi
 
 # Check if necessary environment variables are set
@@ -293,8 +296,9 @@ for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
   fi
 done
 
-# Generate wp-config.php safely using WP-CLI
-wp config create --path=$WP_PATH \
+# Generate wp-config.php as www-data
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config create \
+  --path="$WP_PATH" \
   --dbname="$DB_NAME" \
   --dbuser="$DB_USER" \
   --dbpass="$DB_PASSWORD" \
@@ -303,42 +307,42 @@ wp config create --path=$WP_PATH \
   --skip-check \
   --force
 
-# Insert additional constants (security keys, Redis settings, ALB configuration)
-wp config set AUTH_KEY "$AUTH_KEY" --path=$WP_PATH
-wp config set SECURE_AUTH_KEY "$SECURE_AUTH_KEY" --path=$WP_PATH
-wp config set LOGGED_IN_KEY "$LOGGED_IN_KEY" --path=$WP_PATH
-wp config set NONCE_KEY "$NONCE_KEY" --path=$WP_PATH
-wp config set AUTH_SALT "$AUTH_SALT" --path=$WP_PATH
-wp config set SECURE_AUTH_SALT "$SECURE_AUTH_SALT" --path=$WP_PATH
-wp config set LOGGED_IN_SALT "$LOGGED_IN_SALT" --path=$WP_PATH
-wp config set NONCE_SALT "$NONCE_SALT" --path=$WP_PATH
+# Insert security keys
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set AUTH_KEY "$AUTH_KEY" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH_KEY "$SECURE_AUTH_KEY" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set LOGGED_IN_KEY "$LOGGED_IN_KEY" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set NONCE_KEY "$NONCE_KEY" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set AUTH_SALT "$AUTH_SALT" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH_SALT "$SECURE_AUTH_SALT" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set LOGGED_IN_SALT "$LOGGED_IN_SALT" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set NONCE_SALT "$NONCE_SALT" --path="$WP_PATH"
 
-# Configure Redis object cache settings
-wp config set WP_REDIS_HOST "$REDIS_HOST" --path=$WP_PATH
-wp config set WP_REDIS_PORT "$REDIS_PORT" --path=$WP_PATH
-wp config set WP_REDIS_PASSWORD "$REDIS_AUTH_TOKEN" --path=$WP_PATH
-wp config set WP_CACHE "true" --raw --path=$WP_PATH
+# Configure Redis object cache
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_HOST "$REDIS_HOST" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_PORT "$REDIS_PORT" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_PASSWORD "$REDIS_AUTH_TOKEN" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CLIENT "predis" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# Set the correct protocol and domain dynamically from ALB
-wp config set WP_SITEURL "http://$AWS_LB_DNS" --path=$WP_PATH
-wp config set WP_HOME "http://$AWS_LB_DNS" --path=$WP_PATH
+# Set site URLs from ALB DNS
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "http://$AWS_LB_DNS" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "http://$AWS_LB_DNS" --path="$WP_PATH"
 
-# Verify wp-config.php was successfully created
+# Verify wp-config.php was created
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
   log "ERROR: wp-config.php creation failed!"
   exit 1
 fi
 
-# Set correct ownership and permissions (final hardening will be at the end)
-sudo chown www-data:www-data $WP_PATH/wp-config.php
-sudo chmod 644 $WP_PATH/wp-config.php
-log "Ownership and permissions set temporarily for wp-config.php"
+# Set ownership and permissions
+sudo chown www-data:www-data "$WP_PATH/wp-config.php"
+sudo chmod 644 "$WP_PATH/wp-config.php"
+log "Ownership and permissions set for wp-config.php"
 
-# Verify database connection using MySQL CLI with SSL
-# This checks that we can securely connect to RDS using the downloaded Amazon SSL certificate.
-# If the connection fails — script stops with an error.
+# Verify DB connection over SSL
 if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" \
-    --ssl-ca=${WP_TMP_DIR}/rds-combined-ca-bundle.pem \
+    --ssl-ca="${WP_TMP_DIR}/rds-combined-ca-bundle.pem" \
     -e "USE $DB_NAME;" > /dev/null 2>&1; then
   log "Database SSL connection successful via CLI."
 else
@@ -350,59 +354,76 @@ log "wp-config.php created and validated successfully."
 
 # --- 9. Initialize WordPress database and admin user --- #
 
-# Verify database connection using PHP mysqli with SSL
-# This ensures that PHP can also securely connect to RDS using the same certificate.
-log "Testing DB SSL connection via PHP:"
-php -r '
-$mysqli = mysqli_init();
-$mysqli->ssl_set(null, null, getenv("SSL_CA_PATH") ?: "${WP_TMP_DIR}/rds-combined-ca-bundle.pem", null, null);
-$mysqli->real_connect(
-    getenv("DB_HOST"),
-    getenv("DB_USER"),
-    getenv("DB_PASSWORD"),
-    getenv("DB_NAME"),
-    (int)getenv("DB_PORT"),
+log "Starting WordPress database initialization..."
+SSL_CA_PATH="${WP_TMP_DIR}/rds-combined-ca-bundle.pem"
+
+# Print certificate path and DB connection variables
+log "Using SSL_CA_PATH: $SSL_CA_PATH"
+log "DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_NAME=$DB_NAME"
+
+# Test database SSL connection using PHP (mysqli)
+php -r "
+\$mysqli = mysqli_init();
+\$mysqli->ssl_set(null, null, '${SSL_CA_PATH}', null, null);
+\$mysqli->real_connect(
+    getenv('DB_HOST'),
+    getenv('DB_USER'),
+    getenv('DB_PASSWORD'),
+    getenv('DB_NAME'),
+    (int)getenv('DB_PORT'),
     null,
     MYSQLI_CLIENT_SSL
 );
-if ($mysqli->connect_errno) {
-    echo "PHP SSL connection failed: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error . PHP_EOL;
+if (\$mysqli->connect_errno) {
+    echo 'PHP SSL connection failed: (' . \$mysqli->connect_errno . ') ' . \$mysqli->connect_error . PHP_EOL;
     exit(1);
 }
-echo "PHP SSL connection successful via mysqli!" . PHP_EOL;
-'
+echo 'PHP SSL connection successful via mysqli!' . PHP_EOL;
+"
 
-# Add SSL configuration to wp-config.php
+# Add SSL-related constants to wp-config.php
 log "Adding SSL configuration to wp-config.php..."
-
-# Add MySQL SSL configuration to wp-config.php
-wp config set MYSQL_CLIENT_FLAGS MYSQLI_CLIENT_SSL --raw --path=$WP_PATH
-wp config set MYSQL_SSL_CA "${WP_TMP_DIR}/rds-combined-ca-bundle.pem" --path=$WP_PATH
-
-# Check if WordPress is already installed before attempting installation
-if wp core is-installed --path=$WP_PATH; then
-    # Exit code 0 means WordPress IS installed
-    log "WordPress is already installed. Skipping core installation."
-else    
-    log "WordPress not installed. Proceeding with core installation..."
-
-# Initialize WordPress using WP-CLI
-wp core install --path=$WP_PATH \
-  --url="http://${AWS_LB_DNS}" \
-  --title="${WP_TITLE}" \
-  --admin_user="${WP_ADMIN}" \
-  --admin_password="${WP_ADMIN_PASSWORD}" \
-  --admin_email="${WP_ADMIN_EMAIL}" \
-  --skip-email
-
-# Verify WordPress Initialization
-if wp core is-installed --path=$WP_PATH; then
-  log "WordPress initialization completed successfully!"
-else
-  log "ERROR: WordPress initialization failed!"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set MYSQL_CLIENT_FLAGS MYSQLI_CLIENT_SSL --raw --path="$WP_PATH" || {
+  log "ERROR: Failed to set MYSQL_CLIENT_FLAGS"
   exit 1
-fi
-log "WordPress initialization completed successfully!"
+}
+
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set MYSQL_SSL_CA "$SSL_CA_PATH" --path="$WP_PATH" || {
+  log "ERROR: Failed to set MYSQL_SSL_CA"
+  exit 1
+}
+
+# Validate SSL constants were added to wp-config.php
+grep -E 'MYSQL_CLIENT_FLAGS|MYSQL_SSL_CA' "$WP_PATH/wp-config.php" || {
+  log "WARNING: SSL configuration not found in wp-config.php!"
+}
+
+# Check if WordPress is already installed
+if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core is-installed --path="$WP_PATH"; then
+  log "WordPress is already installed. Skipping core installation."
+else
+  log "WordPress not installed. Proceeding with core installation..."
+
+  # Run WordPress installation
+  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core install \
+    --path="$WP_PATH" \
+    --url="http://$AWS_LB_DNS" \
+    --title="$WP_TITLE" \
+    --admin_user="$WP_ADMIN" \
+    --admin_password="$WP_ADMIN_PASSWORD" \
+    --admin_email="$WP_ADMIN_EMAIL" \
+    --skip-email || {
+      log "ERROR: wp core install failed"
+      exit 1
+    }
+
+  # Confirm successful installation
+  if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core is-installed --path="$WP_PATH"; then
+    log "WordPress initialization completed successfully!"
+  else
+    log "ERROR: WordPress initialization failed!"
+    exit 1
+  fi
 fi
 
 # --- 10. Install common WordPress plugins --- #
@@ -410,7 +431,7 @@ fi
 log "Installing common WordPress plugins..."
 
 # Ensure WordPress is installed before proceeding
-if ! wp core is-installed --path=$WP_PATH; then
+if ! sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core is-installed --path="$WP_PATH"; then
   log "ERROR: WordPress is not installed. Cannot proceed with plugin installation."
   exit 1
 fi
@@ -418,10 +439,10 @@ fi
 # List of plugins to install
 PLUGINS=("wp-super-cache" "wordfence")
 
-# Install and activate each plugin individually
+# Install and activate each plugin
 for PLUGIN in "${PLUGINS[@]}"; do
   log "Installing plugin: $PLUGIN"
-  if wp plugin install "$PLUGIN" --activate --path=$WP_PATH; then
+  if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin install "$PLUGIN" --activate --path="$WP_PATH"; then
     log "Plugin $PLUGIN installed and activated successfully."
   else
     log "ERROR: Failed to install or activate plugin: $PLUGIN"
@@ -435,26 +456,26 @@ log "All common WordPress plugins installed and activated successfully!"
 
 log "Setting up Redis Object Cache..."
 
-# Log Redis host and port for reference
+# Log Redis host and port
 log "Using Redis at ${REDIS_HOST}:${REDIS_PORT}"
 
-# Check if Redis server is reachable before enabling the plugin
+# Check if Redis server is reachable (non-blocking)
 if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
   log "WARNING: Redis server is not reachable at ${REDIS_HOST}:${REDIS_PORT}"
 fi
 
-# Install and activate the Redis Object Cache plugin (safe to run multiple times)
-wp plugin install redis-cache --activate --path=$WP_PATH
+# Install and activate Redis Object Cache plugin
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin install redis-cache --activate --path="$WP_PATH"
 
-# Enable Redis object caching; fail the script if unsuccessful
-if ! wp redis enable --path=$WP_PATH; then
+# Enable Redis caching
+if ! sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis enable --path="$WP_PATH"; then
   log "WARNING: Failed to enable Redis caching."
 else
   log "Redis caching enabled successfully."
 fi
 
 # Optional: Check Redis connection status
-REDIS_STATUS=$(wp redis status --path=$WP_PATH | grep -i "Status: Connected" || true)
+REDIS_STATUS=$(sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis status --path="$WP_PATH" | grep -i "Status: Connected" || true)
 
 if [ -n "$REDIS_STATUS" ]; then
   log "Redis is connected successfully."
@@ -466,7 +487,7 @@ fi
 
 %{ if enable_s3_script }
 log "Downloading healthcheck file from S3: ${healthcheck_s3_path}"
-aws s3 cp "${healthcheck_s3_path}" $WP_PATH/healthcheck.php --region ${AWS_DEFAULT_REGION}
+aws s3 cp "${healthcheck_s3_path}" "$WP_PATH/healthcheck.php" --region "${AWS_DEFAULT_REGION}"
 if [ $? -ne 0 ]; then
   log "ERROR: Failed to download healthcheck.php from S3"
   exit 1
@@ -475,38 +496,42 @@ else
 fi
 %{ else }
 log "Writing embedded healthcheck content..."
-echo "${healthcheck_content_b64}" | base64 --decode > $WP_PATH/healthcheck.php
+echo "${healthcheck_content_b64}" | base64 --decode > "$WP_PATH/healthcheck.php"
 log "ALB health check endpoint created successfully from embedded content"
 %{ endif }
 
-# Set ownership and permissions for healthcheck file
-sudo chown www-data:www-data $WP_PATH/healthcheck.php
-sudo chmod 644 $WP_PATH/healthcheck.php
+# Set ownership and permissions for the healthcheck file
+sudo chown www-data:www-data "$WP_PATH/healthcheck.php"
+sudo chmod 644 "$WP_PATH/healthcheck.php"
 
 # --- 13. Safe system update and cleanup --- #
 
 log "Performing safe system update..."
 
-# Update packages without interactive prompts
 DEBIAN_FRONTEND=noninteractive apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --only-upgrade
 DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y --no-install-recommends
 
-# Clean up unused packages and cache
+# Remove unnecessary packages and clean cache
 apt-get autoremove -y --purge
 apt-get clean
 
-# Remove all temporary files in workspace
-log "Cleaning up temporary workspace at ${WP_TMP_DIR}..."
-rm -rf "${WP_TMP_DIR}"
+# Move WP-CLI to permanent location
+sudo mv "$WP_CLI_PHAR_PATH" /usr/local/bin/wp
+sudo chmod +x /usr/local/bin/wp
 
-log "System update and cleanup completed successfully!"
+# Delete temporary working directory
+log "Cleaning up temporary workspace at $WP_TMP_DIR..."
+rm -rf "$WP_TMP_DIR"
 
-# --- 14. Final actions --- # 
+log "System update and cleanup completed successfully."
 
-# Restrict wp-config.php permissions
+# --- 14. Final actions --- #
+
+# Restrict wp-config.php permissions for security
 log "Applying final permissions to wp-config.php..."
-sudo chmod 640 $WP_PATH/wp-config.php
+sudo chmod 640 "$WP_PATH/wp-config.php"
 log "wp-config.php permissions set to 640 (owner read/write only)."
-# Completing script
+
+# Done
 log "WordPress deployment completed successfully. Exiting..."

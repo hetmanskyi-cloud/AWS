@@ -73,6 +73,11 @@ resource "aws_elasticache_parameter_group" "redis_params" {
   family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
   description = "Parameter group for Redis ${var.redis_version} with default settings"
 
+  parameter {
+    name  = "requirepass"
+    value = jsondecode(data.aws_secretsmanager_secret_version.redis_auth[0].secret_string).REDIS_AUTH_TOKEN
+  }
+
   tags = {
     Name        = "${var.name_prefix}-redis-params"
     Environment = var.environment

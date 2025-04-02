@@ -353,12 +353,14 @@ module "elasticache" {
   enable_redis_low_cpu_credits_alarm   = var.enable_redis_low_cpu_credits_alarm
   redis_cpu_credits_threshold          = var.redis_cpu_credits_threshold
 
+  # Secrets Configuration
+  redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
+
   # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
   depends_on = [
     module.vpc,
-    aws_secretsmanager_secret_version.redis_auth_version,
     module.kms
   ]
 }

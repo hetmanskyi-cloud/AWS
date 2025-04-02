@@ -127,7 +127,7 @@ resource "random_password" "redis_auth_token" {
   special = false
 }
 
-# Store Redis AUTH token in Secrets Manager (separate secret)
+# Store Redis AUTH token in Secrets Manager for ElastiCache
 resource "aws_secretsmanager_secret" "redis_auth" {
   name        = var.redis_auth_secret_name
   description = "Redis AUTH token used for connecting to ElastiCache in ${var.environment} environment"

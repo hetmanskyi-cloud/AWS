@@ -7,10 +7,6 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# Ensure /var/log directory exists for the user_data script
-log "Ensuring /var/log directory exists..."
-sudo mkdir -p /var/log
-
 # Redirect all logs to /var/log/user-data.log and console
 # This ensures that both logs and errors are saved to a log file and displayed in the console.
 exec 1> >(tee -a /var/log/user-data.log| tee /dev/tty) 2>&1
@@ -79,20 +75,16 @@ log "Exporting environment variables..."
 
   # Export retry configuration variables
   echo "export RETRY_MAX_RETRIES='${retry_max_retries}'"
-  echo "export RETRY_RETRY_INTERVAL='${retry_retry_interval}'"
-
-  # Set HOME directory and alias for wp-cli commands using shared WP_TMP_DIR
-  echo "alias wp='sudo -u www-data HOME=\$WP_TMP_DIR wp'"
+  echo "export RETRY_RETRY_INTERVAL='${retry_retry_interval}'"  
 } | sudo tee -a /etc/environment > /dev/null
-
-# --- 3. Reload environment variables --- #
 
 # Loads the newly exported environment variables to make them available for the session.
 log "Loading environment variables..."
 source /etc/environment
+log "Exported environment variables:"
 env | grep -E 'DB_|WP_|REDIS_|PHP|AWS'  # Debugging step to check environment variables
 
-# --- 4. Download Amazon RDS root SSL certificate --- #
+# --- 3. Download Amazon RDS root SSL certificate --- #
 
 # This certificate is required to establish SSL connections to RDS when require_secure_transport=ON
 # Reference: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
@@ -111,7 +103,7 @@ else
   log "RDS SSL certificate downloaded successfully."
 fi
 
-# --- 5. Retrieve or embed the WordPress deployment script --- #
+# --- 4. Retrieve or embed the WordPress deployment script --- #
 
 # This step either downloads the WordPress deployment script from S3 or embeds it directly.
 %{ if enable_s3_script }
@@ -133,10 +125,10 @@ END_SCRIPT
   log "Local deploy_wordpress.sh embedded successfully."
 %{ endif }
 
-# --- 6. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+# --- 5. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 log "Creating temporary healthcheck file in $WP_PATH..."
-echo "<?php http_response_code(200); ?>" | sudo tee $WP_PATH/healthcheck.php > /dev/null
+echo "<?php http_response_code(200); ?>" | sudo tee "$WP_PATH/healthcheck.php" > /dev/null
 
 # Verify that the healthcheck file was created successfully
 if [ -f "$WP_PATH/healthcheck.php" ]; then
@@ -146,7 +138,7 @@ else
   exit 1
 fi
 
-# --- 7. Execute the deployment script --- #
+# --- 6. Execute the deployment script --- #
 
 chmod +x "$WP_TMP_DIR/deploy_wordpress.sh"
 log "Running $WP_TMP_DIR/deploy_wordpress.sh..."
