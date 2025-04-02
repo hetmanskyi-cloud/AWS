@@ -24,6 +24,9 @@ export WP_PATH="/var/www/html"
 sudo mkdir -p "$WP_PATH"
 echo "export WP_PATH='${WP_PATH}'" | sudo tee -a /etc/environment > /dev/null
 
+# Export AWS region
+echo "export AWS_DEFAULT_REGION='${aws_region}'" | sudo tee -a /etc/environment > /dev/null
+
 # --- 1. Ensure AWS CLI (v2) is installed, if not already --- #
 
 # This step checks if AWS CLI is installed and installs it if necessary.

@@ -485,20 +485,20 @@ fi
 
 # --- 12. Create ALB health check endpoint using provided content --- #
 
-%{ if enable_s3_script }
-log "Downloading healthcheck file from S3: ${healthcheck_s3_path}"
-aws s3 cp "${healthcheck_s3_path}" "$WP_PATH/healthcheck.php" --region "${AWS_DEFAULT_REGION}"
-if [ $? -ne 0 ]; then
-  log "ERROR: Failed to download healthcheck.php from S3"
-  exit 1
+if [ "$enable_s3_script" = "true" ]; then
+  log "Downloading healthcheck file from S3: ${healthcheck_s3_path}"
+  aws s3 cp "${healthcheck_s3_path}" "$WP_PATH/healthcheck.php" --region "${AWS_DEFAULT_REGION}" 2>&1 | tee -a /var/log/user-data.log
+  if [ $? -ne 0 ]; then
+    log "ERROR: Failed to download healthcheck.php from S3"
+    exit 1
+  else
+    log "ALB health check endpoint created successfully from S3"
+  fi
 else
-  log "ALB health check endpoint created successfully from S3"
+  log "Writing embedded healthcheck content..."
+  echo "${healthcheck_content_b64}" | base64 --decode > "$WP_PATH/healthcheck.php"
+  log "ALB health check endpoint created successfully from embedded content"
 fi
-%{ else }
-log "Writing embedded healthcheck content..."
-echo "${healthcheck_content_b64}" | base64 --decode > "$WP_PATH/healthcheck.php"
-log "ALB health check endpoint created successfully from embedded content"
-%{ endif }
 
 # Set ownership and permissions for the healthcheck file
 sudo chown www-data:www-data "$WP_PATH/healthcheck.php"
