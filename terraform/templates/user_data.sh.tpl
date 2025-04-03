@@ -36,7 +36,9 @@ if ! command -v aws >/dev/null 2>&1; then
   elif command -v dnf >/dev/null 2>&1; then
     dnf install -y unzip curl
   elif command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get install -y unzip curl
+    log "Running apt-get update before installing AWS CLI dependencies..."
+    sudo apt-get update -q || { log "ERROR: apt-get update failed"; exit 1; }
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip curl
   else
     log "ERROR: Unknown package manager. Cannot install dependencies for AWS CLI."
     exit 1

@@ -12,17 +12,18 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# Redirect all stdout and stderr to /var/log/wordpress_install.log as well as console
+# --- 1. Start logging and ensure required base packages are installed --- #
+
+# Redirect all stdout and stderr to log file and console
 exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
 log "Starting WordPress installation..."
 
-# --- 1. Install base packages needed for WordPress, minus curl/unzip (which are installed in user_data.sh.tpl) --- #
-
-log "Installing base packages..."
-apt-get update -q || { log "ERROR: apt-get update failed"; exit 1; }
-DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# Ensure base packages (jq, netcat) are installed
+log "Ensuring base packages (jq, netcat-openbsd) are installed..."
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   jq \
   netcat-openbsd
+log "Base packages verified and installed if missing."
 
 # --- 2. Wait for MySQL (RDS) to become available (up to 60 seconds) --- #
 
@@ -523,9 +524,8 @@ fi
 log "Performing safe system update..."
 DEBIAN_FRONTEND=noninteractive apt-get update
 
-# Remove unused packages and clean cache
-log "Removing unnecessary packages and cleaning package cache..."
-apt-get autoremove -y --purge
+# Clean up APT package cache
+log "Cleaning up APT package cache..."
 apt-get clean
 
 # Move WP-CLI to a permanent location
