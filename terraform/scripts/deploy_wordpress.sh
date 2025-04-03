@@ -2,6 +2,11 @@
 
 set -euxo pipefail  # Fail fast: exit on error, undefined variables, or pipeline failure; print each command
 
+# Load env vars from user-data export
+set -a
+source /etc/environment
+set +a
+
 # Unified logging function
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -102,6 +107,12 @@ for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD
   fi
 done
 
+# Write critical secrets to /etc/environment for use in healthcheck
+echo "DB_NAME=\"$DB_NAME\"" | sudo tee -a /etc/environment
+echo "DB_USER=\"$DB_USER\"" | sudo tee -a /etc/environment
+echo "DB_PASSWORD=\"$DB_PASSWORD\"" | sudo tee -a /etc/environment
+echo "REDIS_AUTH_TOKEN=\"$REDIS_AUTH_TOKEN\"" | sudo tee -a /etc/environment
+
 log "All secrets successfully retrieved and exported."
 
 # --- 4. Install WordPress dependencies (Nginx, PHP, MySQL client, etc.) --- #
@@ -117,13 +128,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   php${PHP_VERSION}-curl \
   php${PHP_VERSION}-zip \
   mysql-client \
-  redis-tools
-
-# Check if installation was successful
-if [ $? -ne 0 ]; then
-  log "ERROR: Failed to install WordPress dependencies."
-  exit 1
-fi
+  redis-tools \
+  composer
 
 log "WordPress dependencies installed successfully."
 
@@ -147,9 +153,6 @@ fi
 # Restart PHP-FPM to ensure it's running and the socket is active
 log "Restarting PHP-FPM..."
 systemctl restart php${PHP_VERSION}-fpm
-
-# Ensure PHP-FPM is running
-systemctl is-active php${PHP_VERSION}-fpm || { log "ERROR: PHP-FPM is not running!"; exit 1; }
 
 # Configure Nginx virtual host for WordPress
 cat <<EOL > /etc/nginx/sites-available/wordpress
@@ -207,11 +210,15 @@ log "Adjusting Nginx for high load and Auto Scaling..."
 sed -i 's/^\s*worker_connections\s\+[0-9]\+;/    worker_connections 1024;/' /etc/nginx/nginx.conf
 sed -i 's/worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
 
-# Restart Nginx to apply the new configuration
+# Restart Nginx to apply new configuration...
 log "Restarting Nginx to apply new configuration..."
 systemctl restart nginx
+if [ $? -ne 0 ]; then
+    log "ERROR: Failed to restart Nginx after applying optimizations!"
+    exit 1
+fi
 
-# --- 6. Download and install WordPress --- #
+# --- 6. Download and install WordPress and Predis library --- #
 
 log "Downloading and installing WordPress from GitHub..."
 
@@ -245,6 +252,16 @@ find $WP_PATH -type f -exec chmod 644 {} \;
 
 log "WordPress installation completed successfully!"
 
+# Install Predis library for Redis TLS support
+log "Installing Predis library for TLS support with Redis..."
+COMPOSER_WORKING_DIR="$WP_PATH"
+sudo -u www-data composer require --working-dir="$COMPOSER_WORKING_DIR" predis/predis
+if [ $? -ne 0 ]; then
+  log "ERROR: Failed to install Predis library."
+  exit 1
+fi
+log "Predis library installed successfully."
+
 # --- 7. Install WP-CLI --- #
 
 log "Installing WP-CLI..."
@@ -273,10 +290,11 @@ chmod +x "$WP_CLI_PHAR_PATH"
 mkdir -p "${WP_TMP_DIR}/wp-cli-cache"
 export WP_CLI_CACHE_DIR="${WP_TMP_DIR}/wp-cli-cache"
 
-log "WP-CLI downloaded and made executable at ${WP_CLI_PHAR_PATH}."
+log "WP-CLI downloaded and made executable at ${WP_TMP_DIR}/wp-cli.phar. It will be moved to /usr/local/bin/wp later."
 
 # --- 8. Configure wp-config.php for RDS Database (MySQL), ALB, and ElastiCache (Redis) --- #
 
+# 8.1. Preparing the configuration wp-config.php
 log "Configuring wp-config.php for WordPress..."
 
 # Ensure wp-config-sample.php exists; if missing, download it
@@ -296,7 +314,8 @@ for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
   fi
 done
 
-# Generate wp-config.php as www-data
+# 8.2. Generate wp-config.php as www-data
+log "Create the main wp-config.php file..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config create \
   --path="$WP_PATH" \
   --dbname="$DB_NAME" \
@@ -307,7 +326,8 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config create \
   --skip-check \
   --force
 
-# Insert security keys
+# 8.3. Set up security keys and salts
+log "Set up security keys and salts..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set AUTH_KEY "$AUTH_KEY" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH_KEY "$SECURE_AUTH_KEY" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set LOGGED_IN_KEY "$LOGGED_IN_KEY" --path="$WP_PATH"
@@ -317,7 +337,8 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set LOGGED_IN_SALT "$LOGGED_IN_SALT" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set NONCE_SALT "$NONCE_SALT" --path="$WP_PATH"
 
-# Configure Redis object cache
+# 8.4. Configure Redis Object Cache
+log "Configure Redis Object Cache..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_HOST "$REDIS_HOST" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_PORT "$REDIS_PORT" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_PASSWORD "$REDIS_AUTH_TOKEN" --path="$WP_PATH"
@@ -325,9 +346,13 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# Set site URLs from ALB DNS
+# 8.5. Set site URLs from ALB DNS
+log "Set site URLs from ALB DNS..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "http://$AWS_LB_DNS" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "http://$AWS_LB_DNS" --path="$WP_PATH"
+
+# 8.6. Final verifications and permissions
+log "Final verifications and permissions for wp-config.php..."
 
 # Verify wp-config.php was created
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
@@ -340,9 +365,9 @@ sudo chown www-data:www-data "$WP_PATH/wp-config.php"
 sudo chmod 644 "$WP_PATH/wp-config.php"
 log "Ownership and permissions set for wp-config.php"
 
-# Verify DB connection over SSL
+# Optional: Verify DB connection over SSL
 if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" \
-    --ssl-ca="${WP_TMP_DIR}/rds-combined-ca-bundle.pem" \
+    --ssl-ca="/etc/ssl/certs/rds-combined-ca-bundle.pem" \
     -e "USE $DB_NAME;" > /dev/null 2>&1; then
   log "Database SSL connection successful via CLI."
 else
@@ -355,13 +380,27 @@ log "wp-config.php created and validated successfully."
 # --- 9. Initialize WordPress database and admin user --- #
 
 log "Starting WordPress database initialization..."
-SSL_CA_PATH="${WP_TMP_DIR}/rds-combined-ca-bundle.pem"
+SSL_CA_PATH="/etc/ssl/certs/rds-combined-ca-bundle.pem"
 
-# Print certificate path and DB connection variables
-log "Using SSL_CA_PATH: $SSL_CA_PATH"
-log "DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_NAME=$DB_NAME"
+# Ensure www-data has write permissions to wp-content
+if ! sudo -u www-data test -w "$WP_PATH/wp-content"; then
+  log "WARNING: www-data user does not have write permissions to wp-content directory!"
+  log "Fixing permissions..."
+  chown -R www-data:www-data "$WP_PATH/wp-content"
+  chmod -R 755 "$WP_PATH/wp-content"
+  log "Permissions updated."
+fi
+
+# Ensure uploads directory exists with proper permissions
+if [ ! -d "$WP_PATH/wp-content/uploads" ]; then
+  log "Creating uploads directory..."
+  mkdir -p "$WP_PATH/wp-content/uploads"
+  chown www-data:www-data "$WP_PATH/wp-content/uploads"
+  chmod 755 "$WP_PATH/wp-content/uploads"
+fi
 
 # Test database SSL connection using PHP (mysqli)
+log "Testing database SSL connection using PHP mysqli..."
 php -r "
 \$mysqli = mysqli_init();
 \$mysqli->ssl_set(null, null, '${SSL_CA_PATH}', null, null);
@@ -388,6 +427,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set MYSQL_CLIEN
   exit 1
 }
 
+# Add MYSQL_SSL_CA to wp-config.php
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set MYSQL_SSL_CA "$SSL_CA_PATH" --path="$WP_PATH" || {
   log "ERROR: Failed to set MYSQL_SSL_CA"
   exit 1
@@ -414,6 +454,18 @@ else
     --admin_email="$WP_ADMIN_EMAIL" \
     --skip-email || {
       log "ERROR: wp core install failed"
+      
+      # Extended diagnostics for database connection
+      log "Running extended diagnostics..."
+      
+      # Check database connection using wp-cli with debug mode
+      log "Checking database connection via wp-cli:"
+      sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" db check --path="$WP_PATH" --debug || true
+      
+      # Check network connectivity to database
+      log "Checking network connectivity to database:"
+      nc -zv "$DB_HOST" "$DB_PORT" || log "Cannot connect to database at $DB_HOST:$DB_PORT"
+      
       exit 1
     }
 
@@ -426,40 +478,11 @@ else
   fi
 fi
 
-# --- 10. Install common WordPress plugins --- #
-
-log "Installing common WordPress plugins..."
-
-# Ensure WordPress is installed before proceeding
-if ! sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core is-installed --path="$WP_PATH"; then
-  log "ERROR: WordPress is not installed. Cannot proceed with plugin installation."
-  exit 1
-fi
-
-# List of plugins to install
-PLUGINS=("wp-super-cache" "wordfence")
-
-# Install and activate each plugin
-for PLUGIN in "${PLUGINS[@]}"; do
-  log "Installing plugin: $PLUGIN"
-  if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin install "$PLUGIN" --activate --path="$WP_PATH"; then
-    log "Plugin $PLUGIN installed and activated successfully."
-  else
-    log "ERROR: Failed to install or activate plugin: $PLUGIN"
-    exit 1
-  fi
-done
-
-log "All common WordPress plugins installed and activated successfully!"
-
-# --- 11. Configure and enable Redis Object Cache --- #
+# --- 10. Configure and enable Redis Object Cache --- #
 
 log "Setting up Redis Object Cache..."
 
-# Log Redis host and port
-log "Using Redis at ${REDIS_HOST}:${REDIS_PORT}"
-
-# Check if Redis server is reachable (non-blocking)
+# Basic connectivity check (optional but useful)
 if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
   log "WARNING: Redis server is not reachable at ${REDIS_HOST}:${REDIS_PORT}"
 fi
@@ -468,70 +491,59 @@ fi
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin install redis-cache --activate --path="$WP_PATH"
 
 # Enable Redis caching
-if ! sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis enable --path="$WP_PATH"; then
-  log "WARNING: Failed to enable Redis caching."
+if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis enable --path="$WP_PATH"; then
+  log "Redis Object Cache enabled successfully."
 else
-  log "Redis caching enabled successfully."
+  log "WARNING: Failed to enable Redis Object Cache via WP-CLI."
 fi
 
-# Optional: Check Redis connection status
-REDIS_STATUS=$(sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis status --path="$WP_PATH" | grep -i "Status: Connected" || true)
+# --- 11. Create ALB health check endpoint from S3 --- #
 
-if [ -n "$REDIS_STATUS" ]; then
-  log "Redis is connected successfully."
-else
-  log "WARNING: Redis is not connected properly."
-fi
+if [ -n "${HEALTHCHECK_S3_PATH:-}" ]; then
+  log "Downloading healthcheck.php from S3: ${HEALTHCHECK_S3_PATH}"
+  sudo aws s3 cp "${HEALTHCHECK_S3_PATH}" "$WP_PATH/healthcheck.php" --region "${AWS_DEFAULT_REGION}" 2>&1 | tee -a /var/log/user-data.log
 
-# --- 12. Create ALB health check endpoint using provided content --- #
-
-if [ "$enable_s3_script" = "true" ]; then
-  log "Downloading healthcheck file from S3: ${healthcheck_s3_path}"
-  aws s3 cp "${healthcheck_s3_path}" "$WP_PATH/healthcheck.php" --region "${AWS_DEFAULT_REGION}" 2>&1 | tee -a /var/log/user-data.log
   if [ $? -ne 0 ]; then
     log "ERROR: Failed to download healthcheck.php from S3"
     exit 1
   else
     log "ALB health check endpoint created successfully from S3"
+    
+    # Set ownership and permissions only if file was downloaded
+    sudo chown www-data:www-data "$WP_PATH/healthcheck.php"
+    sudo chmod 644 "$WP_PATH/healthcheck.php"
   fi
 else
-  log "Writing embedded healthcheck content..."
-  echo "${healthcheck_content_b64}" | base64 --decode > "$WP_PATH/healthcheck.php"
-  log "ALB health check endpoint created successfully from embedded content"
+  log "HEALTHCHECK_S3_PATH is not defined. Skipping healthcheck setup."
 fi
 
-# Set ownership and permissions for the healthcheck file
-sudo chown www-data:www-data "$WP_PATH/healthcheck.php"
-sudo chmod 644 "$WP_PATH/healthcheck.php"
+# --- 12. Final cleanup and security steps --- #
 
-# --- 13. Safe system update and cleanup --- #
-
+# Update package index
 log "Performing safe system update..."
-
 DEBIAN_FRONTEND=noninteractive apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --only-upgrade
-DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y --no-install-recommends
 
-# Remove unnecessary packages and clean cache
+# Remove unused packages and clean cache
+log "Removing unnecessary packages and cleaning package cache..."
 apt-get autoremove -y --purge
 apt-get clean
 
-# Move WP-CLI to permanent location
+# Move WP-CLI to a permanent location
+log "Installing wp-cli to /usr/local/bin/wp..."
 sudo mv "$WP_CLI_PHAR_PATH" /usr/local/bin/wp
 sudo chmod +x /usr/local/bin/wp
+log "wp-cli installed successfully."
+
+# Remove only sensitive variables from /etc/environment
+log "Clearing sensitive secrets from /etc/environment..."
+sudo sed -i '/^DB_PASSWORD=/d' /etc/environment
+sudo sed -i '/^REDIS_AUTH_TOKEN=/d' /etc/environment
+log "Sensitive secrets removed from /etc/environment."
 
 # Delete temporary working directory
 log "Cleaning up temporary workspace at $WP_TMP_DIR..."
 rm -rf "$WP_TMP_DIR"
-
-log "System update and cleanup completed successfully."
-
-# --- 14. Final actions --- #
-
-# Restrict wp-config.php permissions for security
-log "Applying final permissions to wp-config.php..."
-sudo chmod 640 "$WP_PATH/wp-config.php"
-log "wp-config.php permissions set to 640 (owner read/write only)."
+log "Temporary workspace deleted."
 
 # Done
 log "WordPress deployment completed successfully. Exiting..."

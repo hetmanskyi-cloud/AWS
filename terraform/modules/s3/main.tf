@@ -70,7 +70,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 # Deploys WordPress scripts to the 'scripts' S3 bucket.
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # Conditional script deployment
-  for_each = var.default_region_buckets["scripts"].enabled && var.enable_s3_script ? var.s3_scripts : {}
+  for_each = var.default_region_buckets["scripts"].enabled ? var.s3_scripts : {}
 
   bucket = aws_s3_bucket.default_region_buckets["scripts"].id # Target 'scripts' bucket
   key    = each.key                                           # S3 object key
@@ -79,7 +79,11 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   server_side_encryption = "aws:kms"       # KMS encryption
   kms_key_id             = var.kms_key_arn # KMS key ARN
 
-  content_type = lookup({ ".sh" = "text/x-shellscript", ".php" = "text/php" }, substr(each.key, length(each.key) - 3, 4), "text/plain") # Content type by extension
+  content_type = lookup(
+    { ".sh" = "text/x-shellscript", ".php" = "text/php" }, # Content type by extension
+    substr(each.key, length(each.key) - 3, 4),
+    "text/plain"
+  )
 
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on default buckets
 

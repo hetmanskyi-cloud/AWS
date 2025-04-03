@@ -24,9 +24,6 @@ export WP_PATH="/var/www/html"
 sudo mkdir -p "$WP_PATH"
 echo "export WP_PATH='${WP_PATH}'" | sudo tee -a /etc/environment > /dev/null
 
-# Export AWS region
-echo "export AWS_DEFAULT_REGION='${aws_region}'" | sudo tee -a /etc/environment > /dev/null
-
 # --- 1. Ensure AWS CLI (v2) is installed, if not already --- #
 
 # This step checks if AWS CLI is installed and installs it if necessary.
@@ -61,24 +58,23 @@ fi
 log "Exporting environment variables..."
 {
   # Export DB, Redis, and WordPress related configuration values
-  echo "export DB_HOST='${wp_config.DB_HOST}'"
-  echo "export DB_PORT='${wp_config.DB_PORT}'"  
-  echo "export WP_TITLE='${wp_config.WP_TITLE}'"
-  echo "export PHP_VERSION='${wp_config.PHP_VERSION}'"
-  echo "export PHP_FPM_SERVICE='php${wp_config.PHP_VERSION}-fpm'"
-  echo "export REDIS_HOST='${wp_config.REDIS_HOST}'"
-  echo "export REDIS_PORT='${wp_config.REDIS_PORT}'"
-  echo "export AWS_LB_DNS='${wp_config.AWS_LB_DNS}'"
+  echo "DB_HOST=\"${wp_config.DB_HOST}\""
+  echo "DB_PORT=\"${wp_config.DB_PORT}\""  
+  echo "WP_TITLE=\"${wp_config.WP_TITLE}\""
+  echo "PHP_VERSION=\"${wp_config.PHP_VERSION}\""
+  echo "PHP_FPM_SERVICE=\"php${wp_config.PHP_VERSION}-fpm\""
+  echo "REDIS_HOST=\"${wp_config.REDIS_HOST}\""
+  echo "REDIS_PORT=\"${wp_config.REDIS_PORT}\""
+  echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
   
   # Export other necessary environment variables
-  echo "export SECRET_NAME='${wordpress_secrets_name}'"
-  echo "export REDIS_AUTH_SECRET_NAME='${redis_auth_secret_name}'"
-  echo "export HEALTHCHECK_CONTENT_B64='${healthcheck_content_b64}'"
-  echo "export AWS_DEFAULT_REGION='${aws_region}'"
+  echo "SECRET_NAME=\"${wordpress_secrets_name}\""
+  echo "REDIS_AUTH_SECRET_NAME=\"${redis_auth_secret_name}\""
+  echo "HEALTHCHECK_S3_PATH=\"${healthcheck_s3_path}\""
+  echo "AWS_DEFAULT_REGION=\"${aws_region}\""
 
-  # Export retry configuration variables
-  echo "export RETRY_MAX_RETRIES='${retry_max_retries}'"
-  echo "export RETRY_RETRY_INTERVAL='${retry_retry_interval}'"  
+  echo "RETRY_MAX_RETRIES=\"${retry_max_retries}\""
+  echo "RETRY_RETRY_INTERVAL=\"${retry_retry_interval}\""
 } | sudo tee -a /etc/environment > /dev/null
 
 # Loads the newly exported environment variables to make them available for the session.
@@ -93,45 +89,36 @@ env | grep -E 'DB_|WP_|REDIS_|PHP|AWS'  # Debugging step to check environment va
 # Reference: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
 
 log "Downloading RDS SSL certificate..."
-curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o "$WP_TMP_DIR/rds-combined-ca-bundle.pem"
+curl -s https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /etc/ssl/certs/rds-combined-ca-bundle.pem
 
 # Ensure it's readable by all processes (e.g., PHP, MySQL CLI)
-chmod 644 "$WP_TMP_DIR/rds-combined-ca-bundle.pem"
+chmod 644 /etc/ssl/certs/rds-combined-ca-bundle.pem
 
 # Validate certificate was downloaded
-if [ ! -s "$WP_TMP_DIR/rds-combined-ca-bundle.pem" ]; then
+if [ ! -s /etc/ssl/certs/rds-combined-ca-bundle.pem ]; then
   log "ERROR: Failed to download RDS SSL certificate!"
   exit 1
 else
   log "RDS SSL certificate downloaded successfully."
 fi
 
-# --- 4. Retrieve or embed the WordPress deployment script --- #
+# --- 4. Retrieve the WordPress deployment script --- #
 
-# This step either downloads the WordPress deployment script from S3 or embeds it directly.
-%{ if enable_s3_script }
-  log "Downloading script from S3: ${wordpress_script_path}"
-  aws s3 cp "${wordpress_script_path}" "$WP_TMP_DIR/deploy_wordpress.sh" --region ${aws_region}
-  if [ $? -ne 0 ]; then
-    log "ERROR: Failed to download script from S3: ${wordpress_script_path}"
-    exit 1
-  else
-    log "deploy_wordpress.sh downloaded successfully."
-  fi
-
-# Embed the WordPress local deployment script
-%{ else }
-  log "Embedding local script into $WP_TMP_DIR/deploy_wordpress.sh..."
-  cat <<'END_SCRIPT' > "$WP_TMP_DIR/deploy_wordpress.sh"
-${script_content}
-END_SCRIPT
-  log "Local deploy_wordpress.sh embedded successfully."
-%{ endif }
+# Download deployment script file from S3
+log "Downloading deployment script from S3: ${wordpress_script_path}"
+aws s3 cp "${wordpress_script_path}" "$WP_TMP_DIR/deploy_wordpress.sh" --region ${aws_region}
+if [ $? -ne 0 ]; then
+  log "ERROR: Failed to download script from S3: ${wordpress_script_path}"
+  exit 1
+else
+  log "deploy_wordpress.sh downloaded successfully."
+fi
 
 # --- 5. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 log "Creating temporary healthcheck file in $WP_PATH..."
 echo "<?php http_response_code(200); ?>" | sudo tee "$WP_PATH/healthcheck.php" > /dev/null
+log "Temporary healthcheck.php created successfully."
 
 # Verify that the healthcheck file was created successfully
 if [ -f "$WP_PATH/healthcheck.php" ]; then

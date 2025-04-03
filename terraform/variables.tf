@@ -163,14 +163,8 @@ variable "instance_type" {
   type        = string
 }
 
-variable "enable_s3_script" {
-  description = "Flag to determine if the WordPress deployment script should be fetched from S3"
-  type        = bool
-  default     = false
-}
-
 variable "s3_scripts" {
-  description = "Map of files to be uploaded to the scripts bucket when enable_s3_script is true"
+  description = "Map of files to be uploaded to the scripts bucket"
   type        = map(string)
   default     = {}
 }
@@ -328,12 +322,6 @@ variable "wordpress_secret_name" {
 variable "redis_auth_secret_name" {
   description = "The name of the Secrets Manager secret for Redis AUTH token"
   type        = string
-}
-
-variable "healthcheck_version" {
-  type        = string
-  default     = "1.0"
-  description = "Determines which healthcheck file to use (1.0 or 2.0)."
 }
 
 # --- WordPress Database Configuration --- #

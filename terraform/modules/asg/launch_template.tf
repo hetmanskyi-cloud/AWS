@@ -3,7 +3,7 @@
 # using a standard AMI and the deploy_wordpress.sh script to install and configure WordPress.
 
 locals {
-  # WordPress configuration parameters
+  # WordPress configuration parameters passed to the deployment script
   wp_config = {
     DB_HOST         = var.db_host
     DB_PORT         = var.db_port
@@ -15,56 +15,39 @@ locals {
     AWS_LB_DNS      = var.alb_dns_name
   }
 
-  # Health check file selection based on healthcheck_version variable
-  healthcheck_file = var.healthcheck_version == "2.0" ? "healthcheck-2.0.php" : "healthcheck-1.0.php"
+  # Healthcheck file used for the ALB target group
+  healthcheck_file = "healthcheck.php"
 
-  # Health check file selection based on var.enable_s3_script:
-  # In the user_data.sh.tpl template, if var.enable_s3_script is true the HEALTHCHECK_S3_PATH
-  # (this S3 URL) will be used to download the healthcheck file; otherwise, the local file will be used.
-  healthcheck_s3_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/${local.healthcheck_file}" : ""
+  # Path to the healthcheck file stored in the S3 scripts bucket
+  healthcheck_s3_path = "s3://${var.scripts_bucket_name}/wordpress/${local.healthcheck_file}"
 
-  # Read the content of the selected healthcheck file from the scripts directory
-  healthcheck_content = file("${path.root}/scripts/${local.healthcheck_file}")
-
-  # Base64 encode the healthcheck content
-  healthcheck_b64 = base64encode(local.healthcheck_content)
-
-  # Retry configuration used during the WordPress deployment process inside the user_data script
-  # Defines the maximum number of retries and the interval between them when checking service availability (e.g., database, PHP-FPM)
+  # Retry parameters used in the deployment script when waiting for service readiness
   retry_config = {
-    MAX_RETRIES    = 30 # Maximum number of retry attempts
-    RETRY_INTERVAL = 10 # Interval between retries in seconds
+    MAX_RETRIES    = 30
+    RETRY_INTERVAL = 10
   }
 
-  # Defines the source of the WordPress deployment script.
-  # If var.enable_s3_script is true and var.scripts_bucket_name is defined (not null or empty),
-  # the script is fetched from S3 using the bucket name; otherwise, the local script is used.
-  wordpress_script_path = (var.enable_s3_script && var.scripts_bucket_name != null && var.scripts_bucket_name != "") ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : "${path.root}/scripts/deploy_wordpress.sh"
+  # Path to the WordPress deployment script stored in the S3 scripts bucket
+  wordpress_script_path = "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh"
 
-  # Script Content
-  # When enable_s3_script is true, we assume the script is retrieved from S3, so we set script_content to an empty string.
-  # Otherwise, we read the local deploy_wordpress.sh file.
-  script_content = var.enable_s3_script ? "" : file("${path.root}/scripts/deploy_wordpress.sh")
+  # Local deployment script content used for uploading to S3
+  script_content = file("${path.root}/scripts/deploy_wordpress.sh")
 
-  # Rendered user data, passing all necessary variables to the user_data template.
+  # Rendered user_data script passed to the EC2 instance at launch
   rendered_user_data = templatefile(
-    # Path to the user data template
-    "${path.module}/../../templates/user_data.sh.tpl", # Path to the user_data template.
+    "${path.module}/../../templates/user_data.sh.tpl",
     {
-      wp_config               = local.wp_config
-      aws_region              = var.aws_region
-      enable_s3_script        = var.enable_s3_script
-      wordpress_script_path   = local.wordpress_script_path
-      script_content          = local.script_content
-      retry_max_retries       = local.retry_config.MAX_RETRIES
-      retry_retry_interval    = local.retry_config.RETRY_INTERVAL
-      healthcheck_file        = local.healthcheck_file
-      healthcheck_content_b64 = local.healthcheck_b64
-      healthcheck_s3_path     = local.healthcheck_s3_path
-      wordpress_secrets_name  = var.wordpress_secrets_name
-      redis_auth_secret_name  = var.redis_auth_secret_name
+      wp_config              = local.wp_config
+      aws_region             = var.aws_region
+      wordpress_script_path  = local.wordpress_script_path
+      script_content         = local.script_content
+      retry_max_retries      = local.retry_config.MAX_RETRIES
+      retry_retry_interval   = local.retry_config.RETRY_INTERVAL
+      healthcheck_s3_path    = local.healthcheck_s3_path
+      wordpress_secrets_name = var.wordpress_secrets_name
+      redis_auth_secret_name = var.redis_auth_secret_name
 
-      # Default paths for WordPress deployment (used in user_data)
+      # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"
       WP_PATH    = "/var/www/html"
     }
@@ -153,7 +136,7 @@ resource "aws_launch_template" "asg_launch_template" {
     tags = {
       Name                  = "${var.name_prefix}-asg-instance"
       Environment           = var.environment
-      WordPressScriptSource = var.enable_s3_script ? "s3" : "local"
+      WordPressScriptSource = "s3"
     }
   }
 
@@ -170,43 +153,43 @@ resource "aws_launch_template" "asg_launch_template" {
 
 # --- Notes --- #
 # 1. **AMI Selection**:
-#    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via the script.
-#    - The AMI ID must be specified in terraform.tfvars.
-#
+#    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via a deployment script.
+#    - The AMI ID must be defined explicitly in terraform.tfvars.
+
 # 2. **User Data**:
-#    - The deploy_wordpress.sh script is dynamically rendered and configures Nginx, PHP, WordPress, and the ALB health check endpoint.
-#    - Base64 encoding ensures the script is properly transmitted to EC2.
-#    - Any syntax error in the template or missing variables will cause the instance bootstrap to fail silently — verify template correctness.
-#
+#    - The user_data script is dynamically rendered using a template and includes only essential logic.
+#    - The deploy_wordpress.sh script is downloaded from S3 and executed during instance bootstrap.
+#    - All scripts and templates (including wp-config and healthcheck) are expected to be available in the S3 scripts bucket.
+
 # 3. **SSH Access**:
-#    - Temporary SSH access can be enabled for debugging or maintenance using the `enable_ssh_access` variable in terraform.tfvars.
-#    - For better control in production, restrict SSH access to specific IP ranges via the ASG security group settings.
-#
+#    - Temporary SSH access can be enabled for debugging using the `enable_ssh_access` variable.
+#    - In production, restrict SSH access to trusted IP ranges via the ASG security group configuration.
+
 # 4. **SSM Management**:
-#    - All instances are fully manageable via AWS Systems Manager (SSM), eliminating the need for persistent SSH access.
-#
+#    - All instances are fully managed via AWS Systems Manager (SSM).
+#    - This removes the need for direct SSH access and provides centralized access control and auditing.
+
 # 5. **Monitoring and Optimization**:
-#    - CloudWatch monitoring and EBS optimization are enabled for better performance and visibility.
-#
+#    - CloudWatch monitoring and EBS optimization can be enabled for improved performance and observability.
+#    - These settings can be adjusted depending on the instance type and workload requirements.
+
 # 6. **Automation**:
-#    - To automate updates, configure an EventBridge rule or include this step in your CI/CD pipeline.
-#
+#    - To support automatic updates or rolling deployments, consider integrating this module into a CI/CD pipeline or EventBridge workflow.
+
 # 7. **Healthcheck Integration**:
-#    - The variable `healthcheck_version` determines which healthcheck file is used.
-#    - The chosen file’s name is stored in `healthcheck_file`.
-#    - The content of the healthcheck file is read into `healthcheck_content` from the scripts directory.
-#    - Both variables are passed to the user_data template, so that the deploy_wordpress.sh script
-#      can create the proper ALB health check endpoint.
-#
+#    - A fixed health check file `healthcheck.php` is expected to be available in the S3 scripts bucket.
+#    - The file is downloaded and placed in the WordPress root for ALB target group health checking.
+#    - Its name and location are passed via user_data variables.
+
 # 8. **Critical Considerations**:
-#    - Ensure all variables required by the deploy_wordpress.sh script are passed correctly via the templatefile function.
-#
+#    - Ensure all required variables for WordPress setup are correctly passed to the user_data template.
+#    - Missing or incorrect values may silently cause the bootstrap process to fail.
+
 # 9. **AMI Updates and Rolling Deployments**:
-#    - Regularly update the AMI ID to include OS and security patches.
-#    - Consider enabling rolling updates for the Auto Scaling Group to avoid downtime during redeployments.
-#
+#    - Periodically update the AMI ID to include the latest OS and security updates.
+#    - Rolling updates in the ASG can be configured to apply changes with zero downtime.
+
 # 10. **AWS Secrets Manager**:
-#    - If WordPress and database credentials are stored in Secrets Manager, verify that:
-#      - The user_data script fetches them correctly via `aws secretsmanager get-secret-value`
-#      - The instance IAM role has `secretsmanager:GetSecretValue` (and `DescribeSecret`) permissions
-#    - Ensure the secret's ARN is properly passed to user_data instead of plain credentials.
+#     - WordPress, database, and Redis credentials are securely stored in Secrets Manager.
+#     - The user_data script retrieves them at runtime using `aws secretsmanager get-secret-value`.
+#     - Ensure the instance profile includes `secretsmanager:GetSecretValue` and `DescribeSecret` permissions.

@@ -89,8 +89,8 @@ output "wordpress_media_bucket_name" {
 # --- WordPress Scripts ETags Map --- #
 # S3 ETags for deployed WordPress script files.
 output "deploy_wordpress_scripts_files_etags_map" {
-  value       = var.default_region_buckets["scripts"].enabled && var.enable_s3_script ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
-  description = "Map of script file keys to ETags." # Description: ETags map
+  value       = var.default_region_buckets["scripts"].enabled ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
+  description = "Map of script file keys to ETags."
 }
 
 # --- Replication Bucket --- #

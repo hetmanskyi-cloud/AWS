@@ -395,22 +395,10 @@ variable "redis_auth_secret_name" {
 
 # --- Additional Variables --- #
 
-variable "enable_s3_script" {
-  description = "Flag to determine if the WordPress deployment script should be fetched from S3"
-  type        = bool
-  default     = false
-}
-
 variable "enable_data_source" {
   description = "Enable or disable the data source for fetching ASG instance details"
   type        = bool
   default     = false
-}
-
-variable "healthcheck_version" {
-  type        = string
-  default     = "1.0"
-  description = "Determines which healthcheck file to use (1.0 or 2.0)."
 }
 
 # --- Interface VPC Endpoints Toggle --- #
@@ -423,27 +411,28 @@ variable "enable_interface_endpoints" {
 
 # --- Notes --- #
 # 1. **Variable Grouping:**
-#    - Variables are grouped by functionality for easier management.
-#
+#    - Variables are organized by functionality (e.g., ASG, ALB, Redis, S3, scaling, monitoring).
+#    - Logical grouping simplifies navigation and improves maintainability.
+
 # 2. **Sensitive Data Handling:**
-#    - The `db_password` variable is marked as sensitive to avoid exposing secrets.
-#    - Ensure proper encryption and secure handling of sensitive values.
-#
+#    - Secrets such as WordPress DB credentials and Redis AUTH tokens should be stored in AWS Secrets Manager.
+#    - Use `wordpress_secrets_name` and `redis_auth_secret_name` to retrieve them during deployment.
+#    - Sensitive fields are marked accordingly to prevent Terraform from displaying them in logs or state files.
+
 # 3. **Validation Rules:**
-#    - Autoscaling values have logical constraints (min >= 0, max > 0).
+#    - Autoscaling values must be non-negative (`min`, `max`, `desired_capacity`).
 #    - CPU thresholds must be between 1 and 100 percent.
-#    - Volume types are restricted to supported AWS EBS types.
-#
+#    - Subnet, VPC, SG, and other IDs are assumed to be passed from validated upstream modules.
+
 # 4. **Best Practices:**
-#    - Use different values for `ssh_allowed_cidr` in production.
-#    - Set appropriate autoscaling thresholds based on traffic patterns.
-#    - Consider enabling EBS encryption in production environments.
-#    - Prefer storing credentials in Secrets Manager to avoid embedding them in Terraform state.
-#
+#    - Use restrictive `ssh_allowed_cidr` values in production (e.g., corporate VPN only).
+#    - Set `enable_asg_ssh_access = false` in production; prefer Session Manager (SSM).
+#    - Enable EBS volume encryption using KMS (`enable_ebs_encryption = true`).
+#    - Choose appropriate volume types based on workload (e.g., gp3 for IOPS/cost balance).
+
 # 5. **Production Recommendations:**
-#    - Set `enable_ebs_encryption = true` to protect data at rest.
-#    - Use strict `ssh_allowed_cidr` to limit SSH access (or disable SSH and use SSM).
-#    - Monitor `scale_in_cpu_threshold` and `scale_out_cpu_threshold` carefully to avoid aggressive scaling.
-#    - Enable `enable_interface_endpoints = true` when placing instances in private subnets without NAT.
-#    - Use encrypted S3 buckets (`wordpress_media_bucket_arn` and `scripts_bucket_arn`) for sensitive data.
-#    - Store WordPress and DB credentials in AWS Secrets Manager, passing `wordpress_secrets_name` to the module.
+#    - Place ASG instances in public subnets **only when behind an ALB** and when NAT is not used.
+#    - Use `enable_interface_endpoints = true` when instances need private access to AWS services (e.g., SSM).
+#    - Always upload `deploy_wordpress.sh`, `wp-config-template.php`, and `healthcheck.php` to the S3 scripts bucket before deployment.
+#    - Encrypted S3 buckets (referenced via `wordpress_media_bucket_arn` and `scripts_bucket_arn`) are recommended for storing all deployment-related artifacts.
+#    - The module assumes that deployment scripts are always loaded from S3 — no fallback to local scripts is supported.

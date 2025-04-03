@@ -102,13 +102,6 @@ variable "replication_region_buckets" {
   default     = {}
 }
 
-# --- Enable S3 Script --- #
-variable "enable_s3_script" {
-  description = "Enable uploading scripts to S3."
-  type        = bool
-  default     = false
-}
-
 # --- S3 Scripts Map --- #
 variable "s3_scripts" {
   description = "Map of files for scripts bucket upload."
@@ -146,7 +139,7 @@ variable "enable_dynamodb" {
 # 1. Bucket Configuration: 'default_region_buckets' and 'replication_region_buckets' maps control bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.
 # 3. Replication: 'replication_region', ensure IAM permissions.
-# 4. WordPress: CORS ('enable_cors', 'allowed_origins'), scripts upload ('enable_s3_script', 's3_scripts').
+# 4. WordPress: CORS ('enable_cors', 'allowed_origins'), scripts upload ('s3_scripts').
 # 5. Logging: Centralized logging for configured buckets.
 # 6. Lifecycle: 'noncurrent_version_retention_days' for versioning.
 # 7. Notifications: 'sns_topic_arn' for bucket notifications.

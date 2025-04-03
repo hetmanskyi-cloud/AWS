@@ -116,9 +116,6 @@ module "asg" {
   # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
 
-  # Flag to enable uploading user data script to S3
-  enable_s3_script = var.enable_s3_script
-
   # Configuration for enabling SSH access to ASG instances
   enable_asg_ssh_access = var.enable_asg_ssh_access
   ssh_key_name          = var.ssh_key_name
@@ -181,15 +178,14 @@ module "asg" {
   db_endpoint = module.rds.db_endpoint
 
   # WordPress Configuration
-  db_name             = var.db_name
-  db_port             = var.db_port
-  wp_title            = var.wp_title
-  alb_dns_name        = module.alb.alb_dns_name
-  php_version         = var.php_version
-  php_fpm_service     = "php${var.php_version}-fpm"
-  redis_endpoint      = module.elasticache.redis_endpoint
-  redis_port          = var.redis_port
-  healthcheck_version = var.healthcheck_version
+  db_name         = var.db_name
+  db_port         = var.db_port
+  wp_title        = var.wp_title
+  alb_dns_name    = module.alb.alb_dns_name
+  php_version     = var.php_version
+  php_fpm_service = "php${var.php_version}-fpm"
+  redis_endpoint  = module.elasticache.redis_endpoint
+  redis_port      = var.redis_port
 
   # Secrets Configuration  
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
@@ -292,7 +288,6 @@ module "s3" {
   enable_dynamodb                   = var.enable_dynamodb
   enable_cors                       = var.enable_cors
   allowed_origins                   = var.allowed_origins
-  enable_s3_script                  = var.enable_s3_script
   s3_scripts                        = var.s3_scripts
 
   # SNS Topic for CloudWatch Alarms notifications
