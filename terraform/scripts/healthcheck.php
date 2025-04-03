@@ -1,6 +1,5 @@
 <?php
 header("Content-Type: text/plain");
-http_response_code(200); // <-- ставим 200 до вывода
 
 # Load constants like DB_HOST, DB_USER, etc.
 require_once('/var/www/html/wp-config.php');
@@ -26,8 +25,8 @@ try {
         NULL,
         MYSQLI_CLIENT_SSL
     );
-    echo "MySQL OK\n";
     echo "PHP OK\n";
+    echo "MySQL OK\n";    
     $conn->close();
 } catch (mysqli_sql_exception $e) {
     http_response_code(500);
@@ -76,10 +75,10 @@ exit;
 #   - WordPress REST API availability via localhost
 #
 # Security & Independence:
-#   - Does NOT rely on environment variables
-#   - All secrets (DB, Redis) are loaded from wp-config.php
-#   - Safe to clean up /etc/environment after provisioning
-#   - Requires proper permissions: wp-config.php must be chmod 640 and owned by www-data
+#   - Does NOT rely on environment variables during runtime
+#   - wp-config.php is the only source of secrets (DB, Redis)
+#   - Environment variables from /etc/environment can be cleaned up, but keeping them is useful for manual debugging
+#   - File permissions are set to 644 (owner read/write), allowing access from 'ubuntu' user if needed
 #
 # Best Practices:
 #   - Use centralized configuration (wp-config.php) instead of exporting secrets
@@ -88,7 +87,7 @@ exit;
 #
 # Compatibility:
 #   - Requires PHP ≥ 8.3 with mysqli and redis extensions
-#   - Supports MySQL or MariaDB (with require_secure_transport=ON)
+#   - Supports MySQL (with require_secure_transport=ON)
 #   - Redis must be accessible over TCP
 #   - Redis password should be defined via WP_REDIS_PASSWORD (if needed)
 #
