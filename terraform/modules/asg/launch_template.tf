@@ -155,40 +155,41 @@ resource "aws_launch_template" "asg_launch_template" {
 # 1. **AMI Selection**:
 #    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via a deployment script.
 #    - The AMI ID must be defined explicitly in terraform.tfvars.
-
+#
 # 2. **User Data**:
 #    - The user_data script is dynamically rendered using a template and includes only essential logic.
-#    - The deploy_wordpress.sh script is downloaded from S3 and executed during instance bootstrap.
-#    - All scripts and templates (including wp-config and healthcheck) are expected to be available in the S3 scripts bucket.
-
+#    - The deploy_wordpress.sh script is downloaded from the 'scripts' S3 bucket and executed during instance bootstrap.
+#    - All scripts and templates (including wp-config and healthcheck) must be available in the 'scripts' S3 bucket.
+#    - IMPORTANT: The 'scripts' bucket must be enabled in terraform.tfvars or EC2 initialization will fail.
+#
 # 3. **SSH Access**:
 #    - Temporary SSH access can be enabled for debugging using the `enable_ssh_access` variable.
 #    - In production, restrict SSH access to trusted IP ranges via the ASG security group configuration.
-
+#
 # 4. **SSM Management**:
 #    - All instances are fully managed via AWS Systems Manager (SSM).
 #    - This removes the need for direct SSH access and provides centralized access control and auditing.
-
+#
 # 5. **Monitoring and Optimization**:
 #    - CloudWatch monitoring and EBS optimization can be enabled for improved performance and observability.
 #    - These settings can be adjusted depending on the instance type and workload requirements.
-
+#
 # 6. **Automation**:
 #    - To support automatic updates or rolling deployments, consider integrating this module into a CI/CD pipeline or EventBridge workflow.
-
+#
 # 7. **Healthcheck Integration**:
 #    - A fixed health check file `healthcheck.php` is expected to be available in the S3 scripts bucket.
 #    - The file is downloaded and placed in the WordPress root for ALB target group health checking.
 #    - Its name and location are passed via user_data variables.
-
+#
 # 8. **Critical Considerations**:
 #    - Ensure all required variables for WordPress setup are correctly passed to the user_data template.
 #    - Missing or incorrect values may silently cause the bootstrap process to fail.
-
+#
 # 9. **AMI Updates and Rolling Deployments**:
 #    - Periodically update the AMI ID to include the latest OS and security updates.
 #    - Rolling updates in the ASG can be configured to apply changes with zero downtime.
-
+#
 # 10. **AWS Secrets Manager**:
 #     - WordPress, database, and Redis credentials are securely stored in AWS Secrets Manager.
 #     - These secrets are **not injected directly into user_data** for security reasons.

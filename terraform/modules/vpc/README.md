@@ -16,11 +16,11 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 - **KMS Key for Flow Logs**:
   - An existing KMS key ARN is required for encrypting VPC Flow Logs.
 
-- **IAM Role for Flow Logs (optional)**:
-  - If not created by this module, an existing IAM role with `logs:PutLogEvents` and `logs:CreateLogStream` permissions must be provided.
+- **IAM Role for Flow Logs**:
+  - An IAM role is created by this module with required permissions for CloudWatch Logs.
 
 - **S3 and DynamoDB Endpoints (optional)**:
-  - Ensure the corresponding services (S3, DynamoDB) are available if `enable_interface_endpoints = true`.
+  - Gateway Endpoints for S3 and DynamoDB are created by default; Interface Endpoints are not included.
 
 ---
 
@@ -295,7 +295,7 @@ module "vpc" {
   flow_logs_retention_in_days   = 30
   
   # Monitoring Configuration
-  sns_topic_arn                 = "arn:aws:sns:eu-west-1:123456789012:vpc-alerts"
+  sns_topic_arn                 = aws_sns_topic.cloudwatch_alarms.arn
 }
 ```
 ---
@@ -328,14 +328,14 @@ module "vpc" {
 ### NACL Rules Comparison Table
 
 | Rule Number | Direction | Protocol | Port Range       | Source/Destination CIDR | Action | Description                                    |
-|------------ |---------- |--------- |----------------- |------------------------ |------- |------------------------------------------------|
+|-------------|-----------|----------|------------------|-------------------------|--------|------------------------------------------------|
 | **Public NACL**                                                                                                                           |
 | 100         | Inbound   | TCP      | 80               | 0.0.0.0/0               | ALLOW  | Allow HTTP traffic for ALB                     |
 | 110         | Inbound   | TCP      | 443              | 0.0.0.0/0               | ALLOW  | Allow HTTPS traffic for ALB                    |
 | 120         | Inbound   | TCP      | 22               | var.ssh_allowed_cidr[0] | ALLOW  | Allow SSH traffic (configurable CIDR)          |
 | 130         | Inbound   | TCP      | 1024-65535       | 0.0.0.0/0               | ALLOW  | Allow ephemeral ports for return traffic       |
 | 100         | Outbound  | ALL      | ALL              | 0.0.0.0/0               | ALLOW  | Allow all outbound traffic                     |
-|                                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------------------------------|
 | **Private NACL**                                                                                                                          |
 | 200         | Inbound   | TCP      | 3306             | VPC CIDR                | ALLOW  | Allow MySQL from within VPC                    |
 | 210         | Inbound   | TCP      | 6379             | VPC CIDR                | ALLOW  | Allow Redis from within VPC                    |
@@ -347,21 +347,21 @@ module "vpc" {
 | 230         | Outbound  | UDP      | 53               | 0.0.0.0/0               | ALLOW  | Allow DNS UDP queries                          |
 | 240         | Outbound  | TCP      | 1024-65535       | VPC CIDR                | ALLOW  | Allow ephemeral ports within VPC               |
 | 260         | Outbound  | TCP      | 443              | VPC CIDR                | ALLOW  | Allow SSM traffic to VPC Endpoints             |
-
----
-
-> *Note:* Adjust `ssh_allowed_cidr`, CIDRs, and port ranges per environment for production hardening.
-
+---------------------------------------------------------------------------------------------------------------------------------------------
 ---
 
 ## 11. Conditional Resource Creation
 
-This module supports conditional creation of several resources based on input variables:
+This module supports conditional creation of CloudWatch Alarms based on input variables:
 
-- **VPC Flow Logs**: Created only if `enable_flow_logs = true`.
-- **VPC Endpoints (S3, DynamoDB)**: Created only if `enable_interface_endpoints = true`.
-- **Public and Private NACLs**: Created by default with customizable rules.
-- **CloudWatch Alarms for Flow Logs**: Created only if `enable_flow_logs_monitoring = true`.
+- **CloudWatch Alarms for Flow Logs**: Created only if `sns_topic_arn` is provided (not null). When provided, an alarm will be created to monitor VPC Flow Logs delivery errors and send notifications to the specified SNS topic.
+
+All other resources in this module are created unconditionally, including:
+- VPC and all associated subnets
+- Internet Gateway and route tables
+- Network ACLs for public and private subnets
+- VPC Flow Logs with CloudWatch Log Group
+- VPC Endpoints for S3 and DynamoDB
 
 ---
 
@@ -412,80 +412,127 @@ This VPC module is designed to integrate with:
 
 ## 15. Troubleshooting and Common Issues
 
-### 1. No Internet Access in Public Subnets
-**Cause:** Missing or incorrect route to the Internet Gateway (IGW) in the public route table.  
-**Solution:**  
-- Verify that the public route table contains the `0.0.0.0/0` route through the IGW.
-- Ensure the subnet is associated with the correct public route table.
-- Check that `map_public_ip_on_launch = true` is enabled for the public subnets.
+This section outlines common issues you may encounter when using the VPC module and provides AWS CLI commands to help diagnose and resolve them.
 
 ---
 
-### 2. NACL Blocking Traffic
-**Cause:** Network ACL rules block required traffic (HTTP/HTTPS/SSH or database ports).  
-**Solution:**  
-- Review the NACL rules with:
-  ```shell
-  aws ec2 describe-network-acls --network-acl-id <nacl-id>
-  ```
-- Ensure the correct `allow` rules exist for inbound/outbound traffic.
-- Validate ephemeral port ranges (1024-65535) are open for return traffic.
+### 1. No Internet Access in Public Subnets
+**Cause:** Missing or incorrect route to the Internet Gateway (IGW).
+
+**Solution:**
+- Verify that the public route table contains a route for `0.0.0.0/0` via the IGW.
+- Ensure public subnets are associated with the correct public route table.
+- Confirm `map_public_ip_on_launch = true` is enabled.
+
+```bash
+aws ec2 describe-route-tables --filters Name=vpc-id,Values=<vpc-id>
+```
+
+---
+
+### 2. SSH Access Fails
+**Cause:** Incorrect Security Group or NACL configuration for port 22.
+
+**Solution:**
+- Check the NACL rule for SSH:
+```bash
+aws ec2 describe-network-acls --network-acl-id <nacl-id>
+```
+- Confirm `ssh_allowed_cidr` is properly configured in Terraform variables.
 
 ---
 
 ### 3. VPC Flow Logs Not Delivered to CloudWatch
-**Cause:** IAM Role missing permissions or KMS key policy does not allow CloudWatch access.  
-**Solution:**  
-- Check IAM role policies for:
-  - `logs:CreateLogStream`
-  - `logs:PutLogEvents`
-- Validate the KMS key policy allows the `logs.${var.aws_region}.amazonaws.com` principal.
+**Cause:** IAM Role is missing permissions or the KMS key policy does not allow access.
+
+**Solution:**
+- Verify the IAM role policy:
+```bash
+aws iam get-role-policy --role-name <role-name> --policy-name <policy-name>
+```
+- Ensure the KMS key policy allows CloudWatch Logs principal.
 
 ---
 
 ### 4. Flow Logs Delivery Errors in CloudWatch Metrics
-**Cause:** Delivery failures due to permission or configuration issues.  
-**Solution:**  
-- Query the CloudWatch metric:
-  ```shell
-  aws cloudwatch get-metric-statistics \
-    --namespace "AWS/Logs" \
-    --metric-name "DeliveryErrors" \
-    --dimensions Name=LogGroupName,Value=/aws/vpc/flow-logs/<env> \
-    --start-time 2024-01-01T00:00:00Z \
-    --end-time 2024-01-02T00:00:00Z \
-    --period 300 \
-    --statistics Sum
-  ```
-- Check the CloudWatch alarm for Flow Logs delivery errors.
-- Verify the IAM role and KMS configuration.
+**Cause:** Permissions or destination misconfigurations.
+
+**Solution:** Query delivery errors:
+```bash
+aws cloudwatch get-metric-statistics \
+  --namespace "AWS/Logs" \
+  --metric-name "DeliveryErrors" \
+  --dimensions Name=LogGroupName,Value=/aws/vpc/flow-logs/<env> \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-02T00:00:00Z \
+  --period 300 \
+  --statistics Sum
+```
 
 ---
 
 ### 5. Subnet Capacity Issues
-**Cause:** Subnet IP range exhausted due to small CIDR block or high instance count.  
-**Solution:**  
-- Recalculate subnet size based on instance requirements.
-- Monitor IP utilization:
-  ```shell
-  aws ec2 describe-subnets --subnet-ids <subnet-id>
-  ```
+**Cause:** Subnet CIDR block exhausted due to high instance count.
+
+**Solution:** Monitor subnet IP usage:
+```bash
+aws ec2 describe-subnets --subnet-ids <subnet-id>
+```
 
 ---
 
 ### 6. Gateway Endpoints Not Working (S3/DynamoDB)
-**Cause:** Missing or incorrect route table association for VPC Endpoints.  
-**Solution:**  
-- Ensure both private and public route tables include the VPC Endpoint routes.
-- Verify the endpoint status is `available`.
+**Cause:** Missing route table associations or endpoint misconfiguration.
+
+**Solution:**
+- Check the endpoint status:
+```bash
+aws ec2 describe-vpc-endpoints --filters Name=vpc-id,Values=<vpc-id>
+```
+- Ensure correct route table associations are in place.
 
 ---
 
-### 7. SSH Access Fails
-**Cause:** Incorrect Security Group or NACL configuration for SSH (port 22).  
-**Solution:**  
-- Ensure `ssh_allowed_cidr` is correctly set.
-- Confirm NACL rule `public_inbound_ssh` allows SSH traffic from your IP range.
+### 7. View and Tail Flow Logs in Real Time
+```bash
+aws logs tail /aws/vpc/flow-logs/<env> --follow
+```
+
+---
+
+### 8. AWS CLI Commands for VPC Module Debugging and Verification
+These CLI commands are helpful for verifying and debugging VPC resources.
+
+```bash
+# List VPCs
+aws ec2 describe-vpcs
+
+# List Subnets in a VPC
+aws ec2 describe-subnets --filters Name=vpc-id,Values=<vpc-id>
+
+# List Route Tables in a VPC
+aws ec2 describe-route-tables --filters Name=vpc-id,Values=<vpc-id>
+
+# Describe Internet Gateway
+aws ec2 describe-internet-gateways --filters Name=attachment.vpc-id,Values=<vpc-id>
+
+# Describe NACLs
+aws ec2 describe-network-acls --filters Name=vpc-id,Values=<vpc-id>
+
+# Describe VPC Endpoints
+aws ec2 describe-vpc-endpoints --filters Name=vpc-id,Values=<vpc-id>
+
+# Describe Flow Logs
+aws ec2 describe-flow-logs --filter Name=vpc-id,Values=<vpc-id>
+
+# Describe CloudWatch Log Group
+aws logs describe-log-groups --log-group-name-prefix /aws/vpc/flow-logs
+
+# Tail logs in real time
+aws logs tail /aws/vpc/flow-logs/<env> --follow
+```
+
+> Replace `<vpc-id>`, `<subnet-id>`, `<nacl-id>`, `<env>`, etc., with actual values.
 
 ---
 

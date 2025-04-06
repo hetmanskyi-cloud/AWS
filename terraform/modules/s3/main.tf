@@ -36,13 +36,15 @@ resource "aws_s3_bucket" "default_region_buckets" {
   force_destroy = true # Allows deletion with non-empty contents.
 
   # --- Lifecycle Configuration --- #
-  # If the Terraform state bucket ("terraform_state") is used, consider:
-  # 1. Setting prevent_destroy = true to prevent accidental deletion.
-  # 2. Setting force_destroy = false to protect non-empty buckets from deletion.
+  # WARNING: The following lifecycle block, if enabled, will apply to ALL S3 buckets created by this module.
+  # Use this only in production environments to prevent accidental deletion of important buckets.
+  # 
+  # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal
+  # - force_destroy = false    → blocks deletion of buckets containing objects
   #
-  # Currently, force_destroy remains enabled, and prevent_destroy is NOT applied.
-  # Uncomment the block below for strict protection:
-  #
+  # To enable strict protection, manually uncomment the block below.
+  # If you need to apply protection **only to specific buckets** (e.g., 'terraform_state'), implement per-resource logic manually.
+
   # lifecycle {
   #   prevent_destroy = true
   # }
@@ -67,7 +69,8 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 }
 
 # --- Deploy WordPress Scripts --- #
-# Deploys WordPress scripts to the 'scripts' S3 bucket.
+# Uploads WordPress installation and configuration scripts to the 'scripts' S3 bucket.
+# Scripts are loaded from the local project directory and stored in S3 for use during EC2 provisioning.
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # Conditional script deployment
   for_each = var.default_region_buckets["scripts"].enabled ? var.s3_scripts : {}
@@ -94,6 +97,9 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
 
   # Notes:
   # - Uploads scripts to 'scripts' bucket (defined in 'var.s3_scripts').
+  # - All WordPress-related scripts are uploaded to the S3 bucket named 'scripts'.
+  # - These scripts are always pulled from S3 during EC2 initialization via user_data.
+  # - The 'scripts' bucket MUST be enabled in terraform.tfvars for this process to succeed.
 }
 
 # --- All Buckets Notifications (Default Region) --- #

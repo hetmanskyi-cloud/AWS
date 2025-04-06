@@ -1,4 +1,4 @@
-# --- VPC Configuration Variables --- #
+# --- VPC Module Variables --- #
 
 # AWS region for resource creation
 variable "aws_region" {

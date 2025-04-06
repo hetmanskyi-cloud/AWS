@@ -86,7 +86,12 @@ variable "default_region_buckets" {
     server_access_logging = optional(bool, false)
     region                = optional(string, null) # Optional: region (defaults to provider)    
   }))
-  description = "Config for default AWS region buckets."
+  description = <<-EOT
+    Config for default AWS region buckets.
+
+    NOTE: The 'scripts' bucket must always be enabled (enabled = true).
+    It is required for EC2 bootstrap and WordPress deployment via user_data script.
+  EOT
   default     = {}
 }
 
@@ -104,7 +109,11 @@ variable "replication_region_buckets" {
 
 # --- S3 Scripts Map --- #
 variable "s3_scripts" {
-  description = "Map of files for scripts bucket upload."
+  description = <<-EOT
+    Map of files for scripts bucket upload.
+    Scripts will be uploaded only if the 'scripts' bucket is enabled.
+    Local fallback is not used — this is the only method of delivery.
+  EOT
   type        = map(string)
   default     = {}
 }

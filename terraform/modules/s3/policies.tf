@@ -3,6 +3,8 @@
 
 # --- WordPress Media Bucket CORS Config --- #
 # Configures CORS for 'wordpress_media' bucket.
+# - Used for WordPress media file downloads (read-only).
+# - Uploads are performed via WordPress backend using signed requests (not public uploads).
 resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
   count = var.default_region_buckets["wordpress_media"].enabled && var.enable_cors ? 1 : 0 # Conditional CORS config
 
@@ -25,6 +27,7 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 }
 
 # --- Enforce HTTPS Policy for Default Region Buckets --- #
+# These buckets ('logging', 'alb_logs', 'cloudtrail') have dedicated policies or different access mechanisms.
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   # HTTPS policy for default region buckets (EXCLUDING Logging, ALB Logs and CloudTrail)
   for_each = tomap({
@@ -326,3 +329,7 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 #    - Enables controlled cross-origin access to 'wordpress_media' bucket.
 #    - Allows only GET requests with 'Content-Type' header.
 #    - **Important:** 'allowed_origins' must be properly restricted in production for security.
+# 9. Scripts Bucket:
+#    - No dedicated bucket policy required.
+#    - Access is managed via IAM roles attached to EC2 instances.
+#    - Scripts are downloaded by EC2 using instance profile permissions.

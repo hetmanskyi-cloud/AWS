@@ -1,6 +1,7 @@
 # --- S3 Replication Configuration --- #
 
-# Local variable to check if any replication buckets are enabled
+# Local: Checks if any replication destination buckets are enabled.
+# Used as a global flag to conditionally create IAM roles and policies for replication.
 locals {
   replication_buckets_enabled = length([
     for key, value in var.replication_region_buckets : key
@@ -9,6 +10,8 @@ locals {
 }
 
 # --- IAM Role for Replication --- #
+# IAM Role for all S3 replication tasks.
+# Only one role is created, regardless of how many buckets require replication.
 resource "aws_iam_role" "replication_role" {
   count = length([
     for value in var.default_region_buckets : value
@@ -105,6 +108,9 @@ resource "aws_iam_policy" "replication_policy" {
         ]
       },
       # Statement: KMSPermissions (KMS Key Permissions for Encryption)
+      # Allows usage of both source and replica KMS keys.
+      # Ensures replication can encrypt/decrypt objects during transfer between regions.
+      # Compact is used to remove null entries if replica key is not set.
       {
         Sid    = "KMSPermissions"
         Effect = "Allow"
@@ -156,6 +162,9 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
       prefix = ""
     }
 
+    # Only replicate objects encrypted with SSE-KMS (security best practice).
+    # Ensures secure replication using our CMK from the source bucket.
+    # Not recommended to remove this block, as it limits replication to securely encrypted data only.
     source_selection_criteria {
       sse_kms_encrypted_objects {
         status = "Enabled"
@@ -182,6 +191,7 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
     }
   }
 
+  # Depends on versioning being enabled on both source and destination buckets.
   depends_on = [
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket.s3_replication_bucket,
@@ -203,6 +213,12 @@ resource "aws_s3_bucket_replication_configuration" "replication_config" {
 #    - Replication is configured ONLY for objects encrypted with SSE-KMS.
 #    - Ensure 'aws_s3_bucket_server_side_encryption_configuration' enables SSE-KMS for source buckets.
 #    - To replicate unencrypted or SSE-S3 objects, adjust or remove 'source_selection_criteria'.
-# 7. Replica KMS Key:
+# 7. Versioning Requirement:
+#     - Both source and destination buckets must have versioning enabled.
+#     - Module enforces this via conditional versioning blocks and replication configuration dependencies.
+# 8. Replica KMS Key:
 #    - Recommended to specify 'kms_replica_key_arn' for compliance in the replication region.
 #    - Fallback to source KMS key if not provided.
+# 9. Replication Metrics:
+#    - `metrics { status = "Enabled" }` enables visibility into replication success/failure in CloudWatch.
+#    - Ensure CloudWatch permissions are granted to monitor replication behavior.

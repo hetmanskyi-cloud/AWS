@@ -1,7 +1,9 @@
-# --- S3 Bucket Outputs --- #
+# --- S3 Module Outputs --- #
 # Defines outputs for key S3 resources.
 
 # --- Scripts Bucket --- #
+# IMPORTANT: The 'scripts' bucket must always be enabled in terraform.tfvars.
+# This bucket stores all WordPress-related installation scripts and templates required for EC2 provisioning.
 
 output "scripts_bucket_arn" {
   description = "ARN of scripts bucket." # Description: ARN
@@ -88,6 +90,7 @@ output "wordpress_media_bucket_name" {
 
 # --- WordPress Scripts ETags Map --- #
 # S3 ETags for deployed WordPress script files.
+# IMPORTANT: Scripts must be uploaded to the 'scripts' bucket. If the bucket is not enabled, the map will be empty and EC2 provisioning will fail.
 output "deploy_wordpress_scripts_files_etags_map" {
   value       = var.default_region_buckets["scripts"].enabled ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
   description = "Map of script file keys to ETags."

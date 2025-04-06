@@ -222,6 +222,7 @@ graph LR
   - **Replication region buckets**: Created based on the `replication_region_buckets` map variable
   - Dynamic bucket creation with configurable properties (versioning, replication, server access logging)
   - CORS configuration for WordPress media bucket with configurable origins
+  - Deployment scripts (deploy_wordpress.sh, healthcheck.php) are uploaded to the scripts bucket during Terraform apply and fetched by EC2 during bootstrap. Local copy is not used.
 
 - **Logging Configuration**:
   - Centralized logging bucket for all S3 access logs
@@ -289,6 +290,8 @@ This module provisions the following AWS resources:
 
 - **S3 Replication** (optional):
   - Enables cross-region replication of the `wordpress_media` bucket.
+  - Replicates only objects encrypted with SSE-KMS (for security and compliance).
+    This is enforced via source_selection_criteria in replication configuration.
 
 - **Lifecycle Policies**:
   - Applied to specific buckets like `alb_logs` to manage object expiration.
@@ -311,25 +314,25 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| **Name**                           | **Type**      | **Description**                                          | **Default**             |
-|------------------------------------|---------------|----------------------------------------------------------|-------------------------|
-| `aws_region`                       | `string`      | AWS region where resources will be created               | Required                |
-| `replication_region`               | `string`      | AWS region for replication bucket                        | Required                |
-| `environment`                      | `string`      | Environment (dev, stage, prod)                           | Required                |
-| `name_prefix`                      | `string`      | Resource name prefix                                     | Required                |
-| `aws_account_id`                   | `string`      | AWS Account ID for bucket policies                       | Required                |
-| `kms_key_arn`                      | `string`      | KMS key ARN for encryption                               | Required                |
-| `kms_replica_key_arn`              | `string`      | ARN of KMS replica key in replication region             | `null`                  |
-| `noncurrent_version_retention_days`| `number`      | Retention days for noncurrent object versions            | Required                |
-| `sns_topic_arn`                    | `string`      | ARN of SNS Topic for bucket notifications                | Required                |
-| `replication_region_sns_topic_arn` | `string`      | ARN of SNS Topic in replication region                   | `""`                    |
-| `default_region_buckets`           | `map(object)` | Config for default AWS region buckets                    | `{}`                    |
-| `replication_region_buckets`       | `map(object)` | Config for replication region buckets                    | `{}`                    |
-| `enable_s3_script`                 | `bool`        | Enable uploading scripts to S3                           | `false`                 |
-| `s3_scripts`                       | `map(string)` | Map of files for scripts bucket upload                   | `{}`                    |
-| `enable_cors`                      | `bool`        | Enable CORS for WordPress media bucket                   | `false`                 |
-| `allowed_origins`                  | `list(string)`| List of allowed origins for S3 CORS                      |`["https://example.com"]`|
-| `enable_dynamodb`                  | `bool`        | Enable DynamoDB for Terraform state locking              | `false`                 |
+| **Name**                           | **Type**         | **Description**                                              | **Default**               |
+|------------------------------------|------------------|--------------------------------------------------------------|---------------------------|
+| `aws_region`                       | `string`         | Primary AWS region                                           | — *(required)*            |
+| `replication_region`               | `string`         | Region for replication buckets                               | — *(required)*            |
+| `environment`                      | `string`         | Deployment stage: dev, stage, or prod                        | — *(required)*            |
+| `name_prefix`                      | `string`         | Prefix for resource names                                    | — *(required)*            |
+| `aws_account_id`                   | `string`         | Account ID for bucket policies                               | — *(required)*            |
+| `kms_key_arn`                      | `string`         | KMS key for encryption                                       | — *(required)*            |
+| `kms_replica_key_arn`              | `string`         | KMS key for replication (optional)                           | `null`                    |
+| `noncurrent_version_retention_days`| `number`         | Retention days for noncurrent versions                       | — *(required)*            |
+| `sns_topic_arn`                    | `string`         | SNS topic for bucket events                                  | — *(required)*            |
+| `replication_region_sns_topic_arn` | `string`         | SNS topic in replication region                              | `""`                      |
+| `default_region_buckets`           | `map(object)`    | Bucket configs in primary region                             | `{}`                      |
+| `replication_region_buckets`       | `map(object)`    | Bucket configs in replication region                         | `{}`                      |
+| `s3_scripts`                       | `map(string)`    | Files to upload to scripts bucket                            | `{}`                      |
+| `enable_cors`                      | `bool`           | Enable CORS for media bucket                                 | `false`                   |
+| `allowed_origins`                  | `list(string)`   | Origins allowed by CORS                                      | `["https://example.com"]` |
+| `enable_dynamodb`                  | `bool`           | Enable DynamoDB for state locking                            | `false`                   |
+
 
 ---
 
@@ -376,7 +379,7 @@ module "s3" {
   # KMS and SNS configuration
   kms_key_arn                      = module.kms.key_arn
   kms_replica_key_arn              = module.kms_replica.key_arn
-  sns_topic_arn                    = module.sns.topic_arn
+  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
   replication_region_sns_topic_arn = module.sns_replica.topic_arn
   
   # Versioning configuration
@@ -385,10 +388,10 @@ module "s3" {
   # Default region buckets
   default_region_buckets = {
     scripts = {
-      enabled               = true
+      enabled               = true # MUST always be enabled; required for EC2 bootstrap
       versioning            = true
       replication           = false
-      server_access_logging = true
+      server_access_logging = false
     }
     logging = {
       enabled               = true
@@ -404,7 +407,7 @@ module "s3" {
     }
     cloudtrail = {
       enabled               = true
-      versioning            = true
+      versioning            = false
       replication           = false
       server_access_logging = true
     }
@@ -418,7 +421,7 @@ module "s3" {
       enabled               = true
       versioning            = true
       replication           = true
-      server_access_logging = true
+      server_access_logging = false
     }
   }
   
@@ -427,17 +430,16 @@ module "s3" {
     wordpress_media = {
       enabled               = true
       versioning            = true
-      server_access_logging = true
-      region                = "eu-central-1"
+      server_access_logging = false
+      region                = "eu-west-1"
     }
   }
   
   # WordPress scripts
-  enable_s3_script = true
   s3_scripts = {
-    "scripts/setup.sh" = "scripts/setup.sh"
-    "scripts/backup.sh" = "scripts/backup.sh"
-  }
+  "wordpress/deploy_wordpress.sh" = "scripts/deploy_wordpress.sh"
+  "wordpress/healthcheck.php"     = "scripts/healthcheck.php"  
+}
   
   # CORS configuration (IMPORTANT: Restrict origins in production)
   enable_cors = true
@@ -456,6 +458,7 @@ module "s3" {
   - HTTPS-only access enforced
   - Least privilege IAM policies
   - Review and restrict CORS `allowed_origins` in production environments
+  - The terraform_state bucket should use prevent_destroy = true to avoid accidental deletion of Terraform state.
 
 - **Encryption**:
   - Mandatory KMS encryption for all resources (except ALB logs bucket which uses SSE-S3)
@@ -463,6 +466,7 @@ module "s3" {
   - Server-side encryption for all objects
   - Secure key management with KMS
   - Bucket key enabled for cost optimization
+  - Cross-region replication supports only SSE-KMS encrypted objects (best practice, enforced in config).
 
 - **Monitoring**:
   - SNS notifications for bucket events
@@ -480,7 +484,7 @@ module "s3" {
 
 - **DynamoDB Table** is created only if `enable_dynamodb = true`.
 - **CORS Configuration** is applied only if `enable_cors = true`.
-- **Scripts Upload** happens only if `enable_s3_script = true`.
+- **Scripts Upload** happens only if `s3_scripts` is provided and the `scripts` bucket is enabled.
 - **Cross-Region Replication** is configured only if bucket's `replication = true`.
 
 ---
@@ -578,10 +582,57 @@ This S3 module integrates with the following modules and AWS services:
 ---
 
 ### 8. WordPress Scripts Not Uploaded to S3
-**Cause:** `enable_s3_script = false` or `scripts` bucket disabled.  
+**Cause:** `s3_scripts` not provided or `scripts` bucket disabled.  
 **Solution:**  
-- Set `enable_s3_script = true`.
+- Provide `s3_scripts` with the files to upload.
 - Ensure `scripts` bucket is enabled in `default_region_buckets`.
+
+### 9. AWS CLI Commands for S3 Module Debugging and Verification
+
+Below are useful AWS CLI commands to help verify, debug, and inspect resources created by this module.
+
+```bash
+# List all S3 buckets in your AWS account (names and creation dates)
+aws s3 ls
+
+# List All S3 Buckets and Their Names
+aws s3api list-buckets --query "Buckets[*].Name" --output table
+
+# Get Bucket Versioning Status
+aws s3api get-bucket-versioning --bucket <bucket-name>
+
+# Get Bucket Encryption Configuration
+aws s3api get-bucket-encryption --bucket <bucket-name>
+
+# Get Bucket Policy
+aws s3api get-bucket-policy --bucket <bucket-name> --query Policy --output text | jq .
+
+# Get Bucket Replication Configuration
+aws s3api get-bucket-replication --bucket <bucket-name>
+
+# Get Bucket Notification Configuration
+aws s3api get-bucket-notification-configuration --bucket <bucket-name>
+
+# Get Bucket CORS Configuration
+aws s3api get-bucket-cors --bucket <bucket-name>
+
+# Get Bucket Logging Status
+aws s3api get-bucket-logging --bucket <bucket-name>
+
+# Get Bucket Lifecycle Configuration
+aws s3api get-bucket-lifecycle-configuration --bucket <bucket-name>
+
+# Get Bucket Location (Region)
+aws s3api get-bucket-location --bucket <bucket-name>
+
+# Get All Tags for a Bucket
+aws s3api get-bucket-tagging --bucket <bucket-name>
+```
+---
+
+**Note:** Replace `<bucket-name>` with the actual bucket name.
+
+These commands help confirm the configuration and state of each bucket deployed by the module.
 
 ---
 
@@ -593,6 +644,7 @@ This S3 module integrates with the following modules and AWS services:
 - When using replication, ensure that both source and destination buckets have versioning enabled.
 - The `terraform_state` bucket has special lifecycle rules to prevent accidental deletion of state files.
 - Always strictly validate and limit CORS `allowed_origins` in production environments to prevent cross-origin vulnerabilities and data leaks.
+- The scripts bucket must always be enabled in default_region_buckets. It is used to deliver the deploy_wordpress.sh and healthcheck script to EC2. Without it, WordPress cannot be deployed.
 
 ---
 

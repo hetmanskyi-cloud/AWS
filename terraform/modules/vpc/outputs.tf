@@ -1,4 +1,4 @@
-# --- VPC Outputs --- #
+# --- VPC Module Outputs --- #
 
 # Output the VPC ID
 output "vpc_id" {

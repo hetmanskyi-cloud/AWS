@@ -288,7 +288,8 @@ module "rds" {
   rds_cpu_threshold_high      = 80
   rds_storage_threshold       = 10737418240  # 10 GB in bytes
   rds_connections_threshold   = 100
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # Required if monitoring or alarms are enabled
+  # Required if monitoring or alarms are enabled
+  sns_topic_arn               = aws_sns_topic.cloudwatch_alarms.arn
   rds_log_retention_days      = 30
   
   # Read Replicas
@@ -452,6 +453,50 @@ This RDS module integrates with the following modules and AWS services:
 - Review log retention (`rds_log_retention_days`) and lower if necessary.  
 - Disable unneeded logs like general or audit logs in non-production environments.  
 - Optimize Enhanced Monitoring granularity or disable if not required.
+
+---
+
+### 11. AWS CLI Commands for RDS Module Debugging and Verification
+
+Below are useful AWS CLI commands to help verify, debug, and inspect RDS resources created by this module.
+
+```bash
+# List all RDS DB instances
+aws rds describe-db-instances --query "DBInstances[*].DBInstanceIdentifier" --output table
+
+# Get detailed information about a specific DB instance
+aws rds describe-db-instances --db-instance-identifier <db-instance-id>
+
+# Get endpoint address and port for a specific DB instance
+aws rds describe-db-instances --db-instance-identifier <db-instance-id> \
+  --query "DBInstances[*].Endpoint.[Address,Port]" --output table
+
+# Check RDS instance status (e.g., 'available', 'creating', etc.)
+aws rds describe-db-instances --db-instance-identifier <db-instance-id> \
+  --query "DBInstances[*].DBInstanceStatus" --output text
+
+# Get RDS instance tags
+aws rds list-tags-for-resource --resource-name arn:aws:rds:<region>:<account-id>:db:<db-instance-id>
+
+# Get RDS instance parameter group
+aws rds describe-db-instances --db-instance-identifier <db-instance-id> \
+  --query "DBInstances[*].DBParameterGroups" --output table
+
+# Get RDS instance security groups
+aws rds describe-db-instances --db-instance-identifier <db-instance-id> \
+  --query "DBInstances[*].VpcSecurityGroups[*].VpcSecurityGroupId" --output text
+
+# List available DB engine versions (e.g., MySQL)
+aws rds describe-db-engine-versions --engine mysql --query "DBEngineVersions[*].EngineVersion" --output table
+
+# Describe backups for a specific DB instance
+aws rds describe-db-snapshots --db-instance-identifier <db-instance-id>
+```
+---
+
+Note: Replace <db-instance-id>, <region>, and <account-id> with actual values.
+
+These commands are useful for troubleshooting, monitoring, and verifying RDS configuration and operational status.
 
 ---
 
