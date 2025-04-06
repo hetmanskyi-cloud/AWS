@@ -107,11 +107,15 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
 }
 
 # --- Conditional Log Group for RDS Enhanced Monitoring --- #
-# Conditional CloudWatch Log Group for RDS OS Metrics (created only when Enhanced Monitoring is enabled).
+# Creates and manages the default RDSOSMetrics log group via Terraform.
+# AWS automatically creates a log group named "RDSOSMetrics" when Enhanced Monitoring is enabled,
+# but it is unmanaged (no encryption, no tags).
+# By explicitly creating this group with the same name, we override the default behavior,
+# enabling Terraform to manage encryption, retention, and tags — ensuring full IaC control.
 resource "aws_cloudwatch_log_group" "rds_os_metrics" {
   count             = var.enable_rds_monitoring ? 1 : 0
-  name              = "RDSOSMetrics"
-  retention_in_days = var.rds_log_retention_days # Adjust carefully to control CloudWatch costs
+  name              = "RDSOSMetrics" # DO NOT change this name — required to override AWS default behavior.
+  retention_in_days = var.rds_log_retention_days
   kms_key_id        = var.kms_key_arn
 
   tags = {
@@ -139,6 +143,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 
 # --- Read Replica Configuration --- #
 # Defines RDS read replicas, inheriting configuration from the primary DB instance.
+# These replicas improve read scalability and can be placed across AZs for high availability.
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count # Creates read replicas based on 'read_replicas_count' variable.
 
@@ -164,6 +169,9 @@ resource "aws_db_instance" "read_replica" {
   performance_insights_kms_key_id = aws_db_instance.db.performance_insights_kms_key_id
 
   # Other Configurations
+
+  # Automatically applies minor version upgrades during maintenance windows.
+  # Recommended for non-production environments. For production, set to false if strict version control is needed.
   auto_minor_version_upgrade      = true                    # Enable automatic minor version upgrades.
   copy_tags_to_snapshot           = true                    # Copy tags to DB snapshots.
   publicly_accessible             = false                   # Ensure read replicas are not publicly accessible for security best practices.
@@ -194,6 +202,7 @@ resource "aws_db_instance" "read_replica" {
 #    - Configurable backup retention and deletion protection to prevent accidental data loss.
 #    - Final snapshot creation is controlled via 'skip_final_snapshot' for production safety.
 #    - Enhanced Monitoring is conditionally enabled with a dedicated IAM role.
+#    - Consider enabling `delete_automated_backups = false` in dev/test environments to debug issues post-deletion.
 #
 # 4. Logging Strategy:
 #    - CloudWatch Log Groups are created for 'error' and 'slowquery' logs.
@@ -210,7 +219,12 @@ resource "aws_db_instance" "read_replica" {
 #    - Password is stored in the Terraform state file but marked as sensitive to reduce accidental exposure.
 #    - Direct integration with AWS Secrets Manager is NOT required here; application (e.g., WordPress) pulls credentials from a secret independently.
 #    - If needed, password rotation should be managed externally or via additional automation (AWS Lambda, Secrets Manager rotation).
+#    - If integrating with Secrets Manager, avoid passing credentials directly and fetch them via data sources.
 #
 # 7. Future Consideration:
 #    - For better scalability and high availability, consider migrating to Amazon Aurora in the future.
 #    - Aurora provides built-in clustering, shared storage, and improved read scaling with 'aws_rds_cluster' resources.
+#    - Optional (future enhancement):
+#      - Consider adding `read_replica_source_db_instance_identifier` explicitly for clarity,
+#      especially if planning cross-region replication or complex architectures.
+#    - Additional logging exports (e.g., "general", "audit") may improve observability in production.

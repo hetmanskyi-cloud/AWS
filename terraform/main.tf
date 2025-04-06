@@ -85,6 +85,7 @@ module "kms" {
 
   # Key rotation and monitoring
   enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
+  kms_root_access       = var.kms_root_access       # Enable or disable root access in key policy
   enable_kms_role       = var.enable_kms_role       # Create IAM role for managing the KMS key
   enable_key_monitoring = var.enable_key_monitoring # Enable CloudWatch Alarms for KMS key usage
   key_decrypt_threshold = var.key_decrypt_threshold # Custom threshold for Decrypt operations
@@ -388,7 +389,7 @@ module "alb" {
   enable_waf_logging                = var.enable_waf_logging
   enable_firehose                   = var.enable_firehose
 
-  depends_on = [module.vpc, module.s3]
+  depends_on = [module.vpc, module.s3, aws_sns_topic.cloudwatch_alarms]
 }
 
 # --- Interface Endpoints Module Configuration (Now disabled) --- #

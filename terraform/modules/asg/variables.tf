@@ -1,4 +1,4 @@
-# --- ASG Variables --- #
+# --- ASG Module Variables --- #
 # This file contains all the configurable variables for the ASG module.
 
 # --- General Configuration --- #
@@ -413,26 +413,26 @@ variable "enable_interface_endpoints" {
 # 1. **Variable Grouping:**
 #    - Variables are organized by functionality (e.g., ASG, ALB, Redis, S3, scaling, monitoring).
 #    - Logical grouping simplifies navigation and improves maintainability.
-
+#
 # 2. **Sensitive Data Handling:**
 #    - Secrets such as WordPress DB credentials and Redis AUTH tokens should be stored in AWS Secrets Manager.
 #    - Use `wordpress_secrets_name` and `redis_auth_secret_name` to retrieve them during deployment.
 #    - Sensitive fields are marked accordingly to prevent Terraform from displaying them in logs or state files.
-
+#
 # 3. **Validation Rules:**
 #    - Autoscaling values must be non-negative (`min`, `max`, `desired_capacity`).
 #    - CPU thresholds must be between 1 and 100 percent.
 #    - Subnet, VPC, SG, and other IDs are assumed to be passed from validated upstream modules.
-
+#
 # 4. **Best Practices:**
 #    - Use restrictive `ssh_allowed_cidr` values in production (e.g., corporate VPN only).
 #    - Set `enable_asg_ssh_access = false` in production; prefer Session Manager (SSM).
 #    - Enable EBS volume encryption using KMS (`enable_ebs_encryption = true`).
 #    - Choose appropriate volume types based on workload (e.g., gp3 for IOPS/cost balance).
-
+#
 # 5. **Production Recommendations:**
 #    - Place ASG instances in public subnets **only when behind an ALB** and when NAT is not used.
 #    - Use `enable_interface_endpoints = true` when instances need private access to AWS services (e.g., SSM).
-#    - Always upload `deploy_wordpress.sh`, `wp-config-template.php`, and `healthcheck.php` to the S3 scripts bucket before deployment.
+#    - Always upload `deploy_wordpress.sh`, and `healthcheck.php` to the S3 scripts bucket before deployment.
 #    - Encrypted S3 buckets (referenced via `wordpress_media_bucket_arn` and `scripts_bucket_arn`) are recommended for storing all deployment-related artifacts.
 #    - The module assumes that deployment scripts are always loaded from S3 — no fallback to local scripts is supported.

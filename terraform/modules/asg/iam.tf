@@ -245,12 +245,6 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
   }
 }
 
-# --- Data Sources for Region and Account --- #
-# These data sources fetch the current AWS region and account ID dynamically
-# Useful for constructing ARNs or conditional logic based on the environment.
-data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
-
 # --- Notes --- #
 # 1. Temporary credentials:
 #    - Automatically managed via the EC2 Instance Metadata Service (IMDSv2).

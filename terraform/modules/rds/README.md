@@ -28,7 +28,7 @@ This module provisions and manages an RDS (Relational Database Service) instance
 
 - **IAM Role (Optional)**:
   - Required only if **Enhanced Monitoring** is enabled (`enable_rds_monitoring = true`).
-  - The module can automatically create the role if `create_monitoring_role = true`.
+  - The module automatically creates the role when Enhanced Monitoring is enabled.
 
 - **CloudWatch Log Group (Optional)**:
   - If RDS log exports are enabled, ensure CloudWatch log groups are configured or allow the module to create them.
@@ -44,19 +44,19 @@ This module provisions and manages an RDS (Relational Database Service) instance
 graph TB
     %% Main RDS Components
     RDS["RDS Primary Instance"]
-    Replicas["Read Replicas"]
+    Replicas["Read Replicas<br>(Optional)"]
     DBSubnetGroup["DB Subnet Group"]
     DBParamGroup["RDS Parameter Group<br>(TLS Enforcement)"]
     
     %% Security Components
-    RDSSG["RDS Security Group"]
-    ASGSG["ASG Security Group"]
+    RDSSG["RDS Security Group<br>(Created by Module)"]
+    ASGSG["ASG Security Group<br>(External)"]
     
     %% Monitoring Components
-    IAMRole["IAM Role<br>(Enhanced Monitoring)"]
+    IAMRole["IAM Role<br>(Enhanced Monitoring)<br>(Conditional)"]
     CWLogs["CloudWatch Logs<br>(Error, Slowquery)"]
-    CWAlarms["CloudWatch Alarms"]
-    SNSTopic["SNS Topic<br>(Notifications)"]
+    CWAlarms["CloudWatch Alarms<br>(Conditional)"]
+    SNSTopic["SNS Topic<br>(Notifications)<br>(External)"]
     
     %% Infrastructure Components
     VPC["VPC"]
@@ -64,7 +64,7 @@ graph TB
     ASG["Auto Scaling Group<br>(Application Servers)"]
     
     %% Encryption Components
-    KMS["KMS Key"]
+    KMS["KMS Key<br>(External)"]
     
     %% Network Structure
     VPC -->|"Contains"| PrivateSubnets
@@ -73,7 +73,7 @@ graph TB
     PrivateSubnets -->|"Host"| ASG
     
     %% RDS Configuration
-    RDS -->|"Creates"| Replicas
+    RDS -->|"Creates if<br>read_replicas_count > 0"| Replicas
     RDS -->|"Uses"| DBSubnetGroup
     RDS -->|"Uses"| DBParamGroup
     PrivateSubnets -->|"Referenced in"| DBSubnetGroup
@@ -81,12 +81,12 @@ graph TB
     %% Security Configuration
     RDS -->|"Protected by"| RDSSG
     ASG -->|"Protected by"| ASGSG
-    ASGSG -->|"Allows MySQL (3306)"| RDSSG
+    ASGSG -->|"Allows DB Port"| RDSSG
     
     %% Monitoring Configuration
-    RDS -->|"Sends Metrics via"| IAMRole
+    RDS -->|"Sends Metrics via<br>(if enable_rds_monitoring=true)"| IAMRole
     RDS -->|"Exports Logs to"| CWLogs
-    IAMRole -->|"Enables"| CWAlarms
+    IAMRole -->|"Enables Metrics for"| CWAlarms
     CWAlarms -->|"Notify"| SNSTopic
     
     %% Encryption
@@ -205,7 +205,6 @@ This module provisions the following AWS resources:
 | `private_subnet_cidr_blocks`          | `list(string)` | List of CIDR blocks for private subnets                                       | Required              |
 | `public_subnet_cidr_blocks`           | `list(string)` | List of CIDR blocks for public subnets                                        | Required              |
 | **Security Group Variables**          |                |                                                                               |                       |
-| `rds_security_group_id`               | `list(string)` | ID of the Security Group for RDS instances                                    | `[]`                  |
 | `asg_security_group_id`               | `string`       | Security Group ID for ASG instances that need access to the RDS instance      | Required              |
 | **Encryption**                        |                |                                                                               |                       |
 | `kms_key_arn`                         | `string`       | The ARN of the KMS key for RDS encryption                                     | Required              |
@@ -289,7 +288,7 @@ module "rds" {
   rds_cpu_threshold_high      = 80
   rds_storage_threshold       = 10737418240  # 10 GB in bytes
   rds_connections_threshold   = 100
-  sns_topic_arn               = module.sns.topic_arn
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # Required if monitoring or alarms are enabled
   rds_log_retention_days      = 30
   
   # Read Replicas
@@ -460,7 +459,7 @@ This RDS module integrates with the following modules and AWS services:
 
 - Multi-AZ deployment is recommended for production environments to ensure high availability and automatic failover.
 - CloudWatch log export and encryption are optional but strongly recommended for production-grade monitoring and security.
-- If using MySQL, set the `rds_parameter_group_name` to enforce SSL connections (`require_secure_transport=ON`).
+- If using MySQL, the module automatically creates a parameter group to enforce SSL connections (`require_secure_transport=ON`).
 - Default database port is **3306 (MySQL)** but can be adjusted based on the selected engine.
 - Enhanced Monitoring requires additional IAM permissions and resources — enable only if detailed OS-level metrics are required.
 

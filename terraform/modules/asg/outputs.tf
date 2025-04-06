@@ -1,4 +1,4 @@
-# --- ASG Outputs --- #
+# --- ASG Module Outputs --- #
 
 # --- Auto Scaling Group Outputs --- #
 # Provides key identifiers and attributes of the ASG for referencing in other modules.
@@ -76,7 +76,7 @@ output "instance_role_id" {
   value       = aws_iam_role.asg_role.id
 }
 
-# The ID of the IAM role attached to ASG instances.
+# ARN of the IAM instance profile used by ASG instances.
 # Useful for auditing and reviewing the exact permissions granted to the ASG.
 output "instance_profile_arn" {
   description = "The ARN of the instance profile for ASG instances"

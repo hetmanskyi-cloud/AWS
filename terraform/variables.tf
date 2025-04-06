@@ -126,6 +126,15 @@ variable "enable_key_rotation" {
   default     = true
 }
 
+# Root access to the KMS key
+# Set to true to include root account (account owner) permissions in the KMS key policy.
+# Set to false to enforce least privilege by removing root access from the policy.
+variable "kms_root_access" {
+  description = "Enable or disable root access in the KMS key policy. Set to false to enforce least privilege."
+  type        = bool
+  default     = true
+}
+
 # Enable or disable the creation of the IAM role for managing the KMS key
 # Set to true to create the IAM role and its associated policy for managing the KMS key.
 variable "enable_kms_role" {
@@ -134,7 +143,7 @@ variable "enable_kms_role" {
   default     = false
 }
 
-# --- Enable CloudWatch Monitoring --- #
+# Enable CloudWatch Monitoring
 # This variable controls whether CloudWatch Alarms for the KMS key usage are created.
 variable "enable_key_monitoring" {
   description = "Enable or disable CloudWatch Alarms for monitoring KMS key usage."
@@ -142,7 +151,7 @@ variable "enable_key_monitoring" {
   default     = false
 }
 
-# --- Threshold for Decrypt Operations --- #
+# Threshold for Decrypt Operations
 # Defines the threshold for the number of Decrypt operations that trigger a CloudWatch Alarm.
 variable "key_decrypt_threshold" {
   description = "Threshold for KMS decrypt operations to trigger an alarm."

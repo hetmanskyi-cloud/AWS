@@ -111,8 +111,9 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
 # Key Metrics:
 # - `RequestCount`: Monitors high traffic for scaling or debugging.
 # - `HTTPCode_Target_5XX_Count`: Detects server/application-level errors.
-# - `UnHealthyHostCount`: Tracks the health status of target instances.
 # - `TargetResponseTime`: Measures average target response time; high values indicate potential application or infrastructure bottlenecks.
+# - `UnHealthyHostCount`: Tracks the health status of target instances.
+#
 # - Note: 5XX errors may originate from the ALB itself or backend targets. The metric "HTTPCode_Target_5XX_Count" specifically monitors target (ASG) errors.
 #
 # Recommendations:

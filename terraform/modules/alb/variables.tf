@@ -1,4 +1,4 @@
-# --- General Variables --- #
+# --- ALB Module Variables --- #
 
 # --- Default AWS Region --- #
 variable "aws_region" {

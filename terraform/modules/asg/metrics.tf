@@ -154,3 +154,4 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
 #    - Always enable `high_network_in` and `high_network_out` alarms in production for traffic anomaly detection.
 #    - Monitor alarm triggering patterns and adjust thresholds to match expected load profiles.
 #    - Use `treat_missing_data = "notBreaching"` carefully — for critical alarms, consider `missing` handling strategy review.
+#    - For critical metrics (e.g., instance status checks), consider using `treat_missing_data = "breaching"` instead of `notBreaching` to catch silent failures.

@@ -5,7 +5,7 @@
 # Creates a Security Group to control inbound and outbound traffic for ElastiCache Redis.
 resource "aws_security_group" "redis_sg" {
   name        = "${var.name_prefix}-redis-sg-${var.environment}" # Dynamic name for the Redis Security Group.
-  description = "Security group for ElastiCache Redis"           # Describes the purpose of the Security Group.
+  description = "Security group for ElastiCache Redis"           # Allows access only from ASG instances.
   vpc_id      = var.vpc_id                                       # Specifies the VPC ID where the Security Group is created.
 
   # Ensures a new Security Group is created before the old one is destroyed to avoid downtime.
@@ -60,3 +60,5 @@ resource "aws_security_group_rule" "redis_ingress_from_asg" {
 #    - Use VPC Endpoints for AWS services to keep traffic private (if applicable для ElastiCache related services, though less common for Redis itself).
 #    - Regularly audit Security Group rules.
 #    - Follow the principle of least privilege for network access.
+# 4. **Port Configuration:**
+#    - Redis typically runs on port 6379, but the value is configurable via `redis_port` to support non-default ports if needed.

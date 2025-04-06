@@ -1,4 +1,4 @@
-# --- Outputs for VPC Endpoints --- #
+# --- Interface Endpoints Module Outputs --- #
 
 # --- SSM Interface Endpoint ID --- #
 # Outputs the ID of the Interface Endpoint for AWS Systems Manager (SSM).

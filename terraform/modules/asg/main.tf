@@ -29,7 +29,7 @@ resource "aws_autoscaling_group" "asg" {
   health_check_type         = "ELB" # Use ALB health checks for instance replacement decisions
   health_check_grace_period = 300   # Wait 5 minutes for instance warm-up before considering health status
 
-  # Attach Target Group for ALB
+  # Attach the ALB Target Group only if provided
   target_group_arns = length(var.wordpress_tg_arn) > 0 ? [var.wordpress_tg_arn] : [] # List of Target Group ARNs to route traffic from ALB to ASG instances
 
   # Scaling policies for ASG
@@ -152,6 +152,8 @@ data "aws_instances" "asg_instances" {
 # 6. **Dependencies**:
 #    - The ASG depends on the Launch Template and ALB Target Group.
 #    - `lifecycle { create_before_destroy = true }` ensures zero downtime during updates or scaling events.
+#    - If using "$Latest" for the Launch Template version, be aware that changes to the template will be picked up immediately by the ASG.
+#    - This is acceptable for development, but for production environments, consider pinning to a specific version number for predictable behavior.
 #
 # 7. **Security and Best Practices**:
 #    - Always review instance IAM roles to follow the principle of least privilege.

@@ -1,6 +1,6 @@
 # --- Initial Configuration for KMS Key --- #
-# Used for initial KMS key creation with temporary root account access.
-# Root access should be removed after initial setup by updating the key policy via 'aws_kms_key_policy' resource.
+# Root account access is controlled via the `kms_root_access` variable.
+# Set to true during initial setup, and to false afterward to automatically remove root permissions from the key policy.
 
 # Define a KMS key for encrypting various AWS resources (CloudWatch logs, S3 buckets, etc.).
 # This is a Customer Managed Key (CMK), fully managed and controlled within this project.
@@ -104,9 +104,9 @@ locals {
 }
 
 # --- Policy for the Primary KMS Key --- #
-# Policy for the primary KMS key granting initial root access (temporary, for setup),
+# Policy for the primary KMS key granting optional root access (temporary, for setup),
 # AWS service access, S3 replication permissions, and access to additional principals.
-# Root access should be manually revoked from this policy after initial setup for enhanced security (see Notes).
+# Root access is controlled by the 'remove_root_access' variable for automation and security.
 resource "aws_kms_key_policy" "general_encryption_key_policy" {
   key_id = aws_kms_key.general_encryption_key.id
 
@@ -115,17 +115,20 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
     Id      = "key-policy-1",
     Statement = flatten([
       [
-        # Statement: Temporary root access for initial setup (REMOVE after initial setup).
-        {
-          Sid    = "EnableIAMUserPermissions",
-          Effect = "Allow",
-          Principal = {
-            AWS = "arn:aws:iam::${var.aws_account_id}:root"
-          },
-          Action   = "kms:*",
-          Resource = "*",
-        },
-        # Statement: # Allow AWS services usage with restricted resource (only this KMS key).
+        # Statement: Root access for the KMS key (enabled via kms_root_access = true)
+        var.kms_root_access ? [
+          {
+            Sid    = "EnableIAMUserPermissions",
+            Effect = "Allow",
+            Principal = {
+              AWS = "arn:aws:iam::${var.aws_account_id}:root"
+            },
+            Action   = "kms:*",
+            Resource = "*"
+          }
+        ] : [],
+
+        # Statement: Allow AWS service usage with restricted resource (only this KMS key).
         {
           Sid    = "AllowAWSServicesUsage",
           Effect = "Allow",
@@ -133,8 +136,9 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             Service = local.kms_services
           },
           Action   = local.kms_actions,
-          Resource = aws_kms_key.general_encryption_key.arn,
+          Resource = aws_kms_key.general_encryption_key.arn
         },
+
         # Statement: Allow S3 Replication Usage
         {
           Sid    = "AllowS3ReplicationUsage",
@@ -143,9 +147,10 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             Service = "s3.amazonaws.com"
           },
           Action   = local.s3_replication_kms_actions,
-          Resource = aws_kms_key.general_encryption_key.arn,
-        },
+          Resource = aws_kms_key.general_encryption_key.arn
+        }
       ],
+
       length(local.additional_principals) > 0 ? [
         # Statement: Allow Additional Principals
         {
@@ -155,17 +160,20 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
             AWS = local.additional_principals
           },
           Action   = local.kms_actions,
-          Resource = aws_kms_key.general_encryption_key.arn,
+          Resource = aws_kms_key.general_encryption_key.arn
         }
       ] : []
     ])
   })
 
   # Notes:
-  # 1. Currently, the KMS key is accessed without using a KMS VPC Interface Endpoint, meaning encryption traffic
-  #    goes through the public internet.
-  # 2. If EC2 instances are later moved to private subnets without internet access, ensure the KMS VPC Endpoint
-  #    is enabled by setting 'enable_interface_endpoints = true' in terraform.tfvars.
+  # 1. Root access to the KMS key is controlled by the 'kms_root_access' variable.
+  #    Set to `true` during initial setup to allow full administrative access via the root account.
+  #    Before setting it to `false`, make sure to set `enable_kms_role = true` to provision an IAM role for secure key management.
+  #    This ensures that administrative access remains available after root permissions are removed.
+  #
+  # 2. If EC2 instances are later moved to private subnets without internet access,
+  #    enable the KMS VPC Endpoint by setting 'enable_interface_endpoints = true'.
   #    AWS will automatically route encryption traffic through the private VPC connection when available.
 }
 
@@ -181,6 +189,8 @@ resource "aws_kms_grant" "s3_replication_grant" {
   operations = local.s3_replication_grant_operations
 
   name = "S3ReplicationGrant"
+
+  depends_on = [aws_kms_replica_key.replica_key] # Ensure replica key is created first
 }
 
 # --- Notes --- #
@@ -191,13 +201,16 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #    - Cross-account access is NOT directly configured in this module.
 #    - Custom IAM roles and users via additional_principals (e.g., "arn:aws:iam::123456789012:role/example").
 #
-# 2. Root Access Removal Process:
-#    - Initial root access is required for setup.
-#    - After setup:
-#      a. Set enable_kms_role = true in terraform.tfvars.
-#      b. Apply to create the IAM role (in key.tf).
-#      c. Remove the root access statement.
-#      d. Apply changes to enforce least privilege.
+# 2. Root Access Management (`aws_kms_key_policy.general_encryption_key_policy`):
+#    - Root access is controlled via the 'kms_root_access' variable.
+#    - When kms_root_access = true:
+#        → Full permissions are granted to the account root (useful during initial setup).
+#    - When kms_root_access = false:
+#        → Root permissions are removed to enforce least privilege.
+#    - Recommended flow:
+#        a. Set kms_root_access = true and apply to create the key.
+#        b. Set enable_kms_role = true and apply to create the IAM role.
+#        c. Set kms_root_access = false and re-apply to remove root access.
 #
 # 3. Key Rotation:
 #    - Automatic key rotation is enabled via enable_key_rotation.
@@ -206,12 +219,12 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #    - New data is encrypted with the latest version.
 #
 # 4. Monitoring and Security:
-#    - CloudTrail tracks key usage.
-#    - CloudWatch Logs are encrypted.
-#    - Consider CloudWatch Alarms for:
-#         * Failed operations,
+#    - AWS CloudTrail automatically logs all KMS API calls.
+#    - This KMS key is intended to encrypt CloudWatch Logs (via other modules).
+#    - For production use, consider adding CloudWatch Alarms for:
+#         * Failed encryption operations,
 #         * Unusual usage patterns,
-#         * Access denials.
+#         * Access denials (e.g., key policy issues).
 #
 # 5. Replica Key Grant:
 #    - The replica key in the replication region cannot have its policy updated independently.

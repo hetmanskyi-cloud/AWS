@@ -366,7 +366,7 @@ sudo chown www-data:www-data "$WP_PATH/wp-config.php"
 sudo chmod 644 "$WP_PATH/wp-config.php"
 log "Ownership and permissions set for wp-config.php"
 
-# Optional: Verify DB connection over SSL
+# 8.7 Optional: Verify DB connection over SSL
 if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" \
     --ssl-ca="/etc/ssl/certs/rds-combined-ca-bundle.pem" \
     -e "USE $DB_NAME;" > /dev/null 2>&1; then

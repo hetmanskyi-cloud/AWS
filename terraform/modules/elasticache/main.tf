@@ -89,5 +89,7 @@ resource "aws_elasticache_parameter_group" "redis_params" {
 #    passed to this module via the `redis_auth_secret_name` variable.
 # 4. Backups are retained based on `snapshot_retention_limit` and scheduled using `snapshot_window`.
 # 5. Automatic failover is enabled when replica nodes are present for high availability.
-# 6. A custom parameter group is dynamically configured for the selected Redis version.
+# 6. A custom parameter group is explicitly created to ensure future flexibility.
+#    Although no custom parameters are set now, this allows centralized control
+#    and version-specific configuration without relying on AWS defaults.
 # 7. All resources are tagged consistently using `name_prefix` and `environment` for tracking and cost allocation.

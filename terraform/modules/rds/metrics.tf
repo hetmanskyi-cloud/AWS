@@ -27,6 +27,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
     Name        = "${var.name_prefix}-rds-storage-alarm-${var.environment}"
     Environment = var.environment
     Type        = "Storage"
+    AlertType   = "RDS:FreeStorageSpace"
   }
 
   # Ensure the RDS instance is created before the alarm
@@ -58,6 +59,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
     Name        = "${var.name_prefix}-rds-cpu-alarm-${var.environment}"
     Environment = var.environment
     Type        = "CPU"
+    AlertType   = "RDS:CPUUtilization"
   }
 
   # Ensure the RDS instance is created before the alarm
@@ -89,6 +91,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
     Name        = "${var.name_prefix}-rds-connections-alarm-${var.environment}"
     Environment = var.environment
     Type        = "Connections"
+    AlertType   = "RDS:DatabaseConnections"
   }
 
   # Ensure the RDS instance is created before the alarm
@@ -106,3 +109,9 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
 #    - Database Connections: 3 periods (tolerate temporary connection fluctuations).
 # 6. Production Recommendation:
 #    - Consider adding additional alarms (e.g., Read IOPS, Write IOPS, Replica Lag) for comprehensive monitoring in production.
+# 7. SNS Alarm Behavior:
+#    - Alarms trigger actions only if `sns_topic_arn` is provided.
+#    - For dev environments, use a placeholder or null action if SNS delivery is not required.
+# 8. Extensibility:
+#    - Additional alarms (e.g., ReadIOPS, Replica Lag, FreeableMemory) can be added based on production requirements.
+#    - Use standardized tag structure (e.g., AlertType) to support automation and tag-based notifications/routing.

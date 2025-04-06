@@ -121,6 +121,8 @@ This module provisions the following AWS resources:
 - **Scaling Policies:** CPU-based scale-out and scale-in automation.
 - **KMS Encryption:** Secures sensitive data (optional).
 - **IMDSv2 Enforcement:** Ensures enhanced instance metadata security.
+- **Conditional Alarms:** CPU, status checks, and network alarms are optional and toggleable.
+- **Target Tracking Policy:** Automatically adjusts capacity based on CPU average.
 
 ---
 
@@ -131,14 +133,14 @@ This module provisions the following AWS resources:
 | `main.tf`             | ASG resource, scaling policies, lifecycle rules.              |
 | `launch_template.tf`  | EC2 instance configuration and user data.                     |
 | `iam.tf`              | IAM role, policies, instance profile.                         |
-| `security_group.tf`   | ASG security group with conditional rules.                    |
+| `security_group.tf`   | ASG security group with conditional rules and outbound access.|
 | `metrics.tf`          | CloudWatch Alarms (CPU, status, network).                     |
 | `outputs.tf`          | Outputs for integration and debugging.                        |
 | `variables.tf`        | Module input variables.                                       |
 
 ---
 
-## 7. Inputs
+## 7. Inputs (Variables)
 
 | Variable (Partial List)      | Type         | Description                                             | Default / Required |
 |------------------------------|--------------|---------------------------------------------------------|--------------------|
@@ -161,17 +163,23 @@ This module provisions the following AWS resources:
 | wordpress_tg_arn             | string       | ALB Target Group ARN                                    | Required           |
 | sns_topic_arn                | string       | SNS topic for alarms                                    | Required           |
 | kms_key_arn                  | string       | KMS key ARN                                             | Required           |
-| php_version                  | string       | PHP version                                             | Required           |
-| php_fpm_service              | string       | PHP-FPM service name                                    | Required           |
 | redis_endpoint               | string       | Redis endpoint                                          | Required           |
 | redis_port                   | number       | Redis port                                              | Required           |
+| redis_security_group_id      | string       | Security Group ID for ElastiCache                       | Required           |
 | wordpress_media_bucket_name  | string       | S3 bucket for WordPress media                           | ""                 |
 | scripts_bucket_name          | string       | S3 bucket for deployment scripts                        | ""                 |
 | healthcheck_version          | string       | Version of healthcheck (1.0 / 2.0)                      | "1.0"              |
 | enable_interface_endpoints   | bool         | Use VPC Interface Endpoints                             | false              |
 | enable_data_source           | bool         | Enable fetching ASG instance data                       | false              |
+| enable_asg_ssh_access        | bool         | Allow SSH for ASG instances	                            | false              |
+| ssh_allowed_cidr	           | list(string) |	CIDR blocks allowed for SSH	                            | ["0.0.0.0/0"]      |
+| enable_ebs_encryption	       | bool         |	Enable EBS encryption via KMS	                        | false              |
+| wordpress_secrets_name	   | string	      | Name of WordPress secret in Secrets Manager	            | Required           |
+| wordpress_secrets_arn	       | string	      | ARN of WordPress secret in Secrets Manager	            | Required           |
+| redis_auth_secret_name	   | string	      | Name of Redis AUTH secret in Secrets Manager	        | ""                 |
+| redis_auth_secret_arn	       | string	      | ARN of Redis AUTH secret in Secrets Manager	            | ""                 |
 
-_(Full input table available in code)_
+_(Full list of variables available in the `variables.tf` file)_
 
 ---
 
@@ -217,7 +225,7 @@ module "asg" {
   public_subnet_ids = module.vpc.public_subnet_ids
 
   wordpress_tg_arn  = module.alb.wordpress_tg_arn
-  sns_topic_arn     = module.sns.topic_arn
+  sns_topic_arn     = aws_sns_topic.cloudwatch_alarms.arn
 
   # Optional
   kms_key_arn       = module.kms.kms_key_arn
@@ -244,6 +252,11 @@ module "asg" {
 - Validate **Security Group rules** to minimize open access and reduce the attack surface.
 - Use AWS Secrets Manager (via wordpress_secrets_name) to avoid storing sensitive credentials in Terraform variables or state.
 - Restrict IAM policy so only EC2 instances in this ASG can access that secret.
+- Sensitive secrets (WordPress DB, Redis AUTH) are **not hardcoded** in user_data.
+- The `user_data` script only exports **non-sensitive variables**.
+- All secrets are securely fetched at runtime by `deploy_wordpress.sh` using `aws secretsmanager get-secret-value`.
+- Outbound access to `0.0.0.0/0` is allowed by default for internet access (updates, SSM, etc.).  
+- For production, either restrict egress rules to specific AWS services or enable `enable_interface_endpoints = true`.
 
 ---
 
@@ -252,7 +265,7 @@ module "asg" {
 - SSH rules only if `enable_asg_ssh_access = true`
 - Scaling policies if `enable_scaling_policies = true`
 - CloudWatch Alarms (CPU, Network, Status) based on individual toggles.
-- KMS and S3 policies created conditionally.
+- KMS policy for decrypting S3 and EBS is created only if encryption or relevant buckets are enabled.
 - IMDSv2 always enforced.
 - Target Tracking is optional.
 
@@ -286,16 +299,15 @@ This module is designed to integrate seamlessly with the following components:
 - **S3 Module:** Stores WordPress media and deployment scripts.
 - **KMS Module:** Enables encryption of sensitive data and logs.
 - **Monitoring Module:** Manages SNS topics and CloudWatch Alarms.
+- **AWS Secrets Manager:** Stores WordPress, database, and Redis credentials, which are securely retrieved by EC2 instances at runtime.
 
 ---
 
 ## 14. Future Improvements
 
-- Lifecycle hooks (graceful scaling).
-- Blue/Green deployments.
-- Spot Instances support.
-- CloudWatch Anomaly Detection.
-- AWS Security Hub integration.
+- **Blue/Green Deployments:** Introduce versioned deployments and switching between environments with minimal downtime.
+- **Spot Instances Support:** Add support for mixing spot and on-demand instances for cost optimization.
+- **CloudWatch Anomaly Detection:** Use machine learning–based anomaly detection to enhance alarm accuracy.
 
 ---
 
@@ -314,7 +326,7 @@ This module is designed to integrate seamlessly with the following components:
 **Solution:**  
 - Check the `rendered_user_data` output for correctness.  
 - Ensure the script is executable (`chmod +x`).  
-- If using S3, validate bucket permissions and that `enable_s3_script = true` is configured properly.
+If using S3, validate bucket permissions and that `enable_s3_script = true` is correctly set (default behavior).
 
 ---
 
@@ -381,11 +393,82 @@ This module is designed to integrate seamlessly with the following components:
 - Check `termination_policies`.  
 - Increase cooldown periods and fine-tune scaling thresholds to reduce churn.
 
+### 11. Useful AWS CLI Commands
+
+Below are useful AWS CLI commands for troubleshooting and inspecting ASG-related resources:
+
+#### View Auto Scaling Group details
+```bash
+aws autoscaling describe-auto-scaling-groups \
+  --auto-scaling-group-names <asg-name>
+```
+
+#### Check EC2 instance status (e.g., running, impaired)
+```bash
+aws ec2 describe-instance-status \
+  --instance-ids <instance-id>
+```
+
+#### Fetch CloudWatch alarms for ASG
+```bash
+aws cloudwatch describe-alarms \
+  --query 'MetricAlarms[?contains(AlarmName, `asg`)]'
+```
+
+#### Inspect Launch Template details
+```bash
+aws ec2 describe-launch-templates \
+  --launch-template-names <template-name>
+```
+
+#### View Launch Template latest version config
+```bash
+aws ec2 describe-launch-template-versions \
+  --launch-template-name <template-name> \
+  --versions '$Latest'
+```
+
+#### Describe tags for ASG EC2 instances
+```bash
+aws ec2 describe-tags \
+  --filters "Name=resource-id,Values=<instance-id>"
+```
+
+#### View instance logs via SSM (if configured)
+```bash
+aws ssm start-session \
+  --target <instance-id>
+```
+
+#### Check Secrets Manager values (WordPress/Redis secrets)
+```bash
+aws secretsmanager get-secret-value \
+  --secret-id <secret-name>
+```
+
+#### Inspect network ACLs for public subnet
+```bash
+aws ec2 describe-network-acls \
+  --filters "Name=vpc-id,Values=<vpc-id>"
+```
+
+#### List target group health status (from ALB)
+```bash
+aws elbv2 describe-target-health \
+  --target-group-arn <target-group-arn>
+```
+
+---
+
+_Tip: Replace placeholders like `<asg-name>`, `<instance-id>`, `<template-name>`, `<secret-name>`, etc., with actual values from your Terraform outputs or AWS Console._
+
 ---
 
 ## 16. Notes
 
-_No specific notes for this module._
+- Secrets are not exposed in `user_data`. All sensitive data is securely retrieved by the deployment script at runtime.
+- See Security Recommendations for outbound access best practices.
+- CloudWatch alarms and scaling policies are disabled or enabled via individual flags.
 
 ---
 
@@ -396,5 +479,3 @@ _No specific notes for this module._
 - [AWS EC2 IMDSv2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
 - [AWS CloudWatch Alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)
 - [AWS Systems Manager (SSM)](https://docs.aws.amazon.com/systems-manager/)
-
----

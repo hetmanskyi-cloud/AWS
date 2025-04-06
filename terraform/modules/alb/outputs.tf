@@ -1,4 +1,4 @@
-# --- Outputs from the ALB Module --- #
+# --- ALB Module Outputs --- #
 
 # --- ALB Details --- #
 # Provides the ARN of the Application Load Balancer.
@@ -31,6 +31,13 @@ output "alb_security_group_id" {
 output "wordpress_tg_arn" {
   description = "ARN of the Target Group for WordPress"
   value       = aws_lb_target_group.wordpress.arn
+}
+
+# --- Target Group Name --- #
+# Useful for manual inspection, CloudWatch dashboards, or CLI tools.
+output "alb_target_group_name" {
+  description = "Name of the WordPress target group"
+  value       = aws_lb_target_group.wordpress.name
 }
 
 # --- Access Logs Outputs --- #

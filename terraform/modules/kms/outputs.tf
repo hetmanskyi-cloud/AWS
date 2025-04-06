@@ -1,4 +1,4 @@
-# --- KMS Key Outputs --- #
+# --- KMS Module Outputs --- #
 
 # --- KMS Key ARN --- #
 output "kms_key_arn" {

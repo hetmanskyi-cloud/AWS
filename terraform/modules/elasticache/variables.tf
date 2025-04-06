@@ -1,4 +1,4 @@
-# --- Variables for ElastiCache Redis Module --- #
+# --- ElastiCache Module Variables --- #
 
 # --- Resource Naming and Environment --- #
 # Variables for consistent resource naming and environment identification
@@ -21,7 +21,7 @@ variable "environment" {
 }
 
 # --- Network Configuration --- #
-# Variables for VPC, subnets, and security group configuration
+# Variables for VPC and subnets
 variable "vpc_id" {
   description = "VPC ID"
   type        = string
@@ -42,9 +42,33 @@ variable "private_subnet_ids" {
   }
 }
 
+# --- Security Configuration --- #
+# Security-related settings including encryption and access control
+
 variable "asg_security_group_id" {
   description = "Security Group ID of ASG instances that require access to Redis"
   type        = string
+}
+
+variable "redis_security_group_id" {
+  description = "Security Group ID for ElastiCache Redis. Used for cross-module integration."
+  type        = string
+  default     = null
+}
+
+variable "redis_auth_secret_name" {
+  description = "Name of the Secrets Manager secret containing the Redis AUTH token"
+  type        = string
+  default     = ""
+}
+
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for encrypting Redis data at rest"
+  type        = string
+  validation {
+    condition     = length(var.kms_key_arn) > 0
+    error_message = "The kms_key_arn variable cannot be empty. Please provide a valid ARN for encrypting data at rest."
+  }
 }
 
 # --- Redis Core Configuration --- #
@@ -191,30 +215,6 @@ variable "enable_redis_low_cpu_credits_alarm" {
     error_message = "CPU credits alarm can only be enabled for burstable instance types (e.g., cache.t2.micro, cache.t3.micro, cache.t4g.small)."
   }
 }
-
-# --- Security Configuration --- #
-# Security-related settings including encryption and access control
-variable "redis_security_group_id" {
-  description = "Security Group ID for ElastiCache Redis. Useful for referencing the Redis SG in other modules."
-  type        = string
-  default     = null
-}
-
-variable "redis_auth_secret_name" {
-  description = "Name of the Secrets Manager secret containing the Redis AUTH token"
-  type        = string
-  default     = ""
-}
-
-variable "kms_key_arn" {
-  description = "ARN of the KMS key used for encrypting Redis data at rest"
-  type        = string
-  validation {
-    condition     = length(var.kms_key_arn) > 0
-    error_message = "The kms_key_arn variable cannot be empty. Please provide a valid ARN for encrypting data at rest."
-  }
-}
-
 
 # --- Notes --- #
 # 1. Resource Naming:

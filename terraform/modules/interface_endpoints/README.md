@@ -172,6 +172,7 @@ This module provisions the following resources:
 Outputs provided:
 - Endpoint IDs for each AWS service.
 - Security Group ID for managing endpoint access.
+- Outputs use safe evaluation (`try(...)` and `length(...)`) to avoid errors when the module is disabled.
 
 ---
 
@@ -209,10 +210,8 @@ module "interface_endpoints" {
 
 This module supports conditional creation of all resources based on input variables:
 
-- **VPC Interface Endpoints** are created only if `enable_interface_endpoints = true`.
 - **KMS Endpoint** is created only if `enable_kms_endpoint = true`.
 - **Dedicated Security Group** is created only when `create_endpoint_sg = true`.
-- All resources use the `count` parameter and are **skipped entirely by default** (`enable_interface_endpoints = false`).
 
 This allows the module to remain in the project without creating any resources until needed.
 
@@ -303,6 +302,33 @@ The module allows outbound HTTPS (TCP 443) to `0.0.0.0/0`, which is required for
   ```
 - No action needed.
 
+### 6. AWS CLI Reference
+
+```bash
+# List all VPC endpoints
+aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[*].{ID:VpcEndpointId,Service:ServiceName,Type:VpcEndpointType}' --output table
+
+# Get details for a specific endpoint
+aws ec2 describe-vpc-endpoints --vpc-endpoint-ids vpce-xxxxxxxxxxxxxxxxx
+
+# List network interfaces for an endpoint
+aws ec2 describe-network-interfaces --filters Name=vpc-endpoint-id,Values=vpce-xxxxxxxxxxxxxxxxx
+
+# List all interface endpoints in a region
+aws ec2 describe-vpc-endpoints --filters Name=vpc-endpoint-type,Values=Interface
+
+# Check DNS resolution inside an EC2 instance (example for SSM)
+dig ssm.eu-west-1.amazonaws.com
+
+# Test HTTPS connectivity to an endpoint from EC2
+curl -s https://ssm.eu-west-1.amazonaws.com
+
+# Verify IAM role attached to EC2 instance (from within instance)
+curl -s http://169.254.169.254/latest/meta-data/iam/info
+```
+
+Note: Replace vpce-xxxxxxxxxxxxxxxxx with your actual VPC Endpoint ID
+
 ---
 
 ## 16. Notes
@@ -310,6 +336,7 @@ The module allows outbound HTTPS (TCP 443) to `0.0.0.0/0`, which is required for
 - The module is fully conditional and does not create any resources if `enable_interface_endpoints = false`.
 - Pay attention to the order of `private_subnet_ids` to avoid unnecessary endpoint recreation during updates.
 - Ensure all downstream modules handle the case when endpoint outputs are empty (if the module is disabled).
+- All outputs safely return `null` when `enable_interface_endpoints = false`, ensuring compatibility with other modules.
 
 ---
 

@@ -14,6 +14,11 @@ output "rds_security_group_id" {
   value       = aws_security_group.rds_sg.id
 }
 
+output "rds_security_group_name" {
+  description = "The name of the RDS security group"
+  value       = aws_security_group.rds_sg.name
+}
+
 # --- RDS Port Number --- #
 # Outputs the port number used for database connections.
 output "db_port" {

@@ -86,14 +86,6 @@ variable "replication_region_buckets" {
   default     = {}
 }
 
-# Enable Key Rotation
-# Controls whether automatic key rotation is enabled for the KMS key.
-variable "enable_key_rotation" {
-  description = "Enable or disable automatic key rotation for the KMS key"
-  type        = bool
-  default     = true
-}
-
 # List of additional AWS principals that require access to the KMS key
 # Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
 variable "additional_principals" {
@@ -113,22 +105,6 @@ EOT
   }
 }
 
-# Enable or disable the creation of the IAM role for managing the KMS key
-# Set to true to create the IAM role and its associated policy for managing the KMS key.
-variable "enable_kms_role" {
-  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
-  type        = bool
-  default     = false
-}
-
-# Enable Key Monitoring
-# This variable controls whether CloudWatch Alarms for the KMS key usage are created.
-variable "enable_key_monitoring" {
-  description = "Enable or disable CloudWatch Alarms for monitoring KMS key usage."
-  type        = bool
-  default     = false
-}
-
 # Decrypt Operations Threshold
 # Sets the threshold for the number of decrypt operations that trigger an alarm.
 variable "key_decrypt_threshold" {
@@ -144,19 +120,57 @@ variable "key_decrypt_threshold" {
 
 # ARN of the SNS Topic for CloudWatch alarms.
 # Specifies the SNS topic to send CloudWatch alarm notifications.
-# This is mandatory if `enable_key_monitoring` is true.
 variable "sns_topic_arn" {
   description = <<EOT
 ARN of the SNS Topic for sending CloudWatch alarm notifications.
 This is mandatory if `enable_key_monitoring` is true.
+Must follow the format: arn:aws:sns:<region>:<account_id>:<topic_name>
 EOT
   type        = string
   default     = ""
 
   validation {
-    condition     = !(var.enable_key_monitoring && var.sns_topic_arn == "") && can(regex("^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sns_topic_arn))
-    error_message = "The SNS Topic ARN must be a valid ARN in the format 'arn:aws:sns:<region>:<account_id>:<topic_name>'. It is mandatory when `enable_key_monitoring` is true."
+    condition     = !var.enable_key_monitoring || (var.enable_key_monitoring && var.sns_topic_arn != "")
+    error_message = "The SNS Topic ARN is mandatory when `enable_key_monitoring` is true."
   }
+
+  validation {
+    condition     = var.sns_topic_arn == "" || can(regex("^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sns_topic_arn))
+    error_message = "The SNS Topic ARN must be a valid ARN in the format 'arn:aws:sns:<region>:<account_id>:<topic_name>'."
+  }
+}
+
+# Enable Key Rotation
+# Controls whether automatic key rotation is enabled for the KMS key.
+variable "enable_key_rotation" {
+  description = "Enable or disable automatic key rotation for the KMS key"
+  type        = bool
+  default     = true
+}
+
+# Root access to the KMS key
+# Set to true to include root account (account owner) permissions in the KMS key policy.
+# Set to false to enforce least privilege by removing root access from the policy.
+variable "kms_root_access" {
+  description = "Enable or disable root access in the KMS key policy. Set to false to enforce least privilege."
+  type        = bool
+  default     = true
+}
+
+# Enable or disable the creation of the IAM role for managing the KMS key
+# Set to true to create the IAM role and its associated policy for managing the KMS key.
+variable "enable_kms_role" {
+  description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
+  type        = bool
+  default     = false
+}
+
+# Enable Key Monitoring
+# This variable controls whether CloudWatch Alarms for the KMS key usage are created.
+variable "enable_key_monitoring" {
+  description = "Enable or disable CloudWatch Alarms for monitoring KMS key usage."
+  type        = bool
+  default     = false
 }
 
 # Enable DynamoDB

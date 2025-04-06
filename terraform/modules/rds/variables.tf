@@ -165,14 +165,6 @@ variable "public_subnet_cidr_blocks" {
   type        = list(string)
 }
 
-# --- Security Group Variables --- #
-# Manages security group configurations for RDS access.
-variable "rds_security_group_id" {
-  description = "ID of the Security Group for RDS instances"
-  type        = list(string)
-  default     = []
-}
-
 variable "asg_security_group_id" {
   description = "Security Group ID for ASG instances that need access to the RDS instance"
   type        = string
@@ -211,6 +203,16 @@ variable "rds_connections_threshold" {
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
+
+  validation {
+    condition     = !var.enable_rds_monitoring || (var.sns_topic_arn != "")
+    error_message = "SNS Topic ARN must be set when RDS monitoring is enabled."
+  }
+
+  validation {
+    condition     = var.sns_topic_arn == "" || can(regex("^arn:aws:sns:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sns_topic_arn))
+    error_message = "SNS Topic ARN must be a valid ARN in the format 'arn:aws:sns:<region>:<account_id>:<topic_name>'."
+  }
 }
 
 # --- Read Replica Configuration --- #

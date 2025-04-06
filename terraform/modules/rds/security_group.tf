@@ -33,7 +33,7 @@ resource "aws_security_group_rule" "rds_ingress_from_asg" {
 
 # --- Egress Rules (Outbound Traffic) --- #
 # Egress rules are typically not required for RDS Security Groups within a VPC.
-# By default, Security Groups allow all outbound traffic.
+# No explicit egress rules are defined to preserve the default 'allow all' outbound behavior of security groups.
 # For RDS backups and logging to AWS services (S3, CloudWatch Logs), VPC Endpoints are recommended to keep traffic within the VPC, eliminating the need for explicit egress rules.
 # For environments requiring strict outbound control, consider Network ACLs or custom egress rules.
 

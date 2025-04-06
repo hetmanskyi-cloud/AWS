@@ -1,4 +1,4 @@
-# --- Variables for VPC Endpoints Module --- #
+# --- Interface Endpoints Module Variables --- #
 
 # --- AWS Region --- #
 # The AWS region where all resources will be created.

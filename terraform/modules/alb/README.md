@@ -175,7 +175,7 @@ This module provisions:
 | `alb_5xx_threshold`                | `number`       | Threshold for 5XX errors on ALB                          | Default: `50`                       |
 | `enable_high_request_alarm`        | `bool`         | Enable CloudWatch alarm for high request count           | Default: `false`                    |
 | `enable_5xx_alarm`                 | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors              | Default: `false`                    |
-| `enable_target_response_time_alarm`| `bool`      | Enable CloudWatch alarm for Target Response Time            | Default: `false`                    |
+| `enable_target_response_time_alarm`| `bool`         | Enable CloudWatch alarm for Target Response Time         | Default: `false`                    |
 
 ---
 
@@ -186,13 +186,14 @@ This module provisions:
 | `alb_arn`                           | ARN of the Application Load Balancer               |
 | `alb_dns_name`                      | DNS name of the Application Load Balancer          |
 | `alb_name`                          | Name of the Application Load Balancer              |
-| `alb_security_group_id`             | Security Group ID for ALB                          |
-| `wordpress_tg_arn`                  | ARN of the Target Group                            |
+| `alb_security_group_id`             | Security Group ID of the ALB                       |
+| `wordpress_tg_arn`                  | ARN of the WordPress Target Group                  |
+| `alb_target_group_name`             | Name of the WordPress target group                 |
 | `alb_access_logs_bucket_name`       | Name of the S3 bucket for ALB access logs          |
 | `waf_arn`                           | ARN of the WAF Web ACL (if enabled)                |
 | `enable_https_listener`             | Whether HTTPS listener is enabled on the ALB       |
 | `alb_high_request_count_alarm_arn`  | ARN for high request count alarm                   |
-| `alb_5xx_errors_alarm_arn`          | ARN for 5XX error alarm                            |
+| `alb_5xx_errors_alarm_arn`          | ARN for 5XX errors alarm                           |
 | `alb_target_response_time_alarm_arn`| ARN for target response time alarm                 |
 | `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                    |
 
@@ -219,7 +220,7 @@ module "alb" {
   enable_firehose                = true
   enable_waf                     = true
   enable_waf_logging             = true
-  sns_topic_arn                  = module.monitoring.sns_topic_arn
+  sns_topic_arn                  = aws_sns_topic.cloudwatch_alarms.arn
 }
 ```
 
@@ -250,14 +251,15 @@ module "alb" {
 This module supports conditional creation of certain resources based on input variables:
 
 - **HTTPS Listener** is created only if `enable_https_listener = true`.
-- **ALB Access Logging** is enabled only if `enable_alb_access_logs = true`.
+- **ALB Access Logging** is enabled only if `enable_alb_access_logs = true` and `alb_logs_bucket_name` is provided.
 - **Kinesis Firehose** is provisioned only if `enable_firehose = true`.
 - **AWS WAF** is created and attached to ALB only if `enable_waf = true`.
 - **WAF Logging** is enabled only if both `enable_waf_logging = true` and `enable_firehose = true`.
 - **CloudWatch Alarms** are created based on the following flags:
-  - `enable_high_request_alarm`
-  - `enable_5xx_alarm`
-  - `enable_target_response_time_alarm`
+  - `enable_high_request_alarm` for high request count alarm
+  - `enable_5xx_alarm` for 5XX errors alarm
+  - `enable_target_response_time_alarm` for target response time alarm
+  - Note: The unhealthy host count alarm is always created as it's critical for monitoring
 
 ---
 
@@ -317,6 +319,122 @@ Integrates with:
 - **Cause:** Only rate limiting is configured by default.
 - **Solution:** Extend the WAF configuration by adding AWS Managed Rule Groups for production.
 
+## Useful AWS CLI Commands for Troubleshooting
+
+This section provides common AWS CLI commands that help verify and debug the ALB module configuration and runtime behavior.
+
+### ALB Diagnostics
+
+```bash
+# List all Application Load Balancers
+aws elbv2 describe-load-balancers --region <region>
+
+# Describe a specific ALB by name
+aws elbv2 describe-load-balancers --names <alb-name> --region <region>
+
+# Get listeners attached to a specific ALB
+aws elbv2 describe-listeners --load-balancer-arn <alb-arn> --region <region>
+
+# Retrieve listener rules (if using listener rules outside the module)
+aws elbv2 describe-rules --listener-arn <listener-arn> --region <region>
+
+# Get target group health status
+aws elbv2 describe-target-health --target-group-arn <tg-arn> --region <region>
+```
+
+### Security Group
+
+```bash
+# Describe rules for a security group
+aws ec2 describe-security-groups --group-ids <sg-id> --region <region>
+```
+
+### WAF (Web ACL)
+
+```bash
+# List all Web ACLs in REGIONAL scope
+aws wafv2 list-web-acls --scope REGIONAL --region <region>
+
+# Get details of a specific Web ACL
+aws wafv2 get-web-acl --scope REGIONAL --id <web-acl-id> --name <waf-name> --region <region>
+```
+
+### Logging & Firehose
+
+```bash
+# List ALB access logs in S3
+aws s3 ls s3://<alb-logs-bucket>/ --recursive
+
+# List WAF logs in S3 (if enabled via Firehose)
+aws s3 ls s3://<waf-logs-bucket>/<prefix>/ --recursive
+```
+
+### CloudWatch Alarms
+
+```bash
+# List alarms related to ALB
+aws cloudwatch describe-alarms --alarm-name-prefix <alb-name> --region <region>
+
+# View history of a specific alarm
+aws cloudwatch describe-alarm-history --alarm-name <alarm-name> --region <region>
+```
+
+### CloudWatch Metrics
+
+```bash
+# Get RequestCount metric for ALB over the last hour
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ApplicationELB \
+  --metric-name RequestCount \
+  --dimensions Name=LoadBalancer,Value=<alb-arn-suffix> \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 300 \
+  --statistics Sum \
+  --region <region>
+
+# Get 5XX error count for the last hour
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ApplicationELB \
+  --metric-name HTTPCode_Target_5XX_Count \
+  --dimensions Name=LoadBalancer,Value=<alb-arn-suffix> \
+  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 300 \
+  --statistics Sum \
+  --region <region>
+```
+
+### SSL Certificate (for HTTPS Listener)
+
+```bash
+# Verify SSL certificate details in ACM
+aws acm describe-certificate --certificate-arn <certificate-arn> --region <region>
+
+# List all certificates in ACM (to find the right one)
+aws acm list-certificates --region <region>
+```
+
+### WAF Monitoring
+
+```bash
+# Get sampled requests that triggered WAF rules
+aws wafv2 get-sampled-requests \
+  --web-acl-arn <web-acl-arn> \
+  --rule-metric-name <rule-name> \
+  --scope REGIONAL \
+  --max-items 100 \
+  --region <region>
+
+# List logging configurations for WAF
+aws wafv2 list-logging-configurations --scope REGIONAL --region <region>
+```
+
+### CLI Notes
+- Replace `<region>`, `<alb-name>`, `<alb-arn>`, `<tg-arn>`, `<listener-arn>`, `<sg-id>`, `<web-acl-id>`, `<waf-name>`, `<alb-logs-bucket>`, `<waf-logs-bucket>`, `<alb-arn-suffix>`, `<certificate-arn>`, `<web-acl-arn>`, and `<rule-name>` with the appropriate values from your environment.
+- These commands are intended for diagnostic purposes and complement the Terraform outputs.
+- Use them for validation, debugging, or quick insights during testing and production monitoring.
+
 ---
 
 ## 16. Notes
@@ -334,5 +452,3 @@ _No specific notes for this module._
 - [AWS Managed Rule Groups](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups.html)
 - [Kinesis Firehose for Logging](https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)
 - [Kinesis Firehose Best Practices](https://docs.aws.amazon.com/firehose/latest/dev/best-practices.html)
-
----

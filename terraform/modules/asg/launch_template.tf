@@ -190,6 +190,9 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - Rolling updates in the ASG can be configured to apply changes with zero downtime.
 
 # 10. **AWS Secrets Manager**:
-#     - WordPress, database, and Redis credentials are securely stored in Secrets Manager.
-#     - The user_data script retrieves them at runtime using `aws secretsmanager get-secret-value`.
-#     - Ensure the instance profile includes `secretsmanager:GetSecretValue` and `DescribeSecret` permissions.
+#     - WordPress, database, and Redis credentials are securely stored in AWS Secrets Manager.
+#     - These secrets are **not injected directly into user_data** for security reasons.
+#     - Instead, they are retrieved **at runtime by the `deploy_wordpress.sh` script**
+#       using the `aws secretsmanager get-secret-value` command.
+#     - Only non-sensitive configuration variables are exported in user_data.
+#     - Ensure the instance profile includes `secretsmanager:GetSecretValue` and `secretsmanager:DescribeSecret` permissions.

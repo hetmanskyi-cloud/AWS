@@ -4,7 +4,7 @@
 
 ## 1. Overview
 
-This Terraform module provisions a general-purpose AWS KMS (Key Management Service) Customer Managed Key (CMK) for encrypting a wide range of AWS resources. It supports automatic key rotation, cross-region replication, customizable IAM permissions, and CloudWatch monitoring of key usage. The module is designed to provide secure, flexible, and production-ready encryption management within your infrastructure.
+This Terraform module provisions a general-purpose AWS KMS (Key Management Service) Customer Managed Key (CMK) for encrypting a wide range of AWS resources. It supports automatic key rotation, cross-region replication, customizable IAM permissions, and CloudWatch monitoring of key usage. The module is designed to provide secure, flexible, and production-ready encryption management within your infrastructure. Root access can be toggled using the `kms_root_access` variable to simplify secure setup and transition to least privilege.
 
 ---
 
@@ -16,6 +16,9 @@ This Terraform module provisions a general-purpose AWS KMS (Key Management Servi
   - SNS topic ARN for alarm notifications.
 - **VPC Considerations**:
   - If EC2 instances are in private subnets without internet access, consider enabling KMS VPC Interface Endpoints.
+- **Root Access Control**:
+  - The `kms_root_access` variable controls whether the root user has permissions on the KMS key.
+    It should be set to `true` during initial setup and switched to `false` afterward.
 
 ### Supported AWS Resource Encryption:
 - CloudWatch Logs
@@ -40,7 +43,7 @@ This Terraform module provisions a general-purpose AWS KMS (Key Management Servi
 ```mermaid
 graph LR
     %% Main KMS Components
-    KMSKey[Primary KMS Key]
+    KMSKey[Customer KMS Key]
     KeyPolicy[Key Policy]
     KeyRotation[Automatic Key Rotation]
     
@@ -74,8 +77,8 @@ graph LR
     %% Cross-Region Replication
     ReplicaS3[S3 Replica Buckets]
     
-    %% Optional KMS VPC Interface Endpoint
-    VPCEndpoint[KMS VPC Endpoint]
+    %% External KMS VPC Interface Endpoint (from interface_endpoints module)
+    VPCEndpoint[KMS VPC Endpoint\n(from interface_endpoints module)]
     
     %% Connections - Main KMS Structure
     KMSKey -->|Defines| KeyPolicy
@@ -88,6 +91,11 @@ graph LR
     %% Connections - IAM
     KMSKey -->|Managed by| IAMRole
     IAMRole -->|Uses| IAMPolicy
+
+    %% Optional: Temporary root access for setup
+    KMSKey -.->|Temporary Access| RootUser
+    RootUser[Root Account]
+    class RootUser optional
     
     %% Connections - Monitoring
     KMSKey -->|Monitored by| CWAlarm
@@ -115,7 +123,7 @@ graph LR
     %% Connections - Audit
     KMSKey -->|Audit Logs| CloudTrail
     
-    %% Connections - VPC Endpoint
+    %% Connections - External VPC Endpoint
     KMSKey -.->|Optional Access via| VPCEndpoint
     
     %% Styling
@@ -147,7 +155,7 @@ graph LR
 ## 5. Module Architecture
 
 This module provisions:
-- A **Primary KMS Key** with optional automatic rotation.
+- A **Customer KMS Key** with optional automatic rotation.
 - An **optional Replica KMS Key** for cross-region S3 replication.
 - **IAM Role and Policy** for administrative management (optional).
 - **KMS Grants** for S3 replication and other services.
@@ -179,6 +187,7 @@ This module provisions:
 | `environment`               | `string`       | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
 | `enable_key_rotation`       | `bool`         | Enable automatic key rotation                                       | `true`                           |
 | `additional_principals`     | `list(string)` | Additional IAM principals with KMS access                           | `[]`                             |
+| `kms_root_access`           | `bool`         | Enable or disable root access to the KMS key                        | `true/false`                     |
 | `enable_kms_role`           | `bool`         | Create IAM role for key management                                  | `false`                          |
 | `enable_key_monitoring`     | `bool`         | Enable CloudWatch monitoring                                        | `false`                          |
 | `key_decrypt_threshold`     | `number`       | Threshold for decrypt operations alarm                              | `100`                            |
@@ -219,9 +228,11 @@ module "kms" {
   enable_key_rotation   = true
   additional_principals = ["arn:aws:iam::${var.aws_account_id}:role/example-role"]
 
+  kms_root_access       = false # Set to true during initial setup, then switch to false to remove root access automatically
   enable_kms_role       = true
   enable_key_monitoring = true
   key_decrypt_threshold = 100
+  # Note: sns_topic_arn is required only if enable_key_monitoring = true
   sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn
 
   enable_dynamodb       = true
@@ -286,22 +297,27 @@ default_region_buckets = {
 
 ## 10. Security Considerations / Recommendations
 
-- **Root access** is granted temporarily during setup and must be manually removed.
-- **IAM roles and policies** should follow the least privilege principle.
+- **Root access** is controlled via the `kms_root_access` variable.
+  Set to `true` during initial setup, then switch to `false` to automatically remove root permissions from the KMS key policy.
+- For administrative KMS key management, enable the optional IAM role (`enable_kms_role = true`).
+  This role is intended only for secure manual operations (e.g., rotation management), not for automation.
 - Enable **automatic key rotation** to reduce the risk of key compromise.
 - Use **VPC Interface Endpoints** for KMS when instances operate in private subnets.
 - Monitor key usage and unusual activity using **CloudWatch Alarms**.
+- For automated encryption, define IAM permissions or KMS grants within each consuming module (e.g., S3, RDS, ElastiCache).
 
 ### Security
 - **Initial root access** granted temporarily for key setup (must be manually revoked after initial setup).
-- **IAM role** replaces root account for ongoing administrative management (optional).
+- **IAM role** (`enable_kms_role = true`) provides secure manual access to manage the KMS key after root access is revoked.
+  This role is intended only for administrative actions and is not meant for automation or operational workflows.
 - **CloudWatch Alarms** monitor abnormal or unauthorized key usage.
 
 ### Root Access Removal Process
-1. Set `enable_kms_role = true` in terraform.tfvars
-2. Apply to create the IAM role (in key.tf)
-3. Manually remove the root access statement from the KMS key policy
-4. Apply changes to enforce least privilege
+1. Set kms_root_access = true in terraform.tfvars during initial setup to enable full administrative access via the root account.
+2. Once the key is created and the IAM role is provisioned:
+    Set enable_kms_role = true to create the administrative IAM role (see key.tf).
+3. Then, disable root access by setting kms_root_access = false.
+4. Run terraform apply to update the KMS key policy and enforce least privilege.
 
 ### CloudWatch Monitoring
 The module currently implements monitoring for:
@@ -323,11 +339,11 @@ When cross-region replication is enabled, the module automatically:
 
 This module supports conditional creation of certain resources based on input variables:
 
-- **Primary KMS Key** is always created when the module is enabled.
+- **Customer KMS Key** is always created when the module is enabled.
 - **Cross-region Replica KMS Key** is created only if the `replication_region_buckets` map is defined and not empty.
 - **KMS Grants** for S3 replication are created automatically **if cross-region replication is configured** (i.e., at least one `replication_region_bucket` is enabled).
-- **IAM Role and Policy for KMS administration** are created only if `create_admin_role = true`.
-- **CloudWatch Alarms** for monitoring decryption operations are created only if `enable_decrypt_alarm = true`.
+- **IAM Role and Policy for KMS administration** are created only if `enable_kms_role = true`.
+- **CloudWatch Alarms** for monitoring decryption operations are created only if `enable_key_monitoring = true`.
 
 ---
 
@@ -444,13 +460,50 @@ Integrates seamlessly with other modules:
 - Verify the replica KMS key exists in the replication region.  
 - Confirm the KMS Grant is created and linked to the S3 replication process.
 
+### 11. AWS CLI Commands
+
+Use these commands to inspect and troubleshoot KMS-related issues directly via the AWS CLI.
+
+```bash
+# Check all KMS keys in the account:
+aws kms list-keys
+
+# Describe the primary KMS key:
+aws kms describe-key --key-id <KMS_KEY_ID>
+
+# Get the current key policy:
+aws kms get-key-policy --key-id <KMS_KEY_ID> --policy-name default
+
+# List key grants (e.g., for S3 replication):
+aws kms list-grants --key-id <KMS_KEY_ID>
+
+# View recent KMS decrypt operations in CloudWatch:
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/KMS \
+  --metric-name DecryptCount \
+  --dimensions Name=KeyId,Value=<KMS_KEY_ID> \
+  --statistics Sum \
+  --period 300 \
+  --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# List CloudWatch alarms:
+aws cloudwatch describe-alarms --alarm-name-prefix "kms"
+
+# Describe a specific CloudWatch alarm:
+aws cloudwatch describe-alarms --alarm-names "<ALARM_NAME>"
+
+# Check SNS subscriptions (for alarms):
+aws sns list-subscriptions-by-topic --topic-arn <SNS_TOPIC_ARN>
+```
 ---
 
 ## 16. Notes
 
 - Cross-region replication support is triggered automatically based on `replication_region_buckets`.
 - Default CloudWatch monitoring covers **decrypt operations only**; additional metrics can be added manually if needed.
-- Root access removal is a manual step and must be enforced post-deployment.
+- Root access is controlled via the `kms_root_access` variable.
+  Set it to `true` during initial setup, and switch to `false` afterward to remove root permissions automatically.
 
 ---
 

@@ -1,4 +1,4 @@
-# --- Outputs for ElastiCache Redis --- #
+# --- ElastiCache Module Outputs --- #
 
 # --- Redis Port --- #
 # Outputs the port number for the Redis replication group to allow client connections.
@@ -31,7 +31,7 @@ output "redis_replication_group_id" {
 # --- Redis Reader Endpoint --- #
 # Outputs the reader endpoint for read replicas when available
 output "redis_reader_endpoint" {
-  description = "The reader endpoint for Redis read replicas. Only available when replicas are configured."
+  description = "The reader endpoint for Redis read replicas (only available if replicas_per_node_group > 0)."
   value       = aws_elasticache_replication_group.redis.reader_endpoint_address
 }
 

@@ -63,9 +63,12 @@ resource "aws_security_group_rule" "alb_https" {
 
 # --- Egress Rules (Outbound Traffic) --- #
 
-# Allow all outbound traffic — Necessary for internet access, updates, SSM, CloudWatch, etc.
-# WARNING: Allowing 0.0.0.0/0 is suitable for development. 
-# In production, review and restrict outbound rules to the minimum required AWS services.
+# Allow all outbound traffic — Required for internet access, package updates, SSM, CloudWatch, Secrets Manager, etc.
+# WARNING: Allowing 0.0.0.0/0 is generally acceptable for production *if*:
+# - Public subnet is used (instances have direct internet access)
+# - VPC Endpoints are not configured for AWS service traffic
+# - The application needs access to external APIs or downloads
+# For hardened environments, consider replacing with restricted egress rules or use VPC Endpoints.
 # tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group_rule" "all_outbound" {
   security_group_id = aws_security_group.asg_security_group.id
@@ -75,8 +78,6 @@ resource "aws_security_group_rule" "all_outbound" {
   protocol          = "-1"                                           # All protocols
   cidr_blocks       = ["0.0.0.0/0"]                                  # Allow traffic to all destinations
   description       = "Allow all outbound traffic for ASG instances" # Review before production deployment
-
-  # Note: For testing environments, we allow all outbound traffic (0.0.0.0/0).
 }
 
 # --- Outbound Rule for ASG to VPC Endpoints --- #
@@ -100,25 +101,28 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 #    - HTTPS traffic (port 443) is enabled only if `enable_https_listener = true` in the ALB module.
 #
 # 2. **Outbound Traffic**:
-#    - All outbound traffic (`0.0.0.0/0`) is allowed for ASG instances by default for flexibility.
-#    - When restricting outbound traffic in the future, ensure HTTPS access to AWS services (SSM, CloudWatch, KMS) remains allowed.
-#    - If `enable_interface_endpoints = true`, ASG instances will use private VPC Endpoints for AWS service communication.
+#    - All outbound traffic (`0.0.0.0/0`) is allowed by default to enable internet access, SSM, CloudWatch, Secrets Manager, and system updates.
+#    - This configuration is acceptable in production if:
+#        * Instances are in public subnets (with direct internet access)
+#        * VPC Endpoints are not used
+#        * Applications need external API access or downloads
+#    - For hardened environments, consider restricting egress to known CIDRs or AWS service endpoints.
 #
 # 3. **Security Considerations**:
-#    - The `all_outbound` rule (`0.0.0.0/0`) is suitable for development but should be restricted in production.
-#    - Consider using **least privilege access** by specifying only required outbound destinations.
-#    - Regularly audit security group rules to minimize unnecessary access.
+#    - Review the `all_outbound` rule periodically to match your security posture.
+#    - Use **least privilege** principles where applicable.
+#    - If using VPC Endpoints, you can safely restrict public egress while retaining AWS service access.
 #
 # 4. **Future Readiness**:
-#    - The VPC Interface Endpoints module is currently **disabled** but is retained for future use.
+#    - The VPC Interface Endpoints module is currently **disabled**, but the security group is ready for future use.
 #    - If ASG instances are later moved to private subnets **without NAT Gateway**, enabling `enable_interface_endpoints`
-#      will automatically switch outbound traffic to private VPC Endpoints instead of public AWS APIs.
+#      will redirect traffic through private endpoints instead of the public internet.
 #
 # 5. **Instance Connectivity**:
-#    - ASG instances require outbound HTTPS (`443`) to AWS services for SSM, CloudWatch, and KMS.
-#    - Current configuration (`all_outbound`) already covers this requirement.
+#    - ASG instances must reach AWS APIs (SSM, CloudWatch, Secrets Manager, KMS) via HTTPS (port 443).
+#    - The default egress rule ensures all of these services are reachable without VPC Endpoints.
 #
 # 6. **Production Recommendations**:
-#    - For production, disable SSH ingress and rely solely on SSM for instance management.
-#    - Replace 0.0.0.0/0 egress with specific AWS service CIDRs or use VPC Endpoints.
-#    - Enable `enable_interface_endpoints = true` when instances move to private subnets.
+#    - In production, disable SSH ingress and rely exclusively on SSM for instance access.
+#    - Monitor outbound usage and adjust rules if tighter controls are needed.
+#    - Use VPC Endpoints and private subnets with care — test thoroughly to ensure all services remain reachable.
