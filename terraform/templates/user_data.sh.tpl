@@ -104,7 +104,120 @@ else
   log "RDS SSL certificate downloaded successfully."
 fi
 
-# --- 4. Retrieve the WordPress deployment script --- #
+# --- 4. Install and start CloudWatch Agent for log forwarding --- #
+
+if [ "${enable_cloudwatch_logs}" = "true" ]; then
+  log "Installing CloudWatch Agent..."
+
+# Install CloudWatch Agent package
+curl -s https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -o /tmp/amazon-cloudwatch-agent.deb
+dpkg -i /tmp/amazon-cloudwatch-agent.deb
+
+# Confirm successful installation
+  if command -v /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl >/dev/null 2>&1; then
+    log "CloudWatch Agent installed successfully."
+  else
+    log "CloudWatch Agent installation failed."
+    exit 1
+  fi
+
+# Create config directory
+mkdir -p /opt/aws/amazon-cloudwatch-agent/etc/
+chown -R root:root /opt/aws/amazon-cloudwatch-agent/etc/
+chmod -R 755 /opt/aws/amazon-cloudwatch-agent/etc/
+
+# Write config to /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+cat <<EOF | sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json > /dev/null
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/user-data.log",
+            "log_group_name": "${cloudwatch_log_groups.user_data}",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/wordpress_install.log",
+            "log_group_name": "${cloudwatch_log_groups.user_data}",
+            "log_stream_name": "{instance_id}-install",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/cloudwatch-agent-status.log",
+            "log_group_name": "${cloudwatch_log_groups.user_data}",
+            "log_stream_name": "{instance_id}-cw-status",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/cloudwatch-agent-validate.log",
+            "log_group_name": "${cloudwatch_log_groups.user_data}",
+            "log_stream_name": "{instance_id}-cw-validate",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/syslog",
+            "log_group_name": "${cloudwatch_log_groups.system}",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%b %d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "${cloudwatch_log_groups.nginx}",
+            "log_stream_name": "{instance_id}-access"
+          },
+          {
+            "file_path": "/var/log/nginx/error.log",
+            "log_group_name": "${cloudwatch_log_groups.nginx}",
+            "log_stream_name": "{instance_id}-error"
+          },
+          {
+            "file_path": "/var/log/php${wp_config.PHP_VERSION}-fpm.log",
+            "log_group_name": "${cloudwatch_log_groups.php_fpm}",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/wordpress.log",
+            "log_group_name": "${cloudwatch_log_groups.wordpress}",
+            "log_stream_name": "{instance_id}"
+          }          
+        ]
+      }
+    },
+    "log_stream_name": "default-stream",
+    "force_flush_interval": 15
+  }
+}
+EOF
+
+log "CloudWatch Agent config written successfully."
+
+# Start CloudWatch Agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config \
+  -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+  -s
+
+log "CloudWatch Agent started."
+
+log "Validating CloudWatch Agent status and configuration..."
+
+# Check CloudWatch Agent status and write output to log
+log "Checking CloudWatch Agent status..."
+STATUS_OUTPUT=$(/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status)
+echo "$STATUS_OUTPUT" | tee /var/log/cloudwatch-agent-status.log
+
+if echo "$STATUS_OUTPUT" | grep -q '"status": "running"'; then
+  log "CloudWatch Agent is running and configured successfully."
+else
+  log "CloudWatch Agent failed to start. Check /var/log/cloudwatch-agent-status.log for details."
+fi
+fi
+
+# --- 5. Retrieve the WordPress deployment script --- #
 
 # Download deployment script file from S3
 log "Downloading deployment script from S3: ${wordpress_script_path}"
@@ -116,7 +229,7 @@ else
   log "deploy_wordpress.sh downloaded successfully."
 fi
 
-# --- 5. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+# --- 6. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 log "Creating temporary healthcheck file in $WP_PATH..."
 echo "<?php http_response_code(200); ?>" | sudo tee "$WP_PATH/healthcheck.php" > /dev/null
@@ -130,7 +243,7 @@ else
   exit 1
 fi
 
-# --- 6. Execute the deployment script --- #
+# --- 7. Execute the deployment script --- #
 
 chmod +x "$WP_TMP_DIR/deploy_wordpress.sh"
 log "Running $WP_TMP_DIR/deploy_wordpress.sh..."

@@ -378,6 +378,24 @@ fi
 
 log "wp-config.php created and validated successfully."
 
+# --- 8.8 Enable WordPress Debug Logging --- #
+
+log "Enabling WP_DEBUG and log file path..."
+
+# Ensure log file exists and is writable by www-data
+sudo touch /var/log/wordpress.log
+sudo chown www-data:www-data /var/log/wordpress.log
+sudo chmod 644 /var/log/wordpress.log
+
+log "Debug log file /var/log/wordpress.log created and permissions set."
+
+# Enable WP_DEBUG and configure debug log path in wp-config.php
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_DEBUG true --raw --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_DEBUG_LOG "/var/log/wordpress.log" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_DEBUG_DISPLAY false --raw --path="$WP_PATH"
+
+log "WordPress debug logging enabled."
+
 # --- 9. Initialize WordPress database and admin user --- #
 
 log "Starting WordPress database initialization..."

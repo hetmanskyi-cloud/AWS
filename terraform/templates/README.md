@@ -35,31 +35,34 @@ graph TD
   WordPress["WordPress Configuration"]
   Healthcheck["Healthcheck Endpoint"]
   WebServer["Nginx + PHP-FPM"]
+  RDSSSL["RDS SSL Certificate"]
+  RedisAuth["Redis Authentication"]
+  RetryParams["Retry Parameters"]
   
   %% S3 Components
   S3Script["S3 Bucket<br>(Deployment Scripts)"]
-  
-  %% Conditional Components
-  ScriptDecision{"enable_s3_script?"}
-  EmbeddedScript["Embedded Script"]
   
   %% Main Flow
   EC2 -->|"Startup"| UserData
   UserData -->|"Installs"| AWSCLI
   UserData -->|"Sets"| EnvVars
+  UserData -->|"Downloads"| RDSSSL
+  UserData -->|"Creates"| Healthcheck
+  UserData -->|"Configures"| RetryParams
   EnvVars -->|"Provides Config"| WPScript
-  UserData -->|"Evaluates"| ScriptDecision
   
-  ScriptDecision -->|"Yes"| S3Script
-  ScriptDecision -->|"No"| EmbeddedScript
-  S3Script -->|"Downloads"| WPScript
-  EmbeddedScript -->|"Uses"| WPScript
+  %% Script Download Logic
+  UserData -->|"Downloads From"| S3Script
+  S3Script -->|"Provides"| WPScript
   
-  UserData -->|"Retrieves Secrets"| SecretsManager
-  SecretsManager -->|"Provides Credentials"| WPScript
+  %% Secrets Flow
+  UserData -->|"Passes Secret Names"| SecretsManager
+  SecretsManager -->|"WordPress Credentials"| WPScript
+  SecretsManager -->|"Redis Token"| RedisAuth
+  RedisAuth -->|"Secure Connection"| WPScript
   
+  %% WordPress Configuration
   WPScript -->|"Configures"| WordPress
-  WPScript -->|"Deploys"| Healthcheck
   WPScript -->|"Starts"| WebServer
   WebServer -->|"Serves"| WordPress
   
@@ -69,11 +72,12 @@ graph TD
   classDef security fill:#DD3522,stroke:#232F3E,color:white
   classDef decision fill:#0066CC,stroke:#232F3E,color:white
   classDef service fill:#7D3C98,stroke:#232F3E,color:white
+  classDef network fill:#2E86C1,stroke:#232F3E,color:white
   
-  class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer compute
+  class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer,RetryParams compute
   class S3Script storage
-  class SecretsManager security
-  class ScriptDecision decision
+  class SecretsManager,RedisAuth security
+  class RDSSSL network
 ```
 ---
 
@@ -81,8 +85,10 @@ graph TD
 
 - Dynamic user data generation for EC2 instances
 - Automatic retrieval of secrets from AWS Secrets Manager
-- Optional deployment script and healthcheck file download from S3
+- Deployment script download from S3
 - Configurable environment variable injection for WordPress setup
+- RDS SSL certificate download for secure database connections
+- Simple healthcheck file creation for ALB health checks
 
 ---
 
@@ -96,15 +102,20 @@ graph TD
 
 ## 6. Required Variables
 
-| Variable                 | Type        | Description                                                      |
-|--------------------------|-------------|------------------------------------------------------------------|
-| `wp_config`              | map(string) | WordPress configuration values                                   |
-| `aws_region`             | string      | AWS Region                                                       |
-| `enable_s3_script`       | bool        | Flag to download deployment script from S3                       |
-| `wordpress_script_path`  | string      | S3 path to the WordPress deployment script                       |
-| `script_content`         | string      | Embedded WordPress deployment script content                     |
-| `healthcheck_content_b64`| string      | Base64-encoded content for healthcheck.php                       |
-| `wordpress_secrets_name` | string      | NAME of Secrets Manager secret for WordPress                     |
+| Variable                 | Type        | Description                                                           |
+|--------------------------|-------------|-----------------------------------------------------------------------|
+| `wp_config`              | map(string) | WordPress configuration values                                        |
+| `aws_region`             | string      | AWS Region                                                            |
+| `wordpress_script_path`  | string      | S3 path to the WordPress deployment script                            |
+| `script_content`         | string      | Local script content (uploaded to S3; not used in user_data directly) |
+| `healthcheck_s3_path`    | string      | S3 path to healthcheck file (optional)                                |
+| `wordpress_secrets_name` | string      | Name of Secrets Manager secret for WordPress                          |
+| `redis_auth_secret_name` | string      | Name of Secrets Manager secret for Redis authentication               |
+| `retry_max_retries`      | number      | Maximum number of retries for operations                              |
+| `retry_retry_interval`   | number      | Interval between retries in seconds                                   |
+| `WP_TMP_DIR`             | string      | Temporary directory for WordPress setup (used in deployment)          |
+| `WP_PATH`                | string      | WordPress installation path (used in deployment)                      |
+
 
 ---
 
@@ -115,13 +126,17 @@ locals {
   rendered_user_data = templatefile(
     "${path.module}/../../templates/user_data.sh.tpl",
     {
-      wp_config               = local.wp_config,
-      aws_region              = var.aws_region,
-      enable_s3_script        = var.enable_s3_script,
-      wordpress_script_path   = local.wordpress_script_path,
-      script_content          = local.script_content,
-      healthcheck_content_b64 = local.healthcheck_b64,
-      wordpress_secrets_name  = var.wordpress_secrets_name
+      wp_config              = local.wp_config,
+      aws_region             = var.aws_region,
+      wordpress_script_path  = local.wordpress_script_path,
+      script_content         = local.script_content,
+      healthcheck_s3_path    = local.healthcheck_s3_path,
+      wordpress_secrets_name = var.wordpress_secrets_name,
+      redis_auth_secret_name = var.redis_auth_secret_name,
+      retry_max_retries      = local.retry_config.MAX_RETRIES,
+      retry_retry_interval   = local.retry_config.RETRY_INTERVAL,
+      WP_TMP_DIR             = "/tmp/wordpress-setup",
+      WP_PATH                = "/var/www/html"
     }
   )
 }
@@ -140,11 +155,22 @@ resource "aws_launch_template" "asg_launch_template" {
 
 ---
 
-## 9. Conditional Resource Creation
+## 9. Deployment Process
 
-- WordPress deployment script is either downloaded from S3 or embedded locally based on enable_s3_script variable
-- Healthcheck file is either fetched from S3 or embedded depending on the same condition
-- Secrets retrieval is dynamically configured through the secrets.tf block in the main module, which passes the Secrets Manager name to the template only if secret usage is enabled.
+- The user_data.sh.tpl script is executed when an EC2 instance launches
+- AWS CLI is installed if not already present
+- Environment variables are exported to /etc/environment for use by the WordPress deployment script
+- Amazon RDS root SSL certificate is downloaded for secure database connections
+- A simple healthcheck file (`<?php http_response_code(200); ?>`) is created directly in the WordPress directory
+- A more complete `healthcheck.php` file may optionally be downloaded from S3 (if `healthcheck_s3_path` is defined)
+- The WordPress deployment script is downloaded from S3
+- The deployment script is executed to:
+  - Retrieve secrets from AWS Secrets Manager
+  - Install and configure Nginx and PHP
+  - Download and install WordPress
+  - Configure WordPress with database and Redis settings
+  - Enable Redis Object Cache
+  - Download a more comprehensive healthcheck file from S3 (if specified)
 
 ---
 
@@ -153,7 +179,8 @@ resource "aws_launch_template" "asg_launch_template" {
 - **Validate Templates**: Always validate template rendering before deployment.
 - **Use SSM**: Prefer SSM Parameters for non-sensitive configuration.
 - **Idempotency**: Ensure the generated user data script is idempotent.
-- **Logging**: Maintain proper logging during user data execution for debugging.
+- **Logging**: The script logs all actions to both console and `/var/log/user-data.log` for debugging.
+- **Error Handling**: The script uses `set -euxo pipefail` to fail fast on errors and undefined variables.
 
 ---
 
@@ -195,5 +222,7 @@ resource "aws_launch_template" "asg_launch_template" {
 - [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html)
 - [AWS User Data Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 - [Terraform Templatefile Function](https://developer.hashicorp.com/terraform/language/functions/templatefile)
+- [AWS CLI – get-secret-value](https://docs.aws.amazon.com/cli/latest/reference/secretsmanager/get-secret-value.html)
+- [RDS SSL Support](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)
 
 ---

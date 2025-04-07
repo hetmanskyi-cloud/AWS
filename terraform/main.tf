@@ -144,6 +144,16 @@ module "asg" {
   enable_high_network_in_alarm  = var.enable_high_network_in_alarm
   enable_high_network_out_alarm = var.enable_high_network_out_alarm
 
+  # CloudWatch Log Groups  
+  enable_cloudwatch_logs = var.enable_cloudwatch_logs
+  cloudwatch_log_groups = {
+    user_data = aws_cloudwatch_log_group.user_data_logs[0].name
+    system    = aws_cloudwatch_log_group.system_logs[0].name
+    nginx     = aws_cloudwatch_log_group.nginx_logs[0].name
+    php_fpm   = aws_cloudwatch_log_group.php_fpm_logs[0].name
+    wordpress = aws_cloudwatch_log_group.wordpress_logs[0].name
+  }
+
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
@@ -195,7 +205,12 @@ module "asg" {
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
   depends_on = [module.vpc,
-    module.s3, aws_secretsmanager_secret_version.wp_secrets_version
+    module.s3, aws_secretsmanager_secret_version.wp_secrets_version,
+    aws_cloudwatch_log_group.user_data_logs,
+    aws_cloudwatch_log_group.system_logs,
+    aws_cloudwatch_log_group.nginx_logs,
+    aws_cloudwatch_log_group.php_fpm_logs,
+    aws_cloudwatch_log_group.wordpress_logs
   ]
 }
 

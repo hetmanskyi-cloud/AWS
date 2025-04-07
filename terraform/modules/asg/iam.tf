@@ -94,6 +94,39 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# --- CloudWatch Logs Custom Policy --- #
+# This policy allows EC2 instances to publish application-specific logs
+# (e.g., WordPress logs, Nginx logs, PHP-FPM logs) to CloudWatch Logs.
+# Required when using custom configuration with the CloudWatch Agent.
+
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+  name        = "${var.name_prefix}-cloudwatch-logs-policy"
+  description = "Allows CloudWatch Agent to publish logs and access log configuration"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the custom CloudWatch Logs policy to the ASG IAM role
+resource "aws_iam_role_policy_attachment" "cloudwatch_logs_policy_attachment" {
+  role       = aws_iam_role.asg_role.name
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
+}
+
 # --- SSM Access Policy --- #
 # Enables ASG instances to be managed via AWS Systems Manager (SSM), allowing secure remote management.
 resource "aws_iam_role_policy_attachment" "ssm_access" {

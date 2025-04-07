@@ -409,27 +409,55 @@ variable "enable_interface_endpoints" {
   default     = false
 }
 
+# --- CloudWatch Logs Configuration --- #
+# Variables for CloudWatch Logs integration
+
+variable "enable_cloudwatch_logs" {
+  description = "Enable or disable CloudWatch Logs integration"
+  type        = bool
+  default     = true
+}
+
+# Defines CloudWatch Log Group names used by the CloudWatch Agent on EC2 instances
+# The map keys must include: user_data, system, nginx, php_fpm, wordpress
+# These names are passed from the root module where log groups are created
+variable "cloudwatch_log_groups" {
+  description = "Map of CloudWatch Log Group names"
+  type        = map(string)
+  default     = {}
+  validation {
+    condition = alltrue([
+      contains(keys(var.cloudwatch_log_groups), "user_data"),
+      contains(keys(var.cloudwatch_log_groups), "system"),
+      contains(keys(var.cloudwatch_log_groups), "nginx"),
+      contains(keys(var.cloudwatch_log_groups), "php_fpm"),
+      contains(keys(var.cloudwatch_log_groups), "wordpress")
+    ])
+    error_message = "cloudwatch_log_groups must include keys: user_data, system, nginx, php_fpm, wordpress."
+  }
+}
+
 # --- Notes --- #
 # 1. **Variable Grouping:**
 #    - Variables are organized by functionality (e.g., ASG, ALB, Redis, S3, scaling, monitoring).
 #    - Logical grouping simplifies navigation and improves maintainability.
-#
+
 # 2. **Sensitive Data Handling:**
 #    - Secrets such as WordPress DB credentials and Redis AUTH tokens should be stored in AWS Secrets Manager.
 #    - Use `wordpress_secrets_name` and `redis_auth_secret_name` to retrieve them during deployment.
 #    - Sensitive fields are marked accordingly to prevent Terraform from displaying them in logs or state files.
-#
+
 # 3. **Validation Rules:**
 #    - Autoscaling values must be non-negative (`min`, `max`, `desired_capacity`).
 #    - CPU thresholds must be between 1 and 100 percent.
 #    - Subnet, VPC, SG, and other IDs are assumed to be passed from validated upstream modules.
-#
+
 # 4. **Best Practices:**
 #    - Use restrictive `ssh_allowed_cidr` values in production (e.g., corporate VPN only).
 #    - Set `enable_asg_ssh_access = false` in production; prefer Session Manager (SSM).
 #    - Enable EBS volume encryption using KMS (`enable_ebs_encryption = true`).
 #    - Choose appropriate volume types based on workload (e.g., gp3 for IOPS/cost balance).
-#
+
 # 5. **Production Recommendations:**
 #    - Place ASG instances in public subnets **only when behind an ALB** and when NAT is not used.
 #    - Use `enable_interface_endpoints = true` when instances need private access to AWS services (e.g., SSM).

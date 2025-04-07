@@ -46,6 +46,8 @@ locals {
       healthcheck_s3_path    = local.healthcheck_s3_path
       wordpress_secrets_name = var.wordpress_secrets_name
       redis_auth_secret_name = var.redis_auth_secret_name
+      enable_cloudwatch_logs = var.enable_cloudwatch_logs
+      cloudwatch_log_groups  = var.cloudwatch_log_groups
 
       # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"

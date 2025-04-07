@@ -198,6 +198,33 @@ output "cloudtrail_arn" {
   value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail[0].arn : null
 }
 
+# --- CloudWatch Log Groups Outputs --- #
+
+output "cloudwatch_user_data_log_group_name" {
+  value       = try(aws_cloudwatch_log_group.user_data_logs[0].name, null)
+  description = "CloudWatch Log Group for EC2 user-data script logs"
+}
+
+output "cloudwatch_system_log_group_name" {
+  value       = try(aws_cloudwatch_log_group.system_logs[0].name, null)
+  description = "CloudWatch Log Group for EC2 system logs"
+}
+
+output "cloudwatch_nginx_log_group_name" {
+  value       = try(aws_cloudwatch_log_group.nginx_logs[0].name, null)
+  description = "CloudWatch Log Group for Nginx logs"
+}
+
+output "cloudwatch_php_fpm_log_group_name" {
+  value       = try(aws_cloudwatch_log_group.php_fpm_logs[0].name, null)
+  description = "CloudWatch Log Group for PHP-FPM logs"
+}
+
+output "cloudwatch_wordpress_log_group_name" {
+  value       = try(aws_cloudwatch_log_group.wordpress_logs[0].name, null)
+  description = "CloudWatch Log Group for WordPress debug/application logs"
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.
