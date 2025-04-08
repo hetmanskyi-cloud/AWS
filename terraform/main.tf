@@ -314,7 +314,7 @@ module "s3" {
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
-  replication_region_sns_topic_arn = aws_sns_topic.replication_region_topic.arn
+  replication_region_sns_topic_arn = try(aws_sns_topic.replication_region_topic[0].arn, null)
 
   # KMS role for S3 module
   kms_key_arn         = module.kms.kms_key_arn

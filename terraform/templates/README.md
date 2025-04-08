@@ -182,8 +182,8 @@ resource "aws_launch_template" "asg_launch_template" {
   - Enable Redis Object Cache
   - Download a more comprehensive healthcheck file from S3 (if specified)
 - If `enable_cloudwatch_logs` is set to `true`, the CloudWatch Agent is automatically installed and configured on instance launch to forward logs to the specified CloudWatch Log Groups.
-- If `enable_cloudwatch_logs` is set to `false`, the CloudWatch Agent will not be installed, and no logs will be forwarded to CloudWatch.  
-  To enable log forwarding later, update the variable to `true` and recreate the EC2 instance (e.g., by redeploying the Auto Scaling Group or performing an instance refresh).
+- If `enable_cloudwatch_logs` is set to `false`, the CloudWatch Agent will not be installed and no logs will be forwarded.  
+  To enable CloudWatch log streaming later, set `enable_cloudwatch_logs = true` and **recreate the EC2 instance** via ASG refresh or instance replacement.
 
 ---
 

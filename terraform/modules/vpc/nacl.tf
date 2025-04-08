@@ -49,6 +49,7 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 # Rule for inbound SSH traffic on port 22
 # SSH access is required for testing. In production, restrict this to a specific range.
 # tfsec:ignore:aws-ec2-no-public-ingress-acl
+# checkov:skip=CKV_AWS_232: SSH access is restricted via variable-defined CIDR in dev environment
 resource "aws_network_acl_rule" "public_inbound_ssh" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
@@ -63,6 +64,7 @@ resource "aws_network_acl_rule" "public_inbound_ssh" {
 # Rule for inbound return traffic on ephemeral ports (1024-65535)
 # Allowing ephemeral port traffic is necessary for standard TCP connections.
 # tfsec:ignore:aws-ec2-no-public-ingress-acl
+# checkov:skip=CKV_AWS_231: Wide port range is required for public EC2 access in test environment
 resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 130

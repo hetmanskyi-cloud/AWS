@@ -773,7 +773,12 @@ variable "enable_cloudwatch_logs" {
 variable "cw_logs_retention_in_days" {
   type        = number
   description = "Number of days to retain CloudWatch log data for all EC2-related logs (user-data, system, Nginx, PHP-FPM)"
-  default     = 7
+  default     = 365
+
+  validation {
+    condition     = var.cw_logs_retention_in_days >= 1
+    error_message = "Log retention must be at least 1 day."
+  }
 }
 
 # --- Notes --- #

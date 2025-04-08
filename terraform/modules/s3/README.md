@@ -644,7 +644,10 @@ These commands help confirm the configuration and state of each bucket deployed 
 - When using replication, ensure that both source and destination buckets have versioning enabled.
 - The `terraform_state` bucket has special lifecycle rules to prevent accidental deletion of state files.
 - Always strictly validate and limit CORS `allowed_origins` in production environments to prevent cross-origin vulnerabilities and data leaks.
-- The scripts bucket must always be enabled in default_region_buckets. It is used to deliver the deploy_wordpress.sh and healthcheck script to EC2. Without it, WordPress cannot be deployed.
+- The scripts bucket must always be enabled in `default_region_buckets`. It is used to deliver the `deploy_wordpress.sh` and `healthcheck.php` script to EC2. Without it, WordPress cannot be deployed.
+- **S3 Bucket Ownership Controls**:  
+  The `BucketOwnerPreferred` ownership model is used in this module, as **ACLs are necessary for compatibility with S3 logging** and legacy access patterns. The setting allows the bucket owner to have full control over objects, even when they are uploaded by other AWS services (like ALB logs and CloudTrail).  
+  This configuration ensures that the bucket owner has control over all objects and is essential for allowing correct log delivery and management.
 
 ---
 

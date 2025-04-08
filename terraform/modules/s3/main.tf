@@ -52,6 +52,8 @@ resource "aws_s3_bucket" "default_region_buckets" {
 
 # --- Replication Region Buckets --- #
 # Dynamically creates S3 buckets in the replication region.
+# Cross-region server access logging is not supported by AWS.
+# checkov:skip=CKV_AWS_18
 resource "aws_s3_bucket" "s3_replication_bucket" {
   # Dynamic buckets in replication region
   for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
@@ -155,6 +157,7 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
 }
 
 # --- S3 Bucket Ownership Controls for Default Region Buckets --- #
+# checkov:skip=CKV2_AWS_65: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
 resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_controls" {
   # Configures S3 Bucket Ownership Controls for all default region buckets  
   for_each = tomap({
@@ -328,6 +331,7 @@ resource "random_string" "suffix" {
 # 3. Unified config for versioning, notifications, encryption, public access block.
 # 4. Server Access Logging (Default Region, Centralized):
 #     * Default region buckets only (AWS cross-region logging limitation).
+#     * Replication region buckets will not have server access logging enabled due to AWS limitations.
 #     * Enabled per bucket via `server_access_logging` in 'terraform.tfvars'.
 #     * Centralized logs in 'logging' bucket (default region).
 #     * 'logging' bucket ACL for log delivery ('log-delivery-write').

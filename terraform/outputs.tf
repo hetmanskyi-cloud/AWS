@@ -141,9 +141,14 @@ output "all_enabled_buckets_names" {
 
 # --- SNS Topic Outputs --- #
 
-output "sns_topic_arn" {
-  value       = aws_sns_topic.cloudwatch_alarms.arn
+output "sns_cloudwatch_topic_arn" {
   description = "ARN of the SNS topic"
+  value       = aws_sns_topic.cloudwatch_alarms.arn
+}
+
+output "sns_cloudtrail_topic_name" {
+  description = "SNS topic name used by CloudTrail"
+  value       = length(aws_sns_topic.cloudtrail_events) > 0 ? aws_sns_topic.cloudtrail_events[0].name : null
 }
 
 # --- Elasticache Module Outputs --- #

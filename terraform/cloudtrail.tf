@@ -100,6 +100,9 @@ resource "aws_cloudtrail" "cloudtrail" {
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch[0].arn
 
+  # Sends CloudTrail events to the CloudTrail-specific SNS topic for notifications. 
+  sns_topic_name = aws_sns_topic.cloudtrail_events[0].name
+
   # Resource tags
   tags = {
     Name        = "${var.name_prefix}-cloudtrail"

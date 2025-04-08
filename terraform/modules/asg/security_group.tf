@@ -76,7 +76,7 @@ resource "aws_security_group_rule" "all_outbound" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"                                           # All protocols
-  cidr_blocks       = ["0.0.0.0/0"]                                  # Allow traffic to all destinations
+  cidr_blocks       = ["0.0.0.0/0"]                                  # checkov:skip=CKV_AWS_382: Required for EC2 outbound access to download packages, updates, external APIs
   description       = "Allow all outbound traffic for ASG instances" # Review before production deployment
 }
 

@@ -112,7 +112,7 @@ resource "aws_launch_template" "asg_launch_template" {
   metadata_options {
     http_endpoint               = "enabled"  # Enable instance metadata endpoint (required for IMDSv2)
     http_tokens                 = "required" # Enforce IMDSv2 (all metadata requests must be signed)
-    http_put_response_hop_limit = 2          # Prevents metadata exposure by limiting request hops. Consider the route through ALB
+    http_put_response_hop_limit = 2          # checkov:skip=CKV_AWS_341: Required for ALB/ASG use case (proxy headers)
     instance_metadata_tags      = "enabled"  # Allow retrieval of instance tags from metadata
   }
 

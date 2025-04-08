@@ -1,6 +1,7 @@
 # --- Application Load Balancer --- #
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 # tfsec:ignore:aws-elb-alb-not-public
+# checkov:skip=CKV2_AWS_20: HTTPS redirect is disabled intentionally in test environment.
 resource "aws_lb" "application" {
   name     = "${var.name_prefix}-alb" # ALB name
   internal = false                    # ALB is public-facing

@@ -21,6 +21,8 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
     # GZIP compression reduces storage costs but may increase processing costs when decrypting data in the future.
     compression_format = "GZIP" # Compress logs in GZIP format to reduce S3 storage costs. Note: decompression may add processing overhead when analyzing logs later.
 
+    # checkov:skip=CKV_AWS_240:Encryption is configured inside extended_s3_configuration with kms_key_arn
+    # checkov:skip=CKV_AWS_241:Using Customer Managed Key defined in kms_key_arn
     kms_key_arn = var.kms_key_arn # KMS key (Customer Managed Key) for encrypting logs. Ensures secure storage in S3.
   }
 }
