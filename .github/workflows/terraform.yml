@@ -60,14 +60,11 @@ jobs:
         run: tflint
         working-directory: ./terraform
 
-      - name: Install tfsec
-        run: |
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+      - name: Run tfsec (latest via action)
+        uses: aquasecurity/tfsec-sarif-action@v0.1.0
+        with:
+          working_directory: ./terraform
 
-      - name: Run tfsec (console output, soft-fail)
-        run: |
-          tfsec ./terraform || true
-      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -80,4 +77,4 @@ jobs:
         run: |
           checkov --directory ./terraform \
                   --skip-check CKV_AWS_192 \
-                  || true      
+                  || true
