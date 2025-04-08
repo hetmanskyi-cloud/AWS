@@ -113,3 +113,25 @@ resource "aws_sns_topic_subscription" "replication_region_subscriptions" {
 
   depends_on = [aws_sns_topic.replication_region_topic]
 }
+
+# --- Notes --- #
+# 1. Topic Encryption:
+#    - Both SNS topics use Customer Managed KMS Keys for encryption at rest.
+#    - This enhances control and auditability (module.kms.kms_key_arn).
+#
+# 2. Publishing Permissions:
+#    - CloudWatch Alarms can publish only if they belong to the same AWS account and region.
+#    - S3 is allowed to publish (e.g., for replication events) and restricted by SourceAccount.
+#
+# 3. Email Subscriptions:
+#    - Manual confirmation is required for email endpoints.
+#    - You can run `aws sns list-subscriptions-by-topic` to verify status.
+#
+# 4. Multi-Region Support:
+#    - Separate topic and policy are created in the replication region via provider alias.
+#    - This ensures proper S3 event delivery in cross-region replication setups.
+#
+# 5. Best Practices:
+#    - Use separate topics for replication and default regions to avoid confusion.
+#    - Avoid wildcards in SNS policies where not required (e.g., no `*` in actions or resources).
+#    - Tag SNS topics for better tracking, billing, and cost allocation.

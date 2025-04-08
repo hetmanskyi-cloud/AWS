@@ -18,30 +18,30 @@ output "kms_replica_key_arn" {
   value       = length(aws_kms_replica_key.replica_key) > 0 ? aws_kms_replica_key.replica_key[0].arn : null
 }
 
-# --- Enable KMS Role --- #
-output "enable_kms_role" {
+# --- Enable KMS Admin Role --- #
+output "enable_kms_admin_role" {
   description = "Enable or disable the creation of IAM role and policy for KMS interaction"
-  value       = var.enable_kms_role
+  value       = var.enable_kms_admin_role
 }
 
 # --- KMS Management Role ARN --- #
 output "kms_management_role_arn" {
   description = <<EOT
 ARN of the IAM role for managing the KMS encryption key.
-Returns null if `enable_kms_role` is false.
+Returns null if `enable_kms_admin_role` is false.
 Ensure dependent modules verify this output before using it.
 EOT
-  value       = var.enable_kms_role ? aws_iam_role.kms_role["kms_role"].arn : null
+  value       = var.enable_kms_admin_role ? aws_iam_role.kms_admin_role["kms_admin_role"].arn : null
 }
 
 # --- KMS Management Policy ARN --- #
 output "kms_management_policy_arn" {
   description = <<EOT
 ARN of the KMS management policy for managing the encryption key.
-Returns null if `enable_kms_role` is false.
+Returns null if `enable_kms_admin_role` is false.
 Ensure dependent modules verify this output before using it.
 EOT
-  value       = var.enable_kms_role ? aws_iam_policy.kms_management_policy["kms_policy"].arn : null
+  value       = var.enable_kms_admin_role ? aws_iam_policy.kms_management_policy["kms_policy"].arn : null
 }
 
 # --- CloudWatch Alarm ARN --- #
@@ -57,7 +57,7 @@ EOT
 # --- Notes --- #
 # 1. The `kms_key_arn` is always available and represents the main encryption key ARN.
 # 2. Outputs like `kms_management_role_arn` and `kms_management_policy_arn` are conditional.
-#    - If `enable_kms_role` is false, these outputs will return `null`.
+#    - If `enable_kms_admin_role` is false, these outputs will return `null`.
 #    - Ensure that dependent modules verify these outputs before using them to avoid runtime errors.
 # 3. Outputs are designed for integration with other modules, ensuring flexibility and scalability.
 # 4. Consider grouping related outputs into maps in future improvements to reduce duplication.

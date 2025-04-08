@@ -33,11 +33,13 @@ graph TD
   SecretsManager["AWS Secrets Manager"]
   WPScript["WordPress Deployment Script"]
   WordPress["WordPress Configuration"]
-  Healthcheck["Healthcheck Endpoint"]
+  Healthcheck["Temporary Healthcheck"]
   WebServer["Nginx + PHP-FPM"]
   RDSSSL["RDS SSL Certificate"]
   RedisAuth["Redis Authentication"]
   RetryParams["Retry Parameters"]
+  CloudWatchAgent["CloudWatch Agent"]
+  CloudWatchLogs["CloudWatch Logs"]
   
   %% S3 Components
   S3Script["S3 Bucket<br>(Deployment Scripts)"]
@@ -49,6 +51,8 @@ graph TD
   UserData -->|"Downloads"| RDSSSL
   UserData -->|"Creates"| Healthcheck
   UserData -->|"Configures"| RetryParams
+  UserData -->|"Installs & Configures"| CloudWatchAgent
+  CloudWatchAgent -->|"Forwards Logs"| CloudWatchLogs
   EnvVars -->|"Provides Config"| WPScript
   
   %% Script Download Logic
@@ -65,6 +69,7 @@ graph TD
   WPScript -->|"Configures"| WordPress
   WPScript -->|"Starts"| WebServer
   WebServer -->|"Serves"| WordPress
+  WebServer -->|"Logs"| CloudWatchLogs
   
   %% Styling
   classDef compute fill:#FF9900,stroke:#232F3E,color:white
@@ -73,12 +78,15 @@ graph TD
   classDef decision fill:#0066CC,stroke:#232F3E,color:white
   classDef service fill:#7D3C98,stroke:#232F3E,color:white
   classDef network fill:#2E86C1,stroke:#232F3E,color:white
+  classDef monitoring fill:#3F8624,stroke:#232F3E,color:white
   
   class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer,RetryParams compute
   class S3Script storage
   class SecretsManager,RedisAuth security
   class RDSSSL network
+  class CloudWatchAgent,CloudWatchLogs monitoring
 ```
+
 ---
 
 ## 4. Features
@@ -89,6 +97,7 @@ graph TD
 - Configurable environment variable injection for WordPress setup
 - RDS SSL certificate download for secure database connections
 - Simple healthcheck file creation for ALB health checks
+- CloudWatch Logs integration via configurable log group mappings
 
 ---
 
@@ -110,12 +119,12 @@ graph TD
 | `script_content`         | string      | Local script content (uploaded to S3; not used in user_data directly) |
 | `healthcheck_s3_path`    | string      | S3 path to healthcheck file (optional)                                |
 | `wordpress_secrets_name` | string      | Name of Secrets Manager secret for WordPress                          |
-| `redis_auth_secret_name` | string      | Name of Secrets Manager secret for Redis authentication               |
+| `redis_auth_secret_name` | string      | Name of Redis AUTH secret in Secrets Manager                          |
 | `retry_max_retries`      | number      | Maximum number of retries for operations                              |
 | `retry_retry_interval`   | number      | Interval between retries in seconds                                   |
-| `WP_TMP_DIR`             | string      | Temporary directory for WordPress setup (used in deployment)          |
+| `cloudwatch_log_groups`  | map(string) | Map of log group names for CloudWatch Logs integration                |
+| `WP_TMP_DIR`             | string      | Temporary directory for WordPress setup                               |
 | `WP_PATH`                | string      | WordPress installation path (used in deployment)                      |
-
 
 ---
 
@@ -135,6 +144,7 @@ locals {
       redis_auth_secret_name = var.redis_auth_secret_name,
       retry_max_retries      = local.retry_config.MAX_RETRIES,
       retry_retry_interval   = local.retry_config.RETRY_INTERVAL,
+      cloudwatch_log_groups  = local.cloudwatch_log_groups,
       WP_TMP_DIR             = "/tmp/wordpress-setup",
       WP_PATH                = "/var/www/html"
     }
@@ -161,8 +171,8 @@ resource "aws_launch_template" "asg_launch_template" {
 - AWS CLI is installed if not already present
 - Environment variables are exported to /etc/environment for use by the WordPress deployment script
 - Amazon RDS root SSL certificate is downloaded for secure database connections
+- CloudWatch Agent is configured and started (if enabled) to forward logs to CloudWatch Log Groups
 - A simple healthcheck file (`<?php http_response_code(200); ?>`) is created directly in the WordPress directory
-- A more complete `healthcheck.php` file may optionally be downloaded from S3 (if `healthcheck_s3_path` is defined)
 - The WordPress deployment script is downloaded from S3
 - The deployment script is executed to:
   - Retrieve secrets from AWS Secrets Manager
@@ -171,6 +181,9 @@ resource "aws_launch_template" "asg_launch_template" {
   - Configure WordPress with database and Redis settings
   - Enable Redis Object Cache
   - Download a more comprehensive healthcheck file from S3 (if specified)
+- If `enable_cloudwatch_logs` is set to `true`, the CloudWatch Agent is automatically installed and configured on instance launch to forward logs to the specified CloudWatch Log Groups.
+- If `enable_cloudwatch_logs` is set to `false`, the CloudWatch Agent will not be installed, and no logs will be forwarded to CloudWatch.  
+  To enable log forwarding later, update the variable to `true` and recreate the EC2 instance (e.g., by redeploying the Auto Scaling Group or performing an instance refresh).
 
 ---
 
@@ -189,6 +202,7 @@ resource "aws_launch_template" "asg_launch_template" {
 - ASG Module – uses the template to generate user data for EC2 instances
 - Secrets Manager – provides sensitive data during deployment
 - S3 Module – stores deployment scripts and healthcheck files (if enabled)
+- CloudWatch Logs – captures logs from user-data script, Nginx, PHP-FPM, system, and WordPress
 
 ---
 
@@ -206,6 +220,8 @@ resource "aws_launch_template" "asg_launch_template" {
 - **Secrets Retrieval Errors**: Check IAM role policies for Secrets Manager access.
 - **WordPress Install Fails**: Inspect `/var/log/wordpress_install.log` inside the instance.
 - **User Data Fails**: Check `/var/log/user-data.log` for syntax or runtime errors.
+- **CloudWatch Agent Issues**: Check `/var/log/cloudwatch-agent-status.log` for configuration errors.
+- **Redis Connection Issues**: Verify Redis AUTH token is correctly retrieved from Secrets Manager.
 
 ---
 
@@ -224,5 +240,7 @@ resource "aws_launch_template" "asg_launch_template" {
 - [Terraform Templatefile Function](https://developer.hashicorp.com/terraform/language/functions/templatefile)
 - [AWS CLI – get-secret-value](https://docs.aws.amazon.com/cli/latest/reference/secretsmanager/get-secret-value.html)
 - [RDS SSL Support](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)
+- [CloudWatch Agent Configuration](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
+- [Redis AUTH](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/auth.html)
 
 ---

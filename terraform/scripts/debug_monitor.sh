@@ -45,15 +45,28 @@ aws ssm start-session --region "$REGION" --target "$INSTANCE_ID" \
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Monitoring session completed. Exiting script."
 
 # --- Notes --- #
-# Description:
-#   This script connects to a running EC2 instance in the Auto Scaling Group via AWS SSM
-#   and monitors the WordPress deployment logs for debugging and deployment visibility.
+# ✅ Purpose:
+#   This script helps developers and DevOps engineers debug EC2-based WordPress deployment issues
+#   by connecting to the instance using AWS SSM and streaming installation logs in real time.
 #
-# Prerequisites:
-#   - AWS CLI v2 must be installed and configured (aws configure)
-#   - Session Manager Plugin for AWS CLI must be installed
+# 📌 What it does:
+#   - Searches for a running EC2 instance with a specific Name tag (default: dev-asg-instance)
+#   - Waits up to MAX_RETRIES × SLEEP_INTERVAL (default: 30 × 10s = 5 min)
+#   - Connects via AWS SSM Session Manager (no need for SSH / public IPs)
+#   - Tails logs: /var/log/user-data.log and /var/log/wordpress_install.log
 #
-# Usage:
-#   ./debug_monitor.sh [instance_name_tag] [aws_region]
-#   - instance_name_tag: (optional) EC2 instance Name tag (default: dev-asg-instance)
-#   - aws_region: (optional) AWS region (default: eu-west-1)
+# ⚙️ Requirements:
+#   - AWS CLI v2 installed and configured (via `aws configure`)
+#   - Session Manager plugin installed (`session-manager-plugin`)
+#   - EC2 instance must:
+#     • have the SSM Agent running
+#     • be in a public subnet (or reachable)
+#     • have the correct IAM role with `ssm:StartSession`, `ssm:SendCommand`, etc.
+#
+# 🧪 Typical usage during testing/debug:
+#     ./debug_monitor.sh                         # Uses default tag and region
+#     ./debug_monitor.sh dev-asg-instance eu-west-1
+#
+# ❗ Important:
+#   - Designed for DEV and STAGE use. For production, logs should be monitored via CloudWatch Logs.
+#   - Can be useful for inspecting logs without logging in manually or checking CloudWatch UI.

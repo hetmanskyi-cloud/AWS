@@ -251,3 +251,20 @@ log "Running $WP_TMP_DIR/deploy_wordpress.sh..."
 
 # Final message indicating the script has completed
 log "User-data script completed!"
+
+# --- Notes --- #
+# - This user_data script is rendered from a Terraform template and executed on first boot of the EC2 instance.
+# - Due to AWS EC2's 16 KB user_data size limit, we store the full WordPress deployment script (`deploy_wordpress.sh`) in an S3 bucket and download it at runtime.
+# - The script performs the following:
+#   * Prepares the environment and export directories for WordPress installation.
+#   * Installs AWS CLI and CloudWatch Agent (if not already present).
+#   * Downloads the Amazon RDS root SSL certificate for secure DB connections.
+#   * Exports necessary non-sensitive environment variables (DB config, Redis, ALB DNS).
+#   * Loads environment configuration from Terraform and makes it available to all processes.
+#   * Starts CloudWatch Agent (if enabled), forwarding logs from Nginx, PHP-FPM, user-data, system, and WordPress to predefined CloudWatch Log Groups.
+#   * Downloads the actual WordPress installation script from S3.
+#   * Creates a temporary healthcheck endpoint to ensure ALB detects the instance as healthy.
+#   * Executes the downloaded script (`deploy_wordpress.sh`) which installs and configures WordPress.
+# - All logs are streamed to both the console and `/var/log/user-data.log`, and forwarded to CloudWatch Logs (if enabled).
+# - Secrets (e.g., database and Redis credentials) are **not exposed** in this file and are fetched securely inside `deploy_wordpress.sh` via AWS Secrets Manager.
+# - Designed for scalable, secure, and modular WordPress deployments in EC2 Auto Scaling environments.

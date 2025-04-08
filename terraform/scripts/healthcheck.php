@@ -94,3 +94,8 @@ exit;
 # Other:
 #   - REST API check may fail if WordPress is not fully installed yet
 #   - This script is intended to be used *after* WordPress deployment
+#
+# Deployment:
+#   - This script is not executed locally during provisioning.
+#   - It is uploaded to the S3 "scripts" bucket and downloaded during EC2 provisioning via user-data script.
+#   - Ensure the object exists at the specified S3 path before instance launch.

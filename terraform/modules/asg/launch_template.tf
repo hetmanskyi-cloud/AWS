@@ -162,6 +162,7 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - The user_data script is dynamically rendered using a template and includes only essential logic.
 #    - The deploy_wordpress.sh script is downloaded from the 'scripts' S3 bucket and executed during instance bootstrap.
 #    - All scripts and templates (including wp-config and healthcheck) must be available in the 'scripts' S3 bucket.
+#    - CloudWatch Logs integration is optionally enabled via `enable_cloudwatch_logs`; log group names must be passed via `cloudwatch_log_groups`.
 #    - IMPORTANT: The 'scripts' bucket must be enabled in terraform.tfvars or EC2 initialization will fail.
 #
 # 3. **SSH Access**:
@@ -174,6 +175,7 @@ resource "aws_launch_template" "asg_launch_template" {
 #
 # 5. **Monitoring and Optimization**:
 #    - CloudWatch monitoring and EBS optimization can be enabled for improved performance and observability.
+#    - When CloudWatch Logs are enabled, custom log groups (user-data, Nginx, PHP-FPM, WordPress, etc.) are configured automatically.
 #    - These settings can be adjusted depending on the instance type and workload requirements.
 #
 # 6. **Automation**:

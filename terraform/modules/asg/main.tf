@@ -144,6 +144,7 @@ data "aws_instances" "asg_instances" {
 #    - **Target Tracking Scaling Policy** is controlled separately via the `enable_target_tracking` variable.
 #      - `target_tracking_scaling_policy`: Automatically adjusts ASG capacity to maintain the target average CPU utilization (default: 50%).
 #      - AWS manages the necessary CloudWatch Alarms internally for this policy (no external alarms required).
+#      - When CloudWatch Logs are enabled, each instance also publishes custom logs (user data, nginx, etc.) to pre-created log groups.
 #
 # 5. **Data Source**:
 #    - The optional `aws_instances` data source dynamically retrieves instance IDs from the ASG for monitoring or external integrations.

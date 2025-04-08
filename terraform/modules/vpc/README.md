@@ -500,7 +500,7 @@ aws logs tail /aws/vpc/flow-logs/<env> --follow
 
 ---
 
-### 8. AWS CLI Commands for VPC Module Debugging and Verification
+### 8. AWS CLI Reference
 These CLI commands are helpful for verifying and debugging VPC resources.
 
 ```bash

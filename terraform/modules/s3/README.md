@@ -587,7 +587,7 @@ This S3 module integrates with the following modules and AWS services:
 - Provide `s3_scripts` with the files to upload.
 - Ensure `scripts` bucket is enabled in `default_region_buckets`.
 
-### 9. AWS CLI Commands for S3 Module Debugging and Verification
+### 9. AWS CLI Reference
 
 Below are useful AWS CLI commands to help verify, debug, and inspect resources created by this module.
 

@@ -92,7 +92,7 @@ output "ec2_security_group_id" {
 
 output "rendered_user_data" {
   value       = module.asg.rendered_user_data
-  description = "Rendered user_data script passed to EC2 instances."
+  description = "Rendered EC2 user_data (base64 template) for bootstrap configuration; sensitive to avoid logging."
   sensitive   = true
 }
 
@@ -196,6 +196,11 @@ output "wordpress_secrets_arn" {
 output "cloudtrail_arn" {
   description = "ARN of the CloudTrail"
   value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail[0].arn : null
+}
+
+output "cloudtrail_id" {
+  description = "ID of the CloudTrail"
+  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_cloudtrail.cloudtrail[0].id : null
 }
 
 # --- CloudWatch Log Groups Outputs --- #

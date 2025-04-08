@@ -1,10 +1,13 @@
 # --- IAM Configuration for ASG Instances --- #
-# This file defines the IAM role and policies for ASG instances, including:
-# - Conditional S3 access (WordPress media and deployment scripts)
-# - CloudWatch logging
-# - Systems Manager (SSM) for management without SSH
-# - KMS decryption for S3 and EBS encryption
-# - Temporary credentials are managed automatically via AWS and accessed through IMDSv2
+# This file defines the IAM role, instance profile, and associated policies for EC2 instances
+# managed by the Auto Scaling Group (ASG). These policies enable:
+# - Access to S3 buckets (WordPress media and deployment scripts)
+# - CloudWatch Agent and custom log publishing
+# - Systems Manager (SSM) for secure remote management
+# - KMS access for decrypting EBS and S3 objects
+# - Secrets Manager access for WordPress and Redis credentials
+# Temporary credentials are delivered via IMDSv2 (Instance Metadata Service v2),
+# eliminating the need to hardcode or rotate keys manually.
 
 # --- IAM Role --- #
 # Allows ASG instances to assume specific permissions for accessing AWS services.
@@ -32,6 +35,11 @@ resource "aws_iam_role" "asg_role" {
 }
 
 # --- S3 Access Policy --- #
+# Grants conditional access to:
+# - WordPress media bucket: read/write (if enabled)
+# - Scripts bucket: read-only (if enabled)
+# - KMS permissions for encrypting/decrypting these buckets, if encrypted with SSE-KMS
+# Policy is created only when at least one of the required buckets is enabled.
 resource "aws_iam_policy" "s3_access_policy" {
   count = (
     var.default_region_buckets["wordpress_media"].enabled ||
@@ -95,10 +103,10 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
 }
 
 # --- CloudWatch Logs Custom Policy --- #
-# This policy allows EC2 instances to publish application-specific logs
-# (e.g., WordPress logs, Nginx logs, PHP-FPM logs) to CloudWatch Logs.
-# Required when using custom configuration with the CloudWatch Agent.
-
+# Enables the CloudWatch Agent (installed manually on EC2) to:
+# - Create and manage custom log groups and streams
+# - Publish WordPress-related logs (e.g., Nginx, PHP-FPM, wp-debug)
+# This policy is required only when using a custom CloudWatch Agent config (as in this project).
 resource "aws_iam_policy" "cloudwatch_logs_policy" {
   name        = "${var.name_prefix}-cloudwatch-logs-policy"
   description = "Allows CloudWatch Agent to publish logs and access log configuration"
@@ -285,9 +293,10 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 #    - Validity of 1 hour, rotated automatically by AWS.
 #
 # 2. S3 access:
-#    - S3 access policy is created only if there are valid S3 resources defined.
-#    - WordPress media bucket access is conditional, based on `buckets` variable.
-#    - Scripts bucket access depends on scripts_bucket_arn being provided.
+#    - S3 access policy is created only if at least one required bucket is enabled.
+#    - WordPress media bucket access is conditional, based on `default_region_buckets["wordpress_media"].enabled`.
+#    - Scripts bucket access is conditional, based on `default_region_buckets["scripts"].enabled`.
+#    - KMS permissions are included only when buckets are encrypted with SSE-KMS.
 #
 # 3. SSM policy:
 #    - Provides secure management of ASG instances without requiring SSH access.
@@ -310,6 +319,7 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 #    - Use conditional policy creation to avoid empty resource lists.
 #    - Ensure fine-grained access to avoid privilege escalation.
 #    - Enable CloudTrail logging for IAM actions to track access.
+#
 # 9. Secrets Manager integration:
 #    - A dedicated IAM policy grants ASG instances read-only access (Get/Describe) to the 
 #      specified secret in AWS Secrets Manager.

@@ -23,6 +23,8 @@ resource "aws_s3_bucket_policy" "cloudtrail_bucket_policy" {
         Resource  = module.s3.cloudtrail_bucket_arn
       },
       # Allow CloudTrail to write logs to the S3 bucket
+      # Note: CloudTrail requires the ACL "bucket-owner-full-control" on PutObject requests.
+      # This is a known AWS requirement for successful log delivery.
       {
         Sid       = "AWSCloudTrailWrite"
         Effect    = "Allow"
@@ -117,6 +119,7 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
   name              = "/aws/cloudtrail/${var.name_prefix}"
   retention_in_days = var.cloudtrail_logs_retention_in_days
   kms_key_id        = module.kms.kms_key_arn
+  skip_destroy      = false # Allows this log group to be destroyed by Terraform
 
   # Resource tags
   tags = {

@@ -98,3 +98,29 @@ echo "✅ No resources in Lambda Functions."
 echo "✅ No resources in Lambda Event Source Mappings."
 echo "✅ No resources in AWS Secrets Manager Secrets."
 echo "=== AWS resource check completed for project: $PROJECT_NAME ==="
+
+# --- Notes --- #
+# This script is an optional utility designed for cleanup verification in AWS.
+# It checks for any remaining AWS resources that may not have been deleted after 'terraform destroy'.
+#
+# ✅ Primary use cases:
+# - Post-destroy validation: Ensures all project-related resources were successfully removed.
+# - Cleanup aid: Helps detect dangling resources caused by dependency issues or manual changes.
+# - Dev/test environments: Especially useful for quick feedback when experimenting with infrastructure.
+#
+# 📌 Key features:
+# - Searches resources across EC2, VPC, ALB, RDS, ElastiCache, IAM, CloudWatch, KMS, and more.
+# - Uses consistent tag filtering (`Owner=$PROJECT_NAME`) or resource name prefix (`$PROJECT_NAME-*`).
+# - Prints remaining resources grouped by type with ✅ or 🔴 indicators.
+#
+# ⚠️ Important:
+# - This script is not required for production use or part of Terraform itself.
+# - It assumes your resources follow a consistent naming or tagging scheme based on PROJECT_NAME.
+# - It should be run with appropriate IAM credentials that allow `describe`/`list` calls across AWS services.
+#
+# 🔄 Recommended usage:
+#   export PROJECT_NAME="dev"  # Or set inline via PROJECT_NAME="dev" ./check_aws_resources.sh
+#   ./check_aws_resources.sh
+#
+# 📝 If integrated into CI/CD:
+# - Use exit codes and string parsing for alerts or Slack integrations.

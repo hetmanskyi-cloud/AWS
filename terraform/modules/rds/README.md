@@ -456,7 +456,7 @@ This RDS module integrates with the following modules and AWS services:
 
 ---
 
-### 11. AWS CLI Commands for RDS Module Debugging and Verification
+### 11. AWS CLI Reference
 
 Below are useful AWS CLI commands to help verify, debug, and inspect RDS resources created by this module.
 

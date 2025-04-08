@@ -365,7 +365,7 @@ This implementation is production-ready and covers all critical best practices.
 
 ---
 
-#### 6. AWS CLI Commands for Debugging
+#### 6. AWS CLI Reference
 
 ```bash
 # Check ElastiCache replication group details:

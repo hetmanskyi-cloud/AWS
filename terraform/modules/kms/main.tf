@@ -169,7 +169,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
   # Notes:
   # 1. Root access to the KMS key is controlled by the 'kms_root_access' variable.
   #    Set to `true` during initial setup to allow full administrative access via the root account.
-  #    Before setting it to `false`, make sure to set `enable_kms_role = true` to provision an IAM role for secure key management.
+  #    Before setting it to `false`, make sure to set `enable_admin_kms_role = true` to provision an IAM role for secure key management.
   #    This ensures that administrative access remains available after root permissions are removed.
   #
   # 2. If EC2 instances are later moved to private subnets without internet access,
@@ -209,7 +209,7 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #        → Root permissions are removed to enforce least privilege.
 #    - Recommended flow:
 #        a. Set kms_root_access = true and apply to create the key.
-#        b. Set enable_kms_role = true and apply to create the IAM role.
+#        b. Set enable_admin_kms_role = true and apply to create the IAM role.
 #        c. Set kms_root_access = false and re-apply to remove root access.
 #
 # 3. Key Rotation:

@@ -48,3 +48,8 @@ provider "random" {
 
   # No configuration required as this provider generates random values
 }
+
+# --- Notes --- #
+# 1. The default AWS provider uses `var.aws_region`; replication uses `var.replication_region`.
+# 2. For CI/CD, avoid using `profile = "default"` — use environment variables or assume-role workflows.
+# 3. Default tags help with resource tracking and billing in AWS Console.

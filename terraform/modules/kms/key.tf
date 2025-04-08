@@ -4,10 +4,10 @@
 # Use this role only for secure manual key administration,
 # not for automated or operational workflows —
 # services should use dedicated IAM policies or KMS grants defined in their own modules.
-resource "aws_iam_role" "kms_role" {
-  for_each = var.enable_kms_role ? { "kms_role" : "kms_role" } : {} # Enable via 'enable_kms_role' variable.
+resource "aws_iam_role" "kms_admin_role" {
+  for_each = var.enable_kms_admin_role ? { "kms_admin_role" : "kms_admin_role" } : {} # Enable via 'enable_kms_admin_role' variable.
 
-  name                 = "${var.name_prefix}-kms-role-${var.environment}"
+  name                 = "${var.name_prefix}-kms-admin-role-${var.environment}"
   max_session_duration = 3600 # Default limit session duration to 1 hour for better security.
 
   # Trust policy: Allows only the root account to assume this administrative role.
@@ -26,7 +26,7 @@ resource "aws_iam_role" "kms_role" {
 
   # Tags for resource identification
   tags = {
-    Name        = "${var.name_prefix}-kms-role"
+    Name        = "${var.name_prefix}-kms-admin-role"
     Environment = var.environment
   }
 }
@@ -35,7 +35,7 @@ resource "aws_iam_role" "kms_role" {
 # This policy provides minimum necessary permissions to manage the KMS key
 # (such as rotation, description updates, and basic inspection).
 resource "aws_iam_policy" "kms_management_policy" {
-  for_each = var.enable_kms_role ? { "kms_policy" : "kms_policy" } : {} # Enable via 'enable_kms_role' variable.
+  for_each = var.enable_kms_admin_role ? { "kms_policy" : "kms_policy" } : {} # Enable via 'enable_kms_admin_role' variable.
 
   name        = "${var.name_prefix}-kms-management-policy-${var.environment}"
   description = "IAM policy for managing the KMS key"
@@ -61,8 +61,8 @@ resource "aws_iam_policy" "kms_management_policy" {
 # --- Attach Policy to IAM Role --- #
 # Attaches the KMS management policy to the administrative IAM role.
 resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
-  for_each   = var.enable_kms_role ? { "kms_attachment" : "kms_attachment" } : {} # Enable via 'enable_kms_role' variable.
-  role       = aws_iam_role.kms_role["kms_role"].name
+  for_each   = var.enable_kms_admin_role ? { "kms_attachment" : "kms_attachment" } : {} # Enable via 'enable_kms_admin_role' variable.
+  role       = aws_iam_role.kms_admin_role["kms_admin_role"].name
   policy_arn = aws_iam_policy.kms_management_policy["kms_policy"].arn
 }
 
@@ -71,7 +71,7 @@ resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
 #    replacing the use of root account permissions for ongoing maintenance.
 #
 # 2. **Enabling the Role**:
-#    - Set `enable_kms_role = true` in terraform.tfvars to create this role and policy.
+#    - Set `enable_kms_admin_role = true` in terraform.tfvars to create this role and policy.
 #    - Recommended after initial setup.
 #
 # 3. **Root Access Management**:

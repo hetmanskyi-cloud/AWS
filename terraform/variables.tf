@@ -34,7 +34,6 @@ variable "name_prefix" {
 
 # --- VPC Module Configuration --- #
 
-# CIDR blocks for VPC and subnets
 variable "vpc_cidr_block" {
   description = "Primary CIDR block for the VPC"
   type        = string
@@ -70,8 +69,6 @@ variable "private_subnet_cidr_block_3" {
   type        = string
 }
 
-# --- Availability Zones --- #
-
 variable "availability_zone_public_1" {
   description = "Availability zone for the first public subnet"
   type        = string
@@ -102,8 +99,7 @@ variable "availability_zone_private_3" {
   type        = string
 }
 
-# --- CloudWatch Flow Log Retention --- #
-
+# CloudWatch Flow Log Retention
 variable "flow_logs_retention_in_days" {
   description = "Retention period in days for CloudWatch logs"
   type        = number
@@ -137,7 +133,7 @@ variable "kms_root_access" {
 
 # Enable or disable the creation of the IAM role for managing the KMS key
 # Set to true to create the IAM role and its associated policy for managing the KMS key.
-variable "enable_kms_role" {
+variable "enable_kms_admin_role" {
   description = "Flag to enable or disable the creation of the IAM role for managing the KMS key"
   type        = bool
   default     = false
@@ -286,7 +282,7 @@ variable "enable_high_network_out_alarm" {
   default     = false
 }
 
-# --- EBS Volume Configuration --- #
+# EBS Volume Configuration
 variable "volume_size" {
   description = "Size of the EBS volume for the root device in GiB"
   type        = number
@@ -303,7 +299,7 @@ variable "enable_ebs_encryption" {
   default     = false
 }
 
-# --- WordPress Configuration --- #
+# WordPress Configuration
 
 variable "wp_title" {
   description = "Title of the WordPress site"
@@ -333,7 +329,8 @@ variable "redis_auth_secret_name" {
   type        = string
 }
 
-# --- WordPress Database Configuration --- #
+# WordPress Database Configuration
+
 variable "db_name" {
   description = "Name of the WordPress database"
   type        = string
@@ -351,7 +348,7 @@ variable "db_password" {
   sensitive   = true
 }
 
-# --- WordPress Admin Configuration --- #
+# WordPress Admin Configuration
 variable "wp_admin_user" {
   description = "WordPress admin username"
   type        = string
@@ -535,7 +532,7 @@ variable "noncurrent_version_retention_days" {
   type        = number
 }
 
-# --- Enable DynamoDB for State Locking --- #
+# Enable DynamoDB for State Locking
 # Controls the creation of the DynamoDB table for state locking.
 variable "enable_dynamodb" {
   description = "Enable DynamoDB table for state locking."
@@ -549,7 +546,7 @@ variable "enable_dynamodb" {
   }
 }
 
-# --- SNS Variables --- #
+# --- SNS Topic Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
 variable "sns_subscriptions" {
@@ -715,7 +712,7 @@ variable "enable_5xx_alarm" {
   default     = false
 }
 
-# --- Enable Target Response Time Alarm --- #
+# Enable Target Response Time Alarm
 # Controls the creation of a CloudWatch Alarm for Target Response Time.
 # true: The metric is created. false: The metric is not created.
 variable "enable_target_response_time_alarm" {
@@ -750,6 +747,7 @@ variable "enable_firehose" {
 }
 
 # --- CloudTrail Variables --- #
+
 variable "cloudtrail_logs_retention_in_days" {
   description = "Retention period (in days) for CloudTrail logs in CloudWatch"
   type        = number
@@ -777,3 +775,8 @@ variable "cw_logs_retention_in_days" {
   description = "Number of days to retain CloudWatch log data for all EC2-related logs (user-data, system, Nginx, PHP-FPM)"
   default     = 7
 }
+
+# --- Notes --- #
+# 1. This file contains global variables shared across all modules.
+# 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.
+# 3. Validation blocks help prevent invalid configurations at runtime.

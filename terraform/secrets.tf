@@ -99,7 +99,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
     Environment = var.environment
   }
 
-  # Optional: prevent accidental deletion
+  # Lifecycle control: allow destroy in non-production. Set to true in prod for safety.
   lifecycle {
     prevent_destroy = false # Set to true in production to prevent accidental deletion
   }
@@ -109,7 +109,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
 resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
   secret_id = aws_secretsmanager_secret.wp_secrets.id
 
-  # Use the write-only attribute so the secret is not stored in Terraform state
+  # Note: The secret_string is stored in Terraform state. Avoid exposing this state publicly.
   secret_string = jsonencode(
     merge(
       local.secret_values.database,
@@ -123,8 +123,11 @@ resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
 
 # Randomly generated AUTH token (at least 16 characters recommended by AWS)
 resource "random_password" "redis_auth_token" {
-  length  = 32
-  special = false
+  length      = 32
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+  special     = false
 }
 
 # Store Redis AUTH token in Secrets Manager for ElastiCache

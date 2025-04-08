@@ -319,11 +319,11 @@ Integrates with:
 - **Cause:** Only rate limiting is configured by default.
 - **Solution:** Extend the WAF configuration by adding AWS Managed Rule Groups for production.
 
-## Useful AWS CLI Commands for Troubleshooting
+### 6. AWS CLI Reference
 
 This section provides common AWS CLI commands that help verify and debug the ALB module configuration and runtime behavior.
 
-### ALB Diagnostics
+#### ALB Diagnostics
 
 ```bash
 # List all Application Load Balancers
@@ -342,14 +342,14 @@ aws elbv2 describe-rules --listener-arn <listener-arn> --region <region>
 aws elbv2 describe-target-health --target-group-arn <tg-arn> --region <region>
 ```
 
-### Security Group
+#### Security Group
 
 ```bash
 # Describe rules for a security group
 aws ec2 describe-security-groups --group-ids <sg-id> --region <region>
 ```
 
-### WAF (Web ACL)
+#### WAF (Web ACL)
 
 ```bash
 # List all Web ACLs in REGIONAL scope
@@ -359,7 +359,7 @@ aws wafv2 list-web-acls --scope REGIONAL --region <region>
 aws wafv2 get-web-acl --scope REGIONAL --id <web-acl-id> --name <waf-name> --region <region>
 ```
 
-### Logging & Firehose
+#### Logging & Firehose
 
 ```bash
 # List ALB access logs in S3
@@ -369,7 +369,7 @@ aws s3 ls s3://<alb-logs-bucket>/ --recursive
 aws s3 ls s3://<waf-logs-bucket>/<prefix>/ --recursive
 ```
 
-### CloudWatch Alarms
+#### CloudWatch Alarms
 
 ```bash
 # List alarms related to ALB
@@ -379,7 +379,7 @@ aws cloudwatch describe-alarms --alarm-name-prefix <alb-name> --region <region>
 aws cloudwatch describe-alarm-history --alarm-name <alarm-name> --region <region>
 ```
 
-### CloudWatch Metrics
+#### CloudWatch Metrics
 
 ```bash
 # Get RequestCount metric for ALB over the last hour
@@ -405,7 +405,7 @@ aws cloudwatch get-metric-statistics \
   --region <region>
 ```
 
-### SSL Certificate (for HTTPS Listener)
+#### SSL Certificate (for HTTPS Listener)
 
 ```bash
 # Verify SSL certificate details in ACM
@@ -415,7 +415,7 @@ aws acm describe-certificate --certificate-arn <certificate-arn> --region <regio
 aws acm list-certificates --region <region>
 ```
 
-### WAF Monitoring
+#### WAF Monitoring
 
 ```bash
 # Get sampled requests that triggered WAF rules
@@ -430,7 +430,7 @@ aws wafv2 get-sampled-requests \
 aws wafv2 list-logging-configurations --scope REGIONAL --region <region>
 ```
 
-### CLI Notes
+#### CLI Notes
 - Replace `<region>`, `<alb-name>`, `<alb-arn>`, `<tg-arn>`, `<listener-arn>`, `<sg-id>`, `<web-acl-id>`, `<waf-name>`, `<alb-logs-bucket>`, `<waf-logs-bucket>`, `<alb-arn-suffix>`, `<certificate-arn>`, `<web-acl-arn>`, and `<rule-name>` with the appropriate values from your environment.
 - These commands are intended for diagnostic purposes and complement the Terraform outputs.
 - Use them for validation, debugging, or quick insights during testing and production monitoring.

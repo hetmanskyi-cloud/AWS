@@ -86,7 +86,7 @@ module "kms" {
   # Key rotation and monitoring
   enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
   kms_root_access       = var.kms_root_access       # Enable or disable root access in key policy
-  enable_kms_role       = var.enable_kms_role       # Create IAM role for managing the KMS key
+  enable_kms_admin_role = var.enable_kms_admin_role # Create IAM role for managing the KMS key
   enable_key_monitoring = var.enable_key_monitoring # Enable CloudWatch Alarms for KMS key usage
   key_decrypt_threshold = var.key_decrypt_threshold # Custom threshold for Decrypt operations
 
@@ -146,12 +146,18 @@ module "asg" {
 
   # CloudWatch Log Groups  
   enable_cloudwatch_logs = var.enable_cloudwatch_logs
-  cloudwatch_log_groups = {
+  cloudwatch_log_groups = var.enable_cloudwatch_logs ? {
     user_data = aws_cloudwatch_log_group.user_data_logs[0].name
     system    = aws_cloudwatch_log_group.system_logs[0].name
     nginx     = aws_cloudwatch_log_group.nginx_logs[0].name
     php_fpm   = aws_cloudwatch_log_group.php_fpm_logs[0].name
     wordpress = aws_cloudwatch_log_group.wordpress_logs[0].name
+    } : {
+    user_data = ""
+    system    = ""
+    nginx     = ""
+    php_fpm   = ""
+    wordpress = ""
   }
 
   # SNS Topic for CloudWatch Alarms

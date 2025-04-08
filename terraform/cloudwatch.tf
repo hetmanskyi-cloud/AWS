@@ -1,16 +1,16 @@
-# --- CloudWatch Logs Configuration --- #
-# This file defines centralized logging for the WordPress infrastructure
+# --- CloudWatch Logs Configuration for WordPress infrastructure --- #
+# Enables centralized log management and metric-based alerting.
+# Log groups are encrypted using KMS CMK and auto-cleaned up in non-prod.
 
 # --- Log Group: EC2 user-data script --- #
-# Captures provisioning logs from EC2 user_data.
-# Used for debugging install errors (AWS CLI, Nginx, PHP, WordPress).
-# Log stream pattern: {instance_id}
+# Captures logs from EC2 user_data provisioning script.
+# Used for debugging setup issues (e.g., AWS CLI, Nginx, PHP, WordPress).
 resource "aws_cloudwatch_log_group" "user_data_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
-  name              = "/aws/ec2/user-data"   # Log group name used in cloudwatch agent config
-  retention_in_days = 7                      # Retain logs for 7 days to reduce cost for dev/stage  
-  kms_key_id        = module.kms.kms_key_arn # Enables CMK-based encryption
-  skip_destroy      = false                  # Log group will be destroyed with terraform destroy
+  name              = "/aws/ec2/user-data"
+  retention_in_days = var.cw_logs_retention_in_days # Short retention for dev/stage environments
+  kms_key_id        = module.kms.kms_key_arn        # Encrypt logs using CMK
+  skip_destroy      = false                         # Destroy with terraform destroy
 
   tags = {
     Name        = "${var.name_prefix}-user-data-logs"
@@ -19,8 +19,8 @@ resource "aws_cloudwatch_log_group" "user_data_logs" {
 }
 
 # --- Log Group: EC2 system logs --- #
-# Captures OS-level logs (/var/log/syslog or /var/log/messages).
-# Useful for SSH activity, kernel issues, or cron jobs
+# Captures OS-level logs such as /var/log/syslog or /var/log/messages.
+# Useful for monitoring SSH activity, cron jobs, kernel issues, etc.
 resource "aws_cloudwatch_log_group" "system_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/aws/ec2/system"
@@ -34,9 +34,9 @@ resource "aws_cloudwatch_log_group" "system_logs" {
   }
 }
 
-# --- Log Group: Nginx logs --- #
-# Captures access and error logs from Nginx.
-# Useful for monitoring HTTP traffic and 5xx/4xx errors.
+# --- Log Group: Nginx access and error logs --- #
+# Collects access and error logs from the Nginx web server.
+# Helps monitor HTTP traffic, 5xx/4xx response codes, and routing issues.
 resource "aws_cloudwatch_log_group" "nginx_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/aws/ec2/nginx"
@@ -51,8 +51,8 @@ resource "aws_cloudwatch_log_group" "nginx_logs" {
 }
 
 # --- Log Group: PHP-FPM logs --- #
-# Captures logs from PHP FastCGI Process Manager.
-# Used to detect PHP worker crashes or syntax errors.
+# Collects PHP FastCGI Process Manager logs.
+# Useful for identifying PHP syntax errors, worker crashes, etc.
 resource "aws_cloudwatch_log_group" "php_fpm_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/aws/ec2/php-fpm"
@@ -67,8 +67,8 @@ resource "aws_cloudwatch_log_group" "php_fpm_logs" {
 }
 
 # --- Log Group: WordPress logs --- #
-# Captures WP_DEBUG or plugin logs written to /var/log/wordpress.log.
-# Must be enabled manually in wp-config.php.
+# Captures logs written to /var/log/wordpress.log (custom WP_DEBUG).
+# Requires manual setup in wp-config.php to enable logging.
 resource "aws_cloudwatch_log_group" "wordpress_logs" {
   count             = var.enable_cloudwatch_logs ? 1 : 0
   name              = "/aws/ec2/wordpress"
@@ -82,9 +82,9 @@ resource "aws_cloudwatch_log_group" "wordpress_logs" {
   }
 }
 
-# --- Metric Filter: Nginx 5xx errors --- #
-# Triggers metric when log contains HTTP 5xx codes (500–599).
-# - Useful for identifying backend application failures or Nginx misconfigurations.
+# --- Metric Filter: Nginx 5xx Errors --- #
+# Filters for HTTP 5xx response codes in Nginx logs.
+# Helps detect backend application or Nginx configuration issues.
 resource "aws_cloudwatch_log_metric_filter" "nginx_5xx_errors" {
   count          = var.enable_cloudwatch_logs ? 1 : 0
   name           = "${var.name_prefix}-nginx-5xx-errors"
@@ -98,8 +98,8 @@ resource "aws_cloudwatch_log_metric_filter" "nginx_5xx_errors" {
   }
 }
 
-# --- Alarm: Nginx 5xx threshold --- #
-# Triggers when 5+ errors occur within 5 minutes.
+# --- CloudWatch Alarm: Nginx 5xx Errors --- #
+# Triggers alarm if more than 5 errors occur within 5 minutes.
 resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
   count               = var.enable_cloudwatch_logs ? 1 : 0
   alarm_name          = "${var.name_prefix}-nginx-5xx-error-alarm"
@@ -117,9 +117,9 @@ resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
   depends_on = [aws_sns_topic.cloudwatch_alarms]
 }
 
-# --- Metric Filter: PHP fatal errors --- #
+# --- Metric Filter: PHP Fatal Errors --- #
 # Detects "PHP Fatal error" entries in WordPress logs.
-# - Helps detect issues like missing dependencies, broken code, or plugin conflicts.
+# Used to catch plugin failures, syntax issues, and runtime crashes.
 resource "aws_cloudwatch_log_metric_filter" "php_fatal_errors" {
   count          = var.enable_cloudwatch_logs ? 1 : 0
   name           = "${var.name_prefix}-php-fatal-errors"
@@ -133,8 +133,8 @@ resource "aws_cloudwatch_log_metric_filter" "php_fatal_errors" {
   }
 }
 
-# --- Alarm: PHP fatal error threshold --- #
-# Triggers if more than 2 fatal errors occur in 5 minutes.
+# --- CloudWatch Alarm: PHP Fatal Errors --- #
+# Triggers alarm if more than 2 fatal errors occur within 5 minutes.
 resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
   count               = var.enable_cloudwatch_logs ? 1 : 0
   alarm_name          = "${var.name_prefix}-php-fatal-error-alarm"
@@ -153,10 +153,63 @@ resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
 }
 
 # --- Notes --- #
-# - This module enables centralized logging for EC2 instances running WordPress.
-# - Each log group is encrypted using a KMS CMK (Customer Managed Key) from the KMS module.
-# - Logging can be toggled using `enable_cloudwatch_logs = true` in terraform.tfvars.
-# - All log groups are configured with retention to reduce cost in non-prod environments.
-# - Alarms send notifications to an SNS topic (cloudwatch_alarms) configured elsewhere.
-# - WordPress logs require WP_DEBUG and custom log redirection to /var/log/wordpress.log.
-# - For production, adjust `retention_in_days` as needed and fine-tune alarm thresholds.
+# 1. Log Groups:
+#    - Logs are collected from EC2, Nginx, PHP-FPM, and WordPress runtime
+#    - Each group uses CMK encryption (via KMS module)
+#    - Retention can be adjusted per environment via terraform.tfvars
+#
+# 2. Metric Filters:
+#    - Custom patterns detect Nginx 5xx and PHP fatal errors
+#    - Metrics are created per pattern and published to custom namespaces
+#
+# 3. Alarms:
+#    - Alarms send notifications via SNS (configured separately)
+#    - Thresholds can be fine-tuned per environment or workload
+#
+# 4. Control Flags:
+#    - Use `enable_cloudwatch_logs = true` in terraform.tfvars to enable
+#    - Set `cw_logs_retention_in_days` to control log lifecycle
+#
+# 5. Best Practices:
+#    - All logs are centralized for easier monitoring and debugging
+#    - Use alarms in combination with Auto Scaling health checks
+#
+# 6. Encryption and Cleanup:
+#    - All log groups are encrypted using Customer Managed KMS Key (CMK)
+#    - `skip_destroy = false` allows safe cleanup during `terraform destroy` in non-prod
+#
+# 7. Integration with Other Modules:
+#    - Alarms and logs work in tandem with ASG, ALB, and RDS monitoring configurations
+#    - ALB logs are captured via access logs to S3 (enabled in the ALB module)
+#    - RDS exports `error` and `slowquery` logs to CloudWatch
+#    - VPC Flow Logs are configured in the VPC module and monitored for delivery issues
+#
+# 8. Design Justification:
+#    - This CloudWatch configuration includes the **minimum required log groups and alarms** for WordPress on EC2 to ensure visibility, debuggability, and security.
+#    - We intentionally excluded overly verbose log groups (e.g., all `/var/log/*`) to reduce cost and noise.
+#
+#    - Log groups:
+#      - `/aws/ec2/user-data`: Captures provisioning logs (critical during initial setup)
+#      - `/aws/ec2/system`: Captures OS-level logs for debugging and SSH access issues
+#      - `/aws/ec2/nginx`: Monitors web server access and error logs
+#      - `/aws/ec2/php-fpm`: Helps detect PHP-level issues
+#      - `/aws/ec2/wordpress`: Application-specific logs (must be enabled via `wp-config.php`)
+#
+#    - Metric filters and alarms:
+#      - Focused only on 5xx errors (from Nginx) and PHP Fatal Errors — two key signals of application failure.
+#      - These are directly actionable and correlated with actual user-facing errors.
+#      - Other types of application metrics (e.g., high traffic, slow responses) are already handled in the **ALB module** via access logs and CloudWatch metrics.
+#    - Although we already have an ALB 5xx alarm (`HTTPCode_Target_5XX_Count` in the ALB module),
+#      we also monitor 5xx responses directly from Nginx logs via metric filter:
+#        - **ALB 5xx** provides high-level infrastructure monitoring for ASG targets.
+#        - **Nginx 5xx** provides application-layer details (URL, IP, exact code) directly from access logs.
+#        - Together, they create a **multi-layered alerting system** for faster diagnosis and deeper visibility.
+#
+#    - ALB access logs are already enabled in the ALB module and exported to S3 for further analysis.
+#    - Additional metrics for infrastructure and backend (e.g., RDS, Redis, ASG, VPC Flow Logs) are covered in their respective modules to avoid duplication and maintain modularity.
+#
+#    - This configuration provides:
+#      - **Sufficient visibility** to troubleshoot most WordPress issues.
+#      - **Low operational cost** for development and staging environments.
+#      - **Scalable structure**, where deeper monitoring can be added per module if needed.
+#      - **Modularity**, ensuring each module owns its own metrics and alarms cleanly.

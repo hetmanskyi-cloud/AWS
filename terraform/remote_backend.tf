@@ -20,3 +20,5 @@
 # 3. Run `terraform apply` for the S3 module to create the required resources.
 # 4. After uncommenting, initialize the backend with `terraform init -reconfigure`.
 # 5. This configuration ensures centralized state management with state locking for improved collaboration.
+# 6. The backend block must be uncommented **before** running Terraform commands in a clean environment.
+#    Terraform cannot migrate state automatically without an initialized backend.

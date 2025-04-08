@@ -565,3 +565,31 @@ log "Temporary workspace deleted."
 
 # Done
 log "WordPress deployment completed successfully. Exiting..."
+
+# --- Notes --- #
+# Description:
+#   This is the main WordPress deployment script executed via EC2 user-data on boot.
+#   It installs and configures WordPress, Nginx, PHP-FPM, MySQL, Redis, WP-CLI, and plugins.
+#   It also fetches secrets from AWS Secrets Manager and sets up a health check endpoint.
+#
+# Execution Context:
+#   - Executed inside the EC2 instance (Ubuntu) launched via Auto Scaling Group.
+#   - Triggered via user-data script passed from Terraform.
+#
+# Prerequisites:
+#   - Environment variables (DB_HOST, DB_PORT, WP_PATH, etc.) must be set in /etc/environment before execution.
+#   - AWS CLI and session manager plugins must be available.
+#   - Scripts like healthcheck.php must exist in S3 and be accessible.
+#
+# Behavior:
+#   - Idempotent: if rerun on the same instance, it safely detects existing WordPress installation.
+#   - Logs full output to /var/log/wordpress_install.log
+#   - Includes health checks for RDS and Redis connectivity, and verifies WordPress REST API.
+#
+# Security:
+#   - Secrets are retrieved from Secrets Manager and temporarily exported.
+#   - Sensitive credentials (like DB_PASSWORD, Redis token) are removed from /etc/environment after setup.
+#
+# Debugging:
+#   - Tail logs: `tail -f /var/log/user-data.log /var/log/wordpress_install.log`
+#   - Use `debug_monitor.sh` for automated instance monitoring via SSM.

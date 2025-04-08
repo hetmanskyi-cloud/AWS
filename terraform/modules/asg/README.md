@@ -86,6 +86,9 @@ graph TB
     IAM -->|"Grants permissions to"| EC2
     KMS -->|"Encrypts data for"| EC2
     
+    %% Redis AUTH Integration
+    SecretsManager -->|"Provides Redis AUTH token"| Redis
+    
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef security fill:#DD3522,stroke:#232F3E,color:white;
@@ -123,6 +126,7 @@ This module provisions the following AWS resources:
 - **IMDSv2 Enforcement:** Ensures enhanced instance metadata security.
 - **Conditional Alarms:** CPU, status checks, and network alarms are optional and toggleable.
 - **Target Tracking Policy:** Automatically adjusts capacity based on CPU average.
+- **CloudWatch Logs Integration:** Passes pre-defined log group names for user data, system logs, and application logs (e.g., nginx, php-fpm, WordPress).
 
 ---
 
@@ -168,16 +172,17 @@ This module provisions the following AWS resources:
 | redis_security_group_id      | string       | Security Group ID for ElastiCache                       | Required           |
 | wordpress_media_bucket_name  | string       | S3 bucket for WordPress media                           | ""                 |
 | scripts_bucket_name          | string       | S3 bucket for deployment scripts                        | ""                 |
-| healthcheck_version          | string       | Version of healthcheck (1.0 / 2.0)                      | "1.0"              |
 | enable_interface_endpoints   | bool         | Use VPC Interface Endpoints                             | false              |
 | enable_data_source           | bool         | Enable fetching ASG instance data                       | false              |
 | enable_asg_ssh_access        | bool         | Allow SSH for ASG instances	                            | false              |
 | ssh_allowed_cidr	           | list(string) |	CIDR blocks allowed for SSH	                            | ["0.0.0.0/0"]      |
-| enable_ebs_encryption	       | bool         |	Enable EBS encryption via KMS	                        | false              |
-| wordpress_secrets_name	   | string	      | Name of WordPress secret in Secrets Manager	            | Required           |
+| enable_ebs_encryption	       | bool         |	Enable EBS encryption via KMS	                          | false              |
+| wordpress_secrets_name	     | string	      | Name of WordPress secret in Secrets Manager	            | Required           |
 | wordpress_secrets_arn	       | string	      | ARN of WordPress secret in Secrets Manager	            | Required           |
-| redis_auth_secret_name	   | string	      | Name of Redis AUTH secret in Secrets Manager	        | ""                 |
+| redis_auth_secret_name	     | string	      | Name of Redis AUTH secret in Secrets Manager	          | ""                 |
 | redis_auth_secret_arn	       | string	      | ARN of Redis AUTH secret in Secrets Manager	            | ""                 |
+| enable_cloudwatch_logs	     | bool	        | Enable or disable CloudWatch Logs integration	          | true               |
+| cloudwatch_log_groups	       | map(string)	| Map of log group names for EC2 logs	                    | Required
 
 _(Full list of variables available in the `variables.tf` file)_
 
@@ -230,7 +235,6 @@ module "asg" {
   # Optional
   kms_key_arn       = module.kms.kms_key_arn
   enable_s3_script  = true
-  healthcheck_version = "2.0"
 
   # Optionally pass the ARN and NAME of your secrets in AWS Secrets Manager
   # If you are storing WordPress and DB credentials there:
@@ -296,6 +300,8 @@ This module is designed to integrate seamlessly with the following components:
 - **ALB Module:** Receives incoming HTTP/HTTPS traffic and forwards it to the ASG.
 - **RDS Module:** Provides the MySQL database for WordPress.
 - **ElastiCache Module:** Supplies Redis for caching and session storage.
+  - Supports Redis AUTH for secure authentication
+  - Retrieves Redis AUTH token from Secrets Manager when enabled
 - **S3 Module:** Stores WordPress media and deployment scripts.
 - **KMS Module:** Enables encryption of sensitive data and logs.
 - **Monitoring Module:** Manages SNS topics and CloudWatch Alarms.
@@ -393,7 +399,7 @@ If using S3, validate bucket permissions and that `enable_s3_script = true` is c
 - Check `termination_policies`.  
 - Increase cooldown periods and fine-tune scaling thresholds to reduce churn.
 
-### 11. Useful AWS CLI Commands
+### 11. AWS CLI Reference
 
 Below are useful AWS CLI commands for troubleshooting and inspecting ASG-related resources:
 
