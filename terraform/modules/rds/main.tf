@@ -37,7 +37,7 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot      = true # Copy tags to DB snapshots.
 
   # Deletion & Final Snapshot Configuration
-  deletion_protection       = var.rds_deletion_protection                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
+  deletion_protection       = var.rds_deletion_protection                                                             # tfsec:ignore:builtin.aws.rds.aws0177                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
   skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on instance deletion.
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name.
   delete_automated_backups  = true                                                                                    # Delete automated backups on instance deletion.

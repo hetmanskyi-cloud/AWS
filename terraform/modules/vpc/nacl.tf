@@ -34,6 +34,7 @@ resource "aws_network_acl_rule" "public_inbound_http" {
 }
 
 # Rule for inbound HTTPS traffic on port 443 for ALB
+# tfsec:ignore:aws-ec2-no-public-ingress-acl This is required for the ALB to receive HTTPS traffic from the internet, which is necessary for our web application
 resource "aws_network_acl_rule" "public_inbound_https" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 110

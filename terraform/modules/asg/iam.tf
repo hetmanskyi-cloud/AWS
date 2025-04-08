@@ -112,7 +112,7 @@ resource "aws_iam_policy" "cloudwatch_logs_policy" {
   description = "Allows CloudWatch Agent to publish logs and access log configuration"
 
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17", # tfsec:ignore:aws-iam-no-policy-wildcards CloudWatch logs require wildcard permissions to allow dynamic log group creation for WordPress components
     Statement = [
       {
         Effect = "Allow"
