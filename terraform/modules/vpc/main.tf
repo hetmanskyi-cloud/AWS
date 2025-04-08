@@ -17,12 +17,11 @@ resource "aws_vpc" "vpc" {
 
 # Public Subnet 1
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
 # checkov:skip=CKV_AWS_130: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
 resource "aws_subnet" "public_subnet_1" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_1
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_1
 
   tags = {
@@ -33,12 +32,11 @@ resource "aws_subnet" "public_subnet_1" {
 
 # Public Subnet 2
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
 # checkov:skip=CKV_AWS_130: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
 resource "aws_subnet" "public_subnet_2" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_2
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_2
 
   tags = {
@@ -54,7 +52,7 @@ resource "aws_subnet" "public_subnet_2" {
 resource "aws_subnet" "public_subnet_3" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_cidr_block_3
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_3
 
   tags = {

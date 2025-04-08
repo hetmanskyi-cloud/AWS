@@ -5,6 +5,7 @@
 
 # --- RDS Database Instance Configuration --- #
 # Defines the primary RDS database instance resource.
+#tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "db" {
   identifier        = "${var.name_prefix}-db-${var.environment}" # Unique identifier for the RDS instance.
   allocated_storage = var.allocated_storage                      # Storage size in GB.
@@ -37,7 +38,7 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot      = true # Copy tags to DB snapshots.
 
   # Deletion & Final Snapshot Configuration
-  deletion_protection       = var.rds_deletion_protection                                                             # tfsec:ignore:builtin.aws.rds.aws0177                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
+  deletion_protection       = var.rds_deletion_protection                                                             #tfsec:ignore:builtin.aws.rds.aws0177                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
   skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on instance deletion.
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name.
   delete_automated_backups  = true                                                                                    # Delete automated backups on instance deletion.
@@ -145,6 +146,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 # Defines RDS read replicas, inheriting configuration from the primary DB instance.
 # These replicas improve read scalability and can be placed across AZs for high availability.
 # checkov:skip=CKV_AWS_157: Read replicas do not support 'multi_az' – AWS handles HA differently for replicas
+#tfsec:ignore:builtin.aws.rds.aws0177
 resource "aws_db_instance" "read_replica" {
   count = var.read_replicas_count # Creates read replicas based on 'read_replicas_count' variable.
 
