@@ -21,7 +21,6 @@ resource "aws_security_group" "alb_sg" {
 # --- Ingress Rule for HTTP --- #
 # HTTP is enabled to allow redirecting users from HTTP to HTTPS.
 # HTTPS is conditionally enabled based on 'enable_https_listener' variable and SSL certificate configuration.
-# tfsec:ignore:aws-ec2-no-public-ingress-sgr
 # checkov:skip=CKV_AWS_260:Allowing public HTTP access intentionally for redirect to HTTPS or fallback access
 resource "aws_security_group_rule" "alb_http" {
   type              = "ingress"
@@ -29,8 +28,9 @@ resource "aws_security_group_rule" "alb_http" {
   to_port           = 80
   protocol          = "tcp"
   security_group_id = aws_security_group.alb_sg.id
-  cidr_blocks       = ["0.0.0.0/0"]
-  description       = "Allow HTTP traffic for redirecting to HTTPS or serving plain HTTP if HTTPS is disabled"
+  #tfsec:ignore:aws-vpc-no-public-ingress-sgr
+  cidr_blocks = ["0.0.0.0/0"]
+  description = "Allow HTTP traffic for redirecting to HTTPS or serving plain HTTP if HTTPS is disabled"
 }
 
 # --- Ingress Rule for HTTPS --- #
@@ -54,16 +54,16 @@ resource "aws_security_group_rule" "alb_https" {
 # --- Egress Rule for ALB --- #
 # Allow all outbound traffic. 
 # Required for ALB to forward requests to registered targets (e.g., ASG instances) and communicate with external services.
-# tfsec:ignore:aws-ec2-no-public-egress-sgr
 # checkov:skip=CKV_AWS_382:Allowing all outbound traffic is required for ALB to communicate with targets and AWS services
 resource "aws_security_group_rule" "alb_egress_all" {
   security_group_id = aws_security_group.alb_sg.id
   type              = "egress"
   from_port         = 0
   to_port           = 0
-  protocol          = "-1"          # "-1" allows all protocols.  
-  cidr_blocks       = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
-  description       = "Allow all outbound traffic for ALB"
+  protocol          = "-1" # "-1" allows all protocols.  
+  #tfsec:ignore:aws-vpc-no-public-ingress-sgr
+  cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
+  description = "Allow all outbound traffic for ALB"
 
   # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes. 
   # For production, replace with AWS service prefixes for improved security.

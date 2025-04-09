@@ -38,7 +38,8 @@ resource "aws_db_instance" "db" {
   copy_tags_to_snapshot      = true # Copy tags to DB snapshots.
 
   # Deletion & Final Snapshot Configuration
-  deletion_protection       = var.rds_deletion_protection                                                             #tfsec:ignore:builtin.aws.rds.aws0177                                                             # Deletion protection (controlled by variable). Production: set to 'true'. # tfsec:ignore:builtin.aws.rds.aws0177
+  #tfsec:ignore:aws-rds-enable-deletion-protection
+  deletion_protection       = var.rds_deletion_protection                                                             # Deletion protection (controlled by variable). Production: set to 'true'.
   skip_final_snapshot       = var.skip_final_snapshot                                                                 # Skip final snapshot on instance deletion.
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name_prefix}-final-snapshot-${var.environment}" # Final snapshot name.
   delete_automated_backups  = true                                                                                    # Delete automated backups on instance deletion.
@@ -163,9 +164,10 @@ resource "aws_db_instance" "read_replica" {
   kms_key_id              = aws_db_instance.db.kms_key_id
   backup_retention_period = aws_db_instance.db.backup_retention_period
   backup_window           = aws_db_instance.db.backup_window
-  deletion_protection     = var.rds_deletion_protection # tfsec:ignore:builtin.aws.rds.aws0177
-  monitoring_interval     = aws_db_instance.db.monitoring_interval
-  monitoring_role_arn     = aws_db_instance.db.monitoring_role_arn
+  #tfsec:ignore:aws-rds-enable-deletion-protection
+  deletion_protection = var.rds_deletion_protection
+  monitoring_interval = aws_db_instance.db.monitoring_interval
+  monitoring_role_arn = aws_db_instance.db.monitoring_role_arn
 
   # Performance Insights
   performance_insights_enabled    = aws_db_instance.db.performance_insights_enabled
