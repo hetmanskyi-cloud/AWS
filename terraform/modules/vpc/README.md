@@ -269,7 +269,7 @@ module "vpc" {
   aws_account_id                = "123456789012"
   vpc_cidr_block                = "10.0.0.0/16"
   name_prefix                   = "my-project"
-  environment                   = "prod"
+  environment                   = "dev"
   
   # Public Subnet Configuration
   public_subnet_cidr_block_1    = "10.0.1.0/24"

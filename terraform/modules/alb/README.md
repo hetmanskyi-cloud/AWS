@@ -207,8 +207,8 @@ module "alb" {
   source                         = "./modules/alb"
   aws_region                     = "eu-west-1"
   aws_account_id                 = "123456789012"
-  name_prefix                    = "prod"
-  environment                    = "prod"
+  name_prefix                    = "dev"
+  environment                    = "dev"
   public_subnets                 = module.vpc.public_subnet_ids
   vpc_id                         = module.vpc.vpc_id
   enable_https_listener          = true

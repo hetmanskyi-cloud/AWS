@@ -371,9 +371,9 @@ module "s3" {
   source = "./modules/s3"
 
   aws_region         = "eu-west-1"
-  replication_region = "eu-central-1"
+  replication_region = "us-east-1"
   environment        = "dev"
-  name_prefix        = "myproject"
+  name_prefix        = "dev"
   aws_account_id     = "123456789012"
   
   # KMS and SNS configuration

@@ -78,7 +78,7 @@ graph LR
     ReplicaS3[S3 Replica Buckets]
     
     %% External KMS VPC Interface Endpoint (from interface_endpoints module)
-    VPCEndpoint[KMS VPC Endpoint\n(from interface_endpoints module)]
+    VPCEndpoint["KMS VPC Endpoint<br/>(from interface_endpoints module)"]
     
     %% Connections - Main KMS Structure
     KMSKey -->|Defines| KeyPolicy

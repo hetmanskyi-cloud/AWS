@@ -182,7 +182,7 @@ This module provisions the following AWS resources:
 | redis_auth_secret_name	     | string	      | Name of Redis AUTH secret in Secrets Manager	          | ""                 |
 | redis_auth_secret_arn	       | string	      | ARN of Redis AUTH secret in Secrets Manager	            | ""                 |
 | enable_cloudwatch_logs	     | bool	        | Enable or disable CloudWatch Logs integration	          | true               |
-| cloudwatch_log_groups	       | map(string)	| Map of log group names for EC2 logs	                    | Required
+| cloudwatch_log_groups	       | map(string)	| Map of log group names for EC2 logs	                    | Required           |
 
 _(Full list of variables available in the `variables.tf` file)_
 
@@ -234,8 +234,7 @@ module "asg" {
 
   # Optional
   kms_key_arn       = module.kms.kms_key_arn
-  enable_s3_script  = true
-
+  
   # Optionally pass the ARN and NAME of your secrets in AWS Secrets Manager
   # If you are storing WordPress and DB credentials there:
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
