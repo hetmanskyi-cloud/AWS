@@ -65,8 +65,8 @@ graph TD
     classDef aws_secrets fill:#8E44AD,stroke:#232F3E,stroke-width:1px,color:white
 
     %% Network components
-    Internet["Internet"] --> WAF["AWS WAF"]
-    WAF --> ALB["Application Load Balancer<br/>with TLS termination"]
+    Internet["Internet"] --> WAF["AWS WAF<br/>(alb/waf.tf)"]
+    WAF --> ALB["Application Load Balancer<br/>with TLS termination<br/>(alb/main.tf)"]
 
     %% ACM for TLS
     ACM["ACM Certificates<br/>for TLS"]
@@ -74,39 +74,45 @@ graph TD
     ACM --> ALB
 
     %% Compute and database components
-    ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM"]
-    ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas"]
-    ASG --> Redis["ElastiCache Redis<br/>Replication Groups"]
+    ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM<br/>(asg/main.tf)"]
+    ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas<br/>(rds/main.tf)"]
+    ASG --> Redis["ElastiCache Redis<br/>Replication Groups<br/>(elasticache/main.tf)"]
 
     %% Storage and encryption
-    ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication"]
-    S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies"]
+    ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication<br/>(s3/main.tf)"]
+    S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies<br/>(kms/main.tf)"]
     RDS --> KMS
     Redis --> KMS
 
     %% Monitoring and logging
-    ALB --> CloudWatch["CloudWatch<br/>Metrics, Logs, Alarms"]
+    ALB --> CloudWatch["CloudWatch<br/>Metrics, Logs, Alarms<br/>(cloudwatch.tf, */metrics.tf)"]
     ASG --> CloudWatch
     RDS --> CloudWatch
     Redis --> CloudWatch
     VPC --> CloudWatch
-    CloudWatch --> SNS["SNS Notifications"]
+    CloudWatch --> SNS["SNS Topics<br/>Notifications<br/>(sns_topics.tf)"]
+    
+    %% CloudTrail
+    CloudTrail["CloudTrail<br/>API Activity Logging<br/>(cloudtrail.tf)"] --> S3
+    CloudTrail --> CloudWatch
 
     %% VPC and security
-    ASG --> VPC["VPC<br/>Public & Private Subnets<br/>NACLs, Route Tables"]
+    ASG --> VPC["VPC<br/>Public & Private Subnets<br/>NACLs, Route Tables<br/>(vpc/main.tf)"]
     RDS --> VPC
     Redis --> VPC
     ALB --> VPC
-    VPC --> Endpoints["VPC Interface Endpoints<br/>Secure AWS Service Access"]
+    VPC --> Endpoints["VPC Interface Endpoints<br/>Secure AWS Service Access<br/>(interface_endpoints/main.tf)"]
     VPC --> S3
 
     %% Terraform Remote State
-    CloudWatch --> S3State["S3 Bucket<br/>Terraform State Storage"]
+    CloudWatch --> S3State["S3 Bucket<br/>Terraform State Storage<br/>(s3/main.tf)"]
     S3State --> KMS
-    S3State --> DynamoDB["DynamoDB Table<br/>State Locking"]
+    S3State --> DynamoDB["DynamoDB Table<br/>State Locking<br/>(s3/dynamodb.tf)"]
 
     %% Secrets Manager
-    ASG --> Secrets["AWS Secrets Manager<br/>Credentials Storage"]
+    ASG --> Secrets["AWS Secrets Manager<br/>Credentials Storage<br/>(secrets.tf)"]
+    Secrets --> RDS
+    Secrets --> Redis
 
     %% Apply styles
     class VPC aws_vpc
@@ -118,6 +124,7 @@ graph TD
     class KMS aws_kms
     class CloudWatch aws_monitor
     class SNS aws_monitor
+    class CloudTrail aws_monitor
     class WAF aws_security
     class Endpoints aws_endpoint
     class S3State aws_backend
@@ -176,7 +183,8 @@ terraform/                           # Main Terraform configuration directory
 ├── remote_backend.tf                # S3 backend for state management
 ├── secrets.tf                       # AWS Secrets Manager configuration
 ├── cloudtrail.tf                    # CloudTrail logging setup
-├── sns_topic.tf                     # SNS notification configuration
+├── cloudwatch.tf                    # CloudWatch metrics and alarms configuration
+├── sns_topics.tf                    # SNS notification configuration
 ├── terraform.tfvars                 # Variable values for deployment
 │
 ├── modules/                         # Modular components of the infrastructure
@@ -204,6 +212,7 @@ terraform/                           # Main Terraform configuration directory
 │   │   ├── launch_template.tf       # EC2 launch template with WordPress deployment
 │   │   ├── iam.tf                   # IAM roles and conditional policies for S3, KMS, and SSM
 │   │   ├── security_group.tf        # EC2 security groups with dynamic rules
+│   │   ├── metrics.tf               # CloudWatch metrics and alarms
 │   │   ├── variables.tf             # Input variables
 │   │   ├── outputs.tf               # Output values
 │   │   └── README.md                # Module documentation
@@ -252,10 +261,10 @@ terraform/                           # Main Terraform configuration directory
 │
 ├── scripts/                         # Deployment and maintenance scripts
 │   ├── check_aws_resources.sh       # Checks AWS resource status
-│   ├── check_server_status.sh       # EC2 instance health checker
+│   ├── debug_monitor.sh             # Monitoring and debugging script
 │   ├── deploy_wordpress.sh          # Automates WordPress deployment
-│   ├── healthcheck-1.0.php          # Simple ALB health check
-│   ├── healthcheck-2.0.php          # Advanced ALB health check
+│   ├── fix_php_encoding.sh          # Fixes PHP encoding issues
+│   ├── healthcheck.php              # ALB health check script
 │   └── README.md                    # Scripts documentation
 │
 └── templates/                       # Template files for resources
@@ -435,6 +444,7 @@ You can archive or delete it safely:
   - All KMS keys have automatic key rotation enabled where possible
 - **Log Encryption**: CloudWatch Logs are encrypted with KMS for compliance and data protection
 - **Security Monitoring**: VPC Flow Logs and CloudTrail enable continuous security auditing
+- **Redis Security**: Redis AUTH token stored in Secrets Manager and used for secure authentication
 
 ---
 
@@ -447,6 +457,8 @@ The following components are created conditionally based on input variables:
 - **DynamoDB Lock Table**: Created only if `enable_dynamodb = true`
 - **VPC Flow Logs Monitoring**: Enabled if `enable_flow_logs_monitoring = true`
 - **WAF Module**: Can be enabled or disabled with `enable_waf` flag depending on the application layer security requirements
+- **Redis Authentication**: Enabled if `redis_auth_secret_name` is provided
+- **CloudWatch Logs**: Log groups for EC2, Nginx, and system logs are created only if `enable_cloudwatch_logs = true`
 
 ---
 
@@ -478,6 +490,7 @@ This project is designed for seamless integration between modules:
 - **S3 Module**: Stores media, logs, and supports replication
 - **KMS Module**: Central encryption for S3, RDS, ElastiCache, and logs
 - **SNS Module**: Delivers alerts from CloudWatch alarms (including RDS and ElastiCache monitoring)
+- **Secrets Manager**: Centralized storage of credentials for WordPress, RDS, and Redis AUTH
 
 ---
 
@@ -534,12 +547,12 @@ This project is designed for seamless integration between modules:
    - Verify IAM permissions include secretsmanager:GetSecretValue.
    - Confirm that the secret's resource policy allows access.
 
-6. VPC Endpoints Not Working
+6. **VPC Endpoints Not Working**
    - Ensure correct route table association with the VPC endpoint.
    - Verify endpoint status is available.
    - Check security group attached to the endpoint.
 
-7. Remote State Backend Errors
+7. **Remote State Backend Errors**
    - Ensure S3 bucket and DynamoDB table for remote state exist and have correct policies.
    - Re-run:
    ```bash
@@ -555,10 +568,10 @@ This project implements comprehensive monitoring and logging to ensure visibilit
 
 ### CloudWatch Integration
 
-- **Alarms**: Configured for critical metrics across all services
+- **Alarms**: Configured for critical metrics across all services in cloudwatch.tf and module-specific metrics.tf files
 - **Dashboards**: Custom dashboards for infrastructure overview
 - **Metrics**: Detailed metrics for VPC, EC2, RDS, ElastiCache, and ALB
-- Contributor Insights: (Optional) Enables anomaly detection and traffic analysis for CloudWatch Logs and Metrics
+- **Contributor Insights**: (Optional) Enables anomaly detection and traffic analysis for CloudWatch Logs and Metrics
 
 ---
 

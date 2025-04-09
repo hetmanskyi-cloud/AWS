@@ -61,7 +61,7 @@ resource "aws_security_group_rule" "alb_egress_all" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1" # "-1" allows all protocols.  
-  #tfsec:ignore:aws-vpc-no-public-ingress-sgr
+  #tfsec:ignore:aws-ec2-no-public-egress-sgr
   cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
   description = "Allow all outbound traffic for ALB"
 
