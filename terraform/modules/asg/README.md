@@ -2,6 +2,28 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Prerequisites / Requirements](#2-prerequisites--requirements)
+- [3. Architecture Diagram](#3-architecture-diagram)
+- [4. Features](#4-features)
+- [5. Module Architecture](#5-module-architecture)
+- [6. Module Files Structure](#6-module-files-structure)
+- [7. Inputs (Variables)](#7-inputs-variables)
+- [8. Outputs](#8-outputs)
+- [9. Example Usage](#9-example-usage)
+- [10. Security Considerations / Recommendations](#10-security-considerations--recommendations)
+- [11. Conditional Resource Creation](#11-conditional-resource-creation)
+- [12. Best Practices](#12-best-practices)
+- [13. Integration](#13-integration)
+- [14. Future Improvements](#14-future-improvements)
+- [15. Troubleshooting and Common Issues](#15-troubleshooting-and-common-issues)
+- [16. Notes](#16-notes)
+- [17. Useful Resources](#17-useful-resources)
+
+---
+
 ## 1. Overview
 
 This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) with all supporting resources required to host a scalable WordPress application. It includes EC2 instance configuration, launch template, scaling policies, security groups, and CloudWatch monitoring. The module seamlessly integrates with the Application Load Balancer (ALB), RDS MySQL, ElastiCache Redis, and optionally uses S3 for media storage and deployment scripts.

@@ -2,6 +2,32 @@
 
 ---
 
+## Table of Contents
+
+1. [Overview](#1-overview)  
+2. [Prerequisites / Requirements](#2-prerequisites--requirements)  
+3. [Architecture Diagram](#3-architecture-diagram)  
+4. [Features](#4-features)  
+5. [Scripts Structure](#5-scripts-structure)  
+6. [Script Details](#6-script-details)  
+   - [6.1 deploy_wordpress.sh](#61-deploy_wordpresssh)  
+   - [6.2 check_aws_resources.sh](#62-check_aws_resourcessh)  
+   - [6.3 debug_monitor.sh](#63-debug_monitorsh)  
+   - [6.4 fix_php_encoding.sh](#64-fix_php_encodingsh)  
+   - [6.5 healthcheck.php](#65-healthcheckphp)  
+   - [6.6 WordPress Source Repository](#66-wordpress-source-repository)  
+7. [Example Usage](#7-example-usage)  
+8. [Security Considerations / Recommendations](#8-security-considerations--recommendations)  
+9. [Conditional Resource Creation](#9-conditional-resource-creation)  
+10. [Best Practices](#10-best-practices)  
+11. [Integration](#11-integration)  
+12. [Future Improvements](#12-future-improvements)  
+13. [Troubleshooting and Common Issues](#13-troubleshooting-and-common-issues)  
+14. [Notes](#14-notes)  
+15. [Useful Resources](#15-useful-resources)
+
+---
+
 ## 1. Overview
 
 This directory contains scripts used for deploying, configuring, and monitoring WordPress installations on AWS infrastructure. These scripts are designed to work with the Terraform modules in this project and provide automation for WordPress deployment, health checks, and AWS resource validation.
@@ -59,6 +85,7 @@ graph TD
     SecretsManager["AWS Secrets Manager"]
     CloudWatch["CloudWatch Logs"]
     SSM["AWS SSM (Session Manager)"]
+    GitMirror["GitHub WordPress Mirror"]
     
     %% Deployment Flow
     Deploy -->|"Installs"| Nginx["Nginx Web Server"]
@@ -70,6 +97,7 @@ graph TD
     Deploy -->|"Sets Site URL"| ALB
     Deploy -->|"Deploys"| HealthCheck
     Deploy -->|"Sends Logs"| CloudWatch
+    Deploy -->|"Clones WordPress from"| GitMirror
     
     %% Monitoring Flows
     DebugMonitor -->|"Monitors"| Nginx
@@ -90,6 +118,7 @@ graph TD
     classDef security fill:#DD3522,stroke:#232F3E,color:white
     classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
     classDef utility fill:#2874A6,stroke:#232F3E,color:white
+    classDef repository fill:#0B5345,stroke:#232F3E,color:white
     
     class A,B primary
     class RDS database
@@ -99,6 +128,7 @@ graph TD
     class AWSResources,DebugMonitor,VPC,EC2,CloudWatch,SSM monitoring
     class Deploy primary
     class FixPHPEncoding utility
+    class GitMirror repository
 ```
 ---
 
@@ -257,6 +287,9 @@ This PHP file provides a health check endpoint for the Application Load Balancer
 - Does not rely on environment variables — uses constants from wp-config.php for security and consistency
 - Provides detailed error messages for troubleshooting
 
+#### 6.6 WordPress Source Repository
+- To ensure installation consistency and avoid dependency on external downloads, WordPress is cloned from a dedicated GitHub mirror maintained within this project. This mirror repository contains only the official WordPress release (without themes or plugins) and is not modified, allowing seamless updates and version control integration.
+
 ---
 
 ## 7. Example Usage
@@ -350,6 +383,7 @@ This script package integrates with the following modules and AWS services:
 - S3 Module – optional source for deployment scripts
 - CloudWatch – logs script operations and health status
 - SSM – enables remote monitoring and troubleshooting
+- WordPress Git Mirror – provides a clean, version-controlled source for WordPress installation
 
 ---
 
@@ -360,6 +394,21 @@ This script package integrates with the following modules and AWS services:
 - Implement automatic error reporting to SNS
 - Add support for multi-region resource validation
 - Enhance Redis and MySQL TLS checks with certificate validation
+
+### Recommended Post-Deployment Steps
+Enable Automatic System Updates
+- Consider enabling automatic security updates on the EC2 instance (e.g., via unattended-upgrades on Ubuntu or yum-cron on Amazon Linux) to reduce the risk of unpatched vulnerabilities.
+
+Install Essential WordPress Security Plugins
+At minimum, install and configure trusted plugins such as:
+- Wordfence Security – real-time firewall and malware scanner
+- WP Super Cache – improves performance and adds basic protection from DDoS-like load
+
+Regularly Review Access Logs
+- Use CloudWatch Logs or SSM to periodically review access patterns and detect anomalies.
+
+Regular EC2 Instance Refresh
+- Periodically replace EC2 instances through the Auto Scaling Group to ensure a clean state, apply AMI updates, and validate configuration consistency.
 
 ---
 

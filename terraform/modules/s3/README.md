@@ -2,6 +2,28 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Prerequisites / Requirements](#2-prerequisites--requirements)
+- [3. Architecture Diagram](#3-architecture-diagram)
+- [4. Features](#4-features)
+- [5. Module Architecture](#5-module-architecture)
+- [6. Module Files Structure](#6-module-files-structure)
+- [7. Inputs](#7-inputs)
+- [8. Outputs](#8-outputs)
+- [9. Example Usage](#9-example-usage)
+- [10. Security Considerations / Recommendations](#10-security-considerations--recommendations)
+- [11. Conditional Resource Creation](#11-conditional-resource-creation)
+- [12. Best Practices](#12-best-practices)
+- [13. Integration](#13-integration)
+- [14. Future Improvements](#14-future-improvements)
+- [15. Troubleshooting and Common Issues](#15-troubleshooting-and-common-issues)
+- [16. Notes](#16-notes)
+- [17. Useful Resources](#17-useful-resources)
+
+---
+
 ## 1. Overview
 
 This module creates and manages S3 buckets for various use cases within a project. It includes configurations for encryption, logging, versioning, lifecycle policies, cross-region replication, and access control to ensure security and compliance with best practices.

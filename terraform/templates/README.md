@@ -2,6 +2,26 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Prerequisites / Requirements](#2-prerequisites--requirements)
+- [3. Architecture Diagram](#3-architecture-diagram)
+- [4. Features](#4-features)
+- [5. Files Structure](#5-files-structure)
+- [6. Required Variables](#6-required-variables)
+- [7. Example Usage](#7-example-usage)
+- [8. Security Considerations / Recommendations](#8-security-considerations--recommendations)
+- [9. Deployment Process](#9-deployment-process)
+- [10. Best Practices](#10-best-practices)
+- [11. Integration](#11-integration)
+- [12. Future Improvements](#12-future-improvements)
+- [13. Troubleshooting and Common Issues](#13-troubleshooting-and-common-issues)
+- [14. Notes](#14-notes)
+- [15. Useful Resources](#15-useful-resources)
+
+---
+
 ## 1. Overview
 
 This directory contains Terraform template files used to dynamically generate scripts and configurations required during infrastructure deployment. The primary template, `user_data.sh.tpl`, generates the EC2 instance bootstrap script for automated WordPress deployment.

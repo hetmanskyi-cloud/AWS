@@ -2,6 +2,23 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Prerequisites / Requirements](#2-prerequisites--requirements)
+- [3. Workflow Diagram](#3-workflow-diagram)
+- [4. Workflow Steps](#4-workflow-steps)
+- [5. Tools Integrated](#5-tools-integrated)
+- [6. File Structure](#6-file-structure)
+- [7. Security Considerations / Recommendations](#7-security-considerations--recommendations)
+- [8. Best Practices](#8-best-practices)
+- [9. Troubleshooting and Common Issues](#9-troubleshooting-and-common-issues)
+- [10. Future Improvements](#10-future-improvements)
+- [11. Notes](#11-notes)
+- [12. Useful Resources](#12-useful-resources)
+
+---
+
 ## 1. Overview
 
 This directory contains the GitHub Actions workflow (`terraform.yml`) responsible for the Continuous Integration (CI) of the Terraform code in this repository.

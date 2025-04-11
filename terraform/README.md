@@ -14,6 +14,53 @@
 
 ---
 
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Prerequisites / Requirements](#2-prerequisites--requirements)
+- [3. Architecture Diagram](#3-architecture-diagram)
+- [4. Features](#4-features)
+- [5. Modules Architecture](#5-modules-architecture)
+- [6. Modules Files Structure](#6-modules-files-structure)
+- [7. Example Usage](#7-example-usage)
+  - [7.1 Clone the Repository](#1-clone-the-repository)
+  - [7.2 Configure Variables](#2-configure-variables)
+  - [7.3 Initialize Terraform](#3-initialize-terraform)
+  - [7.4 Validate Configuration](#4-validate-configuration-optional-but-recommended)
+  - [7.5 Format the Code](#5-format-the-code-optional-for-code-consistency)
+  - [7.6 Plan the Deployment](#6-plan-the-deployment)
+  - [7.7 Apply the Configuration](#8-apply-the-configuration)
+  - [7.8 Remote State Management](#9-remote-state-management)
+  - [7.9 Migration Steps](#migration-steps)
+  - [7.10 Full Remote Workflow](#example-of-full-remote-workflow)
+- [8. Security Considerations / Recommendations](#8-security-considerations--recommendations)
+- [9. Conditional Resource Creation](#9-conditional-resource-creation)
+- [10. Best Practices](#10-best-practices)
+- [11. Integration with Other Modules](#11-integration-with-other-modules)
+- [12. Future Improvements](#12-future-improvements)
+- [13. Troubleshooting and Common Issues](#13-troubleshooting-and-common-issues)
+- [14. Notes](#14-notes)
+  - [14.1 Monitoring and Logging](#monitoring-and-logging)
+  - [14.2 Centralized Logging](#centralized-logging)
+  - [14.3 Notification System](#notification-system)
+  - [14.4 Cost Optimization](#cost-optimization)
+  - [14.5 Maintenance and Operations](#maintenance-and-operations)
+  - [14.6 Updating WordPress](#updating-wordpress)
+  - [14.7 Contributing](#contributing)
+  - [14.8 Limitations](#limitations)
+  - [14.9 Project Status](#project-status)
+  - [14.10 License](#license)
+- [15. Makefile and how to use it](#15-makefile-and-how-to-use-it)
+  - [15.1 Overview of Makefile Components](#151-overview-of-makefile-components)
+  - [15.2 Basic Usage](#152-basic-usage)
+  - [15.3 Common Workflows](#153-common-workflows)
+  - [15.4 Available Commands](#154-available-commands)
+  - [15.5 Environment Variables](#155-environment-variables)
+  - [15.6 Tips and Best Practices](#156-tips-and-best-practices)
+- [16. Useful Resources](#16-useful-resources)
+
+---
+
 ## 1. Overview
 
 A comprehensive Terraform project leveraging a modular structure for deploying a secure, scalable, and highly available AWS infrastructure with WordPress hosting capabilities.
@@ -63,6 +110,9 @@ graph TD
     classDef aws_endpoint fill:#232F3E,stroke:#FF9900,stroke-width:1px,color:white
     classDef aws_backend fill:#2E86C1,stroke:#232F3E,stroke-width:1px,color:white
     classDef aws_secrets fill:#8E44AD,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_tools fill:#5D6D7E,stroke:#232F3E,stroke-width:1px,color:white
+    classDef aws_automation fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:black,stroke-dasharray: 5 5
+    classDef aws_repository fill:#0B5345,stroke:#232F3E,stroke-width:1px,color:white
 
     %% Network components
     Internet["Internet"] --> WAF["AWS WAF<br/>(alb/waf.tf)"]
@@ -77,7 +127,10 @@ graph TD
     ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM<br/>(asg/main.tf)"]
     ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas<br/>(rds/main.tf)"]
     ASG --> Redis["ElastiCache Redis<br/>Replication Groups<br/>(elasticache/main.tf)"]
-
+    
+    %% WordPress Source Repository
+    GitMirror["GitHub WordPress Mirror<br/>Version-controlled Source"] --> ASG
+    
     %% Storage and encryption
     ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication<br/>(s3/main.tf)"]
     S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies<br/>(kms/main.tf)"]
@@ -113,26 +166,42 @@ graph TD
     ASG --> Secrets["AWS Secrets Manager<br/>Credentials Storage<br/>(secrets.tf)"]
     Secrets --> RDS
     Secrets --> Redis
-
-    %% Apply styles
-    class VPC aws_vpc
-    class ALB aws_alb
-    class ASG aws_asg
-    class RDS aws_db
-    class Redis aws_cache
-    class S3 aws_s3
-    class KMS aws_kms
-    class CloudWatch aws_monitor
-    class SNS aws_monitor
-    class CloudTrail aws_monitor
-    class WAF aws_security
-    class Endpoints aws_endpoint
-    class S3State aws_backend
-    class DynamoDB aws_backend
-    class Secrets aws_secrets
-    class ACM aws_security
+    
+    %% Automation Tools
+    Makefile["Makefile<br/>Infrastructure Automation<br/>(Makefile)"] --> TerraformCore["Terraform Core<br/>Operations"]
+    TerraformCore --> VPC
+    TerraformCore --> ASG
+    TerraformCore --> RDS
+    TerraformCore --> Redis
+    TerraformCore --> S3
+    TerraformCore --> CloudWatch
+    TerraformCore --> CloudTrail
+    TerraformCore --> S3State
+    TerraformCore --> Secrets
+    
+    %% Debug and Monitoring Tools
+    Makefile --> DebugTools["Debug & Monitoring<br/>Tools"]
+    DebugTools --> ASG
+    DebugTools --> CloudWatch
+    
+    %% Resource Verification
+    Makefile --> ResourceCheck["Resource<br/>Verification"]
+    ResourceCheck --> VPC
+    ResourceCheck --> ASG
+    ResourceCheck --> RDS
+    ResourceCheck --> S3
+    
+    %% Environment Preparation
+    Makefile --> EnvTools["Environment<br/>Preparation"]
+    EnvTools --> TerraformCore
+    
+    %% Style Definitions
+    class Makefile,TerraformCore,DebugTools,ResourceCheck,EnvTools aws_automation
+    class GitMirror aws_repository
 ```
 _The diagram below illustrates the core AWS services, Terraform backend components, and their interactions within this project._
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
 ---
 
@@ -186,7 +255,8 @@ terraform/                           # Main Terraform configuration directory
 ├── cloudwatch.tf                    # CloudWatch metrics and alarms configuration
 ├── sns_topics.tf                    # SNS notification configuration
 ├── terraform.tfvars                 # Variable values for deployment
-│
+├── Makefile                         # Automation for common Terraform tasks
+|
 ├── modules/                         # Modular components of the infrastructure
 │   ├── vpc/                         # Virtual Private Cloud module
 │   │   ├── main.tf                  # VPC, subnets, and core resources
@@ -444,7 +514,7 @@ You can archive or delete it safely:
   - All KMS keys have automatic key rotation enabled where possible
 - **Log Encryption**: CloudWatch Logs are encrypted with KMS for compliance and data protection
 - **Security Monitoring**: VPC Flow Logs and CloudTrail enable continuous security auditing
-- **Redis Security**: Redis AUTH token stored in Secrets Manager and used for secure authentication
+- **AWS Shield Advanced**: Consider enabling for enhanced DDoS protection
 
 ---
 
@@ -558,6 +628,8 @@ This project is designed for seamless integration between modules:
    ```bash
    terraform init -reconfigure
    ```
+   - See section 7.9 (Remote State Management) for detailed migration steps.
+
 ---
 
 ## 14. Notes
@@ -619,7 +691,7 @@ This project implements comprehensive monitoring and logging to ensure visibilit
 
 ### Updating WordPress
 
-- Updates are managed through the Git repository and deployment scripts.
+- WordPress installation and updates are managed through the Git repository and deployment scripts.
 - Push changes to the repository to trigger the deployment pipeline.
 - User data scripts and configurations are updated automatically with each deployment.
 - WordPress updates via the admin interface are also supported but version control is recommended through Git.
@@ -654,7 +726,165 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ---
 
-## 15. Useful Resources
+## 15. Makefile and how to use it
+
+The project includes a Makefile to automate common infrastructure management tasks. This simplifies the deployment and management of the AWS infrastructure by providing easy-to-use commands for Terraform operations, script execution, and maintenance tasks.
+
+### 15.1 Overview of Makefile Components
+
+The Makefile is organized into several categories of targets:
+
+1. **Terraform Operations** - Core infrastructure management commands (init, plan, apply, destroy)
+2. **Testing and Verification** - Validation and formatting checks
+3. **Monitoring and Debugging** - Tools for monitoring WordPress installation
+4. **Resource Management** - Commands for checking AWS resources
+5. **Helper Functions** - Tool verification and documentation
+
+### 15.2 Basic Usage
+
+The Makefile supports environment-specific deployments through the `ENV` variable (default: `dev`):
+
+```bash
+# Initialize Terraform for development environment (default)
+make init
+
+# Create a plan for production environment
+make plan ENV=prod
+
+# Apply the previously created plan
+make apply ENV=stage
+```
+
+### 15.3 Common Workflows
+
+#### Complete Infrastructure Deployment
+
+```bash
+# One-step deployment with all checks
+make all ENV=prod
+
+# Or step-by-step approach
+make init
+make format
+make validate
+make plan ENV=prod
+make apply ENV=prod
+```
+
+#### Maintenance and Updates
+
+```bash
+# Format Terraform code
+make format
+
+# Refresh local state with actual infrastructure
+make refresh ENV=prod
+
+# View current infrastructure state
+make show ENV=prod
+```
+
+#### Debugging and Monitoring
+
+```bash
+# Monitor WordPress installation via SSM
+make debug
+
+# Check for leftover resources after destroy
+make check
+```
+
+### 15.4 Available Commands
+
+#### Terraform Commands
+
+| Command        | Description                                               |
+|----------------|-----------------------------------------------------------|
+| `make init`    | Initialize Terraform and upgrade providers                |
+| `make plan`    | Preview infrastructure changes                            |
+| `make apply`   | Apply infrastructure changes                              |
+| `make destroy` | Destroy all managed infrastructure                        |
+| `make show`    | Show current Terraform-managed infrastructure             |
+| `make output`  | Display Terraform outputs for the current environment     |
+| `make refresh` | Refresh local state with the actual remote infrastructure |
+| `make graph`   | Generate a visual dependency graph (in DOT format)        |
+
+#### Code Quality and Verification Commands
+
+| Command            | Description                               |
+|--------------------|-------------------------------------------|
+| `make format`      | Format all Terraform files recursively    |
+| `make validate`    | Validate Terraform configuration          |
+| `make check-tools` | Check if required CLI tools are installed |
+
+#### Monitoring and Debugging Commands
+
+| Command      | Description                                    |
+|--------------|------------------------------------------------|
+| `make debug` | Monitor WordPress installation via SSM         |
+| `make check` | Check for any leftover resources after destroy |
+
+#### Workflow Commands
+
+| Command    | Description                                                 |
+|------------|-------------------------------------------------------------|
+| `make all` | Run full preparation cycle: init → format → validate → plan |
+
+### 15.5 Environment Variables
+
+The Makefile supports the following variables:
+
+| Variable      | Description                  | Default     |
+|---------------|------------------------------|-------------|
+| `ENV`         | Target environment           | `dev`       |
+| `TF_DIR`      | Terraform root directory     | `.`         |
+| `SCRIPTS_DIR` | Directory for helper scripts | `./scripts` |
+
+Example of using environment variables:
+
+```bash
+# Deploy to production environment
+make apply ENV=prod
+
+# Plan changes for staging environment
+make plan ENV=staging
+```
+
+### 15.6 Tips and Best Practices
+
+1. **Always run the full preparation cycle before applying changes**:
+   ```bash
+   make all ENV=prod
+   # Review the plan output
+   make apply ENV=prod
+   ```
+
+2. **Check for required tools before starting**:
+   ```bash
+   make check-tools
+   ```
+
+3. **Generate a dependency graph to visualize your infrastructure**:
+   ```bash
+   make graph
+   # Use tools like Graphviz to render the resulting 'graph.dot' file
+   ```
+
+4. **Always run from the terraform/ directory**:
+   ```bash
+   # Ensure you're in the correct directory
+   cd /path/to/project/terraform
+   make init
+   ```
+
+5. **Check for leftover resources after destroying infrastructure**:
+   ```bash
+   make destroy ENV=prod
+   make check
+   ```
+---
+
+## 16. Useful Resources
 
 - [Terraform Documentation](https://www.terraform.io/docs) — Official Terraform documentation  
 - [Terraform AWS Provider Guide](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) — Full AWS Provider resource reference  
@@ -669,10 +899,10 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ---
 
-## Notes:
+## Other:
 **README Location:**  
-This `README.md` is intentionally placed inside the `terraform/` directory as it documents the entire Terraform infrastructure project, including modules, architecture, deployment steps, and best practices.
+This `README.md` is intentionally placed inside the `terraform/` directory as it documents the entire Terraform infrastructure
+project, including modules, architecture, deployment steps, and best practices.
 
-If your project structure changes (e.g., adding backend/frontend applications or other components outside of Terraform), consider moving this `README.md` to the project root or creating a new global `README.md` to cover the full stack.
-
----
+If your project structure changes (e.g., adding backend/frontend applications or other components outside of Terraform), consider
+moving this `README.md` to the project root or creating a new global `README.md` to cover the full stack.
