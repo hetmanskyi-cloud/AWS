@@ -30,132 +30,147 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 ```mermaid
 graph LR
     %% Root project
-    classDef repo fill:#FF9900,color:#000,font-weight:bold
+    classDef repo fill:#FF9900,color:#000,font-weight:bold,stroke:#E65100,stroke-width:2px
     classDef dir fill:#f9f9f9,stroke:#bbb,stroke-width:1px
     classDef file fill:#ffffff,stroke:#ccc,color:#333,font-size:12px
-    classDef tpl fill:#E6F7FF,color:#005073,stroke:#b3e5fc
-    classDef script fill:#FFF3E0,color:#E65100,stroke:#FFCC80
-    classDef tf fill:#E8F5E9,color:#1B5E20,stroke:#A5D6A7
-    classDef readme fill:#F3E5F5,color:#6A1B9A,stroke:#CE93D8
-
-    P[project]:::repo --> AWSRepo[aws]:::repo
-    P --> WPRepo[wordpress]:::repo
-
-    AWSRepo --> TF[terraform/]:::dir
-    AWSRepo --> GH[.github/]:::dir
-    AWSRepo --> LICENSE:::file
-    AWSRepo --> GITIGNORE[.gitignore]:::file
-    AWSRepo --> AWSREADME[README.md]:::readme
-
-    TF --> main[main.tf]:::tf
-    TF --> variables[variables.tf]:::tf
-    TF --> outputs[outputs.tf]:::tf
-    TF --> tfvars[terraform.tfvars]:::tf
-    TF --> providers[providers.tf]:::tf
-    TF --> backend[remote_backend.tf]:::tf
-    TF --> cloudwatch[cloudwatch.tf]:::tf
-    TF --> cloudtrail[cloudtrail.tf]:::tf
-    TF --> sns[sns_topics.tf]:::tf
-    TF --> secrets[secrets.tf]:::tf
-    TF --> makefile[Makefile]:::file
-    TF --> tfREADME[README.md]:::readme
-
-    TF --> templates[templates/]:::dir
-    templates --> userdata[user_data.sh.tpl]:::tpl
-    templates --> tplREADME[README.md]:::readme
-
-    TF --> scripts[scripts/]:::dir
-    scripts --> deploy[deploy_wordpress.sh]:::script
-    scripts --> healthcheck[healthcheck.php]:::script
-    scripts --> debug[debug_monitor.sh]:::script
-    scripts --> fix[fix_php_encoding.sh]:::script
-    scripts --> scrREADME[README.md]:::readme
-
-    TF --> modules[modules/]:::dir
-
-    %% VPC Module
-    modules --> vpc[vpc/]:::dir
-    vpc --> vpcmain[main.tf]:::tf
-    vpc --> endpoints[endpoints_routes.tf]:::tf
-    vpc --> flowlogs[flow_logs.tf]:::tf
-    vpc --> nacl[nacl.tf]:::tf
-    vpc --> vpcvars[variables.tf]:::tf
-    vpc --> vpcoutputs[outputs.tf]:::tf
-    vpc --> vpcreadme[README.md]:::readme
-
-    %% KMS Module
-    modules --> kms[kms/]:::dir
-    kms --> kmsmain[main.tf]:::tf
-    kms --> key[key.tf]:::tf
-    kms --> kmsmetrics[metrics.tf]:::tf
-    kms --> kmsvars[variables.tf]:::tf
-    kms --> kmsoutputs[outputs.tf]:::tf
-    kms --> kmsreadme[README.md]:::readme
-
-    %% S3 Module
-    modules --> s3[s3/]:::dir
-    s3 --> s3main[main.tf]:::tf
-    s3 --> policies[policies.tf]:::tf
-    s3 --> lifecycle[lifecycle.tf]:::tf
-    s3 --> replication[replication.tf]:::tf
-    s3 --> dynamodb[dynamodb.tf]:::tf
-    s3 --> s3vars[variables.tf]:::tf
-    s3 --> s3outputs[outputs.tf]:::tf
-    s3 --> s3readme[README.md]:::readme
-
-    %% RDS Module
-    modules --> rds[rds/]:::dir
-    rds --> rdsmain[main.tf]:::tf
-    rds --> rds_sg[security_group.tf]:::tf
-    rds --> rds_iam[iam.tf]:::tf
-    rds --> rdsmetrics[metrics.tf]:::tf
-    rds --> rdsvars[variables.tf]:::tf
-    rds --> rdsoutputs[outputs.tf]:::tf
-    rds --> rdsreadme[README.md]:::readme
-
-    %% ElastiCache Module
-    modules --> redis[elasticache/]:::dir
-    redis --> redismain[main.tf]:::tf
-    redis --> redissg[security_group.tf]:::tf
-    redis --> redismetrics[metrics.tf]:::tf
-    redis --> redisvars[variables.tf]:::tf
-    redis --> redisoutputs[outputs.tf]:::tf
-    redis --> redisreadme[README.md]:::readme
-
-    %% ALB Module
-    modules --> alb[alb/]:::dir
-    alb --> albmain[main.tf]:::tf
-    alb --> albsg[security_group.tf]:::tf
-    alb --> waf[waf.tf]:::tf
-    alb --> firehose[firehose.tf]:::tf
-    alb --> albmetrics[metrics.tf]:::tf
-    alb --> albvars[variables.tf]:::tf
-    alb --> alboutputs[outputs.tf]:::tf
-    alb --> albreadme[README.md]:::readme
-
-    %% ASG Module
-    modules --> asg[asg/]:::dir
-    asg --> asgmain[main.tf]:::tf
-    asg --> launch[launch_template.tf]:::tf
-    asg --> asgiam[iam.tf]:::tf
-    asg --> asgsg[security_group.tf]:::tf
-    asg --> asgmetrics[metrics.tf]:::tf
-    asg --> asgvars[variables.tf]:::tf
-    asg --> asgoutputs[outputs.tf]:::tf
-    asg --> asgreadme[README.md]:::readme
-
-    %% Interface Endpoints
-    modules --> endpoints[interface_endpoints/]:::dir
-    endpoints --> epmain[main.tf]:::tf
-    endpoints --> epsg[security_group.tf]:::tf
-    endpoints --> epvars[variables.tf]:::tf
-    endpoints --> epoutputs[outputs.tf]:::tf
-    endpoints --> epreadme[README.md]:::readme
-
-    %% GitHub Actions
-    GH --> terraformYML[terraform.yml]:::file
-    GH --> ghREADME[README.md]:::readme
-
+    classDef tpl fill:#E6F7FF,color:#005073,stroke:#b3e5fc,stroke-width:1px
+    classDef script fill:#FFF3E0,color:#E65100,stroke:#FFCC80,stroke-width:1px
+    classDef tf fill:#E8F5E9,color:#1B5E20,stroke:#A5D6A7,stroke-width:1px
+    classDef readme fill:#F3E5F5,color:#6A1B9A,stroke:#CE93D8,stroke-width:1px
+    
+    %% Enhanced styling for better visual hierarchy
+    classDef moduleDir fill:#FFECB3,stroke:#FFA000,stroke-width:2px,color:#5D4037,font-weight:bold
+    classDef rootDir fill:#BBDEFB,stroke:#1976D2,stroke-width:2px,color:#0D47A1,font-weight:bold
+    
+    subgraph Project ["🌐 Project Structure"]
+        P[project]:::repo --> AWSRepo[aws]:::repo
+        P --> WPRepo[wordpress]:::repo
+    end
+    
+    subgraph AWSStructure ["☁️ AWS Repository"]
+        AWSRepo --> TF[terraform/]:::rootDir
+        AWSRepo --> GH[.github/]:::dir
+        AWSRepo --> LICENSE:::file
+        AWSRepo --> GITIGNORE[.gitignore]:::file
+        AWSRepo --> AWSREADME[README.md]:::readme
+    end
+    
+    subgraph TerraformFiles ["⚙️ Terraform Files"]
+        TF --> main[main.tf]:::tf
+        TF --> variables[variables.tf]:::tf
+        TF --> outputs[outputs.tf]:::tf
+        TF --> tfvars[terraform.tfvars]:::tf
+        TF --> providers[providers.tf]:::tf
+        TF --> backend[remote_backend.tf]:::tf
+        TF --> cloudwatch[cloudwatch.tf]:::tf
+        TF --> cloudtrail[cloudtrail.tf]:::tf
+        TF --> sns[sns_topics.tf]:::tf
+        TF --> secrets[secrets.tf]:::tf
+        TF --> makefile[Makefile]:::file
+        TF --> tfREADME[README.md]:::readme
+    end
+    
+    subgraph SupportFiles ["📁 Support Files"]
+        TF --> templates[templates/]:::dir
+        templates --> userdata[user_data.sh.tpl]:::tpl
+        templates --> tplREADME[README.md]:::readme
+        
+        TF --> scripts[scripts/]:::dir
+        scripts --> deploy[deploy_wordpress.sh]:::script
+        scripts --> healthcheck[healthcheck.php]:::script
+        scripts --> debug[debug_monitor.sh]:::script
+        scripts --> fix[fix_php_encoding.sh]:::script
+        scripts --> scrREADME[README.md]:::readme
+    end
+    
+    TF --> modules[modules/]:::rootDir
+    
+    subgraph Modules ["🧩 Terraform Modules"]
+        %% VPC Module
+        modules --> vpc[vpc/]:::moduleDir
+        vpc --> vpcmain[main.tf]:::tf
+        vpc --> endpoints[endpoints_routes.tf]:::tf
+        vpc --> flowlogs[flow_logs.tf]:::tf
+        vpc --> nacl[nacl.tf]:::tf
+        vpc --> vpcvars[variables.tf]:::tf
+        vpc --> vpcoutputs[outputs.tf]:::tf
+        vpc --> vpcreadme[README.md]:::readme
+        
+        %% KMS Module
+        modules --> kms[kms/]:::moduleDir
+        kms --> kmsmain[main.tf]:::tf
+        kms --> key[key.tf]:::tf
+        kms --> kmsmetrics[metrics.tf]:::tf
+        kms --> kmsvars[variables.tf]:::tf
+        kms --> kmsoutputs[outputs.tf]:::tf
+        kms --> kmsreadme[README.md]:::readme
+        
+        %% S3 Module
+        modules --> s3[s3/]:::moduleDir
+        s3 --> s3main[main.tf]:::tf
+        s3 --> policies[policies.tf]:::tf
+        s3 --> lifecycle[lifecycle.tf]:::tf
+        s3 --> replication[replication.tf]:::tf
+        s3 --> dynamodb[dynamodb.tf]:::tf
+        s3 --> s3vars[variables.tf]:::tf
+        s3 --> s3outputs[outputs.tf]:::tf
+        s3 --> s3readme[README.md]:::readme
+        
+        %% RDS Module
+        modules --> rds[rds/]:::moduleDir
+        rds --> rdsmain[main.tf]:::tf
+        rds --> rds_sg[security_group.tf]:::tf
+        rds --> rds_iam[iam.tf]:::tf
+        rds --> rdsmetrics[metrics.tf]:::tf
+        rds --> rdsvars[variables.tf]:::tf
+        rds --> rdsoutputs[outputs.tf]:::tf
+        rds --> rdsreadme[README.md]:::readme
+        
+        %% ElastiCache Module
+        modules --> redis[elasticache/]:::moduleDir
+        redis --> redismain[main.tf]:::tf
+        redis --> redissg[security_group.tf]:::tf
+        redis --> redismetrics[metrics.tf]:::tf
+        redis --> redisvars[variables.tf]:::tf
+        redis --> redisoutputs[outputs.tf]:::tf
+        redis --> redisreadme[README.md]:::readme
+        
+        %% ALB Module
+        modules --> alb[alb/]:::moduleDir
+        alb --> albmain[main.tf]:::tf
+        alb --> albsg[security_group.tf]:::tf
+        alb --> waf[waf.tf]:::tf
+        alb --> firehose[firehose.tf]:::tf
+        alb --> albmetrics[metrics.tf]:::tf
+        alb --> albvars[variables.tf]:::tf
+        alb --> alboutputs[outputs.tf]:::tf
+        alb --> albreadme[README.md]:::readme
+        
+        %% ASG Module
+        modules --> asg[asg/]:::moduleDir
+        asg --> asgmain[main.tf]:::tf
+        asg --> launch[launch_template.tf]:::tf
+        asg --> asgiam[iam.tf]:::tf
+        asg --> asgsg[security_group.tf]:::tf
+        asg --> asgmetrics[metrics.tf]:::tf
+        asg --> asgvars[variables.tf]:::tf
+        asg --> asgoutputs[outputs.tf]:::tf
+        asg --> asgreadme[README.md]:::readme
+        
+        %% Interface Endpoints
+        modules --> endpoints[interface_endpoints/]:::moduleDir
+        endpoints --> epmain[main.tf]:::tf
+        endpoints --> epsg[security_group.tf]:::tf
+        endpoints --> epvars[variables.tf]:::tf
+        endpoints --> epoutputs[outputs.tf]:::tf
+        endpoints --> epreadme[README.md]:::readme
+    end
+    
+    subgraph GitHub ["🔄 GitHub"]
+        GH --> terraformYML[terraform.yml]:::file
+        GH --> ghREADME[README.md]:::readme
+    end
+    
     %% WordPress repository
     WPRepo --> mirror[(WordPress Git mirror)]:::file
 ```
