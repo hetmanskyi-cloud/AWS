@@ -28,111 +28,107 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 ## 1. Project Structure
 
 <pre>
-📦 <b style="color:#FF9900">project</b>
- ┣ 📂 <b style="color:#FF9900">aws</b>
- ┃ ┣ 📂 <span style="color:#1976D2">terraform/</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">terraform.tfvars</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">providers.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">remote_backend.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">cloudwatch.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">cloudtrail.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">sns_topics.tf</span>
- ┃ ┃ ┣ 📄 <span style="color:#1B5E20">secrets.tf</span>
+📦 🟧 <b>project</b>
+ ┣ 📂 🟧 <b>aws</b>
+ ┃ ┣ 📂 🟩 <span>terraform/</span>
+ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>terraform.tfvars</span>
+ ┃ ┃ ┣ 📄 🟩 <span>providers.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>remote_backend.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>cloudwatch.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>cloudtrail.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>sns_topics.tf</span>
+ ┃ ┃ ┣ 📄 🟩 <span>secrets.tf</span>
  ┃ ┃ ┣ 📄 Makefile
- ┃ ┃ ┣ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┣ � templates/
- ┃ ┃ ┃ ┣ 📄 <span style="color:#005073">user_data.sh.tpl</span>
- ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┣ 📂 scripts/
- ┃ ┃ ┃ ┣ 📄 <span style="color:#E65100">deploy_wordpress.sh</span>
- ┃ ┃ ┃ ┣ 📄 <span style="color:#E65100">healthcheck.php</span>
- ┃ ┃ ┃ ┣ 📄 <span style="color:#E65100">debug_monitor.sh</span>
- ┃ ┃ ┃ ┣ 📄 <span style="color:#E65100">fix_php_encoding.sh</span>
- ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┗ 📂 <b style="color:#FFA000">modules/</b>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">vpc/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">endpoints_routes.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">flow_logs.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">nacl.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">kms/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">key.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">metrics.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">s3/</b> 
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">policies.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">lifecycle.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">replication.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">dynamodb.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">rds/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">security_group.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">iam.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">metrics.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">elasticache/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">security_group.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">metrics.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">alb/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">security_group.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">waf.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">firehose.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">metrics.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┣ 📂 <b style="color:#FFA000">asg/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">launch_template.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">iam.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">security_group.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">metrics.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┃ ┃ ┗ 📂 <b style="color:#FFA000">interface_endpoints/</b>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">main.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">security_group.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">variables.tf</span>
- ┃ ┃ ┃ ┃ ┣ 📄 <span style="color:#1B5E20">outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┃ ┣ � .github/
+ ┃ ┃ ┣ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┣ 📂 🟦 <span>templates/</span>
+ ┃ ┃ ┃ ┣ 📄 🟦 <span>user_data.sh.tpl</span>
+ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┣ 📂 🟠 <span>scripts/</span>
+ ┃ ┃ ┃ ┣ 📄 🟠 <span>deploy_wordpress.sh</span>
+ ┃ ┃ ┃ ┣ 📄 🟠 <span>healthcheck.php</span>
+ ┃ ┃ ┃ ┣ 📄 🟠 <span>debug_monitor.sh</span>
+ ┃ ┃ ┃ ┣ 📄 🟠 <span>fix_php_encoding.sh</span>
+ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┗ 📂 🟨 <b>modules/</b>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>vpc/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>endpoints_routes.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>flow_logs.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>nacl.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>kms/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>key.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>metrics.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>s3/</b> 
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>policies.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>lifecycle.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>replication.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>dynamodb.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>rds/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>iam.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>metrics.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>elasticache/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>metrics.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>alb/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>waf.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>firehose.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>metrics.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┣ 📂 🟨 <b>asg/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>launch_template.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>iam.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>metrics.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┗ 📂 🟨 <b>interface_endpoints/</b>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>main.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
+ ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┣ 📂 🟧 <span>.github/</span>
  ┃ ┃ ┣ 📄 terraform.yml
- ┃ ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
+ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
  ┃ ┣ 📄 LICENSE
  ┃ ┣ 📄 .gitignore
- ┃ ┗ 📄 <span style="color:#6A1B9A">README.md</span>
- ┗ 📂 <b style="color:#FF9900">wordpress</b>
+ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┗ 📂 🟧 <b>wordpress</b>
    ┗ 📦 <i>WordPress Git mirror</i>
 </pre>
 
-<div align="center"><i>Color Legend:</i> 
-<span style="color:#FF9900">■</span> Repository &nbsp;|&nbsp; 
-<span style="color:#FFA000">■</span> Module &nbsp;|&nbsp; 
-<span style="color:#1B5E20">■</span> Terraform &nbsp;|&nbsp; 
-<span style="color:#005073">■</span> Template &nbsp;|&nbsp; 
-<span style="color:#E65100">■</span> Script &nbsp;|&nbsp; 
-<span style="color:#6A1B9A">■</span> README
+<div align="center">
+**Color Legend:**  
+🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟪 README
 </div>
 
 ---
