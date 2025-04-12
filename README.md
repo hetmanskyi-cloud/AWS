@@ -51,6 +51,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
  ┃ ┃ ┃ ┣ 📄 🟠 <span>healthcheck.php</span>
  ┃ ┃ ┃ ┣ 📄 🟠 <span>debug_monitor.sh</span>
  ┃ ┃ ┃ ┣ 📄 🟠 <span>fix_php_encoding.sh</span>
+ ┃ ┃ ┃ ┣ 📄 🟠 <span>check_aws_resources.sh</span>
  ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
  ┃ ┃ ┗ 📂 🟨 <b>modules/</b>
  ┃ ┃ ┃ ┣ 📂 🟨 <b>vpc/</b>
@@ -115,7 +116,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>   # You are here
  ┃ ┣ 📂 🟧 <span>.github/</span>
  ┃ ┃ ┣ 📄 terraform.yml
  ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
