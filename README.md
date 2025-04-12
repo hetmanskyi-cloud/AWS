@@ -116,13 +116,13 @@ This repository contains a production-ready, modular, and secure Infrastructure 
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>security_group.tf</span>
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>variables.tf</span>
  ┃ ┃ ┃ ┃ ┣ 📄 🟩 <span>outputs.tf</span>
- ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>   # You are here
+ ┃ ┃ ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
  ┃ ┣ 📂 🟧 <span>.github/</span>
  ┃ ┃ ┣ 📄 terraform.yml
  ┃ ┃ ┗ 📄 🟪 <span>README.md</span>
  ┃ ┣ 📄 LICENSE
  ┃ ┣ 📄 .gitignore
- ┃ ┗ 📄 🟪 <span>README.md</span>
+ ┃ ┗ 📄 🟪 <span>README.md</span> # You are here
  ┗ 📂 🟧 <b>wordpress</b>
    ┗ 📦 <i>WordPress Git mirror</i>
 </pre>
