@@ -28,7 +28,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 ## 1. Project Structure
 
 ```mermaid
-graph TD
+graph LR
     %% Root project
     classDef repo fill:#FF9900,color:#000,font-weight:bold
     classDef dir fill:#f9f9f9,stroke:#bbb,stroke-width:1px
@@ -159,6 +159,8 @@ graph TD
     %% WordPress repository
     WPRepo --> mirror[(WordPress Git mirror)]:::file
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
 ---
 

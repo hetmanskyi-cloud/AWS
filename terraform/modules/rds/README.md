@@ -129,6 +129,9 @@ graph TB
     class VPC,PrivateSubnets,ASG network
     class KMS encryption
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

@@ -235,6 +235,8 @@ graph LR
     class OwnershipControls,PublicAccessBlock security
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

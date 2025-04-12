@@ -105,6 +105,8 @@ graph TD
     class Tfsec,Checkov security
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Workflow Steps

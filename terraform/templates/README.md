@@ -107,6 +107,8 @@ graph TD
   class CloudWatchAgent,CloudWatchLogs monitoring
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

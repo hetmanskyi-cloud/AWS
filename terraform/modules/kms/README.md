@@ -160,6 +160,9 @@ graph LR
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
     class CWAlarm,SNSTopic monitoring
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

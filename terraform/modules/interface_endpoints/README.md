@@ -124,6 +124,9 @@ graph LR
     class SSM,SSMMessages,EC2Messages,CWLogs,KMS endpoints;
     class AWSServices awscloud;
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

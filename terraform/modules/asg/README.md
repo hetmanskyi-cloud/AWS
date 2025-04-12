@@ -123,6 +123,8 @@ graph TB
     class ScaleOut,ScaleIn,TargetTracking policy;
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

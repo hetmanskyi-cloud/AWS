@@ -54,7 +54,7 @@ This directory contains scripts used for deploying, configuring, and monitoring 
 ## 3. Architecture Diagram
 
 ```mermaid
-graph TD
+graph LR
     %% Main Components
     A["EC2 Instance"] --> B["Scripts"]
     
@@ -130,6 +130,9 @@ graph TD
     class FixPHPEncoding utility
     class GitMirror repository
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

@@ -136,6 +136,9 @@ graph LR
     class IAMRole,IAMPolicy iam
     class S3EP,DynamoEP endpoints
 ```
+
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

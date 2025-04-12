@@ -131,6 +131,8 @@ graph LR
     class VPC,PublicSubnets network;
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features:

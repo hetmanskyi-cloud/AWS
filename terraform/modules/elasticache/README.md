@@ -135,6 +135,8 @@ graph TB
     class VPC,PrivateSubnets network;
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features
