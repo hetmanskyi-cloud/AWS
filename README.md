@@ -126,7 +126,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 │   │       ├── 📄 🟩 <span>security_group.tf</span>
 │   │       ├── 📄 🟩 <span>variables.tf</span>
 │   │       ├── 📄 🟩 <span>outputs.tf</span>
-│   │       └── 📄 🟪 <span>README.md</span>   # You are here
+│   │       └── 📄 🟪 <span>README.md</span>
 │   │
 │   ├── 📂 🟧 <span>.github</span>/
 │   │   ├── 📄 terraform.yml
@@ -134,7 +134,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 │   │
 │   ├── 📄 LICENSE
 │   ├── 📄 .gitignore
-│   └── 📄 🟪 <span>README.md</span>
+│   └── 📄 🟪 <span>README.md</span> # You are here
 │
 └── 📂 🟧 <b>wordpress</b>/                            # WordPress source (official mirror, read-only)
     └── 📦 <i>WordPress Git mirror</i>
@@ -292,7 +292,6 @@ If WordPress is not installed:
 - [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 - [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
 - [AWS VPC Best Practices](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Scenario2.html)
-- [WordPress on AWS](https://aws.amazon.com/getting-started/hands-on/deploy-wordpress-with-amazon-rds/)
 
 ---
 

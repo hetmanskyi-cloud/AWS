@@ -185,7 +185,7 @@ This CI workflow integrates several tools to ensure code quality and security:
 -   **Strict Security Checks**: Remove `|| true` from `tfsec` and `Checkov` steps for stricter security enforcement (workflow fails if issues are found).
 -   **PR Comments**: Integrate tools like `tfsec-pr-commenter-action` or configure Checkov/TFLint actions to post findings directly as comments on Pull Requests.
 -   **`terraform plan`**: Add a `terraform plan` step (likely requiring AWS credentials via OIDC or secrets) to preview changes, especially on Pull Requests.
--   **Notifications**: Add notifications (e.g., Slack, email) on workflow failure.
+-   **Notifications**: Add notifications (e.g., Slack) on workflow failure.
 
 ---
 

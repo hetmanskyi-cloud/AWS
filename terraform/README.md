@@ -256,6 +256,7 @@ terraform/                           # Main Terraform configuration directory
 ├── sns_topics.tf                    # SNS notification configuration
 ├── terraform.tfvars                 # Variable values for deployment
 ├── Makefile                         # Automation for common Terraform tasks
+├── README.md                        # Documentation for the root Terraform configuration - You are here
 |
 ├── modules/                         # Modular components of the infrastructure
 │   ├── vpc/                         # Virtual Private Cloud module
