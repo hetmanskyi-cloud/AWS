@@ -226,6 +226,7 @@ _(Full list of variables available in the `variables.tf` file)_
 | asg_security_group_id         | Security Group ID for ASG instances                  |
 | instance_role_id              | IAM Role ID for instances                            |
 | instance_profile_arn          | IAM Instance Profile ARN                             |
+| asg_role_arn                  | ARN of the IAM role used by ASG instances            |
 | scale_out_policy_arn          | Scale-Out Policy ARN                                 |
 | scale_in_policy_arn           | Scale-In Policy ARN                                  |
 | rendered_user_data (sensitive)| Rendered User Data script                            |
@@ -284,6 +285,7 @@ module "asg" {
 - All secrets are securely fetched at runtime by `deploy_wordpress.sh` using `aws secretsmanager get-secret-value`.
 - Outbound access to `0.0.0.0/0` is allowed by default for internet access (updates, SSM, etc.).  
 - For production, either restrict egress rules to specific AWS services or enable `enable_interface_endpoints = true`.
+- For EBS encryption, ensure the ASG role is added to the KMS key's `additional_principals` list.
 
 ---
 
@@ -329,6 +331,7 @@ This module is designed to integrate seamlessly with the following components:
 - **KMS Module:** Enables encryption of sensitive data and logs.
 - **Monitoring Module:** Manages SNS topics and CloudWatch Alarms.
 - **AWS Secrets Manager:** Stores WordPress, database, and Redis credentials, which are securely retrieved by EC2 instances at runtime.
+- Export `asg_role_arn` to be used in the KMS module's `additional_principals` for EBS encryption.
 
 ---
 
@@ -397,6 +400,7 @@ If using S3, validate bucket permissions and that `enable_s3_script = true` is c
 **Solution:**  
 - Check that the IAM role has `kms:Decrypt` permission.  
 - Validate the `kms_key_arn` used.
+- Check that the IAM role has all required KMS permissions: `kms:Decrypt`, `kms:DescribeKey`, `kms:CreateGrant`, `kms:GenerateDataKeyWithoutPlainText`, and `kms:ReEncrypt*` for EBS encryption.
 
 ---
 

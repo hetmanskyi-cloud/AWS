@@ -89,13 +89,7 @@ variable "replication_region_buckets" {
 # List of additional AWS principals that require access to the KMS key
 # Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
 variable "additional_principals" {
-  description = <<EOT
-List of additional AWS principals (e.g., IAM roles or services) that require access to the KMS key.
-Example:
-  - "arn:aws:iam::123456789012:role/example-role"
-  - "arn:aws:iam::123456789012:user/example-user"
-Leave this as an empty list if no additional principals need to be granted access initially.
-EOT
+  description = "List of additional AWS principals (e.g., IAM roles or users) requiring access to the KMS key. Leave empty if not needed."
   type        = list(string)
   default     = [] # Default is an empty list, meaning no additional principals
 

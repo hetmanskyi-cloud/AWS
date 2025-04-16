@@ -49,7 +49,8 @@ locals {
     "kms:ReEncryptTo",
     "kms:GenerateDataKey*",
     "kms:GenerateDataKeyWithoutPlaintext",
-    "kms:DescribeKey"
+    "kms:DescribeKey",
+    "kms:CreateGrant"
   ])
 
   # KMS actions specifically required for S3 replication.

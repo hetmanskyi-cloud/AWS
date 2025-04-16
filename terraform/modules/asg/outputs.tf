@@ -83,6 +83,12 @@ output "instance_profile_arn" {
   value       = aws_iam_instance_profile.asg_instance_profile.arn
 }
 
+# ARN of the IAM role used by ASG instances
+output "asg_role_arn" {
+  description = "ARN of the IAM role used by ASG instances"
+  value       = aws_iam_role.asg_role.arn
+}
+
 # --- Scaling Policy Outputs --- #
 
 # ARN of the Scale-Out Policy to increase ASG capacity when utilization exceeds threshold.

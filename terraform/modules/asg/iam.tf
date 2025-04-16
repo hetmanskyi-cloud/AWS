@@ -248,14 +248,17 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
       ]
       : [],
 
-      # 3) EBS encryption => typically Decrypt/DescribeKey is enough
+      # 3) EBS encryption => full required actions
       var.enable_ebs_encryption
       ? [
         {
           Effect = "Allow"
           Action = [
             "kms:Decrypt",
-            "kms:DescribeKey"
+            "kms:DescribeKey",
+            "kms:CreateGrant",
+            "kms:GenerateDataKeyWithoutPlainText",
+            "kms:ReEncrypt*"
           ]
           Resource = var.kms_key_arn
         }

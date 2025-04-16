@@ -85,7 +85,7 @@ resource "aws_launch_template" "asg_launch_template" {
   # Block Device Mappings
   # Configure the root EBS volume with encryption enabled if enabled via `enable_ebs_encryption`.
   block_device_mappings {
-    device_name = "/dev/xvda" # Root volume device name for image AMIs
+    device_name = "/dev/sda1" # Root volume device name for image AMIs
     ebs {
       volume_size           = var.volume_size                                    # Volume size in GiB
       volume_type           = var.volume_type                                    # Volume type (e.g., gp2, gp3)

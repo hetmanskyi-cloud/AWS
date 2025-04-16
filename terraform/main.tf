@@ -81,7 +81,9 @@ module "kms" {
 
   # Additional principals that require access to the KMS key:
   # - Provide ARNs of IAM roles, users, or services that need encryption/decryption permissions
-  additional_principals = var.additional_principals
+  additional_principals = [
+    module.asg.asg_role_arn # ASG role ARN to additional_principals for EBS encryption
+  ]
 
   # Key rotation and monitoring
   enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
@@ -94,7 +96,7 @@ module "kms" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # ARN of the SNS topic to send alarm notifications
 
   # Feature-specific flags for permissions
-  enable_dynamodb    = var.enable_dynamodb    # Enable KMS permissions for DynamoDB  
+  enable_dynamodb    = var.enable_dynamodb    # Enable KMS permissions for DynamoDB
   enable_firehose    = var.enable_firehose    # Enable KMS permissions for Kinesis Firehose
   enable_waf_logging = var.enable_waf_logging # Enable KMS permissions for WAF logging
 
