@@ -142,10 +142,9 @@ graph LR
     S3 -->|Cross-Region Replication| ReplicaS3
     ReplicaS3 -->|Encrypted with| ReplicaKey
 
-    %% ASG Role for EBS Encryption
-+   ASGRole[ASG IAM Role]
-+   ASGRole -->|Via additional_principals| KMSKey
-+   EBS -.->|Used by| ASGRole
+    ASGRole[ASG IAM Role]
+    ASGRole -->|Via additional_principals| KMSKey
+    EBS -.->|Used by| ASGRole
     
     %% Connections - Audit
     KMSKey -->|Audit Logs| CloudTrail
