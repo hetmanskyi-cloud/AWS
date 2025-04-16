@@ -107,14 +107,6 @@ variable "flow_logs_retention_in_days" {
 
 # --- KMS Module Configuration --- #
 
-# List of additional AWS principals that require access to the KMS key
-# Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
-variable "additional_principals" {
-  description = "List of additional AWS principals (e.g., services or IAM roles) that need access to the KMS key"
-  type        = list(string)
-  default     = [] # Default is an empty list, meaning no additional principals
-}
-
 # Allows enabling or disabling automatic key rotation for the KMS key.
 variable "enable_key_rotation" {
   description = "Enable or disable automatic key rotation for the KMS key"
