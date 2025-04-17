@@ -97,7 +97,6 @@ resource "aws_launch_template" "asg_launch_template" {
 
   # Security and Metadata Settings
   # Control instance termination and metadata access settings.
-
   # Prevent accidental termination of instances via API (useful in production)
   disable_api_termination = false # Set to true in production to prevent manual terminations
 
@@ -201,3 +200,9 @@ resource "aws_launch_template" "asg_launch_template" {
 #       using the `aws secretsmanager get-secret-value` command.
 #     - Only non-sensitive configuration variables are exported in user_data.
 #     - Ensure the instance profile includes `secretsmanager:GetSecretValue` and `secretsmanager:DescribeSecret` permissions.
+#
+# 11. **EBS Encryption**:
+#     - Root EBS volumes are encrypted with a customer-managed KMS key (`kms_key_arn`).
+#     - Encryption is controlled via the `enable_ebs_encryption` variable in terraform.tfvars.
+#     - Required KMS key permissions are configured in the kms module (for EC2 and AutoScaling).
+#     - Volume is deleted on termination to prevent data persistence outside the ASG lifecycle.
