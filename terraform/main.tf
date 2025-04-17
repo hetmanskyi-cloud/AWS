@@ -79,12 +79,6 @@ module "kms" {
   environment = var.environment # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix # Prefix for naming resources
 
-  # Additional principals that require access to the KMS key:
-  # - Provide ARNs of IAM roles, users, or services that need encryption/decryption permissions
-  additional_principals = [
-    module.asg.asg_role_arn # ASG role ARN to additional_principals for EBS encryption
-  ]
-
   # Key rotation and monitoring
   enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
   kms_root_access       = var.kms_root_access       # Enable or disable root access in key policy
@@ -212,7 +206,7 @@ module "asg" {
   redis_auth_secret_arn  = aws_secretsmanager_secret.redis_auth.arn
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
-  depends_on = [module.vpc,
+  depends_on = [module.vpc, module.kms,
     module.s3, aws_secretsmanager_secret_version.wp_secrets_version,
     aws_cloudwatch_log_group.user_data_logs,
     aws_cloudwatch_log_group.system_logs,

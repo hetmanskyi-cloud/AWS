@@ -75,6 +75,7 @@ log "Exporting environment variables..."
   echo "HEALTHCHECK_S3_PATH=\"${healthcheck_s3_path}\""
   echo "AWS_DEFAULT_REGION=\"${aws_region}\""
 
+  # Retry configuration for operations such as healthcheck, package installs, etc.
   echo "RETRY_MAX_RETRIES=\"${retry_max_retries}\""
   echo "RETRY_RETRY_INTERVAL=\"${retry_retry_interval}\""
 } | sudo tee -a /etc/environment > /dev/null
@@ -82,8 +83,10 @@ log "Exporting environment variables..."
 # Loads the newly exported environment variables to make them available for the session.
 log "Loading environment variables..."
 source /etc/environment
-log "Exported environment variables:"
-env | grep -E 'DB_|WP_|REDIS_|PHP|AWS'  # Debugging step to check environment variables
+
+# Optional debug: print all environment variables (sorted) to the user-data log for troubleshooting.
+log "Sorted environment variables for debugging:"
+env | sort >> /var/log/user-data.log
 
 # --- 3. Download Amazon RDS root SSL certificate --- #
 

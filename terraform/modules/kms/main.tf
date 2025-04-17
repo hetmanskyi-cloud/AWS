@@ -97,17 +97,15 @@ locals {
     var.enable_waf_logging ? ["waf.amazonaws.com"] : []                                   # WAF (legacy)
   ))
 
-  # List of additional principals (IAM roles, users) needing KMS access, passed via variable.
-  additional_principals = distinct(var.additional_principals)
-
   # Extract S3 bucket names for conditional CloudTrail access in KMS policy.
   s3_bucket_names = keys(merge(var.default_region_buckets, var.replication_region_buckets))
 }
 
 # --- Policy for the Primary KMS Key --- #
 # Policy for the primary KMS key granting optional root access (temporary, for setup),
-# AWS service access, S3 replication permissions, and access to additional principals.
-# Root access is controlled by the 'remove_root_access' variable for automation and security.
+# AWS service access, S3 replication permissions, and specific permissions for AutoScaling service role.
+# Root access is controlled by the 'kms_root_access' variable for automation and security.
+# EBS encryption is supported through dedicated statements for EC2 and AutoScaling service role.
 resource "aws_kms_key_policy" "general_encryption_key_policy" {
   key_id = aws_kms_key.general_encryption_key.id
 
@@ -116,6 +114,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
     Id      = "key-policy-1",
     Statement = flatten([
       [
+
         # Statement: Root access for the KMS key (enabled via kms_root_access = true)
         var.kms_root_access ? [
           {
@@ -140,6 +139,61 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Resource = aws_kms_key.general_encryption_key.arn
         },
 
+        # Statement: Allow EC2 to CreateGrant for root EBS volume encryption (critical for instance launch)
+        {
+          Sid    = "AllowEC2LaunchGrant",
+          Effect = "Allow",
+          Principal = {
+            Service = "ec2.amazonaws.com"
+          },
+          Action = [
+            "kms:CreateGrant"
+          ],
+          Resource = aws_kms_key.general_encryption_key.arn,
+          Condition = {
+            Bool = {
+              "kms:GrantIsForAWSResource" = "true"
+            }
+          }
+        },
+
+        # Statement: Allow AutoScaling service role to perform basic operations on the KMS key
+        # This follows AWS best practices for EBS encryption with AutoScaling
+        {
+          Sid    = "AllowAutoScalingServiceRoleUsage",
+          Effect = "Allow",
+          Principal = {
+            AWS = "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+          },
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          Resource = "*"
+        },
+
+        # Statement: Allow AutoScaling service role to create grants for AWS resources
+        # This is required for the AutoScaling service to delegate permissions to EC2 for EBS encryption
+        {
+          Sid    = "AllowAutoScalingServiceRoleCreateGrant",
+          Effect = "Allow",
+          Principal = {
+            AWS = "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+          },
+          Action = [
+            "kms:CreateGrant"
+          ],
+          Resource = "*",
+          Condition = {
+            Bool = {
+              "kms:GrantIsForAWSResource" = "true"
+            }
+          }
+        },
+
         # Statement: Allow S3 Replication Usage
         {
           Sid    = "AllowS3ReplicationUsage",
@@ -150,20 +204,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Action   = local.s3_replication_kms_actions,
           Resource = aws_kms_key.general_encryption_key.arn
         }
-      ],
-
-      length(local.additional_principals) > 0 ? [
-        # Statement: Allow Additional Principals
-        {
-          Sid    = "AllowAdditionalPrincipals",
-          Effect = "Allow",
-          Principal = {
-            AWS = local.additional_principals
-          },
-          Action   = local.kms_actions,
-          Resource = aws_kms_key.general_encryption_key.arn
-        }
-      ] : []
+      ]
     ])
   })
 

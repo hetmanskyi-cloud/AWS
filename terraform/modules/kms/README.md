@@ -142,15 +142,11 @@ graph LR
     S3 -->|Cross-Region Replication| ReplicaS3
     ReplicaS3 -->|Encrypted with| ReplicaKey
 
-    ASGRole[ASG IAM Role]
-    ASGRole -->|Via additional_principals| KMSKey
-    EBS -.->|Used by| ASGRole
-    
     %% Connections - Audit
     KMSKey -->|Audit Logs| CloudTrail
     
-    %% Connections - External VPC Endpoint
-    KMSKey -.->|Optional Access via| VPCEndpoint
+    %% Connections - Optional VPC Endpoint
+    KMSKey -.->|Private Access| VPCEndpoint
     
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
@@ -162,7 +158,7 @@ graph LR
     class KMSKey,KeyPolicy,KeyRotation primary
     class ReplicaKey,IAMRole,IAMPolicy,KMSGrant,VPCEndpoint optional
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
-    class ASGRole security
+    class RootUser security
     class CWAlarm,SNSTopic monitoring
 ```
 
@@ -216,7 +212,6 @@ This module provisions:
 | `name_prefix`               | `string`       | Prefix for naming resources                                         | **Required**                     |
 | `environment`               | `string`       | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
 | `enable_key_rotation`       | `bool`         | Enable automatic key rotation                                       | `true`                           |
-| `additional_principals`     | `list(string)` | Additional IAM principals with KMS access                           | `[]`                             |
 | `kms_root_access`           | `bool`         | Enable or disable root access to the KMS key                        | `true/false`                     |
 | `enable_kms_admin_role`     | `bool`         | Create IAM role for key management                                  | `false`                          |
 | `enable_key_monitoring`     | `bool`         | Enable CloudWatch monitoring                                        | `false`                          |
@@ -256,8 +251,6 @@ module "kms" {
   name_prefix           = var.name_prefix
 
   enable_key_rotation   = true
-  additional_principals = ["arn:aws:iam::${var.aws_account_id}:role/example-role"]
-
   kms_root_access       = false # Set to true during initial setup, then switch to false to remove root access automatically
   enable_kms_admin_role = true
   enable_key_monitoring = true
@@ -286,9 +279,6 @@ module "kms" {
       region = "us-east-1"
     }
   }
-
-  # ASG role ARN to additional_principals for EBS encryption
-  additional_principals = [module.asg.asg_role_arn]
 
   depends_on = [aws_sns_topic.cloudwatch_alarms]
 }
@@ -393,11 +383,15 @@ This module supports conditional creation of certain resources based on input va
 ## 13. Integration
 Integrates seamlessly with other modules:
 - **VPC, ASG, ALB, RDS, S3, ElastiCache Modules**: Encryption at rest for data stored or transmitted by these services.
+
 ### EBS Volume Encryption
 When using this KMS key for EBS volume encryption:
 - Set `enable_ebs_encryption = true` in your ASG or EC2 configuration.
-- Ensure the IAM role used by EC2 instances is included in `additional_principals`.
-- The role requires permissions: `kms:Decrypt`, `kms:DescribeKey`, `kms:CreateGrant`, `kms:GenerateDataKeyWithoutPlainText`, and `kms:ReEncrypt*`.
+- The KMS key policy includes dedicated statements for the AutoScaling service role:
+  - `AllowAutoScalingServiceRoleUsage` - Allows basic key operations
+  - `AllowAutoScalingServiceRoleCreateGrant` - Allows creating grants for AWS resources
+- The policy also includes `AllowEC2LaunchGrant` statement to allow EC2 to create grants for encrypted volumes.
+- This approach follows AWS best practices for EBS encryption with AutoScaling.
 
 ---
 
@@ -500,11 +494,13 @@ When using this KMS key for EBS volume encryption:
 - Confirm the KMS Grant is created and linked to the S3 replication process.
 
 ### 11. EC2 Instances Fail to Launch with Encrypted EBS Volumes
-**Cause:** Missing `kms:CreateGrant` permission in IAM role or KMS key policy.  
+**Cause:** Missing permissions in KMS key policy for EBS encryption.  
 **Solution:**  
-- Ensure the IAM role used by EC2 instances has `kms:CreateGrant` permission on the KMS key.
-- Add the EC2 instance role ARN to `additional_principals` in the KMS module configuration.
-- Verify that `kms:CreateGrant` is included in the `kms_actions` list in the KMS key policy.
+- Verify that the KMS key policy includes the `AllowAutoScalingServiceRoleUsage` and `AllowAutoScalingServiceRoleCreateGrant` statements.
+- Ensure the `AllowAutoScalingServiceRoleUsage` statement includes all necessary actions: `kms:Encrypt`, `kms:Decrypt`, `kms:ReEncrypt*`, `kms:GenerateDataKey*`, and `kms:DescribeKey`.
+- Confirm the `AllowAutoScalingServiceRoleCreateGrant` statement allows `kms:CreateGrant` with condition `"kms:GrantIsForAWSResource": "true"`.
+- Check that the EC2 service principal is included in the `kms_services` list.
+- Verify that the `AllowEC2LaunchGrant` statement is present to allow EC2 to create grants for encrypted volumes.
 
 ### 12. AWS CLI Reference
 

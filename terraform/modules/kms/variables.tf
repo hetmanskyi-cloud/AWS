@@ -86,19 +86,6 @@ variable "replication_region_buckets" {
   default     = {}
 }
 
-# List of additional AWS principals that require access to the KMS key
-# Useful for allowing specific IAM roles or services access to the key, expanding beyond the root account and logs service.
-variable "additional_principals" {
-  description = "List of additional AWS principals (e.g., IAM roles or users) requiring access to the KMS key. Leave empty if not needed."
-  type        = list(string)
-  default     = [] # Default is an empty list, meaning no additional principals
-
-  validation {
-    condition     = alltrue([for arn in var.additional_principals : can(regex("^arn:aws:iam::[0-9]{12}:(user|role)/[A-Za-z0-9-_]+$", arn))])
-    error_message = "All additional principals must be valid IAM ARNs."
-  }
-}
-
 # Decrypt Operations Threshold
 # Sets the threshold for the number of decrypt operations that trigger an alarm.
 variable "key_decrypt_threshold" {

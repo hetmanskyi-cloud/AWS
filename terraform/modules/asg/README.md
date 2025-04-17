@@ -285,7 +285,6 @@ module "asg" {
 - All secrets are securely fetched at runtime by `deploy_wordpress.sh` using `aws secretsmanager get-secret-value`.
 - Outbound access to `0.0.0.0/0` is allowed by default for internet access (updates, SSM, etc.).  
 - For production, either restrict egress rules to specific AWS services or enable `enable_interface_endpoints = true`.
-- For EBS encryption, ensure the ASG role is added to the KMS key's `additional_principals` list.
 
 ---
 
@@ -309,6 +308,7 @@ module "asg" {
 - Monitor all alarms via SNS.
 - Enable Interface Endpoints if deploying in private subnets.
 - Limit Security Group CIDRs.
+- Always enable KMS encryption for S3 and EBS in production environments using your custom CMK KMS key.
 
 ### General Recommendations
 - Review scaling thresholds periodically.
@@ -331,7 +331,6 @@ This module is designed to integrate seamlessly with the following components:
 - **KMS Module:** Enables encryption of sensitive data and logs.
 - **Monitoring Module:** Manages SNS topics and CloudWatch Alarms.
 - **AWS Secrets Manager:** Stores WordPress, database, and Redis credentials, which are securely retrieved by EC2 instances at runtime.
-- Export `asg_role_arn` to be used in the KMS module's `additional_principals` for EBS encryption.
 
 ---
 

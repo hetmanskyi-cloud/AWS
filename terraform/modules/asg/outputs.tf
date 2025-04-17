@@ -85,7 +85,7 @@ output "instance_profile_arn" {
 
 # ARN of the IAM role used by ASG instances
 output "asg_role_arn" {
-  description = "ARN of the IAM role used by ASG instances"
+  description = "ARN of the IAM role used by ASG instances for accessing AWS services and resources"
   value       = aws_iam_role.asg_role.arn
 }
 
