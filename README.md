@@ -41,7 +41,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 │   │   ├── 📄 🟩 <span>cloudtrail.tf</span>
 │   │   ├── 📄 🟩 <span>sns_topics.tf</span>
 │   │   ├── 📄 🟩 <span>secrets.tf</span>
-│   │   ├── 📄 Makefile
+│   │   ├── 📄 🟫 <span>Makefile</span>
 │   │   └── 📄 🟪 <span>README.md</span>
 │   │
 │   ├── 📂 🟦 <span>templates</span>/
@@ -141,7 +141,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 </pre>
 <div align="center">
 **Color Legend:**  
-🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟪 README
+🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟪 README | 🟫 Makefile
 </div>
 
 ---

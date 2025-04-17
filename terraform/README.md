@@ -243,105 +243,110 @@ This modular design allows easy extension with additional components (e.g., NAT 
 Each module follows Terraform best practices with separate logical files (main, variables, outputs, policies, lifecycle).
 All modules are self-contained and documented for reusability.
 
-```
-terraform/                           # Main Terraform configuration directory
-├── main.tf                          # Primary configuration file with module calls
-├── variables.tf                     # Input variable declarations
-├── outputs.tf                       # Output value definitions
-├── providers.tf                     # AWS provider configuration
-├── remote_backend.tf                # S3 backend for state management
-├── secrets.tf                       # AWS Secrets Manager configuration
-├── cloudtrail.tf                    # CloudTrail logging setup
-├── cloudwatch.tf                    # CloudWatch metrics and alarms configuration
-├── sns_topics.tf                    # SNS notification configuration
-├── terraform.tfvars                 # Variable values for deployment
-├── Makefile                         # Automation for common Terraform tasks
-├── README.md                        # Documentation for the root Terraform configuration - You are here
-|
-├── modules/                         # Modular components of the infrastructure
-│   ├── vpc/                         # Virtual Private Cloud module
-│   │   ├── main.tf                  # VPC, subnets, and core resources
-│   │   ├── endpoints_routes.tf      # Route tables and VPC endpoints
-│   │   ├── flow_logs.tf             # VPC Flow Logs configuration
-│   │   ├── nacl.tf                  # Network ACL rules
-│   │   ├── variables.tf             # Input variables for the module
-│   │   ├── outputs.tf               # Output values from the module
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── alb/                         # Application Load Balancer module
-│   │   ├── main.tf                  # ALB and target group configuration
-│   │   ├── security_group.tf        # ALB security groups
-│   │   ├── waf.tf                   # Web Application Firewall rules
-│   │   ├── firehose.tf              # Kinesis Firehose for logs
-│   │   ├── metrics.tf               # CloudWatch metrics and alarms
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── asg/                         # Auto Scaling Group module
-│   │   ├── main.tf                  # ASG configuration and scaling policies
-│   │   ├── launch_template.tf       # EC2 launch template with WordPress deployment
-│   │   ├── iam.tf                   # IAM roles and conditional policies for S3, KMS, and SSM
-│   │   ├── security_group.tf        # EC2 security groups with dynamic rules
-│   │   ├── metrics.tf               # CloudWatch metrics and alarms
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── rds/                         # RDS Database module
-│   │   ├── main.tf                  # RDS instance configuration
-│   │   ├── security_group.tf        # Database security groups
-│   │   ├── iam.tf                   # IAM roles for monitoring
-│   │   ├── metrics.tf               # CloudWatch metrics and alarms
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── elasticache/                 # ElastiCache Redis module
-│   │   ├── main.tf                  # Redis cluster configuration
-│   │   ├── security_group.tf        # Redis security groups
-│   │   ├── metrics.tf               # CloudWatch metrics and alarms
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── s3/                          # S3 Storage module
-│   │   ├── main.tf                  # S3 bucket configuration
-│   │   ├── policies.tf              # Bucket policies
-│   │   ├── lifecycle.tf             # Object lifecycle rules
-│   │   ├── replication.tf           # Cross-region replication
-│   │   ├── dynamodb.tf              # DynamoDB for state locking
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   ├── kms/                         # KMS Encryption module
-│   │   ├── main.tf                  # Main KMS configuration
-│   │   ├── key.tf                   # KMS key configuration
-│   │   ├── metrics.tf               # CloudWatch metrics and alarms
-│   │   ├── variables.tf             # Input variables
-│   │   ├── outputs.tf               # Output values
-│   │   └── README.md                # Module documentation
-│   │
-│   └── interface_endpoints/         # VPC Interface Endpoints module (now disabled)
-│       ├── main.tf                  # Endpoint configuration
-│       ├── security_group.tf        # Endpoint security groups
-│       ├── variables.tf             # Input variables
-│       ├── outputs.tf               # Output values
-│       └── README.md                # Module documentation
+<pre>
+📦 🟧 <b>terraform</b>/                                      # Main Terraform configuration directory
+├── 📄 🟩 <span>main.tf</span>                               # Primary configuration file with module calls
+├── 📄 🟩 <span>variables.tf</span>                          # Input variable declarations
+├── 📄 🟩 <span>outputs.tf</span>                            # Output value definitions
+├── 📄 🟩 <span>providers.tf</span>                          # AWS provider configuration
+├── 📄 🟩 <span>remote_backend.tf</span>                     # S3 backend for state management
+├── 📄 🟩 <span>secrets.tf</span>                            # AWS Secrets Manager configuration
+├── 📄 🟩 <span>cloudtrail.tf</span>                         # CloudTrail logging setup
+├── 📄 🟩 <span>cloudwatch.tf</span>                         # CloudWatch metrics and alarms configuration
+├── 📄 🟩 <span>sns_topics.tf</span>                         # SNS notification configuration
+├── 📄 🟩 <span>terraform.tfvars</span>                      # Variable values for deployment
+├── 📄 🟫 <span>Makefile</span>                              # Automation for common Terraform tasks
+├── 📄 🟪 <span>README.md</span>                             # Documentation for the root Terraform configuration - You are here
 │
-├── scripts/                         # Deployment and maintenance scripts
-│   ├── check_aws_resources.sh       # Checks AWS resource status
-│   ├── debug_monitor.sh             # Monitoring and debugging script
-│   ├── deploy_wordpress.sh          # Automates WordPress deployment
-│   ├── fix_php_encoding.sh          # Fixes PHP encoding issues
-│   ├── healthcheck.php              # ALB health check script
-│   └── README.md                    # Scripts documentation
+├── 📂 🟨 <b>modules</b>/                                    # Modular components of the infrastructure
+│   ├── 📂 🟨 <b>vpc</b>/                                    # Virtual Private Cloud module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # VPC, subnets, and core resources
+│   │   ├── 📄 🟩 <span>endpoints_routes.tf</span>           # Route tables and VPC endpoints
+│   │   ├── 📄 🟩 <span>flow_logs.tf</span>                  # VPC Flow Logs configuration
+│   │   ├── 📄 🟩 <span>nacl.tf</span>                       # Network ACL rules
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables for the module
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values from the module
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>alb</b>/                                    # Application Load Balancer module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # ALB and target group configuration
+│   │   ├── 📄 🟩 <span>security_group.tf</span>             # ALB security groups
+│   │   ├── 📄 🟩 <span>waf.tf</span>                        # Web Application Firewall rules
+│   │   ├── 📄 🟩 <span>firehose.tf</span>                   # Kinesis Firehose for logs
+│   │   ├── 📄 🟩 <span>metrics.tf</span>                    # CloudWatch metrics and alarms
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>asg</b>/                                    # Auto Scaling Group module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # ASG configuration and scaling policies
+│   │   ├── 📄 🟩 <span>launch_template.tf</span>            # EC2 launch template with WordPress deployment
+│   │   ├── 📄 🟩 <span>iam.tf</span>                        # IAM roles and conditional policies for S3, KMS, and SSM
+│   │   ├── 📄 🟩 <span>security_group.tf</span>             # EC2 security groups with dynamic rules
+│   │   ├── 📄 🟩 <span>metrics.tf</span>                    # CloudWatch metrics and alarms
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>rds</b>/                                    # RDS Database module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # RDS instance configuration
+│   │   ├── 📄 🟩 <span>security_group.tf</span>             # Database security groups
+│   │   ├── 📄 🟩 <span>iam.tf</span>                        # IAM roles for monitoring
+│   │   ├── 📄 🟩 <span>metrics.tf</span>                    # CloudWatch metrics and alarms
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>elasticache</b>/                            # ElastiCache Redis module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # Redis cluster configuration
+│   │   ├── 📄 🟩 <span>security_group.tf</span>             # Redis security groups
+│   │   ├── 📄 🟩 <span>metrics.tf</span>                    # CloudWatch metrics and alarms
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>s3</b>/                                     # S3 Storage module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # S3 bucket configuration
+│   │   ├── 📄 🟩 <span>policies.tf</span>                   # Bucket policies
+│   │   ├── 📄 🟩 <span>lifecycle.tf</span>                  # Object lifecycle rules
+│   │   ├── 📄 🟩 <span>replication.tf</span>                # Cross-region replication
+│   │   ├── 📄 🟩 <span>dynamodb.tf</span>                   # DynamoDB for state locking
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   ├── 📂 🟨 <b>kms</b>/                                    # KMS Encryption module
+│   │   ├── 📄 🟩 <span>main.tf</span>                       # Main KMS configuration
+│   │   ├── 📄 🟩 <span>key.tf</span>                        # KMS key configuration
+│   │   ├── 📄 🟩 <span>metrics.tf</span>                    # CloudWatch metrics and alarms
+│   │   ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│   │   ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│   │   └── 📄 🟪 <span>README.md</span>                     # Module documentation
+│   │
+│   └── 📂 🟨 <b>interface_endpoints</b>/                    # VPC Interface Endpoints module (now disabled)
+│       ├── 📄 🟩 <span>main.tf</span>                       # Endpoint configuration
+│       ├── 📄 🟩 <span>security_group.tf</span>             # Endpoint security groups
+│       ├── 📄 🟩 <span>variables.tf</span>                  # Input variables
+│       ├── 📄 🟩 <span>outputs.tf</span>                    # Output values
+│       └── 📄 🟪 <span>README.md</span>                     # Module documentation
 │
-└── templates/                       # Template files for resources
-    ├── user_data.sh.tpl             # EC2 user data template
-    └── README.md                    # Templates documentation
-```
+├── 📂 🟠 <span>scripts</span>/                              # Deployment and maintenance scripts
+│   ├── 📄 🟠 <span>check_aws_resources.sh</span>            # Checks AWS resource status
+│   ├── 📄 🟠 <span>debug_monitor.sh</span>                  # Monitoring and debugging script
+│   ├── 📄 🟠 <span>deploy_wordpress.sh</span>               # Automates WordPress deployment
+│   ├── 📄 🟠 <span>fix_php_encoding.sh</span>               # Fixes PHP encoding issues
+│   ├── 📄 🟠 <span>healthcheck.php</span>                   # ALB health check script
+│   └── 📄 🟪 <span>README.md</span>                         # Scripts documentation
+│
+└── 📂 🟦 <span>templates</span>/                            # Template files for resources
+    ├── 📄 🟦 <span>user_data.sh.tpl</span>                  # EC2 user data template
+    └── 📄 🟪 <span>README.md</span>                         # Templates documentation
+</pre>
+<div align="center">
+<b>Color Legend:</b>  
+🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟫 Makefile | 🟪 README
+</div>
+
 ---
 
 ## 7. Example Usage
