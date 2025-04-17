@@ -27,121 +27,122 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 
 ## 1. Project Structure
 
-<pre>
-📦 🟧 <b>project</b>/
-├── 📂 🟧 <b>aws</b>/                                  # AWS Infrastructure repository
-│   ├── 📂 🟩 <span>terraform</span>/
-│   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   ├── 📄 🟩 <span>terraform.tfvars</span>
-│   │   ├── 📄 🟩 <span>providers.tf</span>
-│   │   ├── 📄 🟩 <span>remote_backend.tf</span>
-│   │   ├── 📄 🟩 <span>cloudwatch.tf</span>
-│   │   ├── 📄 🟩 <span>cloudtrail.tf</span>
-│   │   ├── 📄 🟩 <span>sns_topics.tf</span>
-│   │   ├── 📄 🟩 <span>secrets.tf</span>
-│   │   ├── 📄 🟫 <span>Makefile</span>
-│   │   └── 📄 🟪 <span>README.md</span>
+```
+📦 🟧 project/
+├── 📂 🟧 aws/                                       # AWS Infrastructure repository
+│   ├── 📂 🟩 terraform/
+│   │   ├── 📄 🟩 main.tf
+│   │   ├── 📄 🟩 variables.tf
+│   │   ├── 📄 🟩 outputs.tf
+│   │   ├── 📄 🟩 terraform.tfvars
+│   │   ├── 📄 🟩 providers.tf
+│   │   ├── 📄 🟩 remote_backend.tf
+│   │   ├── 📄 🟩 cloudwatch.tf
+│   │   ├── 📄 🟩 cloudtrail.tf
+│   │   ├── 📄 🟩 sns_topics.tf
+│   │   ├── 📄 🟩 secrets.tf
+│   │   ├── 📄 🟫 Makefile
+│   │   └── 📄 🟪 README.md
 │   │
-│   ├── 📂 🟦 <span>templates</span>/
-│   │   ├── 📄 🟦 <span>user_data.sh.tpl</span>
-│   │   └── 📄 🟪 <span>README.md</span>
+│   ├── 📂 🟦 templates/
+│   │   ├── 📄 🟦 user_data.sh.tpl
+│   │   └── 📄 🟪 README.md
 │   │
-│   ├── 📂 🟠 <span>scripts</span>/
-│   │   ├── 📄 🟠 <span>deploy_wordpress.sh</span>
-│   │   ├── 📄 🟠 <span>healthcheck.php</span>
-│   │   ├── 📄 🟠 <span>debug_monitor.sh</span>
-│   │   ├── 📄 🟠 <span>fix_php_encoding.sh</span>
-│   │   ├── 📄 🟠 <span>check_aws_resources.sh</span>
-│   │   └── 📄 🟪 <span>README.md</span>
+│   ├── 📂 🟠 scripts/
+│   │   ├── 📄 🟠 deploy_wordpress.sh
+│   │   ├── 📄 🟠 healthcheck.php
+│   │   ├── 📄 🟠 debug_monitor.sh
+│   │   ├── 📄 🟠 fix_php_encoding.sh
+│   │   ├── 📄 🟠 check_aws_resources.sh
+│   │   └── 📄 🟪 README.md
 │   │
-│   ├── 📂 🟨 <b>modules</b>/
-│   │   ├── 📂 🟨 <b>vpc</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>nacl.tf</span>
-│   │   │   ├── 📄 🟩 <span>endpoints_routes.tf</span>
-│   │   │   ├── 📄 🟩 <span>flow_logs.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   ├── 📂 🟨 modules/
+│   │   ├── 📂 🟨 vpc/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 nacl.tf
+│   │   │   ├── 📄 🟩 endpoints_routes.tf
+│   │   │   ├── 📄 🟩 flow_logs.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>kms</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>key.tf</span>
-│   │   │   ├── 📄 🟩 <span>metrics.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 kms/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 key.tf
+│   │   │   ├── 📄 🟩 metrics.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>s3</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>policies.tf</span>
-│   │   │   ├── 📄 🟩 <span>lifecycle.tf</span>
-│   │   │   ├── 📄 🟩 <span>replication.tf</span>
-│   │   │   ├── 📄 🟩 <span>dynamodb.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 s3/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 policies.tf
+│   │   │   ├── 📄 🟩 lifecycle.tf
+│   │   │   ├── 📄 🟩 replication.tf
+│   │   │   ├── 📄 🟩 dynamodb.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>rds</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>security_group.tf</span>
-│   │   │   ├── 📄 🟩 <span>iam.tf</span>
-│   │   │   ├── 📄 🟩 <span>metrics.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 rds/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 security_group.tf
+│   │   │   ├── 📄 🟩 iam.tf
+│   │   │   ├── 📄 🟩 metrics.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>elasticache</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>security_group.tf</span>
-│   │   │   ├── 📄 🟩 <span>metrics.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 elasticache/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 security_group.tf
+│   │   │   ├── 📄 🟩 metrics.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>alb</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>security_group.tf</span>
-│   │   │   ├── 📄 🟩 <span>waf.tf</span>
-│   │   │   ├── 📄 🟩 <span>firehose.tf</span>
-│   │   │   ├── 📄 🟩 <span>metrics.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 alb/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 security_group.tf
+│   │   │   ├── 📄 🟩 waf.tf
+│   │   │   ├── 📄 🟩 firehose.tf
+│   │   │   ├── 📄 🟩 metrics.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   ├── 📂 🟨 <b>asg</b>/
-│   │   │   ├── 📄 🟩 <span>main.tf</span>
-│   │   │   ├── 📄 🟩 <span>launch_template.tf</span>
-│   │   │   ├── 📄 🟩 <span>iam.tf</span>
-│   │   │   ├── 📄 🟩 <span>security_group.tf</span>
-│   │   │   ├── 📄 🟩 <span>metrics.tf</span>
-│   │   │   ├── 📄 🟩 <span>variables.tf</span>
-│   │   │   ├── 📄 🟩 <span>outputs.tf</span>
-│   │   │   └── 📄 🟪 <span>README.md</span>
+│   │   ├── 📂 🟨 asg/
+│   │   │   ├── 📄 🟩 main.tf
+│   │   │   ├── 📄 🟩 launch_template.tf
+│   │   │   ├── 📄 🟩 iam.tf
+│   │   │   ├── 📄 🟩 security_group.tf
+│   │   │   ├── 📄 🟩 metrics.tf
+│   │   │   ├── 📄 🟩 variables.tf
+│   │   │   ├── 📄 🟩 outputs.tf
+│   │   │   └── 📄 🟪 README.md
 │   │   │
-│   │   └── 📂 🟨 <b>interface_endpoints</b>/
-│   │       ├── 📄 🟩 <span>main.tf</span>
-│   │       ├── 📄 🟩 <span>security_group.tf</span>
-│   │       ├── 📄 🟩 <span>variables.tf</span>
-│   │       ├── 📄 🟩 <span>outputs.tf</span>
-│   │       └── 📄 🟪 <span>README.md</span>
+│   │   └── 📂 🟨 interface_endpoints/
+│   │       ├── 📄 🟩 main.tf
+│   │       ├── 📄 🟩 security_group.tf
+│   │       ├── 📄 🟩 variables.tf
+│   │       ├── 📄 🟩 outputs.tf
+│   │       └── 📄 🟪 README.md
 │   │
-│   ├── 📂 🟧 <span>.github</span>/
+│   ├── 📂 🟧 .github/
 │   │   ├── 📄 terraform.yml
-│   │   └── 📄 🟪 <span>README.md</span>
+│   │   └── 📄 🟪 README.md
 │   │
 │   ├── 📄 LICENSE
 │   ├── 📄 .gitignore
-│   └── 📄 🟪 <span>README.md</span> # You are here
+│   └── 📄 🟪 README.md                              # You are here
 │
-└── 📂 🟧 <b>wordpress</b>/                            # WordPress source (official mirror, read-only)
-    └── 📦 <i>WordPress Git mirror</i>
-</pre>
+└── 📂 🟧 wordpress/                                 # WordPress source (official mirror, read-only)
+    └── 📦 WordPress Git mirror
+```
+
 <div align="center">
 **Color Legend:**  
-🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟪 README | 🟫 Makefile
+🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟫 Makefile | 🟪 README
 </div>
 
 ---
