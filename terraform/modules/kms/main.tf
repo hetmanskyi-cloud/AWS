@@ -98,6 +98,7 @@ locals {
   ))
 
   # Extract S3 bucket names for conditional CloudTrail access in KMS policy.
+  # Includes replication buckets for future-proofing KMS access for S3 encryption, not tied to CloudTrail logging.
   s3_bucket_names = keys(merge(var.default_region_buckets, var.replication_region_buckets))
 }
 
