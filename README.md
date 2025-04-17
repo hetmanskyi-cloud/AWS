@@ -141,7 +141,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 ```
 
 <div align="center">
-**Color Legend:**  
+<b>Color Legend:</b>  
 🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟫 Makefile | 🟪 README
 </div>
 
