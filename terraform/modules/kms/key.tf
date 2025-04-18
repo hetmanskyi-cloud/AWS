@@ -50,7 +50,8 @@ resource "aws_iam_policy" "kms_management_policy" {
           "kms:EnableKeyRotation",
           "kms:DisableKeyRotation",
           "kms:UpdateKeyDescription",
-          "kms:GetKeyPolicy"
+          "kms:GetKeyPolicy",
+          "kms:PutKeyPolicy" # Critical permission for updating the key policy when root access is disabled
         ],
         Resource = aws_kms_key.general_encryption_key.arn
       }
@@ -77,7 +78,11 @@ resource "aws_iam_role_policy_attachment" "kms_management_attachment" {
 # 3. **Root Access Management**:
 #    - Root access is controlled via the `kms_root_access` variable (in main.tf).
 #    - Set `kms_root_access = true` during initial setup.
+#    - Set `enable_kms_admin_role = true`. Must be set to true before disabling root access (kms_root_access = false).
 #    - After verifying IAM role functionality, set `kms_root_access = false` to remove root permissions from the policy.
+#    - WARNING: If the IAM role does not include `kms:PutKeyPolicy`, and root access is disabled,
+#      you may permanently lose the ability to update or recover the key policy.
+#      Always ensure the admin role includes this action before removing root access.
 #
 # 4. **Least Privilege**:
 #    - This role provides only essential management permissions (describe, rotation, and update).

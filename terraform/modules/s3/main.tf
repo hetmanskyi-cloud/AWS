@@ -39,8 +39,8 @@ resource "aws_s3_bucket" "default_region_buckets" {
   # WARNING: The following lifecycle block, if enabled, will apply to ALL S3 buckets created by this module.
   # Use this only in production environments to prevent accidental deletion of important buckets.
   # 
-  # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal
   # - force_destroy = false    → blocks deletion of buckets containing objects
+  # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal  
   #
   # To enable strict protection, manually uncomment the block below.
   # If you need to apply protection **only to specific buckets** (e.g., 'terraform_state'), implement per-resource logic manually.

@@ -204,25 +204,25 @@ This module provisions:
 
 ## 7. Inputs
 
-| Name                        | Type           | Description                                                         | Default / Required               |
-|-----------------------------|----------------|---------------------------------------------------------------------|----------------------------------|
-| `aws_account_id`            | `string`       | AWS Account ID (12-digit numeric string)                            | **Required**                     |
-| `aws_region`                | `string`       | AWS Region (format: xx-xxxx-x, e.g., eu-west-1)                     | **Required**                     |
-| `replication_region`        | `string`       | AWS Region for replica key (optional)                               | `""` (no replication by default) |
-| `name_prefix`               | `string`       | Prefix for naming resources                                         | **Required**                     |
-| `environment`               | `string`       | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
-| `enable_key_rotation`       | `bool`         | Enable automatic key rotation                                       | `true`                           |
-| `kms_root_access`           | `bool`         | Enable or disable root access to the KMS key                        | `true/false`                     |
-| `enable_kms_admin_role`     | `bool`         | Create IAM role for key management                                  | `false`                          |
-| `enable_key_monitoring`     | `bool`         | Enable CloudWatch alarms for key usage                              | `false`                          |
-| `enable_kms_access_denied_alarm` | `bool`     | Enable CloudWatch alarm for KMS AccessDenied errors               | `true`                           |
-| `key_decrypt_threshold`     | `number`       | Threshold for decrypt operations alarm                              | `100`                            |
-| `sns_topic_arn`             | `string`       | ARN of SNS topic for alarms (required if monitoring enabled)        | `""`                             |
-| `default_region_buckets`    | `map(object)`  | Configuration for default region S3 buckets (see details below)     | `{}`                             |
-| `replication_region_buckets`| `map(object)`  | Configuration for replication region S3 buckets (see details below) | `{}`                             |
-| `enable_dynamodb`           | `bool`         | Allow DynamoDB service usage                                        | `false`                          |
-| `enable_firehose`           | `bool`         | Allow Kinesis Firehose usage                                        | `false`                          |
-| `enable_waf_logging`        | `bool`         | Allow WAF logging usage                                             | `false`                          |
+| Name                            | Type          | Description                                                         | Default / Required               |
+|---------------------------------|---------------|---------------------------------------------------------------------|----------------------------------|
+| `aws_account_id`                | `string`      | AWS Account ID (12-digit numeric string)                            | **Required**                     |
+| `aws_region`                    | `string`      | AWS Region (format: xx-xxxx-x, e.g., eu-west-1)                     | **Required**                     |
+| `replication_region`            | `string`      | AWS Region for replica key (optional)                               | `""` (no replication by default) |
+| `name_prefix`                   | `string`      | Prefix for naming resources                                         | **Required**                     |
+| `environment`                   | `string`      | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
+| `enable_key_rotation`           | `bool`        | Enable automatic key rotation                                       | `true`                           |
+| `kms_root_access`               | `bool`        | Enable or disable root access to the KMS key                        | `true/false`                     |
+| `enable_kms_admin_role`         | `bool`        | Create IAM role for key management                                  | `false`                          |
+| `enable_key_monitoring`         | `bool`        | Enable CloudWatch alarms for key usage                              | `false`                          |
+| `enable_kms_access_denied_alarm`| `bool`        | Enable CloudWatch alarm for KMS AccessDenied errors                 | `true`                           |
+| `key_decrypt_threshold`         | `number`      | Threshold for decrypt operations alarm                              | `100`                            |
+| `sns_topic_arn`                 | `string`      | ARN of SNS topic for alarms (required if monitoring enabled)        | `""`                             |
+| `default_region_buckets`        | `map(object)` | Configuration for default region S3 buckets (see details below)     | `{}`                             |
+| `replication_region_buckets`    | `map(object)` | Configuration for replication region S3 buckets (see details below) | `{}`                             |
+| `enable_dynamodb`               | `bool`        | Allow DynamoDB service usage                                        | `false`                          |
+| `enable_firehose`               | `bool`        | Allow Kinesis Firehose usage                                        | `false`                          |
+| `enable_waf_logging`            | `bool`        | Allow WAF logging usage                                             | `false`                          |
 
 ---
 
@@ -344,6 +344,11 @@ default_region_buckets = {
     Set enable_kms_admin_role = true to create the administrative IAM role (see key.tf).
 3. Then, disable root access by setting kms_root_access = false.
 4. Run terraform apply to update the KMS key policy and enforce least privilege.
+5. After root access is disabled, any future changes to the key policy require an authorized IAM role with `kms:PutKeyPolicy` permissions. Without it, administrative access cannot be restored.
+
+### Root Access Recovery (Optional)
+- Root access is not required for updating or destroying the infrastructure, as long as enable_kms_admin_role = true and the admin role is active in the key policy.
+- Only re-enable kms_root_access = true in exceptional cases where the admin role was removed or access was misconfigured.
 
 ### CloudWatch Monitoring
 The module currently implements monitoring for:

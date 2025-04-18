@@ -105,8 +105,10 @@ locals {
 # --- Policy for the Primary KMS Key --- #
 # Policy for the primary KMS key granting optional root access (temporary, for setup),
 # AWS service access, S3 replication permissions, and specific permissions for AutoScaling service role.
-# Root access is controlled by the 'kms_root_access' variable for automation and security.
-# EBS encryption is supported through dedicated statements for EC2 and AutoScaling service role.
+# Root access is controlled by the 'kms_root_access' variable (set to false after setup).
+# If root access is disabled, you must ensure an IAM role (with PutKeyPolicy) remains authorized.
+# Otherwise, you may permanently lose the ability to modify the key policy (AWS protection applies).
+# EBS encryption is supported through dedicated statements for EC2 and AutoScaling service roles.
 resource "aws_kms_key_policy" "general_encryption_key_policy" {
   key_id = aws_kms_key.general_encryption_key.id
 
@@ -129,7 +131,41 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           }
         ] : [],
 
-        # Statement: Allow AWS service usage with restricted resource (only this KMS key).
+        # Statement: Allow IAM policies to control access to the key
+        # This statement is required by AWS KMS to prevent locking out of the key
+        # It allows IAM policies to grant permissions to the key, even when root access is disabled
+        # CRITICAL: This statement is essential for safely disabling root access (kms_root_access = false)
+        # without losing the ability to manage the key policy in the future
+        {
+          Sid    = "EnableIAMPermissions",
+          Effect = "Allow",
+          Principal = {
+            AWS = "*"
+          },
+          Action   = "kms:*",
+          Resource = "*",
+          Condition = {
+            StringEquals = {
+              "kms:CallerAccount" = var.aws_account_id
+            }
+          }
+        },
+
+        # Statement: Allow KMS Admin Role key management permissions
+        # This statement is critical for key management when root access is disabled
+        var.enable_kms_admin_role ? [
+          {
+            Sid    = "AllowKMSAdminRoleKeyManagement",
+            Effect = "Allow",
+            Principal = {
+              AWS = "arn:aws:iam::${var.aws_account_id}:role/${var.name_prefix}-kms-admin-role-${var.environment}"
+            },
+            Action   = "kms:*",
+            Resource = "*"
+          }
+        ] : [],
+
+        # Statement: Allow AWS services to use the KMS key
         {
           Sid    = "AllowAWSServicesUsage",
           Effect = "Allow",
@@ -254,6 +290,11 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #        a. Set kms_root_access = true and apply to create the key.
 #        b. Set enable_admin_kms_role = true and apply to create the IAM role.
 #        c. Set kms_root_access = false and re-apply to remove root access.
+# 2.1. Key Policy Lockout Protection:
+#    - The statement "EnableIAMPermissions" is an essential part of the key policy.
+#    - It ensures that IAM policies can control access to the KMS key when root access is disabled.
+#    - This allows authorized IAM roles or users to manage the key using their own permissions.
+#    - Without this statement, disabling root access may result in permanent lockout from the key.
 #
 # 3. Key Rotation:
 #    - Automatic key rotation is enabled via enable_key_rotation.
@@ -268,6 +309,8 @@ resource "aws_kms_grant" "s3_replication_grant" {
 #         * Failed encryption operations,
 #         * Unusual usage patterns,
 #         * Access denials (e.g., key policy issues).
+#    - Use CloudTrail event lookup or AWS IAM Access Analyzer to audit unexpected usage.
+#    - You can also enable KMS-specific alarms (e.g., AccessDenied, ThrottledRequests).
 #
 # 5. Replica Key Grant:
 #    - The replica key in the replication region cannot have its policy updated independently.
