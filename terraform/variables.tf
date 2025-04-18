@@ -139,6 +139,14 @@ variable "enable_key_monitoring" {
   default     = false
 }
 
+# Enable alarm for KMS AccessDenied errors (e.g., misconfigured policies or attempts to use key without permissions).
+# Recommended for production environments to catch unauthorized usage attempts.
+variable "enable_kms_access_denied_alarm" {
+  type        = bool
+  default     = true
+  description = "Enable CloudWatch alarm for KMS AccessDenied errors (recommended in production)."
+}
+
 # Threshold for Decrypt Operations
 # Defines the threshold for the number of Decrypt operations that trigger a CloudWatch Alarm.
 variable "key_decrypt_threshold" {

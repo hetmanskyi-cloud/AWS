@@ -99,6 +99,14 @@ variable "key_decrypt_threshold" {
   }
 }
 
+# Enable alarm for KMS AccessDenied errors (e.g., misconfigured policies or attempts to use key without permissions).
+# Recommended for production environments to catch unauthorized usage attempts.
+variable "enable_kms_access_denied_alarm" {
+  type        = bool
+  default     = true
+  description = "Enable CloudWatch alarm for KMS AccessDenied errors (recommended in production)."
+}
+
 # ARN of the SNS Topic for CloudWatch alarms.
 # Specifies the SNS topic to send CloudWatch alarm notifications.
 variable "sns_topic_arn" {

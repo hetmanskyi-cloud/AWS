@@ -37,8 +37,41 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
   }
 }
 
+# --- CloudWatch Alarm for KMS AccessDenied Errors --- #
+# Creates a CloudWatch Alarm to detect AccessDenied errors on the KMS key (e.g., due to invalid IAM policies or misuse).
+# Helps detect unauthorized access or misconfigured services attempting to use the key.
+resource "aws_cloudwatch_metric_alarm" "kms_access_denied_alarm" {
+  count = var.enable_kms_access_denied_alarm ? 1 : 0
+
+  alarm_name          = "${var.name_prefix}-kms-access-denied-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  datapoints_to_alarm = 1
+  threshold           = 0
+
+  metric_name = "AccessDenied"
+  namespace   = "AWS/KMS"
+  statistic   = "Sum"
+  period      = 300 # 5 minutes
+
+  dimensions = {
+    KeyId = aws_kms_key.general_encryption_key.id
+  }
+
+  alarm_description = "Triggers when there are any KMS AccessDenied errors — possible unauthorized or misconfigured access."
+
+  treat_missing_data = "notBreaching"
+  alarm_actions      = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
+  ok_actions         = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
+
+  tags = {
+    Name        = "${var.name_prefix}-kms-access-denied"
+    Environment = var.environment
+  }
+}
+
 # --- Notes --- #
-# - Adjust 'threshold' and 'evaluation_periods' based on expected workload patterns and sensitivity.
-# - Increasing 'evaluation_periods' and using 'datapoints_to_alarm' helps minimize false positives in production environments.
-# - Ensure 'sns_topic_arn' variable is set in 'terraform.tfvars' to enable alarm notifications via SNS topic.
-# - Failure to specify SNS ARN will result in no notifications.
+# - Includes alarms for DecryptCount (high usage) and AccessDenied (unauthorized attempts).
+# - 'threshold', 'evaluation_periods', and 'datapoints_to_alarm' are tuned to reduce false positives.
+# - SNS notifications are enabled via 'sns_topic_arn' (set in terraform.tfvars).
+# - If 'sns_topic_arn' is empty, alarms will trigger silently (no email or alert).

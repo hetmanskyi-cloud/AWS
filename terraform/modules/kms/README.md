@@ -214,7 +214,8 @@ This module provisions:
 | `enable_key_rotation`       | `bool`         | Enable automatic key rotation                                       | `true`                           |
 | `kms_root_access`           | `bool`         | Enable or disable root access to the KMS key                        | `true/false`                     |
 | `enable_kms_admin_role`     | `bool`         | Create IAM role for key management                                  | `false`                          |
-| `enable_key_monitoring`     | `bool`         | Enable CloudWatch monitoring                                        | `false`                          |
+| `enable_key_monitoring`     | `bool`         | Enable CloudWatch alarms for key usage                              | `false`                          |
+| `enable_kms_access_denied_alarm` | `bool`     | Enable CloudWatch alarm for KMS AccessDenied errors               | `true`                           |
 | `key_decrypt_threshold`     | `number`       | Threshold for decrypt operations alarm                              | `100`                            |
 | `sns_topic_arn`             | `string`       | ARN of SNS topic for alarms (required if monitoring enabled)        | `""`                             |
 | `default_region_buckets`    | `map(object)`  | Configuration for default region S3 buckets (see details below)     | `{}`                             |
@@ -254,6 +255,7 @@ module "kms" {
   kms_root_access       = false # Set to true during initial setup, then switch to false to remove root access automatically
   enable_kms_admin_role = true
   enable_key_monitoring = true
+  enable_kms_access_denied_alarm = true
   key_decrypt_threshold = 100
   # Note: sns_topic_arn is required only if enable_key_monitoring = true
   sns_topic_arn         = aws_sns_topic.cloudwatch_alarms.arn
@@ -346,6 +348,7 @@ default_region_buckets = {
 ### CloudWatch Monitoring
 The module currently implements monitoring for:
 - **Decrypt Operations**: Alerts when the number of decrypt operations exceeds the configured threshold
+- **Access Denied Errors**: Alerts when there are any KMS AccessDenied errors (possible unauthorized access attempts)
 - Alarm configuration:
   - Evaluation period: 5 minutes
   - Consecutive periods: 3 (to reduce false positives)
@@ -368,6 +371,7 @@ This module supports conditional creation of certain resources based on input va
 - **KMS Grants** for S3 replication are created automatically **if cross-region replication is configured** (i.e., at least one `replication_region_bucket` is enabled).
 - **IAM Role and Policy for KMS administration** are created only if `enable_kms_admin_role = true`.
 - **CloudWatch Alarms** for monitoring decryption operations are created only if `enable_key_monitoring = true`.
+- **AccessDenied Alarms** for detecting unauthorized access attempts are created only if `enable_kms_access_denied_alarm = true`.
 
 ---
 

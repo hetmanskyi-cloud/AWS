@@ -193,6 +193,11 @@ server {
     location ~ /\.ht {
         deny all;
     }
+
+    # Optional: Redirect all HTTP to HTTPS (enable when SSL is configured)
+    # if (\$http_x_forwarded_proto = "http") {
+    #     return 301 https://\$host\$request_uri;
+    # }
 }
 EOL
 

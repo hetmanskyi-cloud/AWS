@@ -80,11 +80,12 @@ module "kms" {
   name_prefix = var.name_prefix # Prefix for naming resources
 
   # Key rotation and monitoring
-  enable_key_rotation   = var.enable_key_rotation   # Enable automatic key rotation
-  kms_root_access       = var.kms_root_access       # Enable or disable root access in key policy
-  enable_kms_admin_role = var.enable_kms_admin_role # Create IAM role for managing the KMS key
-  enable_key_monitoring = var.enable_key_monitoring # Enable CloudWatch Alarms for KMS key usage
-  key_decrypt_threshold = var.key_decrypt_threshold # Custom threshold for Decrypt operations
+  enable_key_rotation            = var.enable_key_rotation            # Enable automatic key rotation
+  kms_root_access                = var.kms_root_access                # Enable or disable root access in key policy
+  enable_kms_admin_role          = var.enable_kms_admin_role          # Create IAM role for managing the KMS key
+  enable_key_monitoring          = var.enable_key_monitoring          # Enable CloudWatch alarm for high KMS Decrypt usage
+  enable_kms_access_denied_alarm = var.enable_kms_access_denied_alarm # Enable CloudWatch alarm for AccessDenied KMS errors
+  key_decrypt_threshold          = var.key_decrypt_threshold          # Custom threshold for Decrypt operations (default: 100)
 
   # SNS Topic for CloudWatch Alarms
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # ARN of the SNS topic to send alarm notifications
