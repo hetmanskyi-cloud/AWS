@@ -112,8 +112,8 @@ resource "aws_s3_bucket_notification" "default_region_bucket_notifications" {
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   topic {
-    topic_arn = var.sns_topic_arn                            # SNS topic ARN
-    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Object events: create & remove
+    topic_arn = var.sns_topic_arn      # SNS topic ARN
+    events    = ["s3:ObjectRemoved:*"] # Object events: remove
   }
 }
 
@@ -126,8 +126,8 @@ resource "aws_s3_bucket_notification" "replication_region_bucket_notifications" 
   bucket   = aws_s3_bucket.s3_replication_bucket[each.key].id # Target bucket ID
 
   topic {
-    topic_arn = var.replication_region_sns_topic_arn         # Replication region SNS topic ARN
-    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"] # Object events: create & remove
+    topic_arn = var.replication_region_sns_topic_arn # Replication region SNS topic ARN
+    events    = ["s3:ObjectRemoved:*"]               # Object events: remove
   }
 }
 
