@@ -161,9 +161,9 @@ data "aws_prefix_list" "dynamodb" {
 # 3. **Endpoint routes**:
 #   - S3 and DynamoDB traffic are explicitly routed through their respective Gateway Endpoints
 #     in both public and private route tables.
-#   - This ensures that instances in a public subnet without a public IP can still
-#     communicate with S3 and DynamoDB over private AWS networking (no NAT required).
-#   - If you add services like CloudWatch Logs, consider Interface Endpoints for private subnet access.
+#   - This ensures that all instances, regardless of whether they have a public IP or not,
+#     access S3 and DynamoDB using the internal AWS network, improving both security and performance.
+#   - This approach avoids using the public internet and eliminates the need for NAT Gateway for S3/DynamoDB access.
 #
 # 4. **Subnet associations**:
 #   - The public route table is associated with public subnets for internet access and AWS Gateway Endpoints.

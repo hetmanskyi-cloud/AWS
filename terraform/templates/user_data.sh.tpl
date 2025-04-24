@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail  # Fail fast: exit on error, undefined variables, or pipeline failure; print each command
+set -euxo pipefail  # Fail fast: exit on error, undefined variables, print each command; pipeline failure
 
 # Unified logging function
 log() {
