@@ -77,3 +77,49 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # 1. Creation Logic: DynamoDB table is created only if terraform_state bucket is enabled and enable_dynamodb = true.
 # 2. Purpose: Exclusively for Terraform state locking.
 # 3. Best Practices: Enable TTL, KMS encryption.
+# 4. Alternative Locking Method:
+#    - Starting from Terraform 1.10, native state locking is supported directly in S3 backend.
+#    - This eliminates the need for DynamoDB.
+#    - To enable native S3 locking, add `use_lockfile = true` to the backend block in your Terraform configuration.
+#    - Example:
+#
+#      terraform {
+#        required_version = ">= 1.10"
+#        backend "s3" {
+#          bucket         = "your-terraform-state-bucket"    # S3 bucket for state
+#          key            = "env/terraform.tfstate"          # State file path
+#          region         = "us-east-1"                      # AWS region
+#          encrypt        = true                             # Enable encryption
+#          use_lockfile   = true                             # Enable S3 native locking
+#        }
+#      }
+#
+#    - This feature is experimental as of 1.10 and may become the default in future versions.
+#    - Important: Ensure your IAM policies allow actions on `${key}.tflock` in S3.
+#      - Example IAM Policy for S3 Locking:
+#
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Sid": "S3StateAccess",
+#       "Effect": "Allow",
+#       "Action": [
+#         "s3:GetObject",
+#         "s3:PutObject"
+#       ],
+#       "Resource": [
+#         "arn:aws:s3:::*/*/*.tfstate",
+#         "arn:aws:s3:::*/*/*.tfstate.tflock"
+#       ]
+#     },
+#     {
+#       "Sid": "S3ListBucketAccess",
+#       "Effect": "Allow",
+#       "Action": [
+#         "s3:ListBucket"
+#       ],
+#       "Resource": "arn:aws:s3:::*"
+#     }
+#   ]
+# }
