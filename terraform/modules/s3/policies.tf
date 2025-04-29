@@ -285,51 +285,55 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   depends_on = [
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket_public_access_block.default_region_bucket_public_access_block,
-    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls,
+    aws_s3_bucket_ownership_controls.default_region_logging_ownership["alb_logs"],
     data.aws_iam_policy_document.alb_logs_bucket_policy
   ]
 }
 
 # --- Notes --- #
 # 1. WordPress Media Bucket CORS Config:
-#    - CORS for 'wordpress_media' bucket.
-#    - Allows GET method, Content-Type header only.
-#    - **Restrict 'allowed_origins' in production (CRITICAL security).**
+#    - CORS for 'wordpress_media' bucket.
+#    - Allows GET method, Content-Type header only.
+#    - **Restrict 'allowed_origins' in production (CRITICAL security).**
 #
 # 2. Enforce HTTPS Policy (Default Region Buckets):
-#    - HTTPS enforcement for default region buckets, **excluding 'logging', 'alb_logs', 'cloudtrail'.**
-#    - Denies HTTP access to bucket and objects.
+#    - HTTPS enforcement for default region buckets, **excluding 'logging', 'alb_logs', 'cloudtrail'.**
+#    - Denies HTTP access to bucket and objects.
 #
 # 3. Unified Replication Destination Bucket Policy:
-#    - HTTPS enforcement and replication permissions for replication region buckets.
-#    - Grants replication role permissions (ReplicateObject, etc.) on destination bucket.
+#    - HTTPS enforcement and replication permissions for replication region buckets.
+#    - Grants replication role permissions (ReplicateObject, etc.) on destination bucket.
 #
 # 4. ALB Logs Bucket Permissions (IAM Policy Document):
-#    - Permissions for ALB to write logs to 'alb_logs' bucket.
-#    - Permits **'delivery.logs.amazonaws.com' service principal and regional ELB account** (via data source) for GetBucketAcl/PutObject.
-#    - Condition: s3:x-amz-acl = "bucket-owner-full-control".
-#    - Enforces HTTPS-only access.
-#    - **Note: No separate statement for S3 Server Access Logs (not relevant for ALB logs bucket).***
+#    - Permissions for ALB to write logs to 'alb_logs' bucket.
+#    - Permits **'delivery.logs.amazonaws.com' service principal and regional ELB account** (via data source) for GetBucketAcl/PutObject.
+#    - Condition: s3:x-amz-acl = "bucket-owner-full-control".
+#    - Enforces HTTPS-only access.
+#    - **Note: No separate statement for S3 Server Access Logs (not relevant for ALB logs bucket).***
 #
-# 5. Bucket Policy Application:
-#    - Default HTTPS policy: applied to default region buckets **except 'alb_logs', 'logging', 'cloudtrail'.**
-#    - Dedicated ALB logs policy: applied exclusively to 'alb_logs' bucket.
+# 5. Bucket Policy Application Summary:
+#    - Default HTTPS policy: applied to default region buckets **except 'alb_logs', 'logging', 'cloudtrail'.**
+#    - Dedicated Logging policy: applied exclusively to 'logging' bucket (allows S3 log delivery & enforces HTTPS).
+#    - Dedicated ALB logs policy: applied exclusively to 'alb_logs' bucket.
+#    - Replication Destination policy: applied to replication region buckets.
 #
 # 6. Security Best Practices:
-#    - Logging buckets ('logging', 'alb_logs'): SSE-S3 (AES256) encryption.
-#    - Versioning: enabled where object history is needed.
-#    - Public Access Block: configured for all buckets (prevent public access).
+#    - Encryption for logging buckets: 'logging' uses SSE-KMS, 'alb_logs' uses SSE-S3 (AES256).
+#    - Versioning: enabled where object history is needed.
+#    - Public Access Block: configured for all buckets (prevent public access).
+#    - **Access control primarily relies on IAM and Bucket Policies, leveraging 'BucketOwnerEnforced' where applicable.**
 #
-# 7. **CloudTrail Bucket Policy: **
-#   - **Policy for CloudTrail bucket is *not defined in this `s3/policies.tf` file*.**
-#   - **It is defined in `cloudtrail.tf` of the *main module*.
-#   - **Refer to the `cloudtrail.tf` file in the main module for CloudTrail bucket policy details.**
+# 7. CloudTrail Bucket Policy:
+#    - **Policy for CloudTrail bucket is *not defined in this `s3/policies.tf` file*.**
+#    - **It is defined in `cloudtrail.tf` of the *main module*.**
+#    - **Refer to the `cloudtrail.tf` file in the main module for CloudTrail bucket policy details.**
 #
-# 8. WordPress Media Bucket CORS Configuration:
+# 8. WordPress Media Bucket CORS Configuration Details:
 #    - Enables controlled cross-origin access to 'wordpress_media' bucket.
 #    - Allows only GET requests with 'Content-Type' header.
 #    - **Important:** 'allowed_origins' must be properly restricted in production for security.
+#
 # 9. Scripts Bucket:
-#    - No dedicated bucket policy required.
+#    - No dedicated bucket policy defined in this file.
 #    - Access is managed via IAM roles attached to EC2 instances.
 #    - Scripts are downloaded by EC2 using instance profile permissions.

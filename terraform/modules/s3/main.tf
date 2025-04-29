@@ -156,13 +156,15 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
   }
 }
 
-# --- S3 Bucket Ownership Controls for Default Region Buckets --- #
+# --- S3 Bucket Ownership Controls for Default Region (ACLs Enabled for Logs) --- #
+# Configures S3 Bucket Ownership Controls for buckets requiring ACLs for logging delivery.
 # checkov:skip=CKV2_AWS_65: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
-resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_controls" {
-  # Configures S3 Bucket Ownership Controls for all default region buckets  
+resource "aws_s3_bucket_ownership_controls" "default_region_logging_ownership" {
+  # Apply to enabled default region buckets that require ACLs for log delivery
   for_each = tomap({
     for key, value in var.default_region_buckets :
-    key => value if value.enabled
+    key => value if value.enabled && contains(["logging", "alb_logs", "cloudtrail"], key)
+    # Filter includes 'logging' (S3 access logs), 'alb_logs', and 'cloudtrail'
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id
@@ -171,7 +173,48 @@ resource "aws_s3_bucket_ownership_controls" "default_region_bucket_ownership_con
     object_ownership = "BucketOwnerPreferred" # Set Object Ownership to BucketOwnerPreferred to enable ACLs
   }
 
-  depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency
+  depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency on bucket creation
+}
+
+# --- S3 Bucket Ownership Controls for Default Region (ACLs Disabled) --- #
+# Configures S3 Bucket Ownership Controls for default region buckets where ACLs are not required.
+resource "aws_s3_bucket_ownership_controls" "default_region_other_ownership" {
+  # Apply to enabled default region buckets that do NOT require ACLs
+  for_each = tomap({
+    for key, value in var.default_region_buckets :
+    key => value if value.enabled && !contains(["logging", "alb_logs", "cloudtrail"], key)
+    # Filter excludes 'logging', 'alb_logs', and 'cloudtrail'
+  })
+
+  bucket = aws_s3_bucket.default_region_buckets[each.key].id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced" # Set Object Ownership to BucketOwnerEnforced to disable ACLs and enforce bucket owner
+  }
+
+  depends_on = [aws_s3_bucket.default_region_buckets] # Explicit dependency on bucket creation
+}
+
+
+# --- S3 Bucket Ownership Controls for Replication Region (ACLs Disabled) --- #
+# Configures S3 Bucket Ownership Controls for replication region buckets.
+resource "aws_s3_bucket_ownership_controls" "replication_region_ownership" {
+  # Apply to enabled replication region buckets
+  for_each = tomap({
+    for key, value in var.replication_region_buckets :
+    key => value if value.enabled
+  })
+
+  provider = aws.replication # Use the replication AWS provider
+
+  # Target bucket is from the replication region bucket resource
+  bucket = aws_s3_bucket.s3_replication_bucket[each.key].id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced" # Set Object Ownership to BucketOwnerEnforced to disable ACLs and enforce bucket owner
+  }
+
+  depends_on = [aws_s3_bucket.s3_replication_bucket] # Explicit dependency on replication bucket creation
 }
 
 # --- SSE Configuration for Default Region Buckets EXCEPT ALB Logs Bucket --- #
@@ -284,7 +327,7 @@ resource "aws_s3_bucket_acl" "logging_bucket_acl" {
   acl = "log-delivery-write"
 
   depends_on = [
-    aws_s3_bucket_ownership_controls.default_region_bucket_ownership_controls,
+    aws_s3_bucket_ownership_controls.default_region_logging_ownership["logging"],
     aws_s3_bucket.default_region_buckets,
     aws_s3_bucket_logging.default_region_bucket_server_access_logging
   ]
@@ -328,14 +371,16 @@ resource "random_string" "suffix" {
 # --- Notes --- #
 # 1. Dynamic bucket creation from 'terraform.tfvars'.
 # 2. Manages default & replication region buckets.
-# 3. Unified config for versioning, notifications, encryption, public access block.
-# 4. Server Access Logging (Default Region, Centralized):
-#     * Default region buckets only (AWS cross-region logging limitation).
-#     * Replication region buckets will not have server access logging enabled due to AWS limitations.
-#     * Enabled per bucket via `server_access_logging` in 'terraform.tfvars'.
-#     * Centralized logs in 'logging' bucket (default region).
-#     * 'logging' bucket ACL for log delivery ('log-delivery-write').
-# 5. Unique bucket names via random suffix.
-# 6. Pre-create KMS key (var.kms_key_arn) & SNS topic (var.sns_topic_arn).
-# 7. Bucket policies & IAM roles to be configured separately.
-# 8. Consider lifecycle rules for cost optimization.
+# 3. Configures versioning, notifications, encryption, and public access block.
+# 4. S3 Bucket Ownership Controls Strategy:
+#    * Default Region (Log Receivers: logging, alb_logs, cloudtrail): 'BucketOwnerPreferred' (ACLs enabled for logging delivery).
+#    * Default Region (Others): 'BucketOwnerEnforced' (ACLs disabled, policy-based control).
+#    * Replication Region: 'BucketOwnerEnforced' (ACLs disabled, policy-based control).
+# 5. Server Access Logging (Default Region, Centralized):
+#    * Default region buckets only (AWS cross-region limitation).
+#    * Enabled via `server_access_logging` in 'terraform.tfvars' (except 'logging' bucket).
+#    * Logs stored in 'logging' bucket (default region), which requires 'BucketOwnerPreferred' & 'log-delivery-write' ACL.
+# 6. Unique bucket names via random suffix.
+# 7. Requires pre-created KMS key (var.kms_key_arn) & SNS topic (var.sns_topic_arn).
+# 8. Bucket policies & IAM roles to be configured separately.
+# 9. Consider lifecycle rules for cost optimization.

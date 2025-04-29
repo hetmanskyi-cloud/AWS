@@ -54,65 +54,65 @@ graph LR
     cloudtrail["CloudTrail Bucket"]
     terraform_state["Terraform State Bucket"]
     wordpress_media["WordPress Media Bucket<br>(CORS Enabled)"]
-    
+
     %% Infrastructure Components - Default Region
     DynamoDB["DynamoDB Table<br>(Terraform Locks)"]
     KMS["KMS Key"]
     SNS["SNS Topic"]
-    
+
     %% IAM Components
     IAMRole["IAM Replication Role"]
     IAMPolicy["IAM Replication Policy"]
-    
+
     %% Replication Region Components
     rep_wordpress_media["WordPress Media<br>Replica Bucket"]
     rep_KMS["KMS Replica Key"]
     rep_SNS["SNS Topic<br>(Replication Region)"]
-    
+
     %% External Services
     ALB["Application Load Balancer"]
     CloudTrail["AWS CloudTrail"]
     S3Logs["S3 Access Logging"]
-    
+
     %% Configuration Components
     Versioning["Versioning Config"]
     CORSConfig["CORS Config<br>(Allowed Origins)"]
-    OwnershipControls["Ownership Controls<br>(BucketOwnerPreferred)"]
+    OwnershipControls["Ownership Controls"]
     PublicAccessBlock["Public Access Block<br>(Block All Public Access)"]
-    
+
     %% Policy Components
     HTTPSPolicy["HTTPS Only Policy"]
     LogDeliveryPolicy["Log Delivery Policy"]
     ELBAccessPolicy["ELB Access Policy"]
     CloudTrailPolicy["CloudTrail Policy"]
-    
+
     %% Encryption Components
     KMSEncryption["KMS Encryption<br>(aws:kms)"]
     SSE_S3Encryption["SSE-S3 Encryption<br>(AES256)"]
-    
+
     %% Lifecycle Components
     LifecycleRules["Standard Lifecycle Rules"]
     SpecialLifecycleRules["Special Lifecycle Rules<br>(terraform_state)"]
     ExpirationRules["Expiration Rules<br>(1 day - Test Only)"]
     MultipartCleanup["Multipart Upload Cleanup<br>(7 days)"]
     VersionRetention["Noncurrent Version Retention<br>(Configurable Days)"]
-    
+
     %% Replication Components
     ReplicationConfig["Replication Configuration"]
     ReplicationMetrics["Replication Metrics"]
     SSEReplication["SSE-KMS Replication"]
     DeleteMarkerReplication["Delete Marker Replication"]
-    
+
     %% Bucket Configurations - Default Region
     Versioning --> scripts
     Versioning --> logging
     Versioning --> cloudtrail
     Versioning --> terraform_state
     Versioning --> wordpress_media
-    
+
     %% CORS Configuration
     CORSConfig --> wordpress_media
-    
+
     %% Ownership & Access Controls
     OwnershipControls --> scripts
     OwnershipControls --> logging
@@ -120,7 +120,8 @@ graph LR
     OwnershipControls --> cloudtrail
     OwnershipControls --> terraform_state
     OwnershipControls --> wordpress_media
-    
+    OwnershipControls --> rep_wordpress_media
+
     PublicAccessBlock --> scripts
     PublicAccessBlock --> logging
     PublicAccessBlock --> alb_logs
@@ -128,37 +129,37 @@ graph LR
     PublicAccessBlock --> terraform_state
     PublicAccessBlock --> wordpress_media
     PublicAccessBlock --> rep_wordpress_media
-    
+
     %% Bucket Policies
     HTTPSPolicy --> scripts
     HTTPSPolicy --> terraform_state
     HTTPSPolicy --> wordpress_media
     HTTPSPolicy --> rep_wordpress_media
-    
+
     LogDeliveryPolicy --> logging
-    
+
     ELBAccessPolicy --> alb_logs
-    
+
     CloudTrailPolicy --> cloudtrail
-    
+
     %% Encryption Connections
     KMSEncryption --> scripts
-    KMSEncryption --> logging
+    KMSEncryption --> logging %% --- СОХРАНЕНО: Согласно коду main.tf бакет logging использует KMS
     KMSEncryption --> cloudtrail
     KMSEncryption --> terraform_state
     KMSEncryption --> wordpress_media
-    
+
     KMS --> KMSEncryption
-    
-    SSE_S3Encryption --> alb_logs
-    
+
+    SSE_S3Encryption --> alb_logs %% --- СОХРАНЕНО: Согласно коду main.tf бакет alb_logs использует SSE-S3
+
     %% Logging Connections
     scripts -->|"Access Logs"| logging
     alb_logs -->|"Access Logs"| logging
     cloudtrail -->|"Access Logs"| logging
     terraform_state -->|"Access Logs"| logging
     wordpress_media -->|"Access Logs"| logging
-    
+
     %% Notification Connections
     scripts -->|"Events"| SNS
     logging -->|"Events"| SNS
@@ -166,53 +167,53 @@ graph LR
     cloudtrail -->|"Events"| SNS
     terraform_state -->|"Events"| SNS
     wordpress_media -->|"Events"| SNS
-    
+    rep_wordpress_media -->|"Events"| rep_SNS
+
     %% DynamoDB Integration
     terraform_state -->|"State Locking"| DynamoDB
-    
+
     %% IAM for Replication
     IAMRole -->|"Assumes"| IAMPolicy
-    IAMPolicy -->|"Grants Access"| scripts
-    IAMPolicy -->|"Grants Access"| wordpress_media
-    IAMPolicy -->|"Grants Access"| rep_wordpress_media
-    IAMPolicy -->|"Grants Access"| KMS
-    IAMPolicy -->|"Grants Access"| rep_KMS
-    
+    IAMPolicy -->|"Grants Access"| scripts %% Оставляем как есть, если такая связь изначально присутствовала
+    IAMPolicy -->|"Grants Access"| wordpress_media %% Необходимо для исходного бакета репликации
+    IAMPolicy -->|"Grants Access"| rep_wordpress_media %% Необходимо для целевого бакета репликации
+    IAMPolicy -->|"Grants Access"| KMS %% Необходимо для исходного KMS ключа
+    IAMPolicy -->|"Grants Access"| rep_KMS %% Необходимо для целевого KMS ключа
+
     %% Replication Connections
     ReplicationConfig --> wordpress_media
     wordpress_media -->|"Cross-Region<br>Replication"| rep_wordpress_media
     rep_KMS -->|"Encrypts"| rep_wordpress_media
-    rep_wordpress_media -->|"Events"| rep_SNS
-    
+
     ReplicationConfig --> ReplicationMetrics
     ReplicationConfig --> SSEReplication
     ReplicationConfig --> DeleteMarkerReplication
-    
+
     %% Lifecycle Rules
     LifecycleRules --> scripts
     LifecycleRules --> logging
     LifecycleRules --> cloudtrail
     LifecycleRules --> wordpress_media
     LifecycleRules --> rep_wordpress_media
-    
+
     SpecialLifecycleRules --> terraform_state
-    
+
     LifecycleRules --> ExpirationRules
     LifecycleRules --> MultipartCleanup
     LifecycleRules --> VersionRetention
-    
+
     SpecialLifecycleRules --> MultipartCleanup
     SpecialLifecycleRules --> VersionRetention
-    
+
     %% External Service Connections
     ALB -->|"Logs"| alb_logs
     CloudTrail -->|"API Activity"| cloudtrail
     S3Logs -->|"Access Logs"| logging
-    
+
     %% WordPress Scripts
     WordPressScripts["WordPress Scripts<br>(S3 Objects)"]
     WordPressScripts --> scripts
-    
+
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
     classDef replication fill:#3F8624,stroke:#232F3E,color:white
@@ -222,11 +223,11 @@ graph LR
     classDef iam fill:#0066CC,stroke:#232F3E,color:white
     classDef config fill:#5D6D7E,stroke:#232F3E,color:white
     classDef lifecycle fill:#E67E22,stroke:#232F3E,color:white
-    classDef security fill:#2C3E50,stroke:#232F3E,color:white
-    
+    classDef security fill:#2C3E50,stroke:#232F50,color:white
+
     class scripts,logging,alb_logs,cloudtrail,terraform_state,wordpress_media primary
     class rep_wordpress_media replication
-    class DynamoDB,SNS infrastructure
+    class DynamoDB,SNS,rep_SNS infrastructure
     class ALB,CloudTrail,S3Logs external
     class KMS,rep_KMS,KMSEncryption,SSE_S3Encryption encryption
     class IAMRole,IAMPolicy iam
@@ -272,6 +273,8 @@ graph LR
   - Enforced HTTPS-only access
   - Public access blocked by default
   - Bucket key enabled for KMS cost optimization
+  - Cross-region replication supports only SSE-KMS encrypted objects (best practice, enforced in config)
+  - Flexible S3 Bucket Ownership Controls ('BucketOwnerPreferred' for log receivers, 'BucketOwnerEnforced' for others and replication buckets).
 
 - **Monitoring and Alerting**:
   - SNS notifications for bucket events
@@ -483,6 +486,7 @@ module "s3" {
   - Least privilege IAM policies
   - Review and restrict CORS `allowed_origins` in production environments
   - The terraform_state bucket should use prevent_destroy = true to avoid accidental deletion of Terraform state.
+  - S3 Bucket Ownership Controls configured based on bucket function ('BucketOwnerPreferred' for log-receiving buckets requiring ACLs, 'BucketOwnerEnforced' for others simplifying access control via policies).
 
 - **Encryption**:
   - Mandatory KMS encryption for all resources (except ALB logs bucket which uses SSE-S3)
@@ -522,6 +526,7 @@ module "s3" {
 - **Enable Access Logging**: Monitor access to critical buckets to detect potential unauthorized access.
 - **Review IAM Policies**: Ensure minimal permissions are granted to each principal interacting with the buckets.
 - **Test Cross-Region Replication**: Verify replication works as intended and monitor for failures.
+- Apply 'BucketOwnerEnforced' ownership where ACLs are not required to simplify access control via policies and disable ACLs.
 
 ---
 
@@ -670,8 +675,10 @@ These commands help confirm the configuration and state of each bucket deployed 
 - Always strictly validate and limit CORS `allowed_origins` in production environments to prevent cross-origin vulnerabilities and data leaks.
 - The scripts bucket must always be enabled in `default_region_buckets`. It is used to deliver the `deploy_wordpress.sh` and `healthcheck.php` script to EC2. Without it, WordPress cannot be deployed.
 - **S3 Bucket Ownership Controls**:  
-  The `BucketOwnerPreferred` ownership model is used in this module, as **ACLs are necessary for compatibility with S3 logging** and legacy access patterns. The setting allows the bucket owner to have full control over objects, even when they are uploaded by other AWS services (like ALB logs and CloudTrail).  
-  This configuration ensures that the bucket owner has control over all objects and is essential for allowing correct log delivery and management.
+  - The module configures S3 Object Ownership based on the bucket's function and region
+  - 'BucketOwnerPreferred' is applied to log-receiving buckets (logging, alb_logs, cloudtrail) in the default region to enable ACLs required for legacy log delivery mechanisms.
+  - 'BucketOwnerEnforced' is applied to all other default region buckets (scripts, terraform_state, wordpress_media) and all replication region buckets (wordpress_media replica). This disables ACLs and ensures the bucket owner is the sole owner of objects, simplifying access control through IAM and Bucket Policies.
+  - Using 'BucketOwnerEnforced' where possible is the recommended modern practice for simplified access management.
 
 ---
 
