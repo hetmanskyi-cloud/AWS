@@ -41,6 +41,7 @@ This repository contains a production-ready, modular, and secure Infrastructure 
 │   │   ├── 📄 🟩 cloudtrail.tf
 │   │   ├── 📄 🟩 sns_topics.tf
 │   │   ├── 📄 🟩 secrets.tf
+│   │   ├── 📄 🟩 metadata.tf
 │   │   ├── 📄 🟫 Makefile
 │   │   └── 📄 🟪 README.md
 │   │

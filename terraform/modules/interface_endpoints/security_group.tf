@@ -17,10 +17,9 @@ resource "aws_security_group" "endpoints_sg" {
     create_before_destroy = true
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-endpoints-security-group"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-endpoints-security-group"
+  })
 }
 
 # --- Ingress Rules (Inbound Traffic) --- #

@@ -23,12 +23,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-storage-alarm-${var.environment}"
-    Environment = var.environment
-    Type        = "Storage"
-    AlertType   = "RDS:FreeStorageSpace"
-  }
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-rds-storage-alarm-${var.environment}"
+    Type      = "Storage"
+    AlertType = "RDS:FreeStorageSpace"
+  })
 
   # Ensure the RDS instance is created before the alarm
   depends_on = [aws_db_instance.db]
@@ -55,12 +54,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-cpu-alarm-${var.environment}"
-    Environment = var.environment
-    Type        = "CPU"
-    AlertType   = "RDS:CPUUtilization"
-  }
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-rds-cpu-alarm-${var.environment}"
+    Type      = "CPU"
+    AlertType = "RDS:CPUUtilization"
+  })
 
   # Ensure the RDS instance is created before the alarm
   depends_on = [aws_db_instance.db]
@@ -87,12 +85,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-connections-alarm-${var.environment}"
-    Environment = var.environment
-    Type        = "Connections"
-    AlertType   = "RDS:DatabaseConnections"
-  }
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-rds-connections-alarm-${var.environment}"
+    Type      = "Connections"
+    AlertType = "RDS:DatabaseConnections"
+  })
 
   # Ensure the RDS instance is created before the alarm
   depends_on = [aws_db_instance.db]

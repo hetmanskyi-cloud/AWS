@@ -35,6 +35,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- RDS Instance Configuration Variables --- #
 # Configuration options for the RDS database instance.
 

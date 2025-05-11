@@ -134,11 +134,10 @@ resource "aws_launch_template" "asg_launch_template" {
   # The tag `Name` is specific to instances and does not need to match the Launch Template resource name.
   tag_specifications {
     resource_type = "instance"
-    tags = {
+    tags = merge(var.tags, {
       Name                  = "${var.name_prefix}-asg-instance"
-      Environment           = var.environment
       WordPressScriptSource = "s3"
-    }
+    })
   }
 
   # Dependency and Error Handling

@@ -18,10 +18,9 @@ resource "aws_vpc_endpoint" "ssm" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = {
-    Name        = "${var.name_prefix}-ssm-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-ssm-endpoint"
+  })
 }
 
 # --- SSM Messages Interface Endpoint --- #
@@ -35,10 +34,9 @@ resource "aws_vpc_endpoint" "ssm_messages" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = {
-    Name        = "${var.name_prefix}-ssm-messages-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-ssm-messages-endpoint"
+  })
 }
 
 # --- ASG Messages Interface Endpoint (EC2 Messages for Auto Scaling) --- #
@@ -52,10 +50,9 @@ resource "aws_vpc_endpoint" "asg_messages" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = {
-    Name        = "${var.name_prefix}-asg-messages-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-asg-messages-endpoint"
+  })
 }
 
 # --- CloudWatch Logs Interface Endpoint --- #
@@ -69,10 +66,9 @@ resource "aws_vpc_endpoint" "cloudwatch_logs" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = {
-    Name        = "${var.name_prefix}-cloudwatch-logs-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-cloudwatch-logs-endpoint"
+  })
 }
 
 # --- KMS Interface Endpoint --- #
@@ -86,10 +82,9 @@ resource "aws_vpc_endpoint" "kms" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = {
-    Name        = "${var.name_prefix}-kms-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-kms-endpoint"
+  })
 }
 
 # --- Notes --- #

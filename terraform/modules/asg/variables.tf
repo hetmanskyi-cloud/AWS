@@ -28,6 +28,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 variable "kms_key_arn" {
   description = "ARN of the KMS key used for encrypting S3 bucket objects"
   type        = string

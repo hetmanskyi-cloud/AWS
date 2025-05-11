@@ -1,3 +1,67 @@
+# --- Metadata Outputs --- #
+# Export final tag maps per component to make them available in other Terraform files.
+# These outputs are used to pass dynamically generated tags into modules and resources.
+
+output "tags_vpc" {
+  description = "Tags for VPC resources"
+  value       = local.tags_vpc
+}
+
+output "tags_asg" {
+  description = "Tags for Auto Scaling Group resources"
+  value       = local.tags_asg
+}
+
+output "tags_rds" {
+  description = "Tags for RDS instance"
+  value       = local.tags_rds
+}
+
+output "tags_s3" {
+  description = "Tags for S3 buckets"
+  value       = local.tags_s3
+}
+
+output "tags_kms" {
+  description = "Tags for KMS key"
+  value       = local.tags_kms
+}
+
+output "tags_alb" {
+  description = "Tags for Application Load Balancer"
+  value       = local.tags_alb
+}
+
+output "tags_redis" {
+  description = "Tags for ElastiCache Redis"
+  value       = local.tags_redis
+}
+
+output "tags_cloudtrail" {
+  description = "Tags for CloudTrail logs"
+  value       = local.tags_cloudtrail
+}
+
+output "tags_cloudwatch" {
+  description = "Tags for CloudWatch alarms"
+  value       = local.tags_cloudwatch
+}
+
+output "tags_interface_endpoints" {
+  description = "Tags for VPC Interface Endpoints"
+  value       = local.tags_interface_endpoints
+}
+
+output "tags_secrets" {
+  description = "Tags for Secrets Manager"
+  value       = local.tags_secrets
+}
+
+output "tags_sns" {
+  description = "Tags for SNS topic"
+  value       = local.tags_sns
+}
+
 # --- VPC Module Outputs --- #
 
 output "vpc_id" {

@@ -28,10 +28,9 @@ resource "aws_iam_role" "asg_role" {
     ]
   })
 
-  tags = {
-    Name        = "${var.name_prefix}-asg-role"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-asg-role"
+  })
 }
 
 # --- S3 Access Policy --- #
@@ -286,10 +285,9 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
   name = "${var.name_prefix}-asg-instance-profile"
   role = aws_iam_role.asg_role.name
 
-  tags = {
-    Name        = "${var.name_prefix}-asg-instance-profile"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-asg-instance-profile"
+  })
 }
 
 # --- Notes --- #

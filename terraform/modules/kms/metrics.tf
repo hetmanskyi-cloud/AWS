@@ -31,10 +31,9 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
 
   treat_missing_data = "notBreaching" # Treat missing data points as not breaching the threshold.
 
-  tags = {
-    Name        = "${var.name_prefix}-kms-decrypt-usage-high"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-kms-decrypt-usage-high"
+  })
 }
 
 # --- CloudWatch Alarm for KMS AccessDenied Errors --- #
@@ -64,10 +63,9 @@ resource "aws_cloudwatch_metric_alarm" "kms_access_denied_alarm" {
   alarm_actions      = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
   ok_actions         = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
 
-  tags = {
-    Name        = "${var.name_prefix}-kms-access-denied"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-kms-access-denied"
+  })
 }
 
 # --- Notes --- #

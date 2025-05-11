@@ -211,6 +211,7 @@ This module provisions:
 | `replication_region`            | `string`      | AWS Region for replica key (optional)                               | `""` (no replication by default) |
 | `name_prefix`                   | `string`      | Prefix for naming resources                                         | **Required**                     |
 | `environment`                   | `string`      | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
+| `tags`                          | `map(string)` | Tags to apply to all resources.                                     | `{}` (Optional)                  |
 | `enable_key_rotation`           | `bool`        | Enable automatic key rotation                                       | `true`                           |
 | `kms_root_access`               | `bool`        | Enable or disable root access to the KMS key                        | `true/false`                     |
 | `enable_kms_admin_role`         | `bool`        | Create IAM role for key management                                  | `false`                          |

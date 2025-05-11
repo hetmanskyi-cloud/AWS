@@ -224,6 +224,7 @@ This module provisions the following AWS resources:
 | `vpc_cidr_block`                 | `string`       | CIDR block for the VPC.                              | **Required**               |
 | `name_prefix`                    | `string`       | Prefix for resource names.                           | **Required**               |
 | `environment`                    | `string`       | Environment tag (e.g., dev, stage, prod).            | **Required**               |
+| `tags`                           | `map(string)`  | Tags to apply to all resources.                      | `{}` (Optional)            |
 | `public_subnet_cidr_block_1`     | `string`       | CIDR block for the first public subnet.              | **Required**               |
 | `public_subnet_cidr_block_2`     | `string`       | CIDR block for the second public subnet.             | **Required**               |
 | `public_subnet_cidr_block_3`     | `string`       | CIDR block for the third public subnet.              | **Required**               |

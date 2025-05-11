@@ -23,6 +23,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- Name Prefix --- #
 variable "name_prefix" {
   description = "Prefix for S3 resource names (uniqueness)."

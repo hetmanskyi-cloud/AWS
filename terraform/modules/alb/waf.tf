@@ -65,10 +65,9 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     sampled_requests_enabled   = true      # Enable sampled request logging
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-alb-waf"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-alb-waf"
+  })
 
   # Ensure WAF is created after ALB to prevent dependency issues
   depends_on = [aws_lb.application]

@@ -176,6 +176,7 @@ This module provisions the following resources:
 | `aws_region`                  | `string`       | AWS region for resources.                 | Format: `xx-xxxx-x` (e.g., `eu-west-1`) |
 | `name_prefix`                 | `string`       | Prefix for naming resources.              | Non-empty string                        |
 | `environment`                 | `string`       | Deployment environment label.             | One of: `dev`, `stage`, `prod`          |
+| `tags`                        | `map(string)`  | Tags to apply to all resources.           | `{}` (Optional)                         |
 | `vpc_id`                      | `string`       | ID of the existing VPC.                   | Valid AWS VPC ID                        |
 | `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                    | Valid CIDR block format                 |
 | `private_subnet_ids`          | `list(string)` | List of private subnet IDs.               | Valid AWS subnet IDs                    |

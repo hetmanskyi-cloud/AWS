@@ -4,10 +4,9 @@
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
-  tags = {
-    Name        = "${var.name_prefix}-igw"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-igw"
+  })
 }
 
 # --- Public Route Table Configuration --- #
@@ -22,10 +21,9 @@ resource "aws_route_table" "public_route_table" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-public-route-table"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-route-table"
+  })
 
   # Ensures this route table is created after the Internet Gateway
   depends_on = [aws_internet_gateway.igw]
@@ -58,10 +56,9 @@ resource "aws_route_table_association" "public_route_table_association_3" {
 resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.vpc.id
 
-  tags = {
-    Name        = "${var.name_prefix}-private-route-table"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-route-table"
+  })
 }
 
 # --- Private Subnet Route Table Association --- #
@@ -109,10 +106,9 @@ resource "aws_vpc_endpoint" "s3" {
     aws_route_table.private_route_table
   ]
 
-  tags = {
-    Name        = "${var.name_prefix}-s3-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-s3-endpoint"
+  })
 }
 
 # --- DynamoDB Endpoint --- #
@@ -132,10 +128,9 @@ resource "aws_vpc_endpoint" "dynamodb" {
     aws_route_table.private_route_table
   ]
 
-  tags = {
-    Name        = "${var.name_prefix}-dynamodb-endpoint"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-dynamodb-endpoint"
+  })
 }
 
 # --- Data Sources for AWS Managed Prefix Lists --- #
@@ -173,5 +168,4 @@ data "aws_prefix_list" "dynamodb" {
 # 5. **Best practices**:
 #   - Ensure all route table associations match the intended subnet types to avoid connectivity issues.
 #   - Regularly review route table configurations to maintain alignment with security and architectural requirements.
-#   - Validate that public subnets without public IPs have a route to S3/DynamoDB if needed
-#     (via the Gateway Endpoints).
+#   - Validate that public subnets without public IPs have a route to S3/DynamoDB if needed (via the Gateway Endpoints).

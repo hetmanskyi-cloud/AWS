@@ -8,10 +8,9 @@ resource "aws_sns_topic" "cloudwatch_alarms" {
   name              = "${var.name_prefix}-cloudwatch-alarms"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
-  tags = {
-    Name        = "${var.name_prefix}-cloudwatch-alarms"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-cloudwatch-alarms"
+  })
 }
 
 # --- SNS Topic for Replication Region --- #
@@ -24,10 +23,9 @@ resource "aws_sns_topic" "replication_region_topic" {
   name              = "${var.name_prefix}-replication-region-notifications"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
-  tags = {
-    Name        = "${var.name_prefix}-rep-cloudwatch-alarms"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-rep-cloudwatch-alarms"
+  })
 }
 
 # Policy allowing CloudWatch + S3 to publish to cloudwatch_alarms
@@ -131,10 +129,9 @@ resource "aws_sns_topic" "cloudtrail_events" {
   name              = "${var.name_prefix}-cloudtrail-events"
   kms_master_key_id = module.kms.kms_key_arn # Use CMK for encryption at rest
 
-  tags = {
-    Name        = "${var.name_prefix}-cloudtrail-events"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-cloudtrail-events"
+  })
 }
 
 # --- SNS Topic Policy --- #

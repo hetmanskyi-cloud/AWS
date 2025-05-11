@@ -35,10 +35,9 @@ resource "aws_lb" "application" {
     }
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-alb"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-alb"
+  })
 }
 
 # --- Target Group for ALB --- #
@@ -86,11 +85,9 @@ resource "aws_lb_target_group" "wordpress" {
     create_before_destroy = true
   }
 
-  # Tags
-  tags = {
-    Name        = "${var.name_prefix}-wordpress-tg" # Name tag for resource identification
-    Environment = var.environment                   # Environment tag for organization
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-wordpress-tg"
+  })
 }
 
 # --- ALB Listener Configuration for HTTP --- #

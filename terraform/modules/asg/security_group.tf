@@ -12,10 +12,9 @@ resource "aws_security_group" "asg_security_group" {
     create_before_destroy = true # Ensure no downtime during updates
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-asg-security-group" # Name tag for identification
-    Environment = var.environment                         # Tag for environment (dev, stage, prod)
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-asg-security-group"
+  })
 }
 
 # SSH Traffic — Strongly recommended to disable SSH in production and use SSM instead

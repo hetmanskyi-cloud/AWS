@@ -20,6 +20,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- Network Configuration --- #
 # Variables for VPC and subnets
 variable "vpc_id" {

@@ -26,10 +26,9 @@ resource "aws_iam_role" "rds_monitoring_role" {
   })
 
   # Tags for resource identification and management.
-  tags = {
-    Name        = "${var.name_prefix}-rds-monitoring-role"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-rds-monitoring-role"
+  })
 }
 
 # --- IAM Role Policy Attachment --- #

@@ -32,6 +32,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- ALB Configuration --- #
 
 # List of public subnet IDs for ALB placement.

@@ -5,10 +5,9 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   description = "Subnet group for ElastiCache Redis"
   subnet_ids  = var.private_subnet_ids
 
-  tags = {
-    Name        = "${var.name_prefix}-redis-subnet-group"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-redis-subnet-group"
+  })
 }
 
 # --- Redis AUTH Token from Secrets Manager --- #
@@ -58,11 +57,9 @@ resource "aws_elasticache_replication_group" "redis" {
     prevent_destroy = false # Prevent accidental deletion
   }
 
-  # Tags for resource identification.
-  tags = {
-    Name        = "${var.name_prefix}-redis-replication-group"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-redis-replication-group"
+  })
 }
 
 # --- ElastiCache Parameter Group --- #
@@ -73,10 +70,9 @@ resource "aws_elasticache_parameter_group" "redis_params" {
   family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
   description = "Parameter group for Redis ${var.redis_version} with default settings"
 
-  tags = {
-    Name        = "${var.name_prefix}-redis-params"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-redis-params"
+  })
 }
 
 # --- Notes --- #

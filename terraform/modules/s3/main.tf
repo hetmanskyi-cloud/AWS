@@ -27,10 +27,9 @@ resource "aws_s3_bucket" "default_region_buckets" {
 
   bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}" # Bucket name: <prefix>-<key>-<suffix>
 
-  tags = {
-    Name        = "${var.name_prefix}-${each.key}" # Name tag
-    Environment = var.environment                  # Environment tag
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-${each.key}"
+  })
 
   # WARNING: Enable ONLY for testing environments!
   force_destroy = true # Allows deletion with non-empty contents.
@@ -62,10 +61,9 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 
   bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-rep-${random_string.suffix.result}" # Bucket name format: <prefix>-<key>-rep-<suffix>
 
-  tags = {
-    Name        = "${var.name_prefix}-${each.key}" # Name tag (replication)
-    Environment = var.environment                  # Environment tag
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-${each.key}"
+  })
 
   force_destroy = true # WARNING: Enable ONLY for testing environments! Allows bucket deletion with non-empty contents.
 }
@@ -92,10 +90,9 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
 
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on default buckets
 
-  tags = {
-    Name        = "Deploy WordPress Script" # Name tag
-    Environment = var.environment           # Environment tag
-  }
+  tags = merge(var.tags, {
+    Name = "Deploy WordPress Script"
+  })
 
   # Notes:
   # - Uploads scripts to 'scripts' bucket (defined in 'var.s3_scripts').

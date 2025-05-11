@@ -20,13 +20,6 @@ provider "aws" {
   alias   = "default"
   region  = var.aws_region
   profile = "default"
-
-  default_tags {
-    tags = {
-      Project = "Test"
-      Owner   = "Hetmanskyi"
-    }
-  }
 }
 
 # Configure the AWS alias provider and set the region for the replication bucket
@@ -34,13 +27,6 @@ provider "aws" {
   alias   = "replication"
   region  = var.replication_region
   profile = "default"
-
-  default_tags {
-    tags = {
-      Project = "Test"
-      Owner   = "Hetmanskyi"
-    }
-  }
 }
 
 # Define the Random provider for generating random strings if needed
@@ -52,4 +38,3 @@ provider "random" {
 # --- Notes --- #
 # 1. The default AWS provider uses `var.aws_region`; replication uses `var.replication_region`.
 # 2. For CI/CD, avoid using `profile = "default"` — use environment variables or assume-role workflows.
-# 3. Default tags help with resource tracking and billing in AWS Console.

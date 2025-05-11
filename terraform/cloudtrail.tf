@@ -103,11 +103,9 @@ resource "aws_cloudtrail" "cloudtrail" {
   # Sends CloudTrail events to the CloudTrail-specific SNS topic for notifications. 
   sns_topic_name = aws_sns_topic.cloudtrail_events[0].name
 
-  # Resource tags
-  tags = {
-    Name        = "${var.name_prefix}-cloudtrail"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudtrail, {
+    Name = "${var.name_prefix}-cloudtrail"
+  })
 
   # Make sure the bucket policy is applied before CloudTrail is created
   depends_on = [aws_s3_bucket_policy.cloudtrail_bucket_policy]
@@ -124,11 +122,9 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false # Allows this log group to be destroyed by Terraform
 
-  # Resource tags
-  tags = {
-    Name        = "${var.name_prefix}-cloudtrail"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudtrail, {
+    Name = "${var.name_prefix}-cloudtrail-log-group"
+  })
 }
 
 # --- IAM Configuration for CloudWatch Integration --- #
@@ -153,11 +149,9 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
     ]
   })
 
-  # Resource tags
-  tags = {
-    Name        = "${var.name_prefix}-cloudtrail-cloudwatch"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudtrail, {
+    Name = "${var.name_prefix}-cloudtrail-cloudwatch"
+  })
 }
 
 # --- IAM Policy for CloudWatch Access --- #

@@ -12,11 +12,9 @@ resource "aws_security_group" "rds_sg" {
     create_before_destroy = true # Ensures new SG creation before old one is destroyed to prevent downtime during updates.
   }
 
-  # Tags for Resource Identification
-  tags = {
-    Name        = "${var.name_prefix}-rds-sg-${var.environment}" # Name tag for identifying the Security Group.
-    Environment = var.environment                                # Environment tag for resource management.
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-rds-sg-${var.environment}"
+  })
 }
 
 # --- Security Group Rule: Ingress from ASG --- #

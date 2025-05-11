@@ -170,43 +170,44 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs (Variables)
 
-| Variable (Partial List)      | Type         | Description                                             | Default / Required |
-|------------------------------|--------------|---------------------------------------------------------|--------------------|
-| aws_account_id               | string       | AWS Account ID                                          | Required           |
-| aws_region                   | string       | AWS Region                                              | Required           |
-| environment                  | string       | dev, stage, prod                                        | Required           |
-| name_prefix                  | string       | Resource name prefix                                    | Required           |
-| instance_type                | string       | EC2 instance type                                       | Required           |
-| ami_id                       | string       | AMI ID                                                  | Required           |
-| ssh_key_name                 | string       | SSH Key Pair name                                       | Required           |
-| autoscaling_min              | number       | Minimum instances                                       | Required           |
-| autoscaling_max              | number       | Maximum instances                                       | Required           |
-| desired_capacity             | number       | Desired capacity                                        | null / Optional    |
-| scale_out_cpu_threshold      | number       | CPU % threshold to scale out                            | Required           |
-| scale_in_cpu_threshold       | number       | CPU % threshold to scale in                             | Required           |
-| volume_size                  | number       | EBS volume size (GiB)                                   | Required           |
-| volume_type                  | string       | EBS volume type                                         | Required           |
-| vpc_id                       | string       | VPC ID                                                  | Required           |
-| public_subnet_ids            | list(string) | Subnets for ASG instances                               | Required           |
-| wordpress_tg_arn             | string       | ALB Target Group ARN                                    | Required           |
-| sns_topic_arn                | string       | SNS topic for alarms                                    | Required           |
-| kms_key_arn                  | string       | KMS key ARN                                             | Required           |
-| redis_endpoint               | string       | Redis endpoint                                          | Required           |
-| redis_port                   | number       | Redis port                                              | Required           |
-| redis_security_group_id      | string       | Security Group ID for ElastiCache                       | Required           |
-| wordpress_media_bucket_name  | string       | S3 bucket for WordPress media                           | ""                 |
-| scripts_bucket_name          | string       | S3 bucket for deployment scripts                        | ""                 |
-| enable_interface_endpoints   | bool         | Use VPC Interface Endpoints                             | false              |
-| enable_data_source           | bool         | Enable fetching ASG instance data                       | false              |
-| enable_asg_ssh_access        | bool         | Allow SSH for ASG instances	                            | false              |
-| ssh_allowed_cidr	           | list(string) |	CIDR blocks allowed for SSH	                            | ["0.0.0.0/0"]      |
-| enable_ebs_encryption	       | bool         |	Enable EBS encryption via KMS	                          | false              |
-| wordpress_secrets_name	     | string	      | Name of WordPress secret in Secrets Manager	            | Required           |
-| wordpress_secrets_arn	       | string	      | ARN of WordPress secret in Secrets Manager	            | Required           |
-| redis_auth_secret_name	     | string	      | Name of Redis AUTH secret in Secrets Manager	          | ""                 |
-| redis_auth_secret_arn	       | string	      | ARN of Redis AUTH secret in Secrets Manager	            | ""                 |
-| enable_cloudwatch_logs	     | bool	        | Enable or disable CloudWatch Logs integration	          | true               |
-| cloudwatch_log_groups	       | map(string)	| Map of log group names for EC2 logs	                    | Required           |
+| Variable (Partial List)        | Type           | Description                                             | Default / Required |
+|--------------------------------|----------------|---------------------------------------------------------|--------------------|
+| `aws_account_id`               | `string`       | AWS Account ID                                          | Required           |
+| `aws_region`                   | `string`       | AWS Region                                              | Required           |
+| `environment`                  | `string`       | dev, stage, prod                                        | Required           |
+| `tags`                         | `map(string)`  | Tags to apply to all resources.                         | `{}` (Optional)    |
+| `name_prefix`                  | `string`       | Resource name prefix                                    | Required           |
+| `instance_type`                | `string`       | EC2 instance type                                       | Required           |
+| `ami_id`                       | `string`       | AMI ID                                                  | Required           |
+| `ssh_key_name`                 | `string`       | SSH Key Pair name                                       | Required           |
+| `autoscaling_min`              | `number`       | Minimum instances                                       | Required           |
+| `autoscaling_max`              | `number`       | Maximum instances                                       | Required           |
+| `desired_capacity`             | `number`       | Desired capacity                                        | null / Optional    |
+| `scale_out_cpu_threshold`      | `number`       | CPU % threshold to scale out                            | Required           |
+| `scale_in_cpu_threshold`       | `number`       | CPU % threshold to scale in                             | Required           |
+| `volume_size`                  | `number`       | EBS volume size (GiB)                                   | Required           |
+| `volume_type`                  | `string`       | EBS volume type                                         | Required           |
+| `vpc_id`                       | `string`       | VPC ID                                                  | Required           |
+| `public_subnet_ids`            | `list(string)` | Subnets for ASG instances                               | Required           |
+| `wordpress_tg_arn`             | `string`       | ALB Target Group ARN                                    | Required           |
+| `sns_topic_arn`                | `string`       | SNS topic for alarms                                    | Required           |
+| `kms_key_arn`                  | `string`       | KMS key ARN                                             | Required           |
+| `redis_endpoint`               | `string`       | Redis endpoint                                          | Required           |
+| `redis_port`                   | `number`       | Redis port                                              | Required           |
+| `redis_security_group_id`      | `string`       | Security Group ID for ElastiCache                       | Required           |
+| `wordpress_media_bucket_name`  | `string`       | S3 bucket for WordPress media                           | ""                 |
+| `scripts_bucket_name`          | `string`       | S3 bucket for deployment scripts                        | ""                 |
+| `enable_interface_endpoints`   | `bool`         | Use VPC Interface Endpoints                             | false              |
+| `enable_data_source`           | `bool`         | Enable fetching ASG instance data                       | false              |
+| `enable_asg_ssh_access`        | `bool`         | Allow SSH for ASG instances	                            | false              |
+| `ssh_allowed_cidr`	           | `list(string)` |	CIDR blocks allowed for SSH	                            | ["0.0.0.0/0"]      |
+| `enable_ebs_encryption`	       | `bool`         |	Enable EBS encryption via KMS	                          | false              |
+| `wordpress_secrets_name`	     | `string`	      | Name of WordPress secret in Secrets Manager	            | Required           |
+| `wordpress_secrets_arn`	       | `string`	      | ARN of WordPress secret in Secrets Manager	            | Required           |
+| `redis_auth_secret_name`	     | `string`	      | Name of Redis AUTH secret in Secrets Manager	          | ""                 |
+| `redis_auth_secret_arn`	       | `string`	      | ARN of Redis AUTH secret in Secrets Manager	            | ""                 |
+| `enable_cloudwatch_logs`	     | `bool`	        | Enable or disable CloudWatch Logs integration	          | true               |
+| `cloudwatch_log_groups`	       | `map(string)`	| Map of log group names for EC2 logs	                    | Required           |
 
 _(Full list of variables available in the `variables.tf` file)_
 

@@ -58,11 +58,9 @@ resource "aws_db_instance" "db" {
     "slowquery"                       # Query performance tuning.
   ]
 
-  # Tags
-  tags = {
-    Name        = "${var.name_prefix}-db-${var.environment}" # Resource name tag.
-    Environment = var.environment                            # Environment tag.
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-db-${var.environment}"
+  })
 
   # Dependencies
   depends_on = [aws_security_group.rds_sg, aws_cloudwatch_log_group.rds_log_group] # Ensure SG and Log Groups are created first.
@@ -80,10 +78,9 @@ resource "aws_db_parameter_group" "rds_params" {
     value = "1"
   }
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-params-${var.environment}"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-rds-params-${var.environment}"
+  })
 }
 
 # --- CloudWatch Log Groups for RDS --- #
@@ -98,10 +95,9 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
   retention_in_days = var.rds_log_retention_days # Adjust carefully to control CloudWatch costs
   kms_key_id        = var.kms_key_arn
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-logs"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-rds-logs"
+  })
 
   lifecycle {
     prevent_destroy = false
@@ -120,10 +116,9 @@ resource "aws_cloudwatch_log_group" "rds_os_metrics" {
   retention_in_days = var.rds_log_retention_days
   kms_key_id        = var.kms_key_arn
 
-  tags = {
-    Name        = "${var.name_prefix}-rds-os-metrics-${var.environment}"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-rds-os-metrics-${var.environment}"
+  })
 
   lifecycle {
     prevent_destroy = false
@@ -137,10 +132,9 @@ resource "aws_db_subnet_group" "db_subnet_group" {
   description = "Subnet group for RDS ${var.engine} instance."          # Description for the DB Subnet Group.
   subnet_ids  = var.private_subnet_ids                                  # Assign RDS to private subnets.
 
-  tags = {
-    Name        = "${var.name_prefix}-db-subnet-group-${var.environment}" # Tag with dynamic name.
-    Environment = var.environment                                         # Environment tag.
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-db-subnet-group-${var.environment}"
+  })
 }
 
 # --- Read Replica Configuration --- #
@@ -183,11 +177,9 @@ resource "aws_db_instance" "read_replica" {
   skip_final_snapshot             = var.skip_final_snapshot # Skip final snapshot on deletion (for code consistency).
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
-  # Tags
-  tags = merge(
-    aws_db_instance.db.tags,
-    { Name = "${var.name_prefix}-replica-${count.index}" } # Read Replica specific Name tag.
-  )
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-replica-${count.index}"
+  })
 
   # Dependencies
   depends_on = [aws_db_instance.db] # Ensure replica creation after primary instance.

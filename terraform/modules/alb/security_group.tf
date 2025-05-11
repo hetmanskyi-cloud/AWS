@@ -11,11 +11,9 @@ resource "aws_security_group" "alb_sg" {
     create_before_destroy = true
   }
 
-  # --- Tags for Resource Identification --- #
-  tags = {
-    Name        = "${var.name_prefix}-alb-sg"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-alb-sg"
+  })
 }
 
 # --- Ingress Rule for HTTP --- #

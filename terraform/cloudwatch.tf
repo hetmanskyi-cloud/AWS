@@ -12,10 +12,9 @@ resource "aws_cloudwatch_log_group" "user_data_logs" {
   kms_key_id        = module.kms.kms_key_arn        # Encrypt logs using CMK
   skip_destroy      = false                         # Destroy with terraform destroy
 
-  tags = {
-    Name        = "${var.name_prefix}-user-data-logs"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-user-data-logs"
+  })
 }
 
 # --- Log Group: EC2 system logs --- #
@@ -28,10 +27,9 @@ resource "aws_cloudwatch_log_group" "system_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags = {
-    Name        = "${var.name_prefix}-system-logs"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-system-logs"
+  })
 }
 
 # --- Log Group: Nginx access and error logs --- #
@@ -44,10 +42,9 @@ resource "aws_cloudwatch_log_group" "nginx_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags = {
-    Name        = "${var.name_prefix}-nginx-logs"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-nginx-logs"
+  })
 }
 
 # --- Log Group: PHP-FPM logs --- #
@@ -60,10 +57,9 @@ resource "aws_cloudwatch_log_group" "php_fpm_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags = {
-    Name        = "${var.name_prefix}-php-fpm-logs"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-php-fpm-logs"
+  })
 }
 
 # --- Log Group: WordPress logs --- #
@@ -76,10 +72,9 @@ resource "aws_cloudwatch_log_group" "wordpress_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags = {
-    Name        = "${var.name_prefix}-wordpress-logs"
-    Environment = var.environment
-  }
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-wordpress-logs"
+  })
 }
 
 # --- Metric Filter: Nginx 5xx Errors --- #
@@ -115,6 +110,10 @@ resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
   alarm_actions       = [aws_sns_topic.cloudwatch_alarms.arn]
 
   depends_on = [aws_sns_topic.cloudwatch_alarms]
+
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-nginx-5xx-error-alarm"
+  })
 }
 
 # --- Metric Filter: PHP Fatal Errors --- #
@@ -150,6 +149,10 @@ resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
   alarm_actions       = [aws_sns_topic.cloudwatch_alarms.arn]
 
   depends_on = [aws_sns_topic.cloudwatch_alarms]
+
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-php-fatal-error-alarm"
+  })
 }
 
 # --- Notes --- #

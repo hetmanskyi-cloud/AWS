@@ -6,10 +6,9 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = {
-    Name        = "${var.name_prefix}-vpc"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-vpc"
+  })
 }
 
 # --- Public Subnet Configurations --- #
@@ -24,10 +23,9 @@ resource "aws_subnet" "public_subnet_1" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_1
 
-  tags = {
-    Name        = "${var.name_prefix}-public-subnet-1"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-1"
+  })
 }
 
 # Public Subnet 2
@@ -39,10 +37,9 @@ resource "aws_subnet" "public_subnet_2" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_2
 
-  tags = {
-    Name        = "${var.name_prefix}-public-subnet-2"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-2"
+  })
 }
 
 # Public Subnet 3
@@ -55,10 +52,9 @@ resource "aws_subnet" "public_subnet_3" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_3
 
-  tags = {
-    Name        = "${var.name_prefix}-public-subnet-3"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-3"
+  })
 }
 
 # --- Private Subnet Configurations --- #
@@ -71,10 +67,9 @@ resource "aws_subnet" "private_subnet_1" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_1
 
-  tags = {
-    Name        = "${var.name_prefix}-private-subnet-1"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-1"
+  })
 }
 
 # Private Subnet 2
@@ -84,10 +79,9 @@ resource "aws_subnet" "private_subnet_2" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_2
 
-  tags = {
-    Name        = "${var.name_prefix}-private-subnet-2"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-2"
+  })
 }
 
 # Private Subnet 3
@@ -97,10 +91,9 @@ resource "aws_subnet" "private_subnet_3" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_3
 
-  tags = {
-    Name        = "${var.name_prefix}-private-subnet-3"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-3"
+  })
 }
 
 # --- Default Security Group Restrictions --- #
@@ -115,10 +108,9 @@ resource "aws_default_security_group" "default" {
   ingress = []
   egress  = []
 
-  tags = {
-    Name        = "${var.name_prefix}-default-sg"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-default-sg"
+  })
 }
 
 # --- Notes --- #

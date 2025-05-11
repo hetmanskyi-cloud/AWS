@@ -18,6 +18,12 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_memory" {
   dimensions = {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-low-memory"
+    AlertType = "Redis:FreeableMemory"
+    Type      = "Memory"
+  })
 }
 
 # --- High CPU Utilization Alarm --- #
@@ -39,6 +45,12 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
   dimensions = {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-high-cpu"
+    AlertType = "Redis:CPUUtilization"
+    Type      = "CPU"
+  })
 }
 
 # --- Replication Bytes Used Alarm --- #
@@ -61,6 +73,12 @@ resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
   dimensions = {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-replication-bytes-used"
+    AlertType = "Redis:ReplicationBytesUsed"
+    Type      = "Replication"
+  })
 }
 
 # --- CPU Credit Balance Alarm --- #
@@ -81,6 +99,12 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
   dimensions = {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-low-cpu-credits"
+    AlertType = "Redis:CPUCreditBalance"
+    Type      = "CPU Credits"
+  })
 }
 
 # --- Notes --- #

@@ -60,6 +60,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # S3 bucket configuration for default region.
 variable "default_region_buckets" {
   type = map(object({

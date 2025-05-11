@@ -60,9 +60,10 @@ module "vpc" {
   # SNS Topic for VPC Flow Logs Alarm Notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
-  # General environment and naming configurations
-  environment = var.environment
-  name_prefix = var.name_prefix
+  # Environment, tags and naming conventions
+  environment = var.environment # Environment (e.g., dev, stage, prod)
+  name_prefix = var.name_prefix # Prefix for naming resources
+  tags        = local.tags_vpc  # Tags for VPC resources
 }
 
 # --- KMS Module Configuration --- #
@@ -75,9 +76,10 @@ module "kms" {
   replication_region = var.replication_region # Region for replication
   aws_account_id     = var.aws_account_id     # Account ID for KMS key permissions
 
-  # Environment and naming
+  # Environment, tags and naming conventions
   environment = var.environment # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix # Prefix for naming resources
+  tags        = local.tags_kms  # Tags for KMS resources
 
   # Key rotation and monitoring
   enable_key_rotation            = var.enable_key_rotation            # Enable automatic key rotation
@@ -105,11 +107,12 @@ module "kms" {
 module "asg" {
   source = "./modules/asg" # Path to module ASG
 
-  # General naming and environment configuration
+  # General naming, tags and environment configuration
   name_prefix    = var.name_prefix
   environment    = var.environment
   aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
+  tags           = local.tags_asg
 
   # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
@@ -222,9 +225,10 @@ module "asg" {
 module "rds" {
   source = "./modules/rds" # Path to module RDS
 
-  # General naming and environment configuration
+  # General naming, tags and environment configuration
   name_prefix = var.name_prefix
   environment = var.environment
+  tags        = local.tags_rds
 
   # AWS region and account settings
   aws_region     = var.aws_region
@@ -302,6 +306,7 @@ module "s3" {
   aws_region                        = var.aws_region
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
+  tags                              = local.tags_s3
   name_prefix                       = var.name_prefix
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_dynamodb                   = var.enable_dynamodb
@@ -334,8 +339,10 @@ module "s3" {
 module "elasticache" {
   source = "./modules/elasticache" # Path to module Elasticache
 
+  # General naming, tags and environment configuration
   name_prefix = var.name_prefix
   environment = var.environment
+  tags        = local.tags_redis
 
   # KMS key ARN for encrypting data at rest in ElastiCache
   kms_key_arn = module.kms.kms_key_arn
@@ -390,6 +397,7 @@ module "alb" {
 
   name_prefix          = var.name_prefix
   environment          = var.environment
+  tags                 = local.tags_alb
   kms_key_arn          = module.kms.kms_key_arn
   public_subnets       = module.vpc.public_subnets
   alb_logs_bucket_name = module.s3.alb_logs_bucket_name
@@ -418,6 +426,7 @@ module "interface_endpoints" {
   aws_region                 = var.aws_region
   name_prefix                = var.name_prefix
   environment                = var.environment
+  tags                       = local.tags_interface_endpoints
   vpc_id                     = module.vpc.vpc_id
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids

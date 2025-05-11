@@ -212,6 +212,7 @@ This module provisions the following AWS resources:
 |---------------------------------------|---------------|--------------------------------------------|-------------------|
 | `name_prefix`                         | `string`      | Prefix for resource names                  | **Required**      |
 | `environment`                         | `string`      | Environment (`dev`, `stage`, `prod`)       | **Required**      |
+| `tags`                                | `map(string)` | Tags to apply to all resources             | `{}` (Optional)   |
 | `vpc_id`                              | `string`      | VPC ID for deployment                      | **Required**      |
 | `private_subnet_ids`                  | `list(string)`| List of private subnet IDs                 | **Required**      |
 | `asg_security_group_id`               | `string`      | Security Group ID for ASG access           | **Required**      |

@@ -25,10 +25,9 @@ resource "aws_iam_role" "kms_admin_role" {
   })
 
   # Tags for resource identification
-  tags = {
-    Name        = "${var.name_prefix}-kms-admin-role"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-kms-admin-role"
+  })
 }
 
 # --- IAM Policy for KMS Key Management --- #

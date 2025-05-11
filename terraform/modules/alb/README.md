@@ -181,6 +181,7 @@ This module provisions:
 | `aws_account_id`                   | `string`       | AWS Account ID for security policies                     | 12-digit numeric string             |
 | `name_prefix`                      | `string`       | Prefix for resource names                                | <= 24 chars                         |
 | `environment`                      | `string`       | Deployment environment                                   | One of: `dev`, `stage`, `prod`      |
+| `tags`                             | `map(string)`  | Tags to apply to all resources                           | `{}` (Optional)                     |
 | `public_subnets`                   | `list(string)` | Public subnet IDs for ALB                                | Valid subnet IDs                    |
 | `vpc_id`                           | `string`       | VPC ID for ALB                                           | Valid VPC ID                        |
 | `target_group_port`                | `number`       | Port for the target group                                | Default: `80`                       |

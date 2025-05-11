@@ -19,10 +19,9 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
   name               = "${var.name_prefix}-vpc-flow-logs-role"
   assume_role_policy = data.aws_iam_policy_document.vpc_flow_logs_assume_role.json
 
-  tags = {
-    Name        = "${var.name_prefix}-vpc-flow-logs-role"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-vpc-flow-logs-role"
+  })
 }
 
 # IAM policy document for CloudWatch Logs permissions
@@ -60,10 +59,9 @@ resource "aws_cloudwatch_log_group" "vpc_log_group" {
   retention_in_days = var.flow_logs_retention_in_days
   kms_key_id        = var.kms_key_arn
 
-  tags = {
-    Name        = "${var.name_prefix}-flow-logs"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-flow-logs"
+  })
 
   depends_on = [var.kms_key_arn]
 
@@ -94,10 +92,9 @@ resource "aws_flow_log" "vpc_flow_log" {
   # The "depends_on" ensures that the CloudWatch Log Group is created before configuring the VPC Flow Logs.
   depends_on = [aws_cloudwatch_log_group.vpc_log_group]
 
-  tags = {
-    Name        = "${var.name_prefix}-vpc-flow-log"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-vpc-flow-log"
+  })
 }
 
 # --- CloudWatch Alarm for VPC Flow Logs Delivery Errors --- #
@@ -122,10 +119,9 @@ resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
 
   treat_missing_data = "missing" # Do not evaluate missing data (avoids false alarms)
 
-  tags = {
-    Name        = "${var.name_prefix}-flow-logs-delivery-alarm"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-flow-logs-delivery-alarm"
+  })
 
   # Notes:
   # 1. Monitors CloudWatch delivery failures for VPC Flow Logs.

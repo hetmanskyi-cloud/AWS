@@ -26,6 +26,25 @@ variable "environment" {
   }
 }
 
+# --- Metadata --- #
+# Project-level metadata used to generate tags and standardized resource names across all Terraform modules.
+# These values are referenced in the centralized metadata.tf file to enforce consistent naming and tagging.
+
+variable "project" {
+  description = "Project name or identifier used for tagging AWS resources"
+  type        = string
+}
+
+variable "application" {
+  description = "Logical name of the application or workload deployed in this infrastructure"
+  type        = string
+}
+
+variable "owner" {
+  description = "Owner or responsible person/team for the resources (used for tagging)"
+  type        = string
+}
+
 # --- Name Prefix for Resources --- #
 variable "name_prefix" {
   description = "Prefix for resource names to distinguish environments"

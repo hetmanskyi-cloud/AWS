@@ -205,6 +205,7 @@ This module provisions the following AWS resources:
 | **Naming and Environment Variables**  |                |                                                                               |                       |
 | `name_prefix`                         | `string`       | Prefix for resource names                                                     | Required              |
 | `environment`                         | `string`       | Environment for the resources (e.g., dev, stage, prod)                        | Required              |
+| `tags`                                | `map(string)`  | Tags to apply to all resources.                                               | `{}` (Optional)       |
 | **RDS Instance Configuration**        |                |                                                                               |                       |
 | `allocated_storage`                   | `number`       | Storage size in GB for the RDS instance                                       | Required              |
 | `instance_class`                      | `string`       | Instance class for RDS (e.g., db.t3.micro)                                    | Required              |

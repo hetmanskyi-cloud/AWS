@@ -34,6 +34,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- Public Subnet Configuration Variables --- #
 
 # CIDR blocks for public subnets

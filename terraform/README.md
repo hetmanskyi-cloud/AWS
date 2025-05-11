@@ -254,6 +254,7 @@ All modules are self-contained and documented for reusability.
 ├── 📄 🟩 cloudtrail.tf                               # CloudTrail logging setup
 ├── 📄 🟩 cloudwatch.tf                               # CloudWatch metrics and alarms configuration
 ├── 📄 🟩 sns_topics.tf                               # SNS notification configuration
+├── 📄 🟩 metadata.tf                                 # Central project metadata (Name, Environment, Project, Application, Owner)
 ├── 📄 🟩 terraform.tfvars                            # Variable values for deployment
 ├── 📄 🟫 Makefile                                    # Automation for common Terraform tasks
 ├── 📄 🟪 README.md                                   # Documentation for the root Terraform configuration - You are here
@@ -552,6 +553,7 @@ The following components are created conditionally based on input variables:
 - **Enable CloudTrail log validation** to ensure log integrity
 - **Regularly review NACL and SG rules**
 - **Consider multi-region backups** for disaster recovery and data durability
+- **Centralized Metadata Tags**: project-wide tags such as `Name`, `Environment`, `Project`, `Application`, and `Owner` are defined in `metadata.tf` to ensure consistency across all resources and simplify tag management.
 
 ---
 

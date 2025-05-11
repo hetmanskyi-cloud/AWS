@@ -8,10 +8,9 @@
 resource "aws_network_acl" "public_nacl" {
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
-  tags = {
-    Name        = "${var.name_prefix}-public-nacl" # Name prefix for easy identification
-    Environment = var.environment                  # Environment tag (dev, prod, etc.)
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-nacl"
+  })
 }
 
 # --- Public NACL Rules --- #
@@ -106,10 +105,9 @@ resource "aws_network_acl_rule" "public_outbound_allow_all" {
 resource "aws_network_acl" "private_nacl" {
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
-  tags = {
-    Name        = "${var.name_prefix}-private-nacl" # Name prefix
-    Environment = var.environment                   # Environment tag
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-nacl"
+  })
 }
 
 # --- Private NACL Rules --- #

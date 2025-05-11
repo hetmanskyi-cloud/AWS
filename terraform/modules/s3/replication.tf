@@ -31,10 +31,9 @@ resource "aws_iam_role" "replication_role" {
     ]
   })
 
-  tags = {
-    Name        = "${var.name_prefix}-replication-role"
-    Environment = var.environment
-  }
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-replication-role"
+  })
 }
 
 # --- IAM Policy for Replication --- #
@@ -129,6 +128,10 @@ resource "aws_iam_policy" "replication_policy" {
         ])
       }
     ]
+  })
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-replication-policy-${each.key}"
   })
 }
 

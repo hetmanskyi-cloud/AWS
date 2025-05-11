@@ -25,6 +25,10 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
     # checkov:skip=CKV_AWS_241:Using Customer Managed Key defined in kms_key_arn
     kms_key_arn = var.kms_key_arn # KMS key (Customer Managed Key) for encrypting logs. Ensures secure storage in S3.
   }
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-firehose-delivery-stream"
+  })
 }
 
 # --- IAM Role for Firehose --- #
@@ -47,6 +51,10 @@ resource "aws_iam_role" "firehose_role" {
         Action = "sts:AssumeRole"
       }
     ]
+  })
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-firehose-role"
   })
 }
 
@@ -85,6 +93,10 @@ resource "aws_iam_policy" "firehose_policy" {
         Resource = var.kms_key_arn
       }
     ]
+  })
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-firehose-policy"
   })
 }
 

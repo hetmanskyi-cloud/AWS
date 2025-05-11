@@ -36,6 +36,12 @@ variable "environment" {
   }
 }
 
+# Tags for resource identification and management
+variable "tags" {
+  description = "Tags to apply to VPC resources"
+  type        = map(string)
+}
+
 # --- VPC ID --- #
 # The ID of the VPC where the VPC Endpoints will be created.
 variable "vpc_id" {

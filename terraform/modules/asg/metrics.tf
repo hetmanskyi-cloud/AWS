@@ -23,6 +23,12 @@ resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-scale-out"
+    Type      = "CPU"
+    AlertType = "ASG:ScaleOut"
+  })
 }
 
 # --- Scale-In Alarm --- #
@@ -46,6 +52,12 @@ resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-scale-in"
+    Type      = "CPU"
+    AlertType = "ASG:ScaleIn"
+  })
 }
 
 # --- ASG Instance Health Alarm --- #
@@ -69,6 +81,12 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-asg-status-check-failed"
+    Type      = "Health"
+    AlertType = "ASG:InstanceStatusCheck"
+  })
 }
 
 # --- High Incoming Network Traffic Alarm --- #
@@ -93,6 +111,12 @@ resource "aws_cloudwatch_metric_alarm" "high_network_in" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-high-network-in"
+    Type      = "NetworkIn"
+    AlertType = "ASG:NetworkIn"
+  })
 }
 
 # --- High Outgoing Network Traffic Alarm --- #
@@ -117,6 +141,12 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
+
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-high-network-out"
+    Type      = "NetworkOut"
+    AlertType = "ASG:NetworkOut"
+  })
 }
 
 # --- Notes --- #

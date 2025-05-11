@@ -346,6 +346,7 @@ This module provisions the following AWS resources:
 | `aws_region`                       | `string`         | Primary AWS region                                           | — *(required)*            |
 | `replication_region`               | `string`         | Region for replication buckets                               | — *(required)*            |
 | `environment`                      | `string`         | Deployment stage: dev, stage, or prod                        | — *(required)*            |
+| `tags`                             | `map(string)`    | Tags to apply to all resources.                              | `{}` (Optional)           |
 | `name_prefix`                      | `string`         | Prefix for resource names                                    | — *(required)*            |
 | `aws_account_id`                   | `string`         | Account ID for bucket policies                               | — *(required)*            |
 | `kms_key_arn`                      | `string`         | KMS key for encryption                                       | — *(required)*            |

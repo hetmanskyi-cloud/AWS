@@ -52,16 +52,15 @@ resource "aws_autoscaling_group" "asg" {
   depends_on = [aws_launch_template.asg_launch_template]
 
   # Tags applied to all instances launched in the Auto Scaling Group
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-asg-instance"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Environment"
-    value               = var.environment
-    propagate_at_launch = true
+  dynamic "tag" {
+    for_each = merge(var.tags, {
+      Name = "${var.name_prefix}-asg-instance"
+    })
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
   }
 }
 
