@@ -5,7 +5,7 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   description = "Subnet group for ElastiCache Redis"
   subnet_ids  = var.private_subnet_ids
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-redis-subnet-group"
   })
 }
@@ -57,7 +57,7 @@ resource "aws_elasticache_replication_group" "redis" {
     prevent_destroy = false # Prevent accidental deletion
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-redis-replication-group"
   })
 }
@@ -70,7 +70,7 @@ resource "aws_elasticache_parameter_group" "redis_params" {
   family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
   description = "Parameter group for Redis ${var.redis_version} with default settings"
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-redis-params"
   })
 }

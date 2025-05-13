@@ -18,7 +18,7 @@ resource "aws_vpc_endpoint" "ssm" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-ssm-endpoint"
   })
 }
@@ -34,7 +34,7 @@ resource "aws_vpc_endpoint" "ssm_messages" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-ssm-messages-endpoint"
   })
 }
@@ -50,7 +50,7 @@ resource "aws_vpc_endpoint" "asg_messages" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-asg-messages-endpoint"
   })
 }
@@ -66,7 +66,7 @@ resource "aws_vpc_endpoint" "cloudwatch_logs" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-cloudwatch-logs-endpoint"
   })
 }
@@ -82,7 +82,7 @@ resource "aws_vpc_endpoint" "kms" {
   security_group_ids  = [aws_security_group.endpoints_sg[0].id]
   private_dns_enabled = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-kms-endpoint"
   })
 }

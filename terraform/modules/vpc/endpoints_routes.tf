@@ -4,7 +4,7 @@
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-igw"
   })
 }
@@ -21,7 +21,7 @@ resource "aws_route_table" "public_route_table" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-public-route-table"
   })
 
@@ -56,7 +56,7 @@ resource "aws_route_table_association" "public_route_table_association_3" {
 resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.vpc.id
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-private-route-table"
   })
 }
@@ -106,7 +106,7 @@ resource "aws_vpc_endpoint" "s3" {
     aws_route_table.private_route_table
   ]
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-s3-endpoint"
   })
 }
@@ -128,7 +128,7 @@ resource "aws_vpc_endpoint" "dynamodb" {
     aws_route_table.private_route_table
   ]
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-dynamodb-endpoint"
   })
 }

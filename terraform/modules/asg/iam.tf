@@ -28,7 +28,7 @@ resource "aws_iam_role" "asg_role" {
     ]
   })
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-asg-role"
   })
 }
@@ -285,7 +285,7 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
   name = "${var.name_prefix}-asg-instance-profile"
   role = aws_iam_role.asg_role.name
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-asg-instance-profile"
   })
 }

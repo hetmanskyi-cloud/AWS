@@ -12,7 +12,7 @@ resource "aws_kms_key" "general_encryption_key" {
   # This must be set to true when using KMS replica keys for S3 replication or other cross-region scenarios.
   multi_region = true
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-general-encryption-key-${var.environment}"
   })
 }
@@ -31,7 +31,7 @@ resource "aws_kms_replica_key" "replica_key" {
   description     = "Replica of general encryption key for S3 replication in ${var.replication_region}"
   primary_key_arn = aws_kms_key.general_encryption_key.arn
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-replica-key-${var.environment}"
   })
 }

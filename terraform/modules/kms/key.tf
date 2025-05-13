@@ -25,7 +25,7 @@ resource "aws_iam_role" "kms_admin_role" {
   })
 
   # Tags for resource identification
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-kms-admin-role"
   })
 }

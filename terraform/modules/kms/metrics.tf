@@ -31,7 +31,7 @@ resource "aws_cloudwatch_metric_alarm" "kms_decrypt_alarm" {
 
   treat_missing_data = "notBreaching" # Treat missing data points as not breaching the threshold.
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-kms-decrypt-usage-high"
   })
 }
@@ -63,7 +63,7 @@ resource "aws_cloudwatch_metric_alarm" "kms_access_denied_alarm" {
   alarm_actions      = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
   ok_actions         = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-kms-access-denied"
   })
 }

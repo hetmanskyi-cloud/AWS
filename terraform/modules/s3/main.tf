@@ -27,7 +27,7 @@ resource "aws_s3_bucket" "default_region_buckets" {
 
   bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-${random_string.suffix.result}" # Bucket name: <prefix>-<key>-<suffix>
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-${each.key}"
   })
 
@@ -61,7 +61,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 
   bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-rep-${random_string.suffix.result}" # Bucket name format: <prefix>-<key>-rep-<suffix>
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-${each.key}"
   })
 
@@ -90,7 +90,7 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
 
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on default buckets
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "Deploy WordPress Script"
   })
 

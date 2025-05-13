@@ -58,7 +58,7 @@ resource "aws_db_instance" "db" {
     "slowquery"                       # Query performance tuning.
   ]
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-db-${var.environment}"
   })
 
@@ -78,7 +78,7 @@ resource "aws_db_parameter_group" "rds_params" {
     value = "1"
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-rds-params-${var.environment}"
   })
 }
@@ -95,7 +95,7 @@ resource "aws_cloudwatch_log_group" "rds_log_group" {
   retention_in_days = var.rds_log_retention_days # Adjust carefully to control CloudWatch costs
   kms_key_id        = var.kms_key_arn
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-rds-logs"
   })
 
@@ -116,7 +116,7 @@ resource "aws_cloudwatch_log_group" "rds_os_metrics" {
   retention_in_days = var.rds_log_retention_days
   kms_key_id        = var.kms_key_arn
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-rds-os-metrics-${var.environment}"
   })
 
@@ -132,7 +132,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
   description = "Subnet group for RDS ${var.engine} instance."          # Description for the DB Subnet Group.
   subnet_ids  = var.private_subnet_ids                                  # Assign RDS to private subnets.
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-db-subnet-group-${var.environment}"
   })
 }
@@ -177,7 +177,7 @@ resource "aws_db_instance" "read_replica" {
   skip_final_snapshot             = var.skip_final_snapshot # Skip final snapshot on deletion (for code consistency).
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-replica-${count.index}"
   })
 

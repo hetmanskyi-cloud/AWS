@@ -65,7 +65,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     sampled_requests_enabled   = true      # Enable sampled request logging
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name = "${var.name_prefix}-alb-waf"
   })
 

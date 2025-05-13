@@ -23,7 +23,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_low_free_storage" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name      = "${var.name_prefix}-rds-storage-alarm-${var.environment}"
     Type      = "Storage"
     AlertType = "RDS:FreeStorageSpace"
@@ -54,7 +54,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_cpu_utilization" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name      = "${var.name_prefix}-rds-cpu-alarm-${var.environment}"
     Type      = "CPU"
     AlertType = "RDS:CPUUtilization"
@@ -85,7 +85,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_high_connections" {
     DBInstanceIdentifier = aws_db_instance.db.identifier # Target RDS instance.
   }
 
-  tags = merge(var.tags, {
+  tags_all = merge(var.tags, {
     Name      = "${var.name_prefix}-rds-connections-alarm-${var.environment}"
     Type      = "Connections"
     AlertType = "RDS:DatabaseConnections"

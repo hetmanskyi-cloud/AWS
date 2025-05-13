@@ -103,7 +103,7 @@ resource "aws_cloudtrail" "cloudtrail" {
   # Sends CloudTrail events to the CloudTrail-specific SNS topic for notifications. 
   sns_topic_name = aws_sns_topic.cloudtrail_events[0].name
 
-  tags = merge(local.tags_cloudtrail, {
+  tags_all = merge(local.tags_cloudtrail, {
     Name = "${var.name_prefix}-cloudtrail"
   })
 
@@ -122,7 +122,7 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false # Allows this log group to be destroyed by Terraform
 
-  tags = merge(local.tags_cloudtrail, {
+  tags_all = merge(local.tags_cloudtrail, {
     Name = "${var.name_prefix}-cloudtrail-log-group"
   })
 }
@@ -149,7 +149,7 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
     ]
   })
 
-  tags = merge(local.tags_cloudtrail, {
+  tags_all = merge(local.tags_cloudtrail, {
     Name = "${var.name_prefix}-cloudtrail-cloudwatch"
   })
 }
