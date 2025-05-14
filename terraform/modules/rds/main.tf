@@ -178,7 +178,7 @@ resource "aws_db_instance" "read_replica" {
   enabled_cloudwatch_logs_exports = aws_db_instance.db.enabled_cloudwatch_logs_exports
 
   tags = merge(var.tags, {
-  Name = "${var.name_prefix}-replica-${var.environment}-${count.index}" # Unique name per read replica
+    Name = "${var.name_prefix}-replica-${var.environment}-${count.index}" # Unique name per read replica
   })
 
   # Dependencies
