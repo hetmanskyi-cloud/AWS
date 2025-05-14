@@ -11,8 +11,8 @@ resource "aws_security_group" "alb_sg" {
     create_before_destroy = true
   }
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-alb-sg"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-alb-sg-${var.environment}"
   })
 }
 

@@ -6,8 +6,8 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-vpc"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-vpc-${var.environment}"
   })
 }
 
@@ -23,8 +23,8 @@ resource "aws_subnet" "public_subnet_1" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_1
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-1"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-1-${var.environment}"
   })
 }
 
@@ -37,8 +37,8 @@ resource "aws_subnet" "public_subnet_2" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_2
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-2"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-2-${var.environment}"
   })
 }
 
@@ -52,8 +52,8 @@ resource "aws_subnet" "public_subnet_3" {
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
   availability_zone       = var.availability_zone_public_3
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-3"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-subnet-3-${var.environment}"
   })
 }
 
@@ -67,8 +67,8 @@ resource "aws_subnet" "private_subnet_1" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_1
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-1"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-1-${var.environment}"
   })
 }
 
@@ -79,8 +79,8 @@ resource "aws_subnet" "private_subnet_2" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_2
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-2"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-2-${var.environment}"
   })
 }
 
@@ -91,8 +91,8 @@ resource "aws_subnet" "private_subnet_3" {
   map_public_ip_on_launch = false
   availability_zone       = var.availability_zone_private_3
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-3"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-subnet-3-${var.environment}"
   })
 }
 
@@ -108,8 +108,8 @@ resource "aws_default_security_group" "default" {
   ingress = []
   egress  = []
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-default-sg"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-default-sg-${var.environment}"
   })
 }
 

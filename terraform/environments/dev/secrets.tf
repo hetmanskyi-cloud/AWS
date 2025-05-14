@@ -95,8 +95,8 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
   recovery_window_in_days = 0
 
   # Tags can be used for tracking and cost allocation.
-  tags_all = merge(local.tags_secrets, {
-    Name = "${var.name_prefix}-wordpress_secrets"
+  tags = merge(local.tags_secrets, {
+    Name = "${var.name_prefix}-wordpress_secrets-${var.environment}"
   })
 
   # Lifecycle control: allow destroy in non-production. Set to true in prod for safety.
@@ -140,8 +140,8 @@ resource "aws_secretsmanager_secret" "redis_auth" {
 
   recovery_window_in_days = 0
 
-  tags_all = merge(local.tags_secrets, {
-    Name = "${var.name_prefix}-redis-auth-secret"
+  tags = merge(local.tags_secrets, {
+    Name = "${var.name_prefix}-redis-auth-secret-${var.environment}"
   })
 
   lifecycle {

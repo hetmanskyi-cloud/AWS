@@ -54,7 +54,7 @@ resource "aws_autoscaling_group" "asg" {
   # Tags applied to all instances launched in the Auto Scaling Group
   dynamic "tag" {
     for_each = merge(var.tags, {
-      Name = "${var.name_prefix}-asg-instance"
+      Name = "${var.name_prefix}-asg-instance-${var.environment}" # One template name for all ASG instances
     })
     content {
       key                 = tag.key

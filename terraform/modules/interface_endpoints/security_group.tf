@@ -17,8 +17,8 @@ resource "aws_security_group" "endpoints_sg" {
     create_before_destroy = true
   }
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-endpoints-security-group"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-endpoints-security-group-${var.environment}"
   })
 }
 

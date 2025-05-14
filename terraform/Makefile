@@ -11,7 +11,7 @@
 
 # --- Variables --- #
 ENV ?= dev                       # Default environment (can be overridden)
-TF_DIR        = .                # Terraform root directory
+TF_DIR        = environments/$(ENV)  # Path to the environment-specific Terraform directory (dev, stage, prod)
 SCRIPTS_DIR   = ./scripts        # Directory for helper scripts. To change the script directory, modify the SCRIPTS_DIR variable
 
 # Ensure Makefile is run from terraform/ directory

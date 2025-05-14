@@ -13,7 +13,7 @@ resource "aws_security_group" "redis_sg" {
     create_before_destroy = true
   }
 
-  tags_all = merge(var.tags, {
+  tags = merge(var.tags, {
     Name = "${var.name_prefix}-redis-sg-${var.environment}"
   })
 }

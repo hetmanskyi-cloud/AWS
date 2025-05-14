@@ -66,8 +66,8 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
   # Tags
   # Add tags for resource identification and organization.
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-terraform-locks"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-terraform-locks-${var.environment}"
   })
 }
 

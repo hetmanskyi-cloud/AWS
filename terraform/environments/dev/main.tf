@@ -28,7 +28,7 @@ locals {
 # --- VPC Module Configuration --- #
 # Configures the Virtual Private Cloud (VPC) module to define the network infrastructure.
 module "vpc" {
-  source = "./modules/vpc" # Path to module VPC
+  source = "../../modules/vpc" # Path to module VPC
 
   # CIDR and subnet configurations
   vpc_cidr_block             = var.vpc_cidr_block
@@ -63,13 +63,13 @@ module "vpc" {
   # Environment, tags and naming conventions
   environment = var.environment # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix # Prefix for naming resources
-  tags        = local.tags_vpc  # Tags for VPC resources
+  tags        = local.tags_vpc  # Tags for resources
 }
 
 # --- KMS Module Configuration --- #
 # Configures the KMS module for encryption and management of resources such as CloudWatch Logs, S3, and others.
 module "kms" {
-  source = "./modules/kms" # Path to the KMS module
+  source = "../../modules/kms" # Path to the KMS module
 
   # AWS region and account-specific details
   aws_region         = var.aws_region         # Region where resources are created
@@ -79,7 +79,7 @@ module "kms" {
   # Environment, tags and naming conventions
   environment = var.environment # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix # Prefix for naming resources
-  tags        = local.tags_kms  # Tags for KMS resources
+  tags        = local.tags_kms  # Tags for resources
 
   # Key rotation and monitoring
   enable_key_rotation            = var.enable_key_rotation            # Enable automatic key rotation
@@ -105,7 +105,7 @@ module "kms" {
 # --- ASG Module Configuration --- #
 # Configures the Auto Scaling Group module for managing the application instances.
 module "asg" {
-  source = "./modules/asg" # Path to module ASG
+  source = "../../modules/asg" # Path to module ASG
 
   # General naming, tags and environment configuration
   name_prefix    = var.name_prefix
@@ -136,8 +136,8 @@ module "asg" {
   network_in_threshold    = var.network_in_threshold
   network_out_threshold   = var.network_out_threshold
 
-  # CloudWatch Alarms for Auto Scaling and instance health monitoring:
-  # - Includes CPU utilization, network traffic, and EC2 status checks
+  # CloudWatch Alarms for Auto Scaling and instance health monitoring
+  # Includes CPU utilization, network traffic, and EC2 status checks
   enable_scale_out_alarm        = var.enable_scale_out_alarm
   enable_scale_in_alarm         = var.enable_scale_in_alarm
   enable_asg_status_check_alarm = var.enable_asg_status_check_alarm
@@ -204,6 +204,9 @@ module "asg" {
   redis_endpoint  = module.elasticache.redis_endpoint
   redis_port      = var.redis_port
 
+  # Script path for deployment 
+  deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
+
   # Secrets Configuration  
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
   wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn
@@ -223,7 +226,7 @@ module "asg" {
 # --- RDS Module Configuration --- #
 # Configures the Relational Database Service (RDS) module for the WordPress application.
 module "rds" {
-  source = "./modules/rds" # Path to module RDS
+  source = "../../modules/rds" # Path to module RDS
 
   # General naming, tags and environment configuration
   name_prefix = var.name_prefix
@@ -294,7 +297,7 @@ module "rds" {
 # - Manages S3 buckets for application media, logs, scripts, and replication
 # - Ensures proper encryption, versioning, and access controls
 module "s3" {
-  source = "./modules/s3" # Path to S3 module
+  source = "../../modules/s3" # Path to S3 module
 
   # Providers
   providers = {
@@ -306,13 +309,13 @@ module "s3" {
   aws_region                        = var.aws_region
   aws_account_id                    = var.aws_account_id
   environment                       = var.environment
-  tags                              = local.tags_s3
   name_prefix                       = var.name_prefix
   noncurrent_version_retention_days = var.noncurrent_version_retention_days
   enable_dynamodb                   = var.enable_dynamodb
   enable_cors                       = var.enable_cors
   allowed_origins                   = var.allowed_origins
   s3_scripts                        = var.s3_scripts
+  tags                              = local.tags_s3
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
@@ -337,7 +340,7 @@ module "s3" {
 # --- Elasticache Module Configuration --- #
 # Configures the ElastiCache module for managing the Redis caching layer.
 module "elasticache" {
-  source = "./modules/elasticache" # Path to module Elasticache
+  source = "../../modules/elasticache" # Path to module Elasticache
 
   # General naming, tags and environment configuration
   name_prefix = var.name_prefix
@@ -389,15 +392,15 @@ module "elasticache" {
 # --- ALB Module --- #
 # Configures the Application Load Balancer (ALB) for routing traffic to the application instances.
 module "alb" {
-  source = "./modules/alb"
+  source = "../../modules/alb"
 
-  # AWS region and account settings
+  # AWS region, tags and account settings
   aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
+  tags           = local.tags_alb
 
   name_prefix          = var.name_prefix
   environment          = var.environment
-  tags                 = local.tags_alb
   kms_key_arn          = module.kms.kms_key_arn
   public_subnets       = module.vpc.public_subnets
   alb_logs_bucket_name = module.s3.alb_logs_bucket_name
@@ -421,16 +424,16 @@ module "alb" {
 # --- Interface Endpoints Module Configuration (Now disabled) --- #
 # Configures the VPC Interface Endpoints for secure access to AWS services within the VPC.
 module "interface_endpoints" {
-  source = "./modules/interface_endpoints" # Path to module Interface Endpoints
+  source = "../../modules/interface_endpoints" # Path to module Interface Endpoints  
 
   aws_region                 = var.aws_region
   name_prefix                = var.name_prefix
   environment                = var.environment
-  tags                       = local.tags_interface_endpoints
   vpc_id                     = module.vpc.vpc_id
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
   enable_interface_endpoints = var.enable_interface_endpoints
+  tags                       = local.tags_interface_endpoints
 }
 
 # --- Notes and Recommendations --- #

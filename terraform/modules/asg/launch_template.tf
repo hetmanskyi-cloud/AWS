@@ -31,7 +31,7 @@ locals {
   wordpress_script_path = "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh"
 
   # Local deployment script content used for uploading to S3
-  script_content = file("${path.root}/scripts/deploy_wordpress.sh")
+  script_content = file(var.deploy_script_path)
 
   # Rendered user_data script passed to the EC2 instance at launch
   rendered_user_data = templatefile(
@@ -135,7 +135,7 @@ resource "aws_launch_template" "asg_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = merge(var.tags, {
-      Name                  = "${var.name_prefix}-asg-instance"
+      Name                  = "${var.name_prefix}-asg-instance-${var.environment}"
       WordPressScriptSource = "s3"
     })
   }

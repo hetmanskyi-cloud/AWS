@@ -4,8 +4,8 @@
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-igw"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-igw-${var.environment}"
   })
 }
 
@@ -21,8 +21,8 @@ resource "aws_route_table" "public_route_table" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-public-route-table"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-public-route-table-${var.environment}"
   })
 
   # Ensures this route table is created after the Internet Gateway
@@ -56,8 +56,8 @@ resource "aws_route_table_association" "public_route_table_association_3" {
 resource "aws_route_table" "private_route_table" {
   vpc_id = aws_vpc.vpc.id
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-private-route-table"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-private-route-table-${var.environment}"
   })
 }
 
@@ -106,8 +106,8 @@ resource "aws_vpc_endpoint" "s3" {
     aws_route_table.private_route_table
   ]
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-s3-endpoint"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-s3-endpoint-${var.environment}"
   })
 }
 
@@ -128,8 +128,8 @@ resource "aws_vpc_endpoint" "dynamodb" {
     aws_route_table.private_route_table
   ]
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-dynamodb-endpoint"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-dynamodb-endpoint-${var.environment}"
   })
 }
 

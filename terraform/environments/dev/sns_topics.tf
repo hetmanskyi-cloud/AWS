@@ -8,8 +8,8 @@ resource "aws_sns_topic" "cloudwatch_alarms" {
   name              = "${var.name_prefix}-cloudwatch-alarms"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
-  tags_all = merge(local.tags_sns, {
-    Name = "${var.name_prefix}-cloudwatch-alarms"
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-cloudwatch-alarms-${var.environment}"
   })
 }
 
@@ -23,8 +23,8 @@ resource "aws_sns_topic" "replication_region_topic" {
   name              = "${var.name_prefix}-replication-region-notifications"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
-  tags_all = merge(local.tags_sns, {
-    Name = "${var.name_prefix}-rep-cloudwatch-alarms"
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-rep-cloudwatch-alarms-${var.environment}"
   })
 }
 
@@ -129,8 +129,8 @@ resource "aws_sns_topic" "cloudtrail_events" {
   name              = "${var.name_prefix}-cloudtrail-events"
   kms_master_key_id = module.kms.kms_key_arn # Use CMK for encryption at rest
 
-  tags_all = merge(local.tags_sns, {
-    Name = "${var.name_prefix}-cloudtrail-events"
+  tags = merge(local.tags_sns, {
+    Name = "${var.name_prefix}-cloudtrail-events-${var.environment}"
   })
 }
 

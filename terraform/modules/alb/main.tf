@@ -36,7 +36,7 @@ resource "aws_lb" "application" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-alb"
+    Name = "${var.name_prefix}-alb-${var.environment}"
   })
 }
 
@@ -86,7 +86,7 @@ resource "aws_lb_target_group" "wordpress" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-wordpress-tg"
+    Name = "${var.name_prefix}-wordpress-tg-${var.environment}"
   })
 }
 

@@ -25,7 +25,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
   }
 
   tags = merge(var.tags, {
-    Name      = "${var.name_prefix}-scale-out"
+    Name      = "${var.name_prefix}-scale-out-${var.environment}"
     Type      = "CPU"
     AlertType = "ASG:ScaleOut"
   })
@@ -54,7 +54,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
   }
 
   tags = merge(var.tags, {
-    Name      = "${var.name_prefix}-scale-in"
+    Name      = "${var.name_prefix}-scale-in-${var.environment}"
     Type      = "CPU"
     AlertType = "ASG:ScaleIn"
   })
@@ -82,8 +82,8 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-asg-status-check-failed"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-asg-status-check-failed-${var.environment}"
     Type      = "Health"
     AlertType = "ASG:InstanceStatusCheck"
   })
@@ -112,8 +112,8 @@ resource "aws_cloudwatch_metric_alarm" "high_network_in" {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-high-network-in"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-high-network-in-${var.environment}"
     Type      = "NetworkIn"
     AlertType = "ASG:NetworkIn"
   })
@@ -142,8 +142,8 @@ resource "aws_cloudwatch_metric_alarm" "high_network_out" {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-high-network-out"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-high-network-out-${var.environment}"
     Type      = "NetworkOut"
     AlertType = "ASG:NetworkOut"
   })

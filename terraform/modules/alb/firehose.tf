@@ -27,7 +27,7 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-firehose-delivery-stream"
+    Name = "${var.name_prefix}-firehose-delivery-stream-${var.environment}"
   })
 }
 
@@ -54,7 +54,7 @@ resource "aws_iam_role" "firehose_role" {
   })
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-firehose-role"
+    Name = "${var.name_prefix}-firehose-role-${var.environment}"
   })
 }
 
@@ -96,7 +96,7 @@ resource "aws_iam_policy" "firehose_policy" {
   })
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-firehose-policy"
+    Name = "${var.name_prefix}-firehose-policy-${var.environment}"
   })
 }
 

@@ -31,8 +31,8 @@ resource "aws_iam_role" "replication_role" {
     ]
   })
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-replication-role"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-replication-role-${var.environment}"
   })
 }
 
@@ -130,8 +130,8 @@ resource "aws_iam_policy" "replication_policy" {
     ]
   })
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-replication-policy-${each.key}"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-replication-policy-${var.environment}-${each.key}"
   })
 }
 

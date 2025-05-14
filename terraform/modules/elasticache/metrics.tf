@@ -19,8 +19,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_memory" {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-redis-low-memory"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-low-memory-${var.environment}"
     AlertType = "Redis:FreeableMemory"
     Type      = "Memory"
   })
@@ -46,8 +46,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-redis-high-cpu"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-high-cpu-${var.environment}"
     AlertType = "Redis:CPUUtilization"
     Type      = "CPU"
   })
@@ -74,8 +74,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-redis-replication-bytes-used"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-replication-bytes-used-${var.environment}"
     AlertType = "Redis:ReplicationBytesUsed"
     Type      = "Replication"
   })
@@ -100,8 +100,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
     ReplicationGroupId = aws_elasticache_replication_group.redis.id
   }
 
-  tags_all = merge(var.tags, {
-    Name      = "${var.name_prefix}-redis-low-cpu-credits"
+  tags = merge(var.tags, {
+    Name      = "${var.name_prefix}-redis-low-cpu-credits-${var.environment}"
     AlertType = "Redis:CPUCreditBalance"
     Type      = "CPU Credits"
   })

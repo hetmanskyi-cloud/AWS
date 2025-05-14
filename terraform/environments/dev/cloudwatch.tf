@@ -12,8 +12,8 @@ resource "aws_cloudwatch_log_group" "user_data_logs" {
   kms_key_id        = module.kms.kms_key_arn        # Encrypt logs using CMK
   skip_destroy      = false                         # Destroy with terraform destroy
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-user-data-logs"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-user-data-logs-${var.environment}"
   })
 }
 
@@ -27,8 +27,8 @@ resource "aws_cloudwatch_log_group" "system_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-system-logs"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-system-logs-${var.environment}"
   })
 }
 
@@ -42,8 +42,8 @@ resource "aws_cloudwatch_log_group" "nginx_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-nginx-logs"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-nginx-logs-${var.environment}"
   })
 }
 
@@ -57,8 +57,8 @@ resource "aws_cloudwatch_log_group" "php_fpm_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-php-fpm-logs"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-php-fpm-logs-${var.environment}"
   })
 }
 
@@ -72,8 +72,8 @@ resource "aws_cloudwatch_log_group" "wordpress_logs" {
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-wordpress-logs"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-wordpress-logs-${var.environment}"
   })
 }
 
@@ -111,8 +111,8 @@ resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
 
   depends_on = [aws_sns_topic.cloudwatch_alarms]
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-nginx-5xx-error-alarm"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-nginx-5xx-error-alarm-${var.environment}"
   })
 }
 
@@ -150,8 +150,8 @@ resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
 
   depends_on = [aws_sns_topic.cloudwatch_alarms]
 
-  tags_all = merge(local.tags_cloudwatch, {
-    Name = "${var.name_prefix}-php-fatal-error-alarm"
+  tags = merge(local.tags_cloudwatch, {
+    Name = "${var.name_prefix}-php-fatal-error-alarm-${var.environment}"
   })
 }
 

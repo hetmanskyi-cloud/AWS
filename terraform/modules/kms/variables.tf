@@ -62,7 +62,7 @@ variable "environment" {
 
 # Tags for resource identification and management
 variable "tags" {
-  description = "Tags to apply to VPC resources"
+  description = "Component-level tags used for identifying resource ownership"
   type        = map(string)
 }
 

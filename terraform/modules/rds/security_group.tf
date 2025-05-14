@@ -12,7 +12,7 @@ resource "aws_security_group" "rds_sg" {
     create_before_destroy = true # Ensures new SG creation before old one is destroyed to prevent downtime during updates.
   }
 
-  tags_all = merge(var.tags, {
+  tags = merge(var.tags, {
     Name = "${var.name_prefix}-rds-sg-${var.environment}"
   })
 }

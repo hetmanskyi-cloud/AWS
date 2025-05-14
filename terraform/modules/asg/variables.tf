@@ -30,7 +30,7 @@ variable "environment" {
 
 # Tags for resource identification and management
 variable "tags" {
-  description = "Tags to apply to VPC resources"
+  description = "Component-level tags used for identifying resource ownership"
   type        = map(string)
 }
 
@@ -441,6 +441,13 @@ variable "cloudwatch_log_groups" {
     ])
     error_message = "cloudwatch_log_groups must include keys: user_data, system, nginx, php_fpm, wordpress."
   }
+}
+
+# --- Deployment Script Configuration --- #
+# Path to the deployment script for WordPress setup.
+variable "deploy_script_path" {
+  type        = string
+  description = "Path to the WordPress deployment script"
 }
 
 # --- Notes --- #

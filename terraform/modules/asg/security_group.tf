@@ -12,8 +12,8 @@ resource "aws_security_group" "asg_security_group" {
     create_before_destroy = true # Ensure no downtime during updates
   }
 
-  tags_all = merge(var.tags, {
-    Name = "${var.name_prefix}-asg-security-group"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-asg-security-group-${var.environment}"
   })
 }
 
