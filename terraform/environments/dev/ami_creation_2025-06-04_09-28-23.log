@@ -1,0 +1,56 @@
+[2025-06-04_09-28-23] Starting AMI creation...
+[2025-06-04_09-28-23] Finding instance ID...
+[2025-06-04_09-28-23] Found Instance ID: i-081c8c79fee41742d
+[2025-06-04_09-28-23] Updating packages...
+e70ab75f-2900-4f8a-a60c-9aa9291991ab
+[2025-06-04_09-28-23] Rebooting instance...
+{
+    "Command": {
+        "CommandId": "fbd0c668-7b44-4c01-bc43-fd4ad58f3a45",
+        "DocumentName": "AWS-RunShellScript",
+        "DocumentVersion": "$DEFAULT",
+        "Comment": "",
+        "ExpiresAfter": "2025-06-04T11:28:27.131000+00:00",
+        "Parameters": {
+            "commands": [
+                "sudo reboot"
+            ]
+        },
+        "InstanceIds": [
+            "i-081c8c79fee41742d"
+        ],
+        "Targets": [],
+        "RequestedDateTime": "2025-06-04T09:28:27.131000+00:00",
+        "Status": "Pending",
+        "StatusDetails": "Pending",
+        "OutputS3Region": "eu-west-1",
+        "OutputS3BucketName": "",
+        "OutputS3KeyPrefix": "",
+        "MaxConcurrency": "50",
+        "MaxErrors": "0",
+        "TargetCount": 1,
+        "CompletedCount": 0,
+        "ErrorCount": 0,
+        "DeliveryTimedOutCount": 0,
+        "ServiceRole": "",
+        "NotificationConfig": {
+            "NotificationArn": "",
+            "NotificationEvents": [],
+            "NotificationType": ""
+        },
+        "CloudWatchOutputConfig": {
+            "CloudWatchLogGroupName": "",
+            "CloudWatchOutputEnabled": false
+        },
+        "TimeoutSeconds": 3600,
+        "AlarmConfiguration": {
+            "IgnorePollAlarmFailure": false,
+            "Alarms": []
+        },
+        "TriggeredAlarms": []
+    }
+}
+[2025-06-04_09-28-23] Waiting for instance to become available again...
+[2025-06-04_09-28-23] Instance i-081c8c79fee41742d is back online.
+[2025-06-04_09-28-23] Creating Golden AMI...
+[2025-06-04_09-28-23] Golden AMI created with ID: ami-01de78065b6b7626a
