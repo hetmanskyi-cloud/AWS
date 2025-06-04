@@ -19,7 +19,7 @@ locals {
   healthcheck_file = "healthcheck.php"
 
   # Path to the healthcheck file stored in the S3 scripts bucket
-  healthcheck_s3_path = "s3://${var.scripts_bucket_name}/wordpress/${local.healthcheck_file}"
+  healthcheck_s3_path = var.environment == "dev" ? "s3://${var.scripts_bucket_name}/wordpress/${local.healthcheck_file}" : null
 
   # Retry parameters used in the deployment script when waiting for service readiness
   retry_config = {
@@ -28,13 +28,13 @@ locals {
   }
 
   # Path to the WordPress deployment script stored in the S3 scripts bucket
-  wordpress_script_path = "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh"
+  wordpress_script_path = var.environment == "dev" ? "s3://${var.scripts_bucket_name}/wordpress/deploy_wordpress.sh" : null
 
   # Local deployment script content used for uploading to S3
-  script_content = file(var.deploy_script_path)
+  script_content = var.environment == "dev" ? file(var.deploy_script_path) : ""
 
   # Rendered user_data script passed to the EC2 instance at launch
-  rendered_user_data = templatefile(
+  rendered_user_data = var.environment == "dev" ? templatefile(
     "${path.module}/../../templates/user_data.sh.tpl",
     {
       wp_config              = local.wp_config
@@ -52,8 +52,12 @@ locals {
       # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"
       WP_PATH    = "/var/www/html"
+
+      # WordPress version tag used for the deployment
+      # This is used to download the correct version of WordPress from GitHub
+      wordpress_version = var.wordpress_version
     }
-  )
+  ) : null
 }
 
 # --- ASG Launch Template for ASG --- #
@@ -140,6 +144,20 @@ resource "aws_launch_template" "asg_launch_template" {
     })
   }
 
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(var.tags, {
+      Name = "${var.name_prefix}-asg-volume-${var.environment}"
+    })
+  }
+
+  tag_specifications {
+    resource_type = "network-interface"
+    tags = merge(var.tags, {
+      Name = "${var.name_prefix}-asg-nic-${var.environment}"
+    })
+  }
+
   # Dependency and Error Handling
   depends_on = [
     aws_iam_instance_profile.asg_instance_profile,
@@ -147,8 +165,8 @@ resource "aws_launch_template" "asg_launch_template" {
   ]
 
   # User Data
-  # Provides an installation and configuration script for WordPress.
-  user_data = base64encode(local.rendered_user_data)
+  # Provides an installation and configuration script for WordPress only in dev environment.
+  user_data = var.environment == "dev" ? base64encode(local.rendered_user_data) : null
 }
 
 # --- Notes --- #

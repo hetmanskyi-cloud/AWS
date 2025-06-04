@@ -379,13 +379,6 @@ variable "wp_admin_user" {
   default     = "admin"
 }
 
-# WordPress Version Configuration
-# This variable specifies the tag of the WordPress GitHub repository to deploy.
-variable "wordpress_version" {
-  description = "Tag of the WordPress GitHub repository to deploy. Used by deploy_wordpress.sh"
-  type        = string
-}
-
 # --- RDS Module Configuration --- #
 
 # Storage size in GB for the RDS instance

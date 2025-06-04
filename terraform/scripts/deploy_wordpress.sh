@@ -229,26 +229,32 @@ fi
 log "Downloading and installing WordPress from GitHub..."
 
 # Remove any previous WordPress installation (if files exist)
-log "Removing old WordPress installation if files exist..."
+log "Removing old WordPress installation in $WP_PATH..."
 if [ "$(ls -A $WP_PATH)" ]; then
-  log "Removing old WordPress files..."
+  log "Removing old WordPress files from $WP_PATH..."
   rm -rf "$WP_PATH"/* # Remove all files if they exist
+else
+  log "$WP_PATH is empty or does not exist. Creating directory..."
+  mkdir -p "$WP_PATH"
 fi
 
-# Define the branch, tag, or commit to clone
-GIT_COMMIT="master" # Replace with a specific commit or tag if needed
+# Define the branch or tag to clone (default: master if WP_VERSION is not set)
+CLONE_TARGET="${WP_VERSION:-master}"
+log "Cloning WordPress repository (branch or tag): $CLONE_TARGET"
 
-# Clone the WordPress repository directly into /var/www/html (NOT into subfolder /wordpress)
-git clone --depth=1 --branch "$GIT_COMMIT" https://github.com/hetmanskyi-cloud/wordpress.git $WP_PATH || {
-  log "ERROR: Failed to clone WordPress repository!"
+# Clone the WordPress repository into the target directory
+git clone --depth=1 --branch "$CLONE_TARGET" https://github.com/hetmanskyi-cloud/wordpress.git "$WP_PATH" || {
+  log "ERROR: Failed to clone WordPress repository: $CLONE_TARGET"
   exit 1
 }
 
 # Verify the clone was successful
-if [ ! -f "$WP_PATH/wp-config-sample.php" ]; then
-  log "ERROR: WordPress clone failed or incomplete!"
+if [ ! -f "$WP_PATH/wp-config-sample.php" ] && [ ! -f "$WP_PATH/wp-load.php" ]; then
+  log "ERROR: Clone failed or incomplete. Required WordPress files not found."
   exit 1
 fi
+
+log "WordPress cloned successfully into $WP_PATH"
 
 # Set correct ownership and permissions
 log "Setting ownership and permissions..."
@@ -256,6 +262,7 @@ chown -R www-data:www-data $WP_PATH
 find $WP_PATH -type d -exec chmod 755 {} \;
 find $WP_PATH -type f -exec chmod 644 {} \;
 
+log "Ownership and permissions set for $WP_PATH"
 log "WordPress installation completed successfully!"
 
 # Install Predis library for Redis TLS support

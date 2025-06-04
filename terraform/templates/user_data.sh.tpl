@@ -68,6 +68,7 @@ log "Exporting environment variables..."
   echo "REDIS_HOST=\"${wp_config.REDIS_HOST}\""
   echo "REDIS_PORT=\"${wp_config.REDIS_PORT}\""
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
+  echo "WP_VERSION=\"${wordpress_version}\""
   
   # Export other necessary environment variables
   echo "SECRET_NAME=\"${wordpress_secrets_name}\""

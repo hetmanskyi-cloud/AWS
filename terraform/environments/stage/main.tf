@@ -61,9 +61,9 @@ module "vpc" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
 
   # Environment, tags and naming conventions
-  environment = var.environment                          # Environment (e.g., dev, stage, prod)
-  name_prefix = var.name_prefix                          # Prefix for naming resources
-  tags        = merge(local.common_tags, local.tags_vpc) # Tags for resources
+  environment = var.environment # Environment (e.g., dev, stage, prod)
+  name_prefix = var.name_prefix # Prefix for naming resources
+  tags        = merge(local.common_tags, local.tags_vpc)  # Tags for resources
 }
 
 # --- KMS Module Configuration --- #
@@ -77,9 +77,9 @@ module "kms" {
   aws_account_id     = var.aws_account_id     # Account ID for KMS key permissions
 
   # Environment, tags and naming conventions
-  environment = var.environment                          # Environment (e.g., dev, stage, prod)
-  name_prefix = var.name_prefix                          # Prefix for naming resources
-  tags        = merge(local.common_tags, local.tags_kms) # Tags for resources
+  environment = var.environment # Environment (e.g., dev, stage, prod)
+  name_prefix = var.name_prefix # Prefix for naming resources
+  tags        = merge(local.common_tags, local.tags_kms)  # Tags for resources
 
   # Key rotation and monitoring
   enable_key_rotation            = var.enable_key_rotation            # Enable automatic key rotation
@@ -112,7 +112,7 @@ module "asg" {
   environment    = var.environment
   aws_region     = var.aws_region
   aws_account_id = var.aws_account_id
-  tags           = merge(local.common_tags, local.tags_asg)
+  tags = merge(local.common_tags, local.tags_asg)
 
   # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
@@ -195,16 +195,14 @@ module "asg" {
   db_endpoint = module.rds.db_endpoint
 
   # WordPress Configuration
-  db_name           = var.db_name
-  db_port           = var.db_port
-  wp_title          = var.wp_title
-  alb_dns_name      = module.alb.alb_dns_name
-  php_version       = var.php_version
-  php_fpm_service   = "php${var.php_version}-fpm"
-  redis_endpoint    = module.elasticache.redis_endpoint
-  redis_port        = var.redis_port
-  wordpress_version = var.wordpress_version
-
+  db_name         = var.db_name
+  db_port         = var.db_port
+  wp_title        = var.wp_title
+  alb_dns_name    = module.alb.alb_dns_name
+  php_version     = var.php_version
+  php_fpm_service = "php${var.php_version}-fpm"
+  redis_endpoint  = module.elasticache.redis_endpoint
+  redis_port      = var.redis_port
 
   # Script path for deployment 
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"

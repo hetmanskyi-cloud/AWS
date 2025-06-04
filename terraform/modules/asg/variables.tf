@@ -48,8 +48,13 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  description = "AMI ID for instance image"
+  description = "AMI ID for EC2 instances"
   type        = string
+
+  validation {
+    condition     = length(var.ami_id) > 0
+    error_message = "The ami_id variable must not be empty."
+  }
 }
 
 variable "ssh_key_name" {
@@ -269,6 +274,12 @@ variable "wordpress_secrets_name" {
 variable "wordpress_secrets_arn" {
   description = "The ARN of the WordPress Secrets Manager secret"
   type        = string
+}
+
+variable "wordpress_version" {
+  description = "Tag of the WordPress GitHub repository to deploy. Used by deploy_wordpress.sh"
+  type        = string
+  default     = null
 }
 
 # --- S3 Configuration --- #
