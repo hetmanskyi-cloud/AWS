@@ -1,0 +1,17 @@
+[2025-06-09_17-23-58] Starting AMI creation...
+[2025-06-09_17-23-58] Finding instance ID...
+[2025-06-09_17-23-58] Found Instance ID: i-02462304c7733987d
+[2025-06-09_17-23-58] Created ansible inventory: ansible/inventory/golden-ami-ssm.yaml
+[2025-06-09_17-23-58] Running Ansible prepare-golden-ami.yml...
+
+PLAY [Prepare Golden AMI (baseline update and hardening)] **********************
+
+TASK [Update apt cache] ********************************************************
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: TypeError: expected string or bytes-like object, got 'NoneType'
+fatal: [golden-ami-instance]: FAILED! => {"msg": "Unexpected failure during module execution: expected string or bytes-like object, got 'NoneType'", "stdout": ""}
+
+PLAY RECAP *********************************************************************
+golden-ami-instance        : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+
+[2025-06-09_17-23-58] Creating Golden AMI...
+[2025-06-09_17-23-58] Golden AMI created with ID: ami-091f635e39c6f26f3
