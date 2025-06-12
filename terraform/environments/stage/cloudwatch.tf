@@ -82,7 +82,7 @@ resource "aws_cloudwatch_log_group" "wordpress_logs" {
 # Helps detect backend application or Nginx configuration issues.
 resource "aws_cloudwatch_log_metric_filter" "nginx_5xx_errors" {
   count          = var.enable_cloudwatch_logs ? 1 : 0
-  name           = "${var.name_prefix}-nginx-5xx-errors"
+  name           = "${var.name_prefix}-nginx-5xx-errors-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.nginx_logs[0].name
   pattern        = "[ip, identity, user, timestamp, request, status_code=5*, size, ...]"
 
@@ -97,7 +97,7 @@ resource "aws_cloudwatch_log_metric_filter" "nginx_5xx_errors" {
 # Triggers alarm if more than 5 errors occur within 5 minutes.
 resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
   count               = var.enable_cloudwatch_logs ? 1 : 0
-  alarm_name          = "${var.name_prefix}-nginx-5xx-error-alarm"
+  alarm_name          = "${var.name_prefix}-nginx-5xx-error-alarm-${var.environment}"
   alarm_description   = "Triggers when Nginx 5xx errors exceed 5 in 5 minutes"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
@@ -121,7 +121,7 @@ resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
 # Used to catch plugin failures, syntax issues, and runtime crashes.
 resource "aws_cloudwatch_log_metric_filter" "php_fatal_errors" {
   count          = var.enable_cloudwatch_logs ? 1 : 0
-  name           = "${var.name_prefix}-php-fatal-errors"
+  name           = "${var.name_prefix}-php-fatal-errors-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.wordpress_logs[0].name
   pattern        = "PHP Fatal error"
 
@@ -136,7 +136,7 @@ resource "aws_cloudwatch_log_metric_filter" "php_fatal_errors" {
 # Triggers alarm if more than 2 fatal errors occur within 5 minutes.
 resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
   count               = var.enable_cloudwatch_logs ? 1 : 0
-  alarm_name          = "${var.name_prefix}-php-fatal-error-alarm"
+  alarm_name          = "${var.name_prefix}-php-fatal-error-alarm-${var.environment}"
   alarm_description   = "Triggers when PHP Fatal errors exceed 2 in 5 minutes"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1

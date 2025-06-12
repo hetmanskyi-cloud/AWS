@@ -1,8 +1,6 @@
 # Terraform specific files
 *.tfstate
 *.tfstate.*
-*.log
-crash.log
 *.tfvars
 terraform.tfvars
 *.auto.tfvars
@@ -23,3 +21,15 @@ terraform.rc
 
 # AWS credentials
 /.aws/*
+
+# Ignore logs
+*.log
+crash.log
+
+# Keep AMI logs and history
+!terraform/environments/
+!terraform/environments/dev/
+!terraform/environments/dev/ami_history/
+!terraform/environments/dev/ami_history/logs/
+!terraform/environments/dev/ami_history/logs/*.log
+!terraform/environments/dev/ami_history/ami_id.txt

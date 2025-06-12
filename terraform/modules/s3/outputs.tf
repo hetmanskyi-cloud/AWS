@@ -88,6 +88,11 @@ output "wordpress_media_bucket_name" {
   value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket : null
 }
 
+output "wordpress_media_bucket_regional_domain_name" {
+  description = "The regional domain name of the WordPress media S3 bucket."  
+  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket_regional_domain_name : null
+}
+
 # --- WordPress Scripts ETags Map --- #
 # S3 ETags for deployed WordPress script files.
 # IMPORTANT: Scripts must be uploaded to the 'scripts' bucket. If the bucket is not enabled, the map will be empty and EC2 provisioning will fail.

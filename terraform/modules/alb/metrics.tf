@@ -5,7 +5,7 @@
 resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
   count = var.enable_high_request_alarm ? 1 : 0 # Controlled by the variable `enable_high_request_alarm`
 
-  alarm_name          = "${var.name_prefix}-alb-high-request-count"
+  alarm_name          = "${var.name_prefix}-alb-high-request-count-${var.environment}"
   alarm_description   = "Triggers when the number of requests exceeds the defined threshold. This may indicate unexpected traffic patterns or potential DDoS attacks."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
@@ -29,7 +29,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_high_request_count" {
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   count = var.enable_5xx_alarm ? 1 : 0 # Controlled by the variable `enable_5xx_alarm`
 
-  alarm_name          = "${var.name_prefix}-alb-5xx-errors"
+  alarm_name          = "${var.name_prefix}-alb-5xx-errors-${var.environment}"
   alarm_description   = "Monitors HTTP 5XX errors which indicate server-side issues. High error rates may signal application problems or infrastructure issues."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
@@ -53,7 +53,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
 resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
   count = var.enable_target_response_time_alarm ? 1 : 0 # Controlled by the variable `enable_target_response_time_alarm`
 
-  alarm_name          = "${var.name_prefix}-alb-target-response-time"
+  alarm_name          = "${var.name_prefix}-alb-target-response-time-${var.environment}"
   alarm_description   = "Alerts when the average response time from targets exceeds 1 second, which may indicate performance degradation."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
@@ -75,7 +75,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_target_response_time" {
 # It's useful for immediate action in case of application or infrastructure issues.
 # Explanation: Triggers if any target in the group is unhealthy. Helps in quick debugging.
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_host_count" {
-  alarm_name          = "${var.name_prefix}-alb-unhealthy-targets"
+  alarm_name          = "${var.name_prefix}-alb-unhealthy-targets-${var.environment}"
   alarm_description   = "Alerts when any target becomes unhealthy, helping to quickly identify and resolve application or infrastructure issues."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1

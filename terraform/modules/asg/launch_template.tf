@@ -3,7 +3,7 @@
 # using a standard AMI and the deploy_wordpress.sh script to install and configure WordPress.
 
 locals {
-  # WordPress configuration parameters passed to the deployment script
+  # WordPress configuration parameters for the deployment script (used only in dev).
   wp_config = {
     DB_HOST         = var.db_host
     DB_PORT         = var.db_port
@@ -33,7 +33,9 @@ locals {
   # Local deployment script content used for uploading to S3
   script_content = var.environment == "dev" ? file(var.deploy_script_path) : ""
 
-  # Rendered user_data script passed to the EC2 instance at launch
+  # Render user_data: select template by environment.
+  # - In 'dev', installs WordPress and all dependencies from scratch.
+  # If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
   rendered_user_data = var.environment == "dev" ? templatefile(
     "${path.module}/../../templates/user_data.sh.tpl",
     {
@@ -57,14 +59,29 @@ locals {
       # This is used to download the correct version of WordPress from GitHub
       wordpress_version = var.wordpress_version
     }
-  ) : null
+    # If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
+  ) : templatefile(
+    "${path.module}/../../templates/user_data_runtime.sh.tpl",
+    {
+      # Runtime config for stage/prod; installation is not performed.
+      wp_config              = local.wp_config
+      aws_region             = var.aws_region
+      retry_max_retries      = local.retry_config.MAX_RETRIES
+      retry_retry_interval   = local.retry_config.RETRY_INTERVAL
+      wordpress_secrets_name = var.wordpress_secrets_name
+      redis_auth_secret_name = var.redis_auth_secret_name
+      enable_cloudwatch_logs = var.enable_cloudwatch_logs
+      cloudwatch_log_groups  = var.cloudwatch_log_groups
+      wordpress_version = var.wordpress_version
+    }
+  )
 }
 
 # --- ASG Launch Template for ASG --- #
 resource "aws_launch_template" "asg_launch_template" {
   # Template Settings
   # The name_prefix ensures unique naming for launch templates.
-  name_prefix = "${var.name_prefix}-asg-launch-template"
+  name_prefix = "${var.name_prefix}-asg-launch-template-${var.environment}"
   description = "Launch template for ASG instances with auto-scaling configuration"
 
   # Lifecycle Management
@@ -139,8 +156,7 @@ resource "aws_launch_template" "asg_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = merge(var.tags, {
-      Name                  = "${var.name_prefix}-asg-instance-${var.environment}"
-      WordPressScriptSource = "s3"
+      Name                  = "${var.name_prefix}-asg-instance-${var.environment}"      
     })
   }
 
@@ -165,25 +181,27 @@ resource "aws_launch_template" "asg_launch_template" {
   ]
 
   # User Data
-  # Provides an installation and configuration script for WordPress only in dev environment.
-  user_data = var.environment == "dev" ? base64encode(local.rendered_user_data) : null
+  # Passes user_data to the instance:
+  # - In 'dev', performs full installation (bootstrap) via deployment script.
+  # - In other environments, only updates runtime secrets/config for pre-built AMI.
+  user_data = base64encode(local.rendered_user_data)
 }
 
 # --- Notes --- #
 # 1. **AMI Selection**:
-#    - A standard Amazon Linux or Ubuntu AMI is used, with WordPress installed via a deployment script.
+#    - In 'dev', a standard Amazon Linux or Ubuntu AMI is used, with WordPress installed at boot.
+#    - In 'stage' and 'prod', a pre-built golden AMI with WordPress, Nginx, PHP, and plugins is used.
 #    - The AMI ID must be defined explicitly in terraform.tfvars.
 #
 # 2. **User Data**:
-#    - The user_data script is dynamically rendered using a template and includes only essential logic.
-#    - The deploy_wordpress.sh script is downloaded from the 'scripts' S3 bucket and executed during instance bootstrap.
-#    - All scripts and templates (including wp-config and healthcheck) must be available in the 'scripts' S3 bucket.
-#    - CloudWatch Logs integration is optionally enabled via `enable_cloudwatch_logs`; log group names must be passed via `cloudwatch_log_groups`.
-#    - IMPORTANT: The 'scripts' bucket must be enabled in terraform.tfvars or EC2 initialization will fail.
+#    - In 'dev', user_data installs and configures WordPress, Nginx, PHP, and plugins via deploy_wordpress.sh and supporting files from S3.
+#    - In 'stage'/'prod', user_data only updates runtime secrets and config; no software installation or S3 download is performed.
+#    - CloudWatch Logs integration can be enabled with `enable_cloudwatch_logs`; log group names must be passed via `cloudwatch_log_groups`.
+#    - IMPORTANT: The 'scripts' bucket must be enabled in terraform.tfvars for dev.
 #
 # 3. **SSH Access**:
-#    - Temporary SSH access can be enabled for debugging using the `enable_ssh_access` variable.
-#    - In production, restrict SSH access to trusted IP ranges via the ASG security group configuration.
+#    - Temporary SSH access for debugging can be enabled via `enable_ssh_access` variable.
+#    - In production, restrict SSH access to trusted IPs in the ASG security group.
 #
 # 4. **SSM Management**:
 #    - All instances are fully managed via AWS Systems Manager (SSM).
@@ -198,17 +216,16 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - To support automatic updates or rolling deployments, consider integrating this module into a CI/CD pipeline or EventBridge workflow.
 #
 # 7. **Healthcheck Integration**:
-#    - A fixed health check file `healthcheck.php` is expected to be available in the S3 scripts bucket.
-#    - The file is downloaded and placed in the WordPress root for ALB target group health checking.
-#    - Its name and location are passed via user_data variables.
+#    - In 'dev', healthcheck.php is downloaded from S3 and placed in the WordPress root for ALB.
+#    - In 'stage'/'prod', healthcheck.php is already present in the golden AMI.
 #
 # 8. **Critical Considerations**:
-#    - Ensure all required variables for WordPress setup are correctly passed to the user_data template.
+#    - Ensure all required variables for WordPress and system setup are correctly passed to the user_data template for the respective environment.
 #    - Missing or incorrect values may silently cause the bootstrap process to fail.
 #
 # 9. **AMI Updates and Rolling Deployments**:
 #    - Periodically update the AMI ID to include the latest OS and security updates.
-#    - Rolling updates in the ASG can be configured to apply changes with zero downtime.
+#    - Rolling updates in the ASG are configured to apply changes with zero downtime.
 #
 # 10. **AWS Secrets Manager**:
 #     - WordPress, database, and Redis credentials are securely stored in AWS Secrets Manager.

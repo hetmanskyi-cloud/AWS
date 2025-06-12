@@ -81,7 +81,7 @@ resource "aws_cloudtrail" "cloudtrail" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0
 
   # Basic trail configuration
-  name           = "${var.name_prefix}-cloudtrail"
+  name           = "${var.name_prefix}-cloudtrail-${var.environment}"
   s3_bucket_name = module.s3.cloudtrail_bucket_name
   s3_key_prefix  = "cloudtrail"
   enable_logging = true
@@ -132,7 +132,7 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
 resource "aws_iam_role" "cloudtrail_cloudwatch" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0
 
-  name = "${var.name_prefix}-cloudtrail-cloudwatch"
+  name = "${var.name_prefix}-cloudtrail-cloudwatch-${var.environment}"
 
   # Trust relationship policy
   # Note: Ensure CloudTrail has permissions to use the KMS key (module.kms).
@@ -160,7 +160,7 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
 resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0
 
-  name = "${var.name_prefix}-cloudtrail-cloudwatch"
+  name = "${var.name_prefix}-cloudtrail-cloudwatch-policy-${var.environment}"
   role = aws_iam_role.cloudtrail_cloudwatch[0].id
 
   # Policy definition  

@@ -4,6 +4,8 @@
 # Define the Auto Scaling Group with desired number of instances and subnet allocation.
 resource "aws_autoscaling_group" "asg" {
 
+  name = "${var.name_prefix}-asg-${var.environment}" # Name of the Auto Scaling Group
+
   # Desired, minimum, and maximum instance counts
   min_size         = var.autoscaling_min  # Minimum number of instances
   max_size         = var.autoscaling_max  # Maximum number of instances
@@ -87,7 +89,7 @@ resource "aws_autoscaling_group" "asg" {
 resource "aws_autoscaling_policy" "scale_out_policy" {
   count = var.enable_scaling_policies ? 1 : 0 # Enable only if scaling policies are allowed
 
-  name                   = "${var.name_prefix}-scale-out-policy"
+  name                   = "${var.name_prefix}-scale-out-policy-${var.environment}"
   scaling_adjustment     = 1 # Add one instance
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300 # Cooldown period (in seconds) between scaling actions. Aligned with health_check_grace_period.
@@ -98,7 +100,7 @@ resource "aws_autoscaling_policy" "scale_out_policy" {
 resource "aws_autoscaling_policy" "scale_in_policy" {
   count = var.enable_scaling_policies ? 1 : 0
 
-  name                   = "${var.name_prefix}-scale-in-policy"
+  name                   = "${var.name_prefix}-scale-in-policy-${var.environment}"
   scaling_adjustment     = -1 # Remove one instance
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300 # Cooldown period (in seconds) between scaling actions. Aligned with health_check_grace_period.
@@ -111,7 +113,7 @@ resource "aws_autoscaling_policy" "scale_in_policy" {
 resource "aws_autoscaling_policy" "target_tracking_scaling_policy" {
   count = var.enable_target_tracking ? 1 : 0
 
-  name                   = "${var.name_prefix}-target-tracking-scaling-policy"
+  name                   = "${var.name_prefix}-target-tracking-scaling-policy-${var.environment}"
   policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.asg.name
 

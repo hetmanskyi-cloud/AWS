@@ -2,6 +2,7 @@
 # This file defines the IAM role, instance profile, and associated policies for EC2 instances
 # managed by the Auto Scaling Group (ASG). These policies enable:
 # - Access to S3 buckets (WordPress media and deployment scripts)
+# - Conditional access to the SSM Ansible logs bucket (for log upload in the "dev" environment only)
 # - CloudWatch Agent and custom log publishing
 # - Systems Manager (SSM) for secure remote management
 # - KMS access for decrypting EBS and S3 objects
@@ -12,7 +13,7 @@
 # --- IAM Role --- #
 # Allows ASG instances to assume specific permissions for accessing AWS services.
 resource "aws_iam_role" "asg_role" {
-  name = "${var.name_prefix}-asg-role"
+  name = "${var.name_prefix}-asg-role-${var.environment}"
 
   # Trust policy for EC2 instances in the Auto Scaling Group
   assume_role_policy = jsonencode({
@@ -45,7 +46,7 @@ resource "aws_iam_policy" "s3_access_policy" {
     var.default_region_buckets["scripts"].enabled
   ) ? 1 : 0
 
-  name = "${var.name_prefix}-s3-access-policy"
+  name = "${var.name_prefix}-s3-access-policy-${var.environment}"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -110,7 +111,7 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
 # checkov:skip=CKV_AWS_355:Wildcard resource is required for dynamically created log groups by CloudWatch Agent
 # tfsec:ignore:aws-iam-no-policy-wildcards CloudWatch logs require wildcard permissions to allow dynamic log group creation for WordPress components
 resource "aws_iam_policy" "cloudwatch_logs_policy" {
-  name        = "${var.name_prefix}-cloudwatch-logs-policy"
+  name        = "${var.name_prefix}-cloudwatch-logs-policy-${var.environment}"
   description = "Allows CloudWatch Agent to publish logs and access log configuration"
 
   policy = jsonencode({
@@ -147,7 +148,7 @@ resource "aws_iam_role_policy_attachment" "ssm_access" {
 # --- WordPress Instance Access Policy --- #
 # Allows ASG instances to retrieve database credentials from AWS Secrets Manager.
 resource "aws_iam_policy" "wordpress_instance_policy" {
-  name        = "${var.name_prefix}-wordpress-instance-policy"
+  name        = "${var.name_prefix}-wordpress-instance-policy-${var.environment}"
   description = "Allows WordPress instances to retrieve database credentials from AWS Secrets Manager"
 
   policy = jsonencode({
@@ -174,7 +175,7 @@ resource "aws_iam_role_policy_attachment" "wordpress_instance_policy_attachment"
 # --- Redis AUTH Secret Access Policy --- #
 # Allows ASG instances to retrieve Redis AUTH token from AWS Secrets Manager.
 resource "aws_iam_policy" "redis_auth_policy" {
-  name        = "${var.name_prefix}-redis-auth-policy"
+  name        = "${var.name_prefix}-redis-auth-policy-${var.environment}"
   description = "Allows WordPress instances to retrieve Redis AUTH token from AWS Secrets Manager"
 
   policy = jsonencode({
@@ -210,7 +211,7 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
     || var.default_region_buckets["scripts"].enabled
   ) ? 1 : 0
 
-  name        = "${var.name_prefix}-kms-decrypt-policy"
+  name        = "${var.name_prefix}-kms-decrypt-policy-${var.environment}"
   description = "Allows EC2 instances to use KMS for decrypting/encrypting data (WordPress media, scripts, EBS)."
 
   policy = jsonencode({
@@ -282,7 +283,7 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
 # --- IAM Instance Profile --- #
 # Links the IAM role to ASG instances for accessing AWS services.
 resource "aws_iam_instance_profile" "asg_instance_profile" {
-  name = "${var.name_prefix}-asg-instance-profile"
+  name = "${var.name_prefix}-asg-instance-profile-${var.environment}"
   role = aws_iam_role.asg_role.name
 
   tags = merge(var.tags, {
@@ -332,3 +333,6 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 #    - Two separate policies are created for WordPress secrets and Redis AUTH token:
 #      * wordpress_instance_policy: Always created, grants access to WordPress secrets
 #      * redis_auth_policy: Provides access to Redis AUTH token secret
+# 10. SSM Ansible logs policy:
+#    - Grants ASG instances permission to write and read Ansible logs to a dedicated S3 bucket in the "dev" environment.
+#    - The policy is conditionally created and attached only if the SSM Ansible logs bucket ARN is provided.

@@ -1,0 +1,80 @@
+[2025-06-11_10-34-46] Starting AMI smoke test...
+[2025-06-11_10-34-46] Running Ansible smoke-test-ami.yml...
+
+PLAY [Smoke test Golden AMI (verify hardening and basic health)] ***************
+
+TASK [Gathering Facts] *********************************************************
+ok: [golden-ami-instance]
+
+TASK [Check SSH access (basic connectivity)] ***********************************
+ok: [golden-ami-instance]
+
+TASK [Ensure UFW firewall is enabled] ******************************************
+ok: [golden-ami-instance]
+
+TASK [Assert UFW is active] ****************************************************
+ok: [golden-ami-instance] => {
+    "changed": false,
+    "msg": "UFW is active."
+}
+
+TASK [Ensure UFW allows 'Nginx Full' profile (ports 80/443)] *******************
+ok: [golden-ami-instance]
+
+TASK [Assert HTTP and HTTPS are allowed in UFW] ********************************
+ok: [golden-ami-instance] => {
+    "changed": false,
+    "msg": "UFW allows 'Nginx Full' profile."
+}
+
+TASK [Ensure fail2ban is installed] ********************************************
+ok: [golden-ami-instance]
+
+TASK [Assert fail2ban is present] **********************************************
+ok: [golden-ami-instance] => {
+    "changed": false,
+    "msg": "Fail2ban is installed."
+}
+
+TASK [Ensure unattended-upgrades is installed] *********************************
+ok: [golden-ami-instance]
+
+TASK [Assert unattended-upgrades is present] ***********************************
+ok: [golden-ami-instance] => {
+    "changed": false,
+    "msg": "Unattended-upgrades is installed."
+}
+
+TASK [Check apt update completes successfully] *********************************
+changed: [golden-ami-instance]
+
+TASK [Check SSHD config for PermitRootLogin no] ********************************
+ok: [golden-ami-instance]
+
+TASK [Check SSHD config for PasswordAuthentication no] *************************
+ok: [golden-ami-instance]
+
+TASK [Ensure fail2ban service is running] **************************************
+ok: [golden-ami-instance]
+
+TASK [Ensure unattended-upgrades service is running] ***************************
+ok: [golden-ami-instance]
+
+TASK [Assert secrets are not present in /etc/environment] **********************
+ok: [golden-ami-instance]
+
+TASK [Check that /root/.bash_history is absent] ********************************
+ok: [golden-ami-instance]
+
+TASK [Assert /root/.bash_history is absent] ************************************
+ok: [golden-ami-instance] => {
+    "changed": false,
+    "msg": "/root/.bash_history is absent."
+}
+
+TASK [Check HTTP port 80 is open (optional)] ***********************************
+ok: [golden-ami-instance]
+
+PLAY RECAP *********************************************************************
+golden-ami-instance        : ok=19   changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+

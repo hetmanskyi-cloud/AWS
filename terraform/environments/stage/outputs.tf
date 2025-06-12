@@ -299,6 +299,20 @@ output "cloudwatch_wordpress_log_group_name" {
   description = "CloudWatch Log Group for WordPress debug/application logs"
 }
 
+# --- CloudFront Distribution Outputs --- #
+
+output "wordpress_media_cloudfront_domain_name" {
+  description = "Default CloudFront domain for WordPress media CDN."
+  # Value is conditional on the CloudFront distribution being created.
+  value = length(aws_cloudfront_distribution.wordpress_media) > 0 ? aws_cloudfront_distribution.wordpress_media[0].domain_name : null
+}
+
+output "wordpress_media_cloudfront_arn" {
+  description = "ARN of the CloudFront distribution for WordPress media."
+  # Value is conditional on the CloudFront distribution being created.
+  value = length(aws_cloudfront_distribution.wordpress_media) > 0 ? aws_cloudfront_distribution.wordpress_media[0].arn : null
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.

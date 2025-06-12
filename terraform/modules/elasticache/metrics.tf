@@ -4,7 +4,7 @@
 # This alarm ensures system stability by monitoring free memory.
 resource "aws_cloudwatch_metric_alarm" "redis_low_memory" {
   count                     = var.enable_redis_low_memory_alarm ? 1 : 0
-  alarm_name                = "${var.name_prefix}-redis-low-memory"
+  alarm_name                = "${var.name_prefix}-redis-low-memory-${var.environment}"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = 1
   metric_name               = "FreeableMemory"
@@ -31,7 +31,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_memory" {
 # from temporary CPU spikes which are normal for Redis operations.
 resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
   count                     = var.enable_redis_high_cpu_alarm ? 1 : 0
-  alarm_name                = "${var.name_prefix}-redis-high-cpu"
+  alarm_name                = "${var.name_prefix}-redis-high-cpu-${var.environment}"
   comparison_operator       = "GreaterThanThreshold"
   evaluation_periods        = 3 # Increased evaluation periods to reduce false positives
   metric_name               = "CPUUtilization"
@@ -59,7 +59,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_high_cpu" {
 resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
   count = var.enable_redis_replication_bytes_alarm && var.replicas_per_node_group > 0 ? 1 : 0
 
-  alarm_name                = "${var.name_prefix}-redis-replication-bytes-used"
+  alarm_name                = "${var.name_prefix}-redis-replication-bytes-used-${var.environment}"
   comparison_operator       = "GreaterThanThreshold"
   evaluation_periods        = 1
   metric_name               = "ReplicationBytesUsed"
@@ -85,7 +85,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_replication_bytes_used" {
 # Monitors CPU credit balance for burstable instances to prevent throttling.
 resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
   count                     = var.enable_redis_low_cpu_credits_alarm ? 1 : 0
-  alarm_name                = "${var.name_prefix}-redis-low-cpu-credits"
+  alarm_name                = "${var.name_prefix}-redis-low-cpu-credits-${var.environment}"
   comparison_operator       = "LessThanThreshold"
   evaluation_periods        = 2
   metric_name               = "CPUCreditBalance"

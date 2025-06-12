@@ -8,7 +8,7 @@
 resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
   count = var.enable_scale_out_alarm && var.enable_scaling_policies ? 1 : 0 # Enabled only if scale-out alarm and scaling policies are allowed
 
-  alarm_name          = "${var.name_prefix}-scale-out"
+  alarm_name          = "${var.name_prefix}-scale-out-${var.environment}"
   alarm_description   = "Triggers when CPU utilization exceeds ${var.scale_out_cpu_threshold}% for 5 minutes, causing an additional instance to be added to the ASG."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -37,7 +37,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_out_alarm" {
 resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
   count = var.enable_scale_in_alarm ? 1 : 0 # Enabled only if scale-in alarm is allowed
 
-  alarm_name          = "${var.name_prefix}-scale-in"
+  alarm_name          = "${var.name_prefix}-scale-in-${var.environment}"
   alarm_description   = "Triggers when CPU utilization falls below ${var.scale_in_cpu_threshold}% for 5 minutes, causing an instance to be removed from the ASG."
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
@@ -66,7 +66,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_in_alarm" {
 resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
   count = var.enable_asg_status_check_alarm ? 1 : 0 # Enabled only if ASG status check alarm is allowed
 
-  alarm_name          = "${var.name_prefix}-asg-status-check-failed"
+  alarm_name          = "${var.name_prefix}-asg-status-check-failed-${var.environment}"
   alarm_description   = "Triggers when an instance in the ASG fails its status checks for 5 minutes, indicating a potential issue with the instance's health."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -95,7 +95,7 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
 resource "aws_cloudwatch_metric_alarm" "high_network_in" {
   count = var.enable_high_network_in_alarm ? 1 : 0 # Enabled only if high network-in alarm is allowed
 
-  alarm_name          = "${var.name_prefix}-high-network-in"
+  alarm_name          = "${var.name_prefix}-high-network-in-${var.environment}"
   alarm_description   = "Triggers when incoming network traffic exceeds ${var.network_in_threshold} bytes over a 5-minute period, potentially indicating a DDoS attack or unexpected traffic spike."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
@@ -125,7 +125,7 @@ resource "aws_cloudwatch_metric_alarm" "high_network_in" {
 resource "aws_cloudwatch_metric_alarm" "high_network_out" {
   count = var.enable_high_network_out_alarm ? 1 : 0 # Enabled only if high network-out alarm is allowed
 
-  alarm_name          = "${var.name_prefix}-high-network-out"
+  alarm_name          = "${var.name_prefix}-high-network-out-${var.environment}"
   alarm_description   = "Triggers when outgoing network traffic exceeds ${var.network_out_threshold} bytes over a 5-minute period, potentially indicating data exfiltration or excessive outbound traffic."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3

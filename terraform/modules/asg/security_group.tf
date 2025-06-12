@@ -3,7 +3,7 @@
 
 # --- Security Group Resource --- #
 resource "aws_security_group" "asg_security_group" {
-  name_prefix = "${var.name_prefix}-asg-sg"
+  name_prefix = "${var.name_prefix}-asg-sg-${var.environment}"
   description = "Security Group for ASG instances"
   vpc_id      = var.vpc_id # VPC ID where the Security Group is created
 

@@ -5,7 +5,7 @@
 
 resource "aws_sns_topic" "cloudwatch_alarms" {
   # Creates an SNS topic in the default region (no 'provider = aws.replication')
-  name              = "${var.name_prefix}-cloudwatch-alarms"
+  name              = "${var.name_prefix}-cloudwatch-alarms-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
   tags = merge(local.common_tags, local.tags_sns, {
@@ -20,7 +20,7 @@ resource "aws_sns_topic" "replication_region_topic" {
 
   # Creates an SNS topic in the replication region (provider alias = aws.replication)
   provider          = aws.replication
-  name              = "${var.name_prefix}-replication-region-notifications"
+  name              = "${var.name_prefix}-replication-region-notifications-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
   tags = merge(local.common_tags, local.tags_sns, {
@@ -126,7 +126,7 @@ resource "aws_sns_topic_subscription" "replication_region_subscriptions" {
 resource "aws_sns_topic" "cloudtrail_events" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0 # Only create if cloudtrail is enabled
 
-  name              = "${var.name_prefix}-cloudtrail-events"
+  name              = "${var.name_prefix}-cloudtrail-events-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use CMK for encryption at rest
 
   tags = merge(local.common_tags, local.tags_sns, {

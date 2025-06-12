@@ -379,6 +379,13 @@ variable "wp_admin_user" {
   default     = "admin"
 }
 
+# WordPress Version Configuration
+# This variable specifies the tag of the WordPress GitHub repository to deploy.
+variable "wordpress_version" {
+  description = "Tag of the WordPress GitHub repository to deploy. Used by deploy_wordpress.sh"
+  type        = string
+}
+
 # --- RDS Module Configuration --- #
 
 # Storage size in GB for the RDS instance
@@ -568,6 +575,19 @@ variable "enable_dynamodb" {
     condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
     error_message = "enable_dynamodb requires `terraform_state` bucket to be enabled."
   }
+}
+
+# Enable CloudFront for WordPress media files
+variable "wordpress_media_cloudfront_enabled" {
+  description = "Enable CloudFront distribution for WordPress media files."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_access_logging" {
+  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
+  type        = bool
+  default     = false
 }
 
 # --- SNS Topic Variables --- #

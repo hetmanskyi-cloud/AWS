@@ -1,7 +1,7 @@
 # --- ElastiCache Subnet Group --- #
 # Creates a subnet group for ElastiCache Redis, enabling deployment in specified private subnets.
 resource "aws_elasticache_subnet_group" "redis_subnet_group" {
-  name        = "${var.name_prefix}-redis-subnet-group"
+  name        = "${var.name_prefix}-redis-subnet-group-${var.environment}"
   description = "Subnet group for ElastiCache Redis"
   subnet_ids  = var.private_subnet_ids
 
@@ -26,6 +26,7 @@ data "aws_secretsmanager_secret_version" "redis_auth" {
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
 resource "aws_elasticache_replication_group" "redis" {
+
   replication_group_id       = "${var.name_prefix}-redis-${var.environment}"          # Unique ID for the replication group.
   description                = "Redis replication group for ${var.name_prefix}"       # Description for the replication group.
   engine                     = "redis"                                                # Specifies Redis as the engine type.
@@ -66,7 +67,7 @@ resource "aws_elasticache_replication_group" "redis" {
 # Creates a custom parameter group for Redis with version-specific family.
 # Uses default AWS parameters which are well-optimized for most use cases.
 resource "aws_elasticache_parameter_group" "redis_params" {
-  name        = "${var.name_prefix}-redis-params"
+  name        = "${var.name_prefix}-redis-params-${var.environment}"
   family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
   description = "Parameter group for Redis ${var.redis_version} with default settings"
 

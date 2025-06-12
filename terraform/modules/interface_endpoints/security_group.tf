@@ -8,7 +8,7 @@
 resource "aws_security_group" "endpoints_sg" {
   count = var.enable_interface_endpoints ? 1 : 0
 
-  name_prefix = "${var.name_prefix}-endpoints-sg"
+  name_prefix = "${var.name_prefix}-endpoints-sg-${var.environment}"
   description = "Security Group for VPC Endpoints allowing HTTPS access from VPC CIDR"
   vpc_id      = var.vpc_id # ID of the VPC where the Security Group is created
 

@@ -2,22 +2,25 @@
 
 set -euo pipefail  # Fail on error, undefined vars, or pipeline errors
 
-# Default input values
-NAME_TAG="${1:-dev-asg-instance}"                         # EC2 instance Name tag to search for
-REGION="${2:-${AWS_DEFAULT_REGION:-eu-west-1}}"           # AWS region (env var or default)
-MAX_RETRIES=30                                            # Max attempts to find instance
-SLEEP_INTERVAL=10                                         # Seconds to wait between retries
+# Configuration: Input Parameters and Defaults
+ENVIRONMENT="${1:-${ENVIRONMENT:-dev}}"             # 1st arg, or ENV var ENVIRONMENT, or default 'dev'
+REGION="${2:-${AWS_DEFAULT_REGION:-eu-west-1}}"     # 2nd arg, or AWS_DEFAULT_REGION, or default
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for EC2 instance with tag Name=${NAME_TAG} to become available..."
+# By default, use your full real tag template (edit as needed for future change)
+NAME_TAG="${NAME_TAG:-wordpress-asg-instance-${ENVIRONMENT}}" # Name tag is auto-formed as 'asg-instance-<env>'
+MAX_RETRIES=30                                                # Max attempts to find instance
+SLEEP_INTERVAL=10                                             # Seconds to wait between retries
 
-# Try up to MAX_RETRIES to find a running instance by tag
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for EC2 instance with tag Name=${NAME_TAG} in region ${REGION}..."
+
+# Main Loop: Search for Running Instance by Tag
 for i in $(seq 1 "$MAX_RETRIES"); do
   INSTANCE_ID=$(aws ec2 describe-instances \
     --region "$REGION" \
     --filters "Name=tag:Name,Values=${NAME_TAG}" \
               "Name=instance-state-name,Values=running" \
     --query "Reservations[].Instances[].InstanceId" \
-    --output text)
+    --output text | awk '{print $1}')
 
   if [[ -n "$INSTANCE_ID" && "$INSTANCE_ID" != "None" ]]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found running instance: $INSTANCE_ID"
@@ -28,13 +31,13 @@ for i in $(seq 1 "$MAX_RETRIES"); do
   sleep "$SLEEP_INTERVAL"
 done
 
-# If no instance was found after retries, exit with error
+# Failure Handling
 if [[ -z "${INSTANCE_ID:-}" || "$INSTANCE_ID" == "None" ]]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Instance not found after ${MAX_RETRIES} attempts. Exiting."
   exit 1
 fi
 
-# Start SSM session and tail logs
+# Start SSM Session and Tail Logs
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting SSM session and monitoring logs..."
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Press Ctrl+C to stop monitoring manually."
 
@@ -46,27 +49,27 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Monitoring session completed. Exiting scrip
 
 # --- Notes --- #
 # ✅ Purpose:
-#   This script helps developers and DevOps engineers debug EC2-based WordPress deployment issues
-#   by connecting to the instance using AWS SSM and streaming installation logs in real time.
+#   Debug/monitor WordPress EC2 deployment in any environment (dev, stage, prod) via AWS SSM.
 #
 # 📌 What it does:
-#   - Searches for a running EC2 instance with a specific Name tag (default: dev-asg-instance)
-#   - Waits up to MAX_RETRIES × SLEEP_INTERVAL (default: 30 × 10s = 5 min)
-#   - Connects via AWS SSM Session Manager (no need for SSH / public IPs)
-#   - Tails logs: /var/log/user-data.log and /var/log/wordpress_install.log
+#   - Waits for a running EC2 instance with a specific Name tag.
+#   - Connects via SSM Session Manager (no SSH/public IP needed).
+#   - Tails logs: /var/log/user-data.log and /var/log/wordpress_install.log in real time.
 #
 # ⚙️ Requirements:
-#   - AWS CLI v2 installed and configured (via `aws configure`)
-#   - Session Manager plugin installed (`session-manager-plugin`)
-#   - EC2 instance must:
-#     • have the SSM Agent running
-#     • be in a public subnet (or reachable)
-#     • have the correct IAM role with `ssm:StartSession`, `ssm:SendCommand`, etc.
+#   - AWS CLI v2 + session-manager-plugin installed and configured.
+#   - EC2 instance:
+#       • SSM Agent running and IAM role with SSM permissions.
+#       • Must be reachable by SSM (usually public subnet or correct VPC endpoints).
 #
-# 🧪 Typical usage during testing/debug:
-#     ./debug_monitor.sh                         # Uses default tag and region
-#     ./debug_monitor.sh dev-asg-instance eu-west-1
+# 🧪 Usage examples:
+#   ./debug_monitor.sh                        # dev, Name=asg-instance-dev, region eu-west-1 (defaults)
+#   ./debug_monitor.sh stage                  # stage, Name=asg-instance-stage, region eu-west-1
+#   ./debug_monitor.sh prod eu-west-2         # prod, Name=asg-instance-prod, region eu-west-2
+#   ENVIRONMENT=stage ./debug_monitor.sh      # via env var
+#   NAME_TAG=my-custom-tag ./debug_monitor.sh # search by custom tag, any environment
 #
 # ❗ Important:
-#   - Designed for DEV and STAGE use. For production, logs should be monitored via CloudWatch Logs.
-#   - Can be useful for inspecting logs without logging in manually or checking CloudWatch UI.
+#   - For production use, prefer CloudWatch Logs for monitoring!
+#   - This script is most useful in DEV/STAGE or for urgent troubleshooting.
+#   - Ensure you have the necessary IAM permissions to use SSM and EC2 describe commands.

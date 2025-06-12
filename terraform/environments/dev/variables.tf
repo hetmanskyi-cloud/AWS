@@ -577,6 +577,19 @@ variable "enable_dynamodb" {
   }
 }
 
+# Enable CloudFront for WordPress media files
+variable "wordpress_media_cloudfront_enabled" {
+  description = "Enable CloudFront distribution for WordPress media files."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_access_logging" {
+  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
+  type        = bool
+  default     = false
+}
+
 # --- SNS Topic Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)

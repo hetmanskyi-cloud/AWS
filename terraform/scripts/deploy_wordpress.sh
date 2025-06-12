@@ -564,10 +564,11 @@ sudo mv "$WP_CLI_PHAR_PATH" /usr/local/bin/wp
 sudo chmod +x /usr/local/bin/wp
 log "wp-cli installed successfully."
 
-# Remove only sensitive variables from /etc/environment
-log "Clearing sensitive secrets from /etc/environment..."
-sudo sed -i '/^DB_PASSWORD=/d' /etc/environment
-sudo sed -i '/^REDIS_AUTH_TOKEN=/d' /etc/environment
+# Remove sensitive variables from /etc/environment
+for var in DB_PASSWORD REDIS_AUTH_TOKEN; do
+  sudo sed -i "/^${var}=/d" /etc/environment
+done
+
 log "Sensitive secrets removed from /etc/environment."
 
 # Delete temporary working directory

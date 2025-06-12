@@ -1,5 +1,6 @@
 # --- Makefile --- #
-# Automates common infrastructure management tasks using Terraform and helper scripts
+# Run this Makefile from the terraform directory.
+# Automates infrastructure management tasks for all environments (dev, stage, prod), as well as AMI preparation, testing, and deployment.
 #
 # Usage examples:
 #   make init                                    # Initialize Terraform
@@ -8,8 +9,10 @@
 #   make debug                                   # Monitor WordPress installation via SSM
 #   make check                                   # Check for undeleted resources
 #   make all                                     # Full pre-apply cycle: init -> format -> validate -> plan
-#   make ami ENV=dev                             # Create a Golden AMI from the 'dev' environment
-#   make use-ami TARGET_ENV=stage SOURCE_ENV=dev # Copy AMI ID from dev into stage's terraform.tfvars
+#   make provision-ami ENV=dev                   # Provision and harden an instance for Golden AMI creation
+#   make test-ami ENV=dev                        # Run automated smoke tests against the provisioned instance
+#   make create-ami ENV=dev                      # Create a Golden AMI from the hardened, tested instance
+#   make use-ami TARGET_ENV=stage SOURCE_ENV=dev # Copy latest Golden AMI ID from dev to stage
 
 # --- Variables --- #
 OWNER           ?= Hetmanskyi
@@ -18,7 +21,7 @@ COMPONENT       ?= asg
 PROJECT         ?= AWS
 ENV             ?= dev
 
-# Path to the environment-specific Terraform directory (dev, stage, prod)
+# Path to the current environment's Terraform configuration (dev, stage, prod)
 TF_DIR          = environments/$(ENV)
 SCRIPTS_DIR     = ./scripts     # Directory for helper scripts
 
@@ -37,27 +40,27 @@ endif
 # Run full preparation cycle
 all: check-tools init format validate plan
 
-# Initialize Terraform and upgrade providers
+# Run the full preparation cycle (basic syntax/logic checks before apply)
 init:
 	terraform -chdir=$(TF_DIR) init -upgrade
 
-# Format all Terraform files recursively
+# Format all Terraform files recursively (enforces best practices)
 format:
 	terraform -chdir=$(TF_DIR) fmt -recursive
 
-# Validate Terraform configuration
+# Validate the Terraform configuration (catches syntax errors and logical issues)
 validate:
 	terraform -chdir=$(TF_DIR) validate
 
-# Preview infrastructure changes
+# Preview infrastructure changes without applying (always run before apply)
 plan:
 	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) plan
 
-# Apply infrastructure changes
+# Apply infrastructure changes (auto-approve, use with caution)
 apply:
 	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) apply -auto-approve
 
-# Destroy all managed infrastructure
+# Destroy all managed infrastructure (irreversible, use with caution)
 destroy:
 	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) destroy -auto-approve
 
@@ -69,105 +72,165 @@ show:
 output:
 	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) output
 
-# Refresh local state with the actual remote infrastructure
+# Refresh the local state with remote infrastructure (makes no changes)
 refresh:
 	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) refresh
 
-# Generate a visual dependency graph (in DOT format). Use tools like Graphviz to render the resulting 'graph.dot' file.
+# Generate a resource dependency graph in DOT format (see with Graphviz)
 graph:
 	terraform -chdir=$(TF_DIR) graph > graph.dot
 
-# Monitor WordPress installation via SSM
+# Monitor the WordPress installation process on EC2 via SSM
 debug:
 	bash $(SCRIPTS_DIR)/debug_monitor.sh
 
-# Check for any leftover resources after destroy
+# Check for AWS resources that remain after destroy (avoids cloud resource leaks)
 check:
 	bash $(SCRIPTS_DIR)/check_aws_resources.sh
 
-# Check if required CLI tools are installed
+# Ensure required CLI tools (Terraform, AWS CLI) are installed before any actions
 check-tools:
 	@command -v terraform >/dev/null 2>&1 || { echo "Terraform is not installed."; exit 1; }
 	@command -v aws >/dev/null 2>&1 || { echo "AWS CLI is not installed."; exit 1; }
 	@echo "All required CLI tools are installed."
 
-# --- AMI Creation Target --- #
-# Creates a Golden AMI from the 'dev' environment. This target should only be run in the 'dev' environment.
-ami: check-tools
+# --- AMI Provisioning Target --- #
+# Provisions (updates and hardens) the running instance for Golden AMI creation using an Ansible playbook.
+# This target only prepares the instance; it does NOT create the AMI.
+# Run only in the 'dev' environment.
+provision-ami: check-tools
 	@if [ "$(ENV)" != "dev" ]; then echo "This target can only be run in the 'dev' environment."; exit 1; fi; \
+	set -e; \
+	\
+	# Step 1: Setup timestamp and log file \
+	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	LOG_DIR=environments/$(ENV)/ami_history/logs; \
+	LOG_FILE=$$LOG_DIR/ami_provision_$$TIMESTAMP.log; \
+	echo "[$$TIMESTAMP] Starting AMI provision (baseline update and hardening)..." | tee $$LOG_FILE; \
+	\
+	# Step 2: Find the running instance IP and ID based on tags \
+	echo "[$$TIMESTAMP] Finding instance IP and ID..." | tee -a $$LOG_FILE; \
+	INSTANCE_INFO=$$(aws ec2 describe-instances \
+		--filters "Name=tag:Environment,Values=$(ENV)" \
+				  "Name=tag:Application,Values=$(APPLICATION)" \
+				  "Name=tag:Component,Values=$(COMPONENT)" \
+				  "Name=tag:Project,Values=$(PROJECT)" \
+				  "Name=tag:Owner,Values=$(OWNER)" \
+				  "Name=instance-state-name,Values=running" \
+		--query "Reservations[0].Instances[0].[InstanceId,PublicIpAddress]" --output text); \
+	INSTANCE_ID=$$(echo "$$INSTANCE_INFO" | awk '{print $$1}'); \
+	INSTANCE_IP=$$(echo "$$INSTANCE_INFO" | awk '{print $$2}'); \
+	if [ -z "$$INSTANCE_IP" ]; then echo "ERROR: Could not find a running instance with a public IP in $(ENV) environment."; exit 1; fi; \
+	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID, IP: $$INSTANCE_IP" | tee -a $$LOG_FILE; \
+	\
+	# Step 3: Generate ansible inventory for SSH \
+	INVENTORY_FILE=ansible/inventory/golden-ami-ssh.yaml; \
+	SSH_KEY_PATH="/home/sky/.ssh/hetmansky-ed25519.pem"; \
+	if [ ! -f "$$SSH_KEY_PATH" ]; then \
+		echo "ERROR: SSH key not found at $$SSH_KEY_PATH!"; \
+		exit 1; \
+	fi; \
+	mkdir -p ansible/inventory; \
+	printf "all:\n" > $$INVENTORY_FILE; \
+	printf "  hosts:\n" >> $$INVENTORY_FILE; \
+	printf "    golden-ami-instance:\n" >> $$INVENTORY_FILE; \
+	printf "      ansible_host: %s\n" "$$INSTANCE_IP" >> $$INVENTORY_FILE; \
+	printf "      ansible_connection: ssh\n" >> $$INVENTORY_FILE; \
+	printf "      ansible_user: ubuntu\n" >> $$INVENTORY_FILE; \
+	printf "      ansible_ssh_private_key_file: %s\n" "$$SSH_KEY_PATH" >> $$INVENTORY_FILE; \
+	printf "      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'\n" >> $$INVENTORY_FILE; \
+	echo "[$$TIMESTAMP] Created ansible inventory: $$INVENTORY_FILE" | tee -a $$LOG_FILE; \
+	\
+	# Step 4: Run Ansible playbook for system update and hardening via SSH \
+	echo "[$$TIMESTAMP] Running Ansible prepare-golden-ami.yml..." | tee -a $$LOG_FILE; \
+	ansible-playbook -i $$INVENTORY_FILE ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
+	echo "[$$TIMESTAMP] Provisioning done. Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
+
+# --- AMI Test Target --- #
+# Runs the Ansible smoke test playbook to verify that the provisioned instance meets all requirements for Golden AMI.
+# Only execute after 'provision-ami' and before 'create-ami'.
+# Run only in the 'dev' environment.
+test-ami: check-tools
+	@if [ "$(ENV)" != "dev" ]; then echo "This target can only be run in the 'dev' environment."; exit 1; fi; \
+	set -e; \
+	\
+	# Step 1: Setup timestamp and log file \
+	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	LOG_DIR=environments/$(ENV)/ami_history/logs; \
+	LOG_FILE=$$LOG_DIR/ami_smoke_test_$$TIMESTAMP.log; \
+	echo "[$$TIMESTAMP] Starting AMI smoke test..." | tee $$LOG_FILE; \
+	\
+	# Step 2: Run Ansible smoke test playbook \
+	PLAYBOOK_PATH=ansible/playbooks/smoke-test-ami.yml; \
+	INVENTORY_FILE=ansible/inventory/golden-ami-ssh.yaml; \
+	if [ ! -f "$$PLAYBOOK_PATH" ]; then \
+		echo "ERROR: Playbook not found at $$PLAYBOOK_PATH"; exit 1; \
+	fi; \
+	if [ ! -f "$$INVENTORY_FILE" ]; then \
+		echo "ERROR: Inventory file not found at $$INVENTORY_FILE"; exit 1; \
+	fi; \
+	echo "[$$TIMESTAMP] Running Ansible smoke-test-ami.yml..." | tee -a $$LOG_FILE; \
+	ansible-playbook -i $$INVENTORY_FILE $$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
+	\
+	echo "[$$TIMESTAMP] Smoke test complete. Review $$LOG_FILE for details."; \
+	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."
+
+# --- AMI Creation Target --- #
+# Creates the Golden AMI after provisioning and testing are successful.
+# AMI is tagged as 'golden' and its ID is logged and committed to Git for traceability.
+# Run only in the 'dev' environment.
+create-ami: check-tools
+	@if [ "$(ENV)" != "dev" ]; then echo "This target can only be run in the 'dev' environment."; exit 1; fi; \
+	set -e; \
 	\
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
 	LOG_DIR=environments/$(ENV)/ami_history/logs; \
 	LOG_FILE=$$LOG_DIR/ami_creation_$$TIMESTAMP.log; \
-	echo "[$$TIMESTAMP] Starting AMI creation..." | tee $$LOG_FILE; \
+	echo "[$$TIMESTAMP] Starting Golden AMI creation..." | tee $$LOG_FILE; \
 	\
-	# Step 2: Find the running instance ID based on tags \
+	# Step 2: Find the running instance ID based on tags (reuse logic) \
 	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
 	INSTANCE_ID=$$(aws ec2 describe-instances \
 		--filters "Name=tag:Environment,Values=$(ENV)" \
-		          "Name=tag:Application,Values=$(APPLICATION)" \
-		          "Name=tag:Component,Values=$(COMPONENT)" \
-		          "Name=tag:Project,Values=$(PROJECT)" \
-		          "Name=tag:Owner,Values=$(OWNER)" \
-		          "Name=instance-state-name,Values=running" \
+				  "Name=tag:Application,Values=$(APPLICATION)" \
+				  "Name=tag:Component,Values=$(COMPONENT)" \
+				  "Name=tag:Project,Values=$(PROJECT)" \
+				  "Name=tag:Owner,Values=$(OWNER)" \
+				  "Name=instance-state-name,Values=running" \
 		--query "Reservations[0].Instances[0].InstanceId" --output text); \
+	if [ -z "$$INSTANCE_ID" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
 	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID" | tee -a $$LOG_FILE; \
 	\
-	# Step 3: Update packages on the instance via SSM \
-	echo "[$$TIMESTAMP] Updating packages..." | tee -a $$LOG_FILE; \
-	aws ssm send-command \
-		--instance-ids $$INSTANCE_ID \
-		--document-name "AWS-RunShellScript" \
-		--parameters 'commands=["sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt clean"]' \
-		--query "Command.CommandId" --output text >> $$LOG_FILE; \
-	\
-	# Step 4: Reboot the instance \
-	echo "[$$TIMESTAMP] Rebooting instance..." | tee -a $$LOG_FILE; \
-	aws ssm send-command \
-		--instance-ids $$INSTANCE_ID \
-		--document-name "AWS-RunShellScript" \
-		--parameters 'commands=["sudo reboot"]' >> $$LOG_FILE; \
-	\
-	# Step 5: Wait for instance to come back online \
-	echo "[$$TIMESTAMP] Waiting for instance to become available again..." | tee -a $$LOG_FILE; \
-	aws ec2 wait instance-running --instance-ids $$INSTANCE_ID; \
-	echo "[$$TIMESTAMP] Instance $$INSTANCE_ID is back online." | tee -a $$LOG_FILE; \
-	\
-	# Step 6: Create the AMI \
+	# Step 3: Create the Golden AMI (no reboot) \
 	echo "[$$TIMESTAMP] Creating Golden AMI..." | tee -a $$LOG_FILE; \
 	AMI_NAME="golden-ami-$$TIMESTAMP"; \
 	AMI_ID=$$(aws ec2 create-image \
 		--instance-id $$INSTANCE_ID \
 		--name "$$AMI_NAME" \
 		--no-reboot \
-		--tag-specifications "ResourceType=image,Tags=[\
-{Key=Name,Value=$$AMI_NAME},\
-{Key=Environment,Value=$(AMI_GOLDEN_TAG)},\
-{Key=Application,Value=$(APPLICATION)},\
-{Key=Component,Value=$(COMPONENT)},\
-{Key=Project,Value=$(PROJECT)},\
-{Key=Owner,Value=$(OWNER)}]" \
+		--tag-specifications 'ResourceType=image,Tags=[{Key=Name,Value=$$AMI_NAME},{Key=Environment,Value=$(AMI_GOLDEN_TAG)},{Key=Application,Value=$(APPLICATION)},{Key=Component,Value=$(COMPONENT)},{Key=Project,Value=$(PROJECT)},{Key=Owner,Value=$(OWNER)}]' \
 		--query "ImageId" --output text); \
 	echo "$$TIMESTAMP - $$AMI_ID" >> environments/$(ENV)/ami_history/ami_id.txt; \
 	\
-	# Step 7: Output the AMI ID \
+	# Step 4: Output the AMI ID \
 	echo "Golden AMI created with ID: $$AMI_ID"; \
 	echo "[$$TIMESTAMP] Golden AMI created with ID: $$AMI_ID" | tee -a $$LOG_FILE; \
 	\
-	# Step 8: Commit AMI ID and log to Git \
+	# Step 5: Commit AMI ID and log to Git \
 	git add environments/$(ENV)/ami_history/ami_id.txt $$LOG_FILE && \
 	git commit -m "chore($(ENV)): appended Golden AMI $$AMI_ID to history" && \
 	echo "[$$TIMESTAMP] Committed AMI ID and log to Git." | tee -a $$LOG_FILE
 
 # --- AMI Copy Target --- #
-# Copies AMI ID from SOURCE_ENV to TARGET_ENV's terraform.tfvars
+# Copies the latest Golden AMI ID from a source environment (dev) to a target environment (stage/prod).
+# Updates the ami_id variable in the target's terraform.tfvars file and commits the change.
 # Usage: make use-ami TARGET_ENV=stage SOURCE_ENV=dev
 use-ami: check-tools
 	\
-	# Step 1: Read AMI ID from source environment \
-	SOURCE_AMI_FILE="environments/$(SOURCE_ENV)/ami_id.txt"; \
-	AMI_ID=$$(cat $$SOURCE_AMI_FILE); \
+	# Step 1: Read latest AMI ID from source environment history \
+	SOURCE_AMI_FILE="environments/$(SOURCE_ENV)/ami_history/ami_id.txt"; \
+	AMI_ID=$$(tail -n 1 $$SOURCE_AMI_FILE | awk '{print $$NF}'); \
 	echo "Using AMI ID: $$AMI_ID from environment '$(SOURCE_ENV)'"; \
 	\
 	# Step 2: Update AMI ID in target terraform.tfvars \
@@ -184,30 +247,34 @@ use-ami: check-tools
 	}
 
 # --- Notes --- #
-# - Default environment for general Terraform operations is 'dev'. Use ENV=prod or ENV=stage to override.
-# - AWS CLI must be configured with appropriate credentials and permissions.
-# - Run all commands from within the terraform/ directory.
-# - The 'make' command is used to run the Makefile targets. Ensure Make is installed and available in your PATH.
-# - The 'all' target runs a full preparation cycle: init -> format -> validate -> plan.
-# - The 'init' target initializes the Terraform working directory and downloads necessary providers.
-# - The 'format' target will format Terraform files according to best practices.
-# - The 'validate' target checks the syntax and configuration of Terraform files.
-# - The 'plan' target will show a preview of changes without applying them. Always run this before 'apply'.
-# - The 'apply' target will automatically approve changes. Use with caution.
-# - The 'destroy' target will remove all resources managed by Terraform. Use with caution.
-# - The 'show' target prints the current Terraform state in human-readable format.
-# - The 'output' target displays output variables (e.g., ALB DNS name).
-# - The 'refresh' target syncs local state with the current infrastructure without making changes.
-# - The 'graph' target generates a visual representation of the resource dependencies in DOT format.
-# - The 'debug' target should only be used after the EC2 instance has been initialized and is available via SSM.
-# - The 'check' target will list any AWS resources that were not deleted after running 'destroy'.
-# - The 'check-tools' target ensures that Terraform and AWS CLI are installed before proceeding.
-# - The 'ami' target creates a Golden AMI only from the 'dev' environment. It performs system updates,
-#   reboots the instance, creates an AMI, and writes the resulting AMI ID to 'environments/dev/ami_id.txt'.
-#   The created AMI will be tagged with 'Environment=golden' and NOT 'Environment=dev'.
-#   Usage: 'make ami ENV=dev'. Any other ENV will result in an error.
-# - The 'use-ami' target copies the latest AMI ID from a specified source environment's 'ami_id.txt'
-#   into the 'terraform.tfvars' file of a specified target environment. This automates the transfer
-#   of approved AMI IDs into higher environments (e.g., stage, prod) for deployment.
-#   Usage: 'make use-ami TARGET_ENV=stage SOURCE_ENV=dev'.
-# - Ensure that the scripts in the SCRIPTS_DIR are executable and have the correct permissions.
+# - By default, all operations use the 'dev' environment. To use another, set ENV=stage or ENV=prod.
+# - AWS CLI must be configured with credentials and sufficient permissions for all actions.
+# - Always run Makefile targets from within the terraform directory; directory structure is enforced.
+# - The 'all' target runs: check-tools → init → format → validate → plan (safe preparation for any apply).
+# - The 'init' target initializes the working directory for the current environment and upgrades providers.
+# - The 'format' target recursively formats all Terraform files to follow best practices.
+# - The 'validate' target checks for syntax or configuration errors in Terraform files.
+# - The 'plan' target previews infrastructure changes. Always run before 'apply'.
+# - The 'apply' target makes changes to the environment with auto-approve. Use with caution!
+# - The 'destroy' target removes all resources managed by Terraform. This is irreversible.
+# - The 'show' target displays the current Terraform-managed state in human-readable form.
+# - The 'output' target displays output variables (e.g., ALB DNS, IDs) for the current environment.
+# - The 'refresh' target syncs local state with actual infrastructure (does not modify resources).
+# - The 'graph' target generates a DOT file visualizing resource dependencies.
+# - The 'debug' target monitors WordPress deployment via SSM after EC2 instance initialization.
+# - The 'check' target lists AWS resources that remain after destroy to prevent cloud resource leaks.
+# - The 'check-tools' target verifies that Terraform and AWS CLI are installed before proceeding.
+# - The 'provision-ami' target prepares (updates and hardens) the running instance using an Ansible playbook, but does not create the AMI.
+#   Should only be run in the 'dev' environment. Logs are written to environments/dev/ami_history/logs/.
+# - The 'test-ami' target runs the smoke-test Ansible playbook to verify the provisioned instance. Only proceed to AMI creation if all tests pass.
+#   Should only be run in the 'dev' environment.
+# - The 'create-ami' target creates a Golden AMI from the tested instance, tags it as 'golden', and writes its ID to environments/dev/ami_history/ami_id.txt.
+#   The AMI ID and logs are committed to Git. Should only be run in the 'dev' environment.
+# - The 'use-ami' target copies the latest Golden AMI ID from a source environment (e.g., dev) to a target environment (e.g., stage or prod)
+#   by updating the ami_id in the target's terraform.tfvars and committing changes to Git.
+#   Usage: make use-ami TARGET_ENV=stage SOURCE_ENV=dev
+# - All helper scripts in SCRIPTS_DIR must be executable (e.g., check_aws_resources.sh, debug_monitor.sh).
+# - Ansible playbooks are expected in terraform/ansible/playbooks/. Inventory files are auto-generated per operation.
+# - Ansible inventory for SSM (terraform/ansible/inventory/golden-ami-ssm.yaml) or SSH (golden-ami-ssh.yaml) may be overwritten by provisioning targets.
+# - Review log files in environments/$(ENV)/ami_history/logs/ after each operation for troubleshooting or traceability.
+# - Always test changes in the 'dev' environment before promoting to 'stage' or 'prod'.

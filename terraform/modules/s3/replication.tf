@@ -18,7 +18,7 @@ resource "aws_iam_role" "replication_role" {
     if value.enabled && value.replication
   ]) > 0 && local.replication_buckets_enabled ? 1 : 0
 
-  name = "${var.name_prefix}-replication-role" # Role name
+  name = "${var.name_prefix}-replication-role-${var.environment}" # Role name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",

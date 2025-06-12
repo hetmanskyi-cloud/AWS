@@ -29,6 +29,7 @@ locals {
   tags_cloudwatch          = { Component = "cloudwatch" }
   tags_secrets             = { Component = "secrets" }
   tags_sns                 = { Component = "sns" }
+  tags_cloudfront          = { Component = "cloudfront" }
 }
 
 # --- Notes --- #

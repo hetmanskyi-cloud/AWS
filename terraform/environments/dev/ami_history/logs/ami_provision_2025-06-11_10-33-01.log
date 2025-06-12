@@ -1,10 +1,13 @@
-[2025-06-09_19-05-23] Starting AMI creation...
-[2025-06-09_19-05-23] Finding instance IP and ID...
-[2025-06-09_19-05-23] Found Instance ID: i-04665135e336c8336, IP: 52.214.99.135
-[2025-06-09_19-05-23] Created ansible inventory: ansible/inventory/golden-ami-ssh.yaml
-[2025-06-09_19-05-23] Running Ansible prepare-golden-ami.yml...
+[2025-06-11_10-33-01] Starting AMI provision (baseline update and hardening)...
+[2025-06-11_10-33-01] Finding instance IP and ID...
+[2025-06-11_10-33-01] Found Instance ID: i-05e9d73fe062fa8d7, IP: 63.32.52.36
+[2025-06-11_10-33-01] Created ansible inventory: ansible/inventory/golden-ami-ssh.yaml
+[2025-06-11_10-33-01] Running Ansible prepare-golden-ami.yml...
 
 PLAY [Prepare Golden AMI (baseline update and hardening)] **********************
+
+TASK [Gathering Facts] *********************************************************
+ok: [golden-ami-instance]
 
 TASK [Update apt cache] ********************************************************
 changed: [golden-ami-instance]
@@ -17,6 +20,15 @@ changed: [golden-ami-instance]
 
 TASK [Ensure UFW allows HTTP/HTTPS (SSH not required for public access)] *******
 changed: [golden-ami-instance] => (item=Nginx Full)
+
+TASK [Ensure UFW allows SSH access (port 22)] **********************************
+changed: [golden-ami-instance]
+
+TASK [Explicitly enable UFW firewall] ******************************************
+changed: [golden-ami-instance]
+
+TASK [Ensure /run/sshd directory exists for privilege separation] **************
+changed: [golden-ami-instance]
 
 TASK [Disable SSH root login] **************************************************
 changed: [golden-ami-instance]
@@ -36,14 +48,10 @@ ok: [golden-ami-instance]
 TASK [Reboot the server to apply updates and changes (with wait)] **************
 changed: [golden-ami-instance]
 
-RUNNING HANDLER [Enable UFW_handler] *******************************************
+RUNNING HANDLER [Restart SSH] **************************************************
 changed: [golden-ami-instance]
 
-RUNNING HANDLER [Restart SSH] **************************************************
-fatal: [golden-ami-instance]: FAILED! => {"msg": "The task includes an option with an undefined variable.. 'ansible_os_family' is undefined\n\nThe error appears to be in '/home/sky/AWS/terraform/ansible/playbooks/prepare-golden-ami.yml': line 125, column 7, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n\n    - name: Restart SSH # Descriptive name for the handler\n      ^ here\n"}
-
 PLAY RECAP *********************************************************************
-golden-ami-instance        : ok=11   changed=8    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+golden-ami-instance        : ok=15   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
 
-[2025-06-09_19-05-23] Creating Golden AMI...
-[2025-06-09_19-05-23] Golden AMI created with ID: ami-05fca109368777642
+[2025-06-11_10-33-01] Provisioning done. Now verify instance and run make create-ami ENV=dev

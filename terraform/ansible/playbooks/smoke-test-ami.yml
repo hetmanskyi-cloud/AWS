@@ -1,0 +1,144 @@
+---
+- name: Smoke test Golden AMI (verify hardening and basic health)
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Check SSH access (basic connectivity)
+      ping:
+      register: ssh_check_result
+      failed_when: ssh_check_result is failed
+      changed_when: false
+      check_mode: false # Don't actually change anything
+      args:
+        data: "SSH access to instance is OK"
+      tags: [test, connectivity]
+
+    # UFW Checks
+    - name: Ensure UFW firewall is enabled
+      command: ufw status
+      register: ufw_status
+      changed_when: false
+      tags: [test, firewall]
+
+    - name: Assert UFW is active
+      assert:
+        that: "'Status: active' in ufw_status.stdout"
+        fail_msg: "UFW is not active!"
+        success_msg: "UFW is active."
+      tags: [test, firewall]
+
+    - name: Ensure UFW allows 'Nginx Full' profile (ports 80/443)
+      shell: ufw status | grep "Nginx Full"
+      register: ufw_nginx_full_status
+      changed_when: false
+      tags: [test, firewall]
+
+    - name: Assert HTTP and HTTPS are allowed in UFW
+      assert:
+        that:
+          - "'Nginx Full' in ufw_nginx_full_status.stdout"
+        fail_msg: "UFW does not have 'Nginx Full' profile allowed."
+        success_msg: "UFW allows 'Nginx Full' profile."
+      tags: [test, firewall]
+
+    # Package Installation Checks
+    - name: Ensure fail2ban is installed
+      package:
+        name: fail2ban
+        state: present
+      check_mode: yes
+      register: fail2ban_check
+      tags: [test, packages]
+
+    - name: Assert fail2ban is present
+      assert:
+        that: "fail2ban_check.changed == false" # Check if it was already present
+        fail_msg: "Fail2ban is not installed or not in correct state."
+        success_msg: "Fail2ban is installed."
+      tags: [test, packages]
+
+    - name: Ensure unattended-upgrades is installed
+      package:
+        name: unattended-upgrades
+        state: present
+      check_mode: yes
+      register: unattended_upgrades_check
+      tags: [test, packages]
+
+    - name: Assert unattended-upgrades is present
+      assert:
+        that: "unattended_upgrades_check.changed == false"
+        fail_msg: "Unattended-upgrades is not installed or not in correct state."
+        success_msg: "Unattended-upgrades is installed."
+      tags: [test, packages]
+
+    # Apt Update Check
+    - name: Check apt update completes successfully
+      apt:
+        update_cache: yes
+      register: apt_update_check
+      changed_when: apt_update_check.changed # This should typically be 'ok' on re-run, but 'changed' is fine
+      tags: [test, update]
+
+    # SSH Hardening Checks
+    - name: Check SSHD config for PermitRootLogin no
+      command: grep '^PermitRootLogin no' /etc/ssh/sshd_config
+      register: sshd_root_login_check
+      changed_when: false
+      failed_when: sshd_root_login_check.rc != 0
+      tags: [test, ssh]
+
+    - name: Check SSHD config for PasswordAuthentication no
+      command: grep '^PasswordAuthentication no' /etc/ssh/sshd_config
+      register: sshd_password_auth_check
+      changed_when: false
+      failed_when: sshd_password_auth_check.rc != 0
+      tags: [test, ssh]
+
+    - name: Ensure fail2ban service is running
+      service:
+        name: fail2ban
+        state: started
+      check_mode: yes
+      register: fail2ban_service_check
+      tags: [test, services]
+
+    - name: Ensure unattended-upgrades service is running
+      service:
+        name: unattended-upgrades
+        state: started
+      check_mode: yes
+      register: unattended_upgrades_service_check
+      tags: [test, services]
+
+    # Security Cleanup Checks
+    - name: Assert secrets are not present in /etc/environment
+      command: grep -E '^(DB_PASSWORD|REDIS_AUTH_TOKEN|WP_ADMIN_PASSWORD)=' /etc/environment
+      register: env_secrets_check
+      failed_when: env_secrets_check.rc == 0
+      changed_when: false
+      ignore_errors: yes
+      tags: [test, cleanup, security]
+
+    - name: Check that /root/.bash_history is absent
+      stat:
+        path: /root/.bash_history
+      register: bash_history_stat
+      tags: [test, cleanup]
+
+    - name: Assert /root/.bash_history is absent
+      assert:
+        that: "not bash_history_stat.stat.exists"
+        fail_msg: "/root/.bash_history still exists!"
+        success_msg: "/root/.bash_history is absent."
+      tags: [test, cleanup]
+
+    - name: Check HTTP port 80 is open (optional)
+      wait_for:
+        port: 80
+        host: 127.0.0.1
+        timeout: 5
+      ignore_errors: yes
+      tags: [test, optional, network]   

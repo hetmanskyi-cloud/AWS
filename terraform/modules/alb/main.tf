@@ -2,7 +2,7 @@
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 # checkov:skip=CKV2_AWS_20: HTTPS redirect is disabled intentionally in test environment.
 resource "aws_lb" "application" {
-  name     = "${var.name_prefix}-alb" # ALB name
+  name     = "${var.name_prefix}-alb-${var.environment}" # ALB name
   internal = false                    # tfsec:ignore:aws-elb-alb-not-public
 
   # The ALB must be public since it is handling incoming traffic for a public WordPress website.
@@ -43,7 +43,7 @@ resource "aws_lb" "application" {
 # --- Target Group for ALB --- #
 # This resource defines a target group for the ALB to forward traffic to ASG instances
 resource "aws_lb_target_group" "wordpress" {
-  name     = "${var.name_prefix}-wordpress-tg" # Target group name
+  name     = "${var.name_prefix}-wordpress-tg-${var.environment}" # Target group name
   port     = var.target_group_port             # Port for traffic (default: 80 for HTTP)
   protocol = "HTTP"                            # Protocol for traffic
   vpc_id   = var.vpc_id                        # VPC where the target group exists

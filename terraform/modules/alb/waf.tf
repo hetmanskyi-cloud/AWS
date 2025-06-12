@@ -18,7 +18,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
   count = var.enable_waf ? 1 : 0
 
   # Name of the WAF ACL
-  name        = "${var.name_prefix}-alb-waf" # Unique name for the WAF ACL
+  name        = "${var.name_prefix}-alb-waf-${var.environment}" # Unique name for the WAF ACL
   scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
   description = "WAF for ALB to protect against basic attacks"
 

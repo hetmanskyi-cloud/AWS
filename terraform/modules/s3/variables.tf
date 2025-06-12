@@ -113,6 +113,26 @@ variable "replication_region_buckets" {
   default     = {}
 }
 
+# --- WordPress Media Bucket Configuration --- #
+variable "wordpress_media_cloudfront_distribution_arn" {
+  description = "ARN of CloudFront distribution for wordpress_media bucket policy."
+  type        = string
+  default     = ""
+}
+
+variable "wordpress_media_cloudfront_enabled" {
+  description = "Enable CloudFront policy for wordpress_media bucket."
+  type        = bool
+  default     = false
+}
+
+# --- CloudFront Access Logging Configuration (for logging bucket) --- #
+variable "enable_cloudfront_access_logging" {
+  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
+  type        = bool
+  default     = false
+}
+
 # --- S3 Scripts Map --- #
 variable "s3_scripts" {
   description = <<-EOT

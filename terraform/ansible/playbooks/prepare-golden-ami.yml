@@ -1,0 +1,145 @@
+---
+- name: Prepare Golden AMI (baseline update and hardening)
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # Updates the local apt cache to ensure the package list is current.
+    # This is always the first step before installing or upgrading packages.
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      tags: [update]
+
+    # Upgrades all installed packages to the latest available versions.
+    # 'dist-upgrade' is more robust than just 'upgrade' because it handles dependencies.
+    # 'autoremove' deletes packages that are no longer needed.
+    # 'autoclean' removes downloaded package files to free up space.
+    - name: Upgrade all packages (dist-upgrade)
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      tags: [update]
+
+    # Installs hardening and security-related packages:
+    # - fail2ban: Intrusion prevention, protects from brute-force attacks
+    # - ufw: Simple firewall configuration tool
+    # - unattended-upgrades: Automatically install security updates
+    - name: Install hardening packages
+      apt:
+        name:
+          - fail2ban
+          - ufw
+          - unattended-upgrades
+        state: present
+      tags: [hardening, packages]
+
+    # Configures UFW (Uncomplicated Firewall) to allow HTTP and HTTPS traffic.
+    # Only allows "Nginx Full" profile, which includes both port 80 (HTTP) and 443 (HTTPS).
+    - name: Ensure UFW allows HTTP/HTTPS (SSH not required for public access)
+      ufw:
+        rule: allow
+        name: "{{ item }}"
+      loop:
+        - 'Nginx Full'
+      tags: [hardening, firewall]
+
+    # Crucial: Ensure UFW allows SSH access (port 22) for Ansible to reconnect.
+    - name: Ensure UFW allows SSH access (port 22)
+      ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+      tags: [hardening, firewall, ssh]
+
+    # Explicitly enable UFW firewall. This ensures it's always active
+    # regardless of whether a rule change triggered the handler.
+    - name: Explicitly enable UFW firewall
+      ufw:
+        state: enabled
+      tags: [hardening, firewall]
+
+    # Ensure /run/sshd directory exists for privilege separation.
+    # This resolves "Missing privilege separation directory" errors during sshd config validation.
+    - name: Ensure /run/sshd directory exists for privilege separation
+      file:
+        path: /run/sshd
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: [hardening, ssh]
+
+    # Disables SSH root login by updating /etc/ssh/sshd_config.
+    # This is a critical security best practice.
+    - name: Disable SSH root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        mode: '0644'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: Restart SSH
+      tags: [hardening, ssh]
+
+    # Disables password authentication for SSH (key-only login).
+    # Helps prevent brute-force attacks using passwords.
+    - name: Disable SSH password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        mode: '0644'
+        validate: '/usr/sbin/sshd -t -f %s'
+      notify: Restart SSH
+      tags: [hardening, ssh]
+
+    # Removes any sensitive credentials from /etc/environment.
+    # This helps prevent secrets from being stored on the Golden AMI.
+    - name: Clean up /etc/environment from sensitive variables
+      lineinfile:
+        path: /etc/environment
+        regexp: '^(DB_PASSWORD|REDIS_AUTH_TOKEN|WP_ADMIN_PASSWORD)='
+        state: absent
+      ignore_errors: yes
+      tags: [cleanup, security]
+
+    # Deletes the bash history for root, so that no sensitive commands remain in the image.
+    - name: Clear bash history for root
+      file:
+        path: /root/.bash_history
+        state: absent
+      tags: [cleanup]
+
+    # Removes unused packages and cleans up cached files after all changes.
+    # Keeps the AMI minimal and more secure.
+    - name: Autoremove and clean apt cache (final cleanup)
+      apt:
+        autoremove: yes
+        autoclean: yes
+      tags: [cleanup]
+
+    # Reboots the server to apply all updates and config changes (kernel, SSH, etc).
+    # 'test_command' makes sure the server is accessible again before continuing.
+    - name: Reboot the server to apply updates and changes (with wait)
+      reboot:
+        reboot_timeout: 900
+        test_command: whoami
+      tags: [reboot]
+
+  handlers:
+    # Handler: Enables UFW firewall if any rule was changed.
+    # This handler is now mostly redundant as UFW is explicitly enabled in tasks.
+    # Keeping it here is fine, but it might not be triggered or needed as often.
+    - name: Enable UFW_handler
+      listen: Enable UFW_handler
+      ufw:
+        state: enabled
+
+    # Handler: Restarts the SSH service after config changes.
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted

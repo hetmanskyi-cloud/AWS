@@ -6,7 +6,7 @@
 resource "aws_iam_role" "rds_monitoring_role" {
   count = var.enable_rds_monitoring ? 1 : 0 # Create IAM Role only if RDS Enhanced Monitoring is enabled via variable.
 
-  name = "${var.name_prefix}-rds-monitoring-role" # Dynamic name for the IAM role, incorporating name prefix for uniqueness.
+  name = "${var.name_prefix}-rds-monitoring-role-${var.environment}" # Dynamic name for the IAM role, incorporating name prefix for uniqueness.
 
   # Assume role policy grants 'monitoring.rds.amazonaws.com' service permission to assume this IAM role.
   # This is necessary for RDS Enhanced Monitoring to work correctly.

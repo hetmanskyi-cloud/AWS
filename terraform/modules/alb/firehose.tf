@@ -4,7 +4,7 @@
 resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
   count = var.enable_firehose ? 1 : 0
 
-  name        = "aws-waf-logs-${var.name_prefix}-waf-logs"
+  name        = "${var.name_prefix}-aws-waf-logs-${var.environment}"
   destination = "extended_s3" # Destination is an S3 bucket with extended configuration.
 
   # Extended S3 Configuration
@@ -37,7 +37,7 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_waf_logs" {
 resource "aws_iam_role" "firehose_role" {
   count = var.enable_firehose ? 1 : 0
 
-  name = "${var.name_prefix}-firehose-role"
+  name = "${var.name_prefix}-firehose-role${var.environment}"
 
   # Policy for assuming the role.
   assume_role_policy = jsonencode({
@@ -63,7 +63,7 @@ resource "aws_iam_role" "firehose_role" {
 resource "aws_iam_policy" "firehose_policy" {
   count = var.enable_firehose ? 1 : 0
 
-  name = "${var.name_prefix}-firehose-policy"
+  name = "${var.name_prefix}-firehose-policy${var.environment}"
 
   # Policy details.
   policy = jsonencode({

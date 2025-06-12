@@ -16,7 +16,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_assume_role" {
 
 # Create IAM Role for VPC Flow Logs
 resource "aws_iam_role" "vpc_flow_logs_role" {
-  name               = "${var.name_prefix}-vpc-flow-logs-role"
+  name               = "${var.name_prefix}-vpc-flow-logs-role-${var.environment}"
   assume_role_policy = data.aws_iam_policy_document.vpc_flow_logs_assume_role.json
 
   tags = merge(var.tags, {
@@ -44,7 +44,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_cloudwatch_policy" {
 
 # Attach CloudWatch Logs policy to IAM Role for VPC Flow Logs
 resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
-  name   = "${var.name_prefix}-vpc-flow-logs-policy"
+  name   = "${var.name_prefix}-vpc-flow-logs-policy-${var.environment}"
   role   = aws_iam_role.vpc_flow_logs_role.name
   policy = data.aws_iam_policy_document.vpc_flow_logs_cloudwatch_policy.json
 }
@@ -100,7 +100,7 @@ resource "aws_flow_log" "vpc_flow_log" {
 # --- CloudWatch Alarm for VPC Flow Logs Delivery Errors --- #
 # Monitors 'DeliveryErrors' metric to detect issues with Flow Logs delivery to CloudWatch.
 resource "aws_cloudwatch_metric_alarm" "vpc_flow_logs_delivery_errors" {
-  alarm_name          = "${var.name_prefix}-vpc-flow-logs-delivery-errors"
+  alarm_name          = "${var.name_prefix}-vpc-flow-logs-delivery-errors-${var.environment}"
   alarm_description   = "Triggers if VPC Flow Logs fail to deliver logs to CloudWatch."
   comparison_operator = "GreaterThanThreshold" # Alarm triggers if delivery errors > 0
   evaluation_periods  = 1                      # Single evaluation period

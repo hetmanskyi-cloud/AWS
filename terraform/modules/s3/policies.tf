@@ -290,6 +290,83 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   ]
 }
 
+# --- WordPress Media Bucket Policy for CloudFront OAC --- #
+# Grants CloudFront distribution (via Origin Access Control) read-only access to 'wordpress_media' bucket.
+# Ensures only CloudFront can access media files directly; all public access is blocked.
+resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
+  count  = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
+
+  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontOACReadOnly",
+        Effect    = "Allow",
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        },
+        Action    = [
+          "s3:GetObject"
+        ],
+        Resource  = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = var.wordpress_media_cloudfront_distribution_arn
+          }
+        }
+      }
+    ]
+  })
+
+  # Explicitly depends on CloudFront distribution to ensure proper dependency ordering.
+  depends_on = [
+    aws_s3_bucket.default_region_buckets,    
+  ]
+}
+
+# --- Policy to allow CloudFront Log Delivery to the 'logging' bucket --- #
+# This policy grants CloudFront's log delivery service the necessary permissions
+# to write access logs into the designated S3 logging bucket.
+resource "aws_s3_bucket_policy" "cloudfront_logging_policy" {
+  count  = var.default_region_buckets["logging"].enabled && var.enable_cloudfront_access_logging ? 1 : 0
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontLogging"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/cloudfront-media-logs/*" # Specific prefix
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      # Optional: Add a statement to allow CloudFront to get the bucket ACL for validation,
+      # though PutObject is often sufficient for logging.
+      {
+        Sid       = "AllowCloudFrontGetBucketAcl"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.default_region_buckets["logging"].arn
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket.default_region_buckets]
+}
+
 # --- Notes --- #
 # 1. WordPress Media Bucket CORS Config:
 #    - CORS for 'wordpress_media' bucket.
@@ -337,3 +414,10 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 #    - No dedicated bucket policy defined in this file.
 #    - Access is managed via IAM roles attached to EC2 instances.
 #    - Scripts are downloaded by EC2 using instance profile permissions.
+#
+# 10. CloudFront Logging Policy:
+#     - A dedicated bucket policy 'cloudfront_logging_policy' is added to the 'logging' S3 bucket.
+#     - This policy explicitly grants 'cloudfront.amazonaws.com' service principal
+#       permissions to write objects (`s3:PutObject`) with `bucket-owner-full-control` ACL
+#       and optionally read the bucket ACL (`s3:GetBucketAcl`) for validation purposes.
+#     - The resource path is restricted to the 'cloudfront-media-logs/*' prefix within the logging bucket.
