@@ -94,6 +94,7 @@ resource "aws_cloudtrail" "cloudtrail" {
   include_global_service_events = true
 
   # This CloudTrail is configured for a single region. Multi-region logging is not required for this use case.
+  # checkov:skip=CKV_AWS_67 Justification: Multi-region CloudTrail is not required for dev/stage environments with single AWS region
   is_multi_region_trail = false
 
   # CloudWatch Logs integration
@@ -117,7 +118,8 @@ resource "aws_cloudwatch_log_group" "cloudtrail" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0
 
   # Log group settings
-  name              = "/aws/cloudtrail/${var.name_prefix}"
+  name = "/aws/cloudtrail/${var.name_prefix}"
+  # checkov:skip=CKV_AWS_338 Justification: This is a dev/stage environment. In production, log retention must be >= 365 days.
   retention_in_days = var.cloudtrail_logs_retention_in_days
   kms_key_id        = module.kms.kms_key_arn
   skip_destroy      = false # Allows this log group to be destroyed by Terraform

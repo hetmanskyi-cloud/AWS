@@ -5,6 +5,7 @@
 # --- Public Network ACL Configuration --- #
 # Definition of the public NACL for controlling inbound and outbound traffic in public subnets.
 
+# checkov:skip=CKV2_AWS_1 Justification: All required subnet associations are defined below via aws_network_acl_association.*
 resource "aws_network_acl" "public_nacl" {
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
@@ -47,7 +48,8 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 
 # Rule for inbound SSH traffic on port 22
 # SSH access is required for testing. In production, restrict this to a specific range.
-# checkov:skip=CKV_AWS_232: SSH access is restricted via variable-defined CIDR in dev environment
+
+# checkov:skip=CKV_AWS_232 Justification: SSH access is restricted via variable-defined CIDR
 resource "aws_network_acl_rule" "public_inbound_ssh" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
@@ -61,7 +63,8 @@ resource "aws_network_acl_rule" "public_inbound_ssh" {
 
 # Rule for inbound return traffic on ephemeral ports (1024-65535)
 # Allowing ephemeral port traffic is necessary for standard TCP connections.
-# checkov:skip=CKV_AWS_231: Wide port range is required for public EC2 access in test environment
+
+# checkov:skip=CKV_AWS_231 Justification: Wide port range is required for EC2 return traffic in dev/stage environment; not recommended for production
 resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 130
@@ -102,6 +105,8 @@ resource "aws_network_acl_rule" "public_outbound_allow_all" {
 # --- Private Network ACL Configuration --- #
 
 # Definition of the private NACL for controlling traffic in private subnets.
+
+# checkov:skip=CKV2_AWS_1 Justification: All required subnet associations are defined below via aws_network_acl_association.*
 resource "aws_network_acl" "private_nacl" {
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 

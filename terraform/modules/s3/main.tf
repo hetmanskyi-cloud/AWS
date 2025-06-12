@@ -18,6 +18,8 @@ terraform {
 
 # --- Default Region Buckets --- #
 # Dynamically creates S3 buckets in the default region.
+
+# checkov:skip=CKV_AWS_145:Justification: Encryption is configured via a separate aws_s3_bucket_server_side_encryption_configuration resource for modular flexibility and reuse.
 resource "aws_s3_bucket" "default_region_buckets" {
   # Dynamic buckets in default region
   # If the Terraform state bucket ("terraform_state") is included, additional precautions are needed.
@@ -52,7 +54,8 @@ resource "aws_s3_bucket" "default_region_buckets" {
 # --- Replication Region Buckets --- #
 # Dynamically creates S3 buckets in the replication region.
 # Cross-region server access logging is not supported by AWS.
-# checkov:skip=CKV_AWS_18
+
+# checkov:skip=CKV_AWS_18 Justification: Access logging is not supported on cross-region replicated buckets
 resource "aws_s3_bucket" "s3_replication_bucket" {
   # Dynamic buckets in replication region
   for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
@@ -155,7 +158,8 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
 
 # --- S3 Bucket Ownership Controls for Default Region (ACLs Enabled for Logs) --- #
 # Configures S3 Bucket Ownership Controls for buckets requiring ACLs for logging delivery.
-# checkov:skip=CKV2_AWS_65: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
+
+# checkov:skip=CKV2_AWS_65 Justification: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
 resource "aws_s3_bucket_ownership_controls" "default_region_logging_ownership" {
   # Apply to enabled default region buckets that require ACLs for log delivery
   for_each = tomap({

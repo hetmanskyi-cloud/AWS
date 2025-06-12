@@ -50,7 +50,9 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 # Main CloudFront resource.
 # Distributes WordPress media (static files) with caching, HTTPS, and OAC.
 # This distribution is only created if the WordPress media bucket is enabled AND CloudFront for media is enabled.
+
 # tfsec:ignore:aws-cloudfront-enable-logging
+# checkov:skip=CKV2_AWS_42 Justification: Default CloudFront certificate is acceptable in dev/stage; no custom domain used
 resource "aws_cloudfront_distribution" "wordpress_media" {
   count = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
@@ -78,6 +80,11 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
     # Use the newly created CloudFront Cache Policy
     cache_policy_id = aws_cloudfront_cache_policy.wordpress_media_cache_policy[0].id
+
+    # Use managed CloudFront response headers policy with CORS + security headers.
+    # Covers CORS for browser access via CDN and prevents common web attacks (HSTS, XSS).
+    # In production, you may create a custom response headers policy if stricter control is needed.
+    response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63"
   }
 
   # --- Viewer Certificate --- #
@@ -136,7 +143,7 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
     allow {} # Allow requests by default, unless a rule blocks them
   }
 
-  # Example: Basic Rate Limiting Rule
+  # Basic Rate Limiting Rule
   # Consider adding AWS Managed Rule Groups for comprehensive protection in production.
   rule {
     name     = "RateLimitRule"
@@ -164,6 +171,29 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
     cloudwatch_metrics_enabled = true
     metric_name                = "CloudFront-WAF"
     sampled_requests_enabled   = true
+  }
+
+  # AWS Managed Rule Group for Known Bad Inputs
+  rule {
+    name     = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+    priority = 10
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "KnownBadInputs"
+      sampled_requests_enabled   = true
+    }
   }
 
   tags = merge(local.common_tags, local.tags_cloudfront, {

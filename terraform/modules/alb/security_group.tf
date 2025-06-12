@@ -19,7 +19,8 @@ resource "aws_security_group" "alb_sg" {
 # --- Ingress Rule for HTTP --- #
 # HTTP is enabled to allow redirecting users from HTTP to HTTPS.
 # HTTPS is conditionally enabled based on 'enable_https_listener' variable and SSL certificate configuration.
-# checkov:skip=CKV_AWS_260:Allowing public HTTP access intentionally for redirect to HTTPS or fallback access
+
+# checkov:skip=CKV_AWS_260 Justification: Allowing public HTTP access intentionally for redirect to HTTPS or fallback access
 resource "aws_security_group_rule" "alb_http" {
   type              = "ingress"
   from_port         = 80
@@ -52,7 +53,8 @@ resource "aws_security_group_rule" "alb_https" {
 # --- Egress Rule for ALB --- #
 # Allow all outbound traffic. 
 # Required for ALB to forward requests to registered targets (e.g., ASG instances) and communicate with external services.
-# checkov:skip=CKV_AWS_382:Allowing all outbound traffic is required for ALB to communicate with targets and AWS services
+
+# checkov:skip=CKV_AWS_382 Justification: Allowing all outbound traffic is required for ALB to communicate with targets and AWS services
 resource "aws_security_group_rule" "alb_egress_all" {
   security_group_id = aws_security_group.alb_sg.id
   type              = "egress"
