@@ -34,7 +34,6 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
     }
     headers_config {
       header_behavior = "whitelist" # Only forward whitelisted headers
-      # Corrected: 'headers' is a block, not a list attribute directly.
       headers {
         items = ["Origin"] # Required for CORS preflight requests
       }
@@ -85,9 +84,9 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   # CloudFront provides HTTPS for its default domain.
   viewer_certificate {
     cloudfront_default_certificate = true
-    # Using TLSv1.2_2019 for better security.
+    # Using TLSv1.2_2021 for better security.
     # When cloudfront_default_certificate is true, ssl_support_method should NOT be specified.
-    minimum_protocol_version = "TLSv1.2_2019"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   # --- Restrictions (Geo) --- #
@@ -114,6 +113,76 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
       prefix = "cloudfront-media-logs/"                          # Custom prefix for CloudFront logs within the logging bucket
     }
   }
+
+  # --- WAFv2 Web ACL Association (Optional) --- #
+  # Associates a WAF Web ACL with this CloudFront distribution for L7 protection.
+  # This is crucial for production environments.
+  web_acl_id = var.enable_cloudfront_waf && var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? aws_wafv2_web_acl.cloudfront_waf[0].arn : null
+}
+
+# --- WAFv2 Web ACL for CloudFront --- #
+# Protects the CloudFront distribution from common web exploits.
+# This WAF operates at the 'CLOUDFRONT' scope (global).
+resource "aws_wafv2_web_acl" "cloudfront_waf" {
+  count = var.enable_cloudfront_waf && var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
+
+  name        = "${var.name_prefix}-cloudfront-waf-${var.environment}"
+  scope       = "CLOUDFRONT" # WAF for CloudFront must be 'CLOUDFRONT' scope
+  description = "WAF for CloudFront distribution protecting WordPress media"
+
+  # Default action for requests not matching any rule
+  default_action {
+    allow {} # Allow requests by default, unless a rule blocks them
+  }
+
+  # Example: Basic Rate Limiting Rule
+  # Consider adding AWS Managed Rule Groups for comprehensive protection in production.
+  rule {
+    name     = "RateLimitRule"
+    priority = 1 # Priority of the rule
+
+    action {
+      block {} # Block requests exceeding the rate limit
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = 1000 # Max requests from a single IP in 5 minutes
+        aggregate_key_type = "IP" # Aggregate by IP address
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "CloudFrontRateLimit"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "CloudFront-WAF"
+    sampled_requests_enabled   = true
+  }
+
+  tags = merge(local.common_tags, local.tags_cloudfront, {
+    Name = "${var.name_prefix}-cloudfront-waf-${var.environment}"
+  })
+}
+
+# --- WAFv2 Web ACL Logging Configuration for CloudFront WAF --- #
+# Logs all CloudFront WAF activity to the specified Firehose destination.
+# This resource is separate from the aws_wafv2_web_acl resource.
+resource "aws_wafv2_web_acl_logging_configuration" "cloudfront_waf_logs" {
+  count = var.enable_cloudfront_waf_logging && var.enable_firehose && var.enable_cloudfront_waf ? 1 : 0 # Only create if logging is enabled, firehose is enabled, and WAF ACL is enabled
+
+  # Corrected: Referencing the dedicated Firehose ARN directly from the root module
+  log_destination_configs = [aws_kinesis_firehose_delivery_stream.aws_cloudfront_waf_logs[0].arn]
+  resource_arn            = aws_wafv2_web_acl.cloudfront_waf[0].arn # ARN of the CloudFront WAF ACL
+
+  depends_on = [
+    aws_wafv2_web_acl.cloudfront_waf # Ensure WAF ACL is created before attempting to configure its logging
+  ]
 }
 
 # --- Notes --- #
@@ -125,6 +194,14 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 # 5. Always restrict public access to the S3 bucket (already done in S3 module).
 # 6. The creation of this CloudFront distribution is conditional on both 'default_region_buckets["wordpress_media"].enabled'
 #    and 'wordpress_media_cloudfront_enabled' being true, to avoid errors if the origin S3 bucket is not enabled.
-# 7. Minimum TLS protocol version updated to TLSv1.2_2019 for improved security.
+# 7. Minimum TLS protocol version updated to TLSv1.2_2021 for improved security.
 # 8. CloudFront access logging is conditionally enabled via 'var.enable_cloudfront_access_logging'
-#     and points to the central 'logging' S3 bucket, with a dedicated prefix.
+#    and points to the central 'logging' S3 bucket, with a dedicated prefix.
+# 9. AWS WAFv2 Web ACL is conditionally added to the CloudFront distribution via 'var.enable_cloudfront_waf'.
+#    - This provides L7 protection at the CloudFront edge, separate from ALB WAF.
+#    - A basic Rate Limit rule is included as an example.
+#    - In production, consider adding AWS Managed Rule Groups for comprehensive protection.
+# 10. WAF logging for CloudFront is now a separate resource 'aws_wafv2_web_acl_logging_configuration.cloudfront_waf_logs'.
+#     It's conditionally enabled and correctly references its dedicated Kinesis Firehose delivery stream,
+#     which is now defined in the root module (firehose.tf).
+#     Logs will be delivered to a dedicated prefix within the central logging S3 bucket.

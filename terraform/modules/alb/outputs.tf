@@ -48,14 +48,6 @@ output "alb_access_logs_bucket_name" {
   value       = var.alb_logs_bucket_name
 }
 
-# --- WAF Details --- #
-# ARN of the WAF Web ACL
-# Can be used by security modules or CloudFront for consistent WAF rule application.
-output "waf_arn" {
-  description = "The ARN of the WAF Web ACL"
-  value       = var.enable_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
-}
-
 # --- HTTPS Listener --- #
 # Indicates whether the HTTPS listener is enabled on the ALB.
 # Useful for conditionally configuring resources that depend on HTTPS being active.

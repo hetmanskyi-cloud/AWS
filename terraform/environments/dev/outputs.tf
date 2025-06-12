@@ -299,6 +299,35 @@ output "cloudwatch_wordpress_log_group_name" {
   description = "CloudWatch Log Group for WordPress debug/application logs"
 }
 
+# --- WAF Outputs --- #
+
+output "waf_arn" {
+  description = "The ARN of the WAF Web ACL"
+  value       = var.enable_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
+}
+
+output "alb_waf_arn" {
+  description = "The ARN of the AWS WAFv2 Web ACL for the ALB."
+  value       = var.enable_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
+}
+
+output "cloudfront_waf_arn" {
+  description = "The ARN of the AWS WAFv2 Web ACL for CloudFront."
+  value       = var.enable_cloudfront_waf ? aws_wafv2_web_acl.cloudfront_waf[0].arn : null
+}
+
+# --- Kinesis Firehose Outputs --- #
+
+output "alb_waf_logs_firehose_arn" {
+  description = "The ARN of the Kinesis Firehose delivery stream for ALB WAF logs."
+  value       = var.enable_firehose ? aws_kinesis_firehose_delivery_stream.aws_alb_waf_logs[0].arn : null
+}
+
+output "cloudfront_waf_logs_firehose_arn" {
+  description = "The ARN of the Kinesis Firehose delivery stream for CloudFront WAF logs."
+  value       = var.enable_firehose && var.enable_cloudfront_waf_logging ? aws_kinesis_firehose_delivery_stream.aws_cloudfront_waf_logs[0].arn : null
+}
+
 # --- CloudFront Distribution Outputs --- #
 
 output "wordpress_media_cloudfront_domain_name" {
