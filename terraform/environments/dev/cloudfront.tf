@@ -50,6 +50,7 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 # Main CloudFront resource.
 # Distributes WordPress media (static files) with caching, HTTPS, and OAC.
 # This distribution is only created if the WordPress media bucket is enabled AND CloudFront for media is enabled.
+# tfsec:ignore:aws-cloudfront-enable-logging
 resource "aws_cloudfront_distribution" "wordpress_media" {
   count = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
