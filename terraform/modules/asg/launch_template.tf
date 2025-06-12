@@ -60,7 +60,7 @@ locals {
       wordpress_version = var.wordpress_version
     }
     # If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
-  ) : templatefile(
+    ) : templatefile(
     "${path.module}/../../templates/user_data_runtime.sh.tpl",
     {
       # Runtime config for stage/prod; installation is not performed.
@@ -72,7 +72,7 @@ locals {
       redis_auth_secret_name = var.redis_auth_secret_name
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
-      wordpress_version = var.wordpress_version
+      wordpress_version      = var.wordpress_version
     }
   )
 }
@@ -156,7 +156,7 @@ resource "aws_launch_template" "asg_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = merge(var.tags, {
-      Name                  = "${var.name_prefix}-asg-instance-${var.environment}"      
+      Name = "${var.name_prefix}-asg-instance-${var.environment}"
     })
   }
 

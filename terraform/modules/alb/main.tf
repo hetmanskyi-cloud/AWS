@@ -3,7 +3,7 @@
 # checkov:skip=CKV2_AWS_20: HTTPS redirect is disabled intentionally in test environment.
 resource "aws_lb" "application" {
   name     = "${var.name_prefix}-alb-${var.environment}" # ALB name
-  internal = false                    # tfsec:ignore:aws-elb-alb-not-public
+  internal = false                                       # tfsec:ignore:aws-elb-alb-not-public
 
   # The ALB must be public since it is handling incoming traffic for a public WordPress website.
   # A private ALB is not suitable for this use case.
@@ -44,9 +44,9 @@ resource "aws_lb" "application" {
 # This resource defines a target group for the ALB to forward traffic to ASG instances
 resource "aws_lb_target_group" "wordpress" {
   name     = "${var.name_prefix}-wordpress-tg-${var.environment}" # Target group name
-  port     = var.target_group_port             # Port for traffic (default: 80 for HTTP)
-  protocol = "HTTP"                            # Protocol for traffic
-  vpc_id   = var.vpc_id                        # VPC where the target group exists
+  port     = var.target_group_port                                # Port for traffic (default: 80 for HTTP)
+  protocol = "HTTP"                                               # Protocol for traffic
+  vpc_id   = var.vpc_id                                           # VPC where the target group exists
 
   # Health check configuration for monitoring target instance health
   # Verify that the health check path and thresholds align with the application requirements.

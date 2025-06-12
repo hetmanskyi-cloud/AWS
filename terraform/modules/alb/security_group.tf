@@ -3,7 +3,7 @@
 # It controls inbound traffic from the public internet and outbound traffic to targets.
 resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.name_prefix}-alb-sg-${var.environment}" # Security group name prefixed with the environment name.
-  vpc_id      = var.vpc_id                  # VPC where the ALB resides.
+  vpc_id      = var.vpc_id                                     # VPC where the ALB resides.
   description = "Security group for ALB handling inbound and outbound traffic"
 
   # Ensures a new Security Group is created before the old one is destroyed to avoid downtime.

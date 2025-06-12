@@ -294,7 +294,7 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 # Grants CloudFront distribution (via Origin Access Control) read-only access to 'wordpress_media' bucket.
 # Ensures only CloudFront can access media files directly; all public access is blocked.
 resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
-  count  = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
+  count = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
   bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket
 
@@ -302,15 +302,15 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid       = "AllowCloudFrontOACReadOnly",
-        Effect    = "Allow",
+        Sid    = "AllowCloudFrontOACReadOnly",
+        Effect = "Allow",
         Principal = {
           Service = "cloudfront.amazonaws.com"
         },
-        Action    = [
+        Action = [
           "s3:GetObject"
         ],
-        Resource  = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
+        Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = var.wordpress_media_cloudfront_distribution_arn
@@ -322,7 +322,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
 
   # Explicitly depends on CloudFront distribution to ensure proper dependency ordering.
   depends_on = [
-    aws_s3_bucket.default_region_buckets,    
+    aws_s3_bucket.default_region_buckets,
   ]
 }
 
@@ -337,8 +337,8 @@ resource "aws_s3_bucket_policy" "cloudfront_logging_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid       = "AllowCloudFrontLogging"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontLogging"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -353,8 +353,8 @@ resource "aws_s3_bucket_policy" "cloudfront_logging_policy" {
       # Optional: Add a statement to allow CloudFront to get the bucket ACL for validation,
       # though PutObject is often sufficient for logging.
       {
-        Sid       = "AllowCloudFrontGetBucketAcl"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontGetBucketAcl"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }

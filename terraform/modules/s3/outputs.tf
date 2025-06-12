@@ -89,7 +89,7 @@ output "wordpress_media_bucket_name" {
 }
 
 output "wordpress_media_bucket_regional_domain_name" {
-  description = "The regional domain name of the WordPress media S3 bucket."  
+  description = "The regional domain name of the WordPress media S3 bucket."
   value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket_regional_domain_name : null
 }
 
