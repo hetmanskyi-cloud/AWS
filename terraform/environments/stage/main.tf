@@ -402,10 +402,8 @@ module "alb" {
 
   name_prefix          = var.name_prefix
   environment          = var.environment
-  kms_key_arn          = module.kms.kms_key_arn
   public_subnets       = module.vpc.public_subnets
   alb_logs_bucket_name = module.s3.alb_logs_bucket_name
-  logging_bucket_arn   = module.s3.logging_bucket_arn
   vpc_id               = module.vpc.vpc_id
   sns_topic_arn        = aws_sns_topic.cloudwatch_alarms.arn
 
@@ -415,9 +413,6 @@ module "alb" {
   enable_high_request_alarm         = var.enable_high_request_alarm
   enable_5xx_alarm                  = var.enable_5xx_alarm
   enable_target_response_time_alarm = var.enable_target_response_time_alarm
-  enable_waf                        = var.enable_waf
-  enable_waf_logging                = var.enable_waf_logging
-  enable_firehose                   = var.enable_firehose
 
   depends_on = [module.vpc, module.s3, aws_sns_topic.cloudwatch_alarms]
 }

@@ -577,17 +577,17 @@ variable "enable_dynamodb" {
   }
 }
 
-# Enable CloudFront for WordPress media files
-variable "wordpress_media_cloudfront_enabled" {
-  description = "Enable CloudFront distribution for WordPress media files."
-  type        = bool
-  default     = false
-}
+# --- Logging Bucket ARN --- #
+# ARN of the S3 bucket for Firehose logging.
+variable "logging_bucket_arn" {
+  description = "The ARN of the S3 bucket used for ALB access logs. If not provided, logging is disabled."
+  type        = string
+  default     = null
 
-variable "enable_cloudfront_access_logging" {
-  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
-  type        = bool
-  default     = false
+  validation {
+    condition     = var.logging_bucket_arn == null ? true : length(var.logging_bucket_arn) > 0
+    error_message = "If provided, logging_bucket_arn must be a non-empty string."
+  }
 }
 
 # --- SNS Topic Variables --- #
@@ -765,7 +765,37 @@ variable "enable_target_response_time_alarm" {
   default     = false
 }
 
-# Toggle WAF for ALB
+# --- CloudFront Variables --- #
+
+# Enable CloudFront for WordPress media files
+variable "wordpress_media_cloudfront_enabled" {
+  description = "Enable CloudFront distribution for WordPress media files."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_access_logging" {
+  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
+  type        = bool
+  default     = false
+}
+
+# Enable WAF for CloudFront
+# This variable controls whether AWS WAFv2 Web ACL is created for the CloudFront distribution.
+variable "enable_cloudfront_waf" {
+  description = "Enable AWS WAFv2 Web ACL for the CloudFront distribution."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_waf_logging" {
+  description = "Enable logging for the CloudFront WAF to a Kinesis Firehose stream."
+  type        = bool
+  default     = false
+}
+
+# --- WAF Variables --- #
+
 variable "enable_waf" {
   description = "Enable or disable WAF for ALB" # Description of the variable
   type        = bool                            # Boolean type for true/false values
@@ -782,6 +812,8 @@ variable "enable_waf_logging" {
   type        = bool
   default     = false
 }
+
+# --- Firehose Variables --- #
 
 # Enable or disable Firehose and related resources
 variable "enable_firehose" {
