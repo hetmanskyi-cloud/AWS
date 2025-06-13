@@ -52,6 +52,25 @@ resource "random_string" "nonce_salt" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
+# --- Random Password Generation for WordPress Admin and DB User --- #
+resource "random_password" "wp_admin_password" {
+  length           = 16
+  special          = true
+  min_upper        = 1
+  min_lower        = 1
+  min_numeric      = 1
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "random_password" "db_password" {
+  length           = 16
+  special          = true
+  min_upper        = 1
+  min_lower        = 1
+  min_numeric      = 1
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 # --- Local Values --- #
 # Contains configuration values for the secret, split into database and WordPress credentials.
 locals {
@@ -62,14 +81,14 @@ locals {
     database = {
       DB_NAME     = var.db_name
       DB_USER     = var.db_username
-      DB_PASSWORD = var.db_password
+      DB_PASSWORD = random_password.db_password.result
     }
 
     # WordPress admin credentials and WordPress security keys
     wordpress = {
       ADMIN_USER       = var.wp_admin_user
       ADMIN_EMAIL      = var.wp_admin_email
-      ADMIN_PASSWORD   = var.wp_admin_password
+      ADMIN_PASSWORD   = random_password.wp_admin_password.result
       AUTH_KEY         = random_string.auth_key.result
       SECURE_AUTH_KEY  = random_string.secure_auth_key.result
       LOGGED_IN_KEY    = random_string.logged_in_key.result

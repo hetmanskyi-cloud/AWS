@@ -245,7 +245,7 @@ module "rds" {
   engine            = var.engine
   engine_version    = var.engine_version
   db_username       = var.db_username
-  db_password       = var.db_password
+  db_password       = random_password.db_password.result
   db_name           = var.db_name
   db_port           = var.db_port
 

@@ -10,7 +10,7 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_alb_waf_logs" { # <--- ИЗ
   # Extended S3 Configuration
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose_role[0].arn  # IAM Role for Firehose permissions.
-    bucket_arn = var.logging_bucket_arn             # Target S3 bucket for logs.
+    bucket_arn = module.s3.logging_bucket_arn       # Target S3 bucket for logs.
     prefix     = "${var.name_prefix}/alb-waf-logs/" # Dedicated prefix for ALB WAF logs
 
     # These buffering settings represent a default configuration suitable for testing.
@@ -42,7 +42,7 @@ resource "aws_kinesis_firehose_delivery_stream" "aws_cloudfront_waf_logs" {
 
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose_role[0].arn
-    bucket_arn = var.logging_bucket_arn
+    bucket_arn = module.s3.logging_bucket_arn
     prefix     = "${var.name_prefix}/cloudfront-waf-logs/" # Dedicated prefix for CloudFront WAF logs
 
     buffering_interval = 300
@@ -110,8 +110,8 @@ resource "aws_iam_policy" "firehose_policy" {
         # Resources apply to the logging bucket and ALL its contents.
         # This covers both 'alb-waf-logs' and 'cloudfront-waf-logs' prefixes.
         Resource = [
-          "${var.logging_bucket_arn}/*", # Applies to all objects in the logging bucket.
-          var.logging_bucket_arn         # Applies to the bucket itself.
+          "${module.s3.logging_bucket_arn}/*", # Applies to all objects in the logging bucket.
+          module.s3.logging_bucket_arn         # Applies to the bucket itself.
         ]
       },
       { # Permission to encrypt using KMS

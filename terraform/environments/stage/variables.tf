@@ -337,12 +337,6 @@ variable "wp_admin_email" {
   sensitive   = true
 }
 
-variable "wp_admin_password" {
-  description = "Admin password for WordPress (stored securely)"
-  type        = string
-  sensitive   = true
-}
-
 variable "wordpress_secret_name" {
   description = "The name of the Secrets Manager secret for WordPress credentials"
   type        = string
@@ -364,12 +358,6 @@ variable "db_name" {
 variable "db_username" {
   description = "Username for the WordPress database"
   type        = string
-}
-
-variable "db_password" {
-  description = "Password for the WordPress database"
-  type        = string
-  sensitive   = true
 }
 
 # WordPress Admin Configuration
