@@ -334,6 +334,11 @@ module "s3" {
   # Replication region
   replication_region = var.replication_region
 
+  # CloudFront configuration
+  wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
+  wordpress_media_cloudfront_distribution_arn = try(aws_cloudfront_distribution.wordpress_media[0].arn, null)
+  enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
+
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
   ]

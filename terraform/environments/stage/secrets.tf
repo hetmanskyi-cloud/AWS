@@ -103,6 +103,7 @@ locals {
 
 # --- Create AWS Secrets Manager secret --- #
 # This resource represents the secret container (metadata).
+
 # checkov:skip=CKV2_AWS_57: Automatic rotation is not required in test environments. Secrets are managed manually.
 resource "aws_secretsmanager_secret" "wp_secrets" {
   name        = var.wordpress_secret_name
@@ -150,6 +151,7 @@ resource "random_password" "redis_auth_token" {
 }
 
 # Store Redis AUTH token in Secrets Manager for ElastiCache
+
 # checkov:skip=CKV2_AWS_57: Automatic rotation is not required in test environments. Secrets are managed manually.
 resource "aws_secretsmanager_secret" "redis_auth" {
   name        = var.redis_auth_secret_name

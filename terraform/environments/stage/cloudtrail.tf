@@ -159,7 +159,7 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
 # --- IAM Policy for CloudWatch Access --- #
 # Defines permissions for CloudTrail to write to CloudWatch Logs
 # tfsec:ignore:aws-iam-no-policy-wildcards
-resource "aws_iam_role_policy" "cloudtrail_cloudwatch" {
+resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0
 
   name = "${var.name_prefix}-cloudtrail-cloudwatch-policy-${var.environment}"

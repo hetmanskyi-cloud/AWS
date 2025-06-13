@@ -205,6 +205,7 @@ module "asg" {
   redis_port        = var.redis_port
   wordpress_version = var.wordpress_version
 
+
   # Script path for deployment 
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
 
@@ -333,6 +334,11 @@ module "s3" {
   # Replication region
   replication_region = var.replication_region
 
+  # CloudFront configuration
+  wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
+  wordpress_media_cloudfront_distribution_arn = try(aws_cloudfront_distribution.wordpress_media[0].arn, null)
+  enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
+
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
   ]
@@ -396,17 +402,15 @@ module "alb" {
   source = "../../modules/alb"
 
   # AWS region, tags and account settings
-  aws_region     = var.aws_region
-  aws_account_id = var.aws_account_id
-  tags           = merge(local.common_tags, local.tags_alb)
-
-  name_prefix          = var.name_prefix
-  environment          = var.environment
-  public_subnets       = module.vpc.public_subnets
-  alb_logs_bucket_name = module.s3.alb_logs_bucket_name
-  vpc_id               = module.vpc.vpc_id
-  sns_topic_arn        = aws_sns_topic.cloudwatch_alarms.arn
-
+  aws_region                        = var.aws_region
+  aws_account_id                    = var.aws_account_id
+  tags                              = merge(local.common_tags, local.tags_alb)
+  name_prefix                       = var.name_prefix
+  environment                       = var.environment
+  public_subnets                    = module.vpc.public_subnets
+  alb_logs_bucket_name              = module.s3.alb_logs_bucket_name
+  vpc_id                            = module.vpc.vpc_id
+  sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
   alb_enable_deletion_protection    = var.alb_enable_deletion_protection
   enable_https_listener             = var.enable_https_listener
   enable_alb_access_logs            = var.enable_alb_access_logs

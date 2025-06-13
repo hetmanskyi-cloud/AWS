@@ -101,9 +101,6 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
   # Corrected: Referencing the Firehose directly from the root-level firehose.tf
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.aws_alb_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn
-
-  # Corrected: Referencing the Firehose directly from the root-level firehose.tf
-  depends_on = [aws_kinesis_firehose_delivery_stream.aws_alb_waf_logs]
 }
 
 # --- Notes --- #

@@ -342,6 +342,12 @@ output "wordpress_media_cloudfront_arn" {
   value = length(aws_cloudfront_distribution.wordpress_media) > 0 ? aws_cloudfront_distribution.wordpress_media[0].arn : null
 }
 
+output "cloudfront_wordpress_media_distribution_arn" {
+  description = "The ARN of the CloudFront distribution for WordPress media."
+  value       = aws_cloudfront_distribution.wordpress_media[0].arn
+  # sensitive   = false #
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.
