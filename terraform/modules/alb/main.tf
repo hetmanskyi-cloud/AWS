@@ -96,9 +96,8 @@ resource "aws_lb_target_group" "wordpress" {
 # --- ALB Listener Configuration for HTTP --- #
 # HTTP traffic is redirected to HTTPS only if enable_https_listener is set to true.
 
-# tfsec:ignore:aws-elb-http-not-used
 # checkov:skip=CKV_AWS_103 Justification: HTTP listener is used intentionally due to missing SSL certificate. TLS is not applicable for port 80.
-resource "aws_lb_listener" "http" {
+resource "aws_lb_listener" "http" { # tfsec:ignore:aws-elb-http-not-used
   load_balancer_arn = aws_lb.application.arn
   port              = 80
 

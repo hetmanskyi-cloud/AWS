@@ -51,9 +51,8 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 # Distributes WordPress media (static files) with caching, HTTPS, and OAC.
 # This distribution is only created if the WordPress media bucket is enabled AND CloudFront for media is enabled.
 
-# tfsec:ignore:aws-cloudfront-enable-logging
 # checkov:skip=CKV2_AWS_42 Justification: Default CloudFront certificate is acceptable in dev/stage; no custom domain used
-resource "aws_cloudfront_distribution" "wordpress_media" {
+resource "aws_cloudfront_distribution" "wordpress_media" { # tfsec:ignore:aws-cloudfront-enable-logging
   count = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
   enabled         = true
