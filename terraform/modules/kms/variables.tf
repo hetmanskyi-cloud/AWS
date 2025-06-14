@@ -176,18 +176,32 @@ variable "enable_dynamodb" {
   default     = false
 }
 
-# Enable Firehose
+# Enable ALB Firehose
 # Controls whether permissions for Kinesis Firehose are added to the KMS key.
-variable "enable_firehose" {
+variable "enable_alb_firehose" {
   description = "Enable permissions for Kinesis Firehose to use the KMS key"
   type        = bool
   default     = false
 }
 
-# Enable WAF Logging
+# Enable ALB WAF Logging
 # Controls whether permissions for WAF logging are added to the KMS key.
-variable "enable_waf_logging" {
+variable "enable_alb_waf_logging" {
   description = "Enable permissions for WAF logging to use the KMS key"
+  type        = bool
+  default     = false
+}
+
+# Enable CloudFront Firehose
+variable "enable_cloudfront_firehose" {
+  description = "Controls whether CloudFront Firehose logging is enabled, influencing KMS permissions."
+  type        = bool
+  default     = false
+}
+
+# Enable CloudFront WAF
+variable "enable_cloudfront_waf" {
+  description = "Controls whether CloudFront WAF is enabled, influencing KMS permissions for WAF logs."
   type        = bool
   default     = false
 }

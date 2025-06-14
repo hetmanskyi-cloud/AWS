@@ -48,6 +48,18 @@ output "alb_access_logs_bucket_name" {
   value       = var.alb_logs_bucket_name
 }
 
+# --- WAF Details --- #
+
+output "alb_waf_arn" {
+  description = "The ARN of the WAF Web ACL"
+  value       = var.enable_alb_waf ? aws_wafv2_web_acl.alb_waf[0].arn : null
+}
+
+output "alb_waf_logs_firehose_arn" {
+  description = "The ARN of the Kinesis Firehose delivery stream for ALB WAF logs."
+  value       = var.enable_alb_firehose ? aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs[0].arn : null
+}
+
 # --- HTTPS Listener --- #
 # Indicates whether the HTTPS listener is enabled on the ALB.
 # Useful for conditionally configuring resources that depend on HTTPS being active.

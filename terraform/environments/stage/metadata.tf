@@ -30,8 +30,6 @@ locals {
   tags_secrets             = { Component = "secrets" }
   tags_sns                 = { Component = "sns" }
   tags_cloudfront          = { Component = "cloudfront" }
-  tags_firehose            = { Component = "firehose" }
-  tags_waf                 = { Component = "waf" }
 }
 
 # --- Notes --- #

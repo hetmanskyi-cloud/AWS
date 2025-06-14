@@ -5,8 +5,8 @@
 # - This configuration uses a basic Rate Limit rule. For production, extend WAF rules with AWS Managed Rule Groups.
 
 # --- Notes on ALB Protection --- #
-# By default, ALB is protected by AWS Shield Standard, which defends against DDoS attacks at
-# the Network (L3) and Transport (L4) layers. AWS WAF adds Layer 7 protection against web application attacks.
+# By default, ALB is protected by AWS Shield Standard, which defends against DDoS attacks at the 
+# Network (L3) and Transport (L4) layers. AWS WAF adds Layer 7 protection against web application attacks.
 
 # For application-level (L7) attacks, AWS WAF provides additional protection through managed rules.
 # Combining WAF and Shield Standard ensures a comprehensive security strategy for ALB.
@@ -15,11 +15,11 @@
 # This is a simplified configuration suitable for testing and development.
 # In production, extend it with AWS Managed Rule Groups for better protection.
 resource "aws_wafv2_web_acl" "alb_waf" {
-  count = var.enable_waf ? 1 : 0
+  count = var.enable_alb_waf ? 1 : 0
 
   # Name of the WAF ACL
-  name        = "${var.name_prefix}-alb-waf-${var.environment}" # Unique name for the WAF ACL
-  scope       = "REGIONAL"                                      # Scope: Regional for ALB (Global is used for CloudFront)
+  name        = "${var.name_prefix}-alb-waf${var.environment}" # Unique name for the WAF ACL
+  scope       = "REGIONAL"                   # Scope: Regional for ALB (Global is used for CloudFront)
   description = "WAF for ALB to protect against basic attacks"
 
   # Default Action
@@ -45,7 +45,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     statement {
       rate_based_statement {
         limit              = 1000 # Maximum number of requests allowed in 5 minutes
-        aggregate_key_type = "IP" # Aggregate by IP address
+        aggregate_key_type = "IP" # Aggregate requests by IP address
       }
     }
 
@@ -65,52 +65,49 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     sampled_requests_enabled   = true      # Enable sampled request logging
   }
 
-  tags = merge(local.common_tags, local.tags_waf, {
+  tags = merge(var.tags, {
     Name = "${var.name_prefix}-alb-waf-${var.environment}"
   })
 
-  # The dependency will be managed by the association resource's reference to module.alb.alb_arn.
-  # Terraform will automatically understand the implicit dependency.
+  # Ensure WAF is created after ALB to prevent dependency issues
+  depends_on = [aws_lb.application]
 }
 
 # --- WAF Association with ALB --- #
 # Associates the WAF with the ALB to protect incoming traffic.
 resource "aws_wafv2_web_acl_association" "alb_waf_association" {
-  count = var.enable_waf ? 1 : 0
+  count = var.enable_alb_waf ? 1 : 0
 
   # The ARN of the ALB to associate with this WAF
-  resource_arn = module.alb.alb_arn # Referencing ARN from alb module output
+  resource_arn = aws_lb.application.arn
   # The ARN of the WAF ACL
   web_acl_arn = aws_wafv2_web_acl.alb_waf[0].arn
-
-  depends_on = [
-    aws_wafv2_web_acl.alb_waf # Ensure WAF ACL is created
-  ]
 }
 
-# --- WAF Logging Configuration --- #
+# --- ALB WAF Logging Configuration --- #
 # Logs all WAF activity to the specified destination via Firehose.
 # WAF logging fully depends on Firehose. Logging will fail if Firehose is not enabled and configured properly.
 resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
-  count = (var.enable_waf_logging && var.enable_firehose) ? 1 : 0
+  count = (var.enable_alb_waf_logging && var.enable_alb_firehose) ? 1 : 0
 
   # Note: WAF logging depends on both `enable_waf_logging` and `enable_firehose`.
   # If Firehose is disabled, logging will not function even if WAF is enabled.
   # Ensure `enable_firehose = true` when enabling WAF logging.
 
-  # Corrected: Referencing the Firehose directly from the root-level firehose.tf
-  log_destination_configs = [aws_kinesis_firehose_delivery_stream.aws_alb_waf_logs[0].arn]
+  log_destination_configs = [aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn
+
+  depends_on = [aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs]
 }
 
 # --- Notes --- #
-# 1. WAF resources are controlled by `enable_waf` variable in the root module.
+# 1. WAF resources are controlled by `enable_alb_waf` variable.
 # 2. Current Configuration:
 #    - "RateLimitRule": Limits requests from a single IP to prevent abuse.
-#    - This is a simplified configuration suitable for testing and development.
+#    - This is a simplified configuration for testing purposes.
 # 3. Logging:
-#    - Enabled only if `enable_waf_logging` variable and `enable_firehose` variable are both set to `true`.
-#    - WAF logging also requires Firehose to be enabled and configured correctly in firehose.tf.
+#    - Enabled only if \enable_alb_waf_logging` variable and `enable_alb_firehose` variable are both set to `true`.
+#    - WAF logging also requires Firehose to be enabled and configured correctly.
 # 4. Recommendations for Production:
 #    - Start with this simplified configuration and test thoroughly
 #    - Extend this configuration by adding AWS Managed Rule Groups in the following priority order:

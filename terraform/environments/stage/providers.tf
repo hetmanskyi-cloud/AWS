@@ -32,7 +32,17 @@ provider "aws" {
   region  = var.replication_region
   profile = "default"
 
-  # Common tags applied to all AWS resources in replication region (defined in metadata.tf)
+  default_tags {
+    tags = local.common_tags
+  }
+}
+
+# CloudFront WAF always must be created in us-east-1
+provider "aws" {
+  alias   = "cloudfront"
+  region  = "us-east-1"
+  profile = "default"
+
   default_tags {
     tags = local.common_tags
   }

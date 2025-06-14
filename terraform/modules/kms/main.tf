@@ -90,10 +90,10 @@ locals {
     # Conditional services (enabled via variables):
     var.default_region_buckets["cloudtrail"].enabled ? ["cloudtrail.amazonaws.com"] : [], # CloudTrail Logging
     var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],                                # DynamoDB
-    var.enable_firehose ? ["firehose.amazonaws.com"] : [],                                # Firehose
-    var.enable_waf_logging ? ["waf.amazonaws.com"] : []                                   # WAF (legacy)
+    (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [], # ALB & CloudFront Firehose
+    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],        # ALB & Cloudfront WAF
   ))
-
+  
   # Extract S3 bucket names for conditional CloudTrail access in KMS policy.
   # Includes replication buckets for future-proofing KMS access for S3 encryption, not tied to CloudTrail logging.
   s3_bucket_names = keys(merge(var.default_region_buckets, var.replication_region_buckets))

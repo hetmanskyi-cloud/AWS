@@ -93,9 +93,11 @@ module "kms" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # ARN of the SNS topic to send alarm notifications
 
   # Feature-specific flags for permissions
-  enable_dynamodb    = var.enable_dynamodb    # Enable KMS permissions for DynamoDB
-  enable_firehose    = var.enable_firehose    # Enable KMS permissions for Kinesis Firehose
-  enable_waf_logging = var.enable_waf_logging # Enable KMS permissions for WAF logging
+  enable_dynamodb            = var.enable_dynamodb            # Enable KMS permissions for DynamoDB
+  enable_alb_firehose        = var.enable_alb_firehose        # Enable KMS permissions for Kinesis ALB Firehose
+  enable_alb_waf_logging     = var.enable_alb_waf_logging     # Enable KMS permissions for ALB WAF logging
+  enable_cloudfront_firehose = var.enable_cloudfront_firehose # Enable KMS permissions for CloudFront Firehose
+  enable_cloudfront_waf      = var.enable_cloudfront_waf      # Enable KMS permissions for CloudFront WAF
 
   # S3 buckets for KMS permissions
   default_region_buckets     = var.default_region_buckets
@@ -334,10 +336,14 @@ module "s3" {
   # Replication region
   replication_region = var.replication_region
 
-  # CloudFront configuration
-  wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
-  wordpress_media_cloudfront_distribution_arn = try(aws_cloudfront_distribution.wordpress_media[0].arn, null)
-  enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
+  # --- CloudFront Integration (Revised) ---
+  # If your S3 module needs the OAC ID to build the bucket policy,
+  # you'd pass it like this from the CloudFront module's output:
+  # Example (assuming CloudFront module outputs 'oac_id'):
+  # cloudfront_oac_id = var.wordpress_media_cloudfront_enabled ? module.cloudfront.oac_id : null
+
+  # You might also pass the 'enabled' flag if S3 module logic depends on it:
+  # enable_cloudfront_integration = var.wordpress_media_cloudfront_enabled # Only if the S3 module truly needs this flag  
 
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
@@ -410,6 +416,7 @@ module "alb" {
   public_subnets                    = module.vpc.public_subnets
   alb_logs_bucket_name              = module.s3.alb_logs_bucket_name
   vpc_id                            = module.vpc.vpc_id
+  kms_key_arn                       = module.kms.kms_key_arn
   sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
   alb_enable_deletion_protection    = var.alb_enable_deletion_protection
   enable_https_listener             = var.enable_https_listener
@@ -417,6 +424,9 @@ module "alb" {
   enable_high_request_alarm         = var.enable_high_request_alarm
   enable_5xx_alarm                  = var.enable_5xx_alarm
   enable_target_response_time_alarm = var.enable_target_response_time_alarm
+  enable_alb_waf                    = var.enable_alb_waf
+  enable_alb_waf_logging            = var.enable_alb_waf_logging
+  enable_alb_firehose               = var.enable_alb_firehose
 
   depends_on = [module.vpc, module.s3, aws_sns_topic.cloudwatch_alarms]
 }
@@ -434,6 +444,54 @@ module "interface_endpoints" {
   private_subnet_ids         = local.private_subnet_ids
   enable_interface_endpoints = var.enable_interface_endpoints
   tags                       = merge(local.common_tags, local.tags_interface_endpoints)
+}
+
+# --- CloudFront Module Configuration --- #
+
+# Configures the CloudFront CDN for WordPress media, including WAF and logging.
+# This module must operate in us-east-1, hence specific variable requirements.
+module "cloudfront" {
+  source = "../../modules/cloudfront" # Path to your CloudFront module
+
+  # Providers block to specify which provider configuration to use for this module.
+  providers = {
+    aws            = aws.default    # Pass our root default provider to the child's default 'aws'
+    aws.cloudfront = aws.cloudfront # Pass our root 'aws.cloudfront' provider (us-east-1) to the child's 'aws.cloudfront'
+  }
+
+  # Global Naming and Tagging
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_cloudfront)
+
+  # CloudFront Distribution Settings
+  wordpress_media_cloudfront_enabled = var.wordpress_media_cloudfront_enabled
+  cloudfront_price_class             = var.cloudfront_price_class
+
+  # Dependencies from other modules (S3, KMS)
+  # The `s3_module_outputs` variable in the CloudFront module expects an object
+  # containing specific outputs from your S3 module.
+  s3_module_outputs = {
+    wordpress_media_bucket_regional_domain_name = module.s3.wordpress_media_bucket_regional_domain_name
+    # Add any other relevant S3 bucket outputs here that CloudFront module might need
+  }
+
+  logging_bucket_arn = module.s3.logging_bucket_arn # Assuming your S3 module outputs a general logging bucket ARN
+  kms_key_arn        = module.kms.kms_key_arn       # Pass the KMS key for logging encryption
+
+  # WAF Integration Settings
+  enable_cloudfront_waf = var.enable_cloudfront_waf
+
+  # Kinesis Firehose for WAF Logging Settings
+  enable_cloudfront_firehose = var.enable_cloudfront_firehose
+
+  # CloudFront Access Logging v2 Settings
+  enable_cloudfront_access_logging = var.enable_cloudfront_access_logging
+
+  depends_on = [
+    module.s3, # CloudFront depends on S3 bucket existence and outputs
+    module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS
+  ]
 }
 
 # --- Notes and Recommendations --- #

@@ -90,6 +90,33 @@ variable "alb_logs_bucket_name" {
   description = "Name of the S3 bucket for ALB access logs"
 }
 
+# --- Logging Bucket ARN --- #
+# ARN of the S3 bucket for Firehose logging.
+variable "logging_bucket_arn" {
+  description = "The ARN of the S3 bucket used for ALB access logs. If not provided, logging is disabled."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.logging_bucket_arn == null ? true : length(var.logging_bucket_arn) > 0
+    error_message = "If provided, logging_bucket_arn must be a non-empty string."
+  }
+}
+
+# --- KMS Key ARN --- #
+# ARN of the KMS key used for encrypting Firehose data in the S3 bucket.
+# Customer Managed Key (CMK) is used for better security control.
+# Required if enable_firehose is set to true.
+variable "kms_key_arn" {
+  description = "ARN of the KMS key used for encrypting Firehose data in the S3 bucket"
+  type        = string
+
+  validation {
+    condition     = var.enable_alb_firehose ? (length(var.kms_key_arn) > 0) : true
+    error_message = "kms_key_arn must be provided if enable_firehose is set to true."
+  }
+}
+
 # --- Alarm and Monitoring Configuration --- #
 # Threshold for high request count on ALB.
 variable "alb_request_count_threshold" {
@@ -149,6 +176,31 @@ variable "enable_5xx_alarm" {
 # true: The metric is created. false: The metric is not created.
 variable "enable_target_response_time_alarm" {
   description = "Enable or disable the CloudWatch alarm for Target Response Time."
+  type        = bool
+  default     = false
+}
+
+# Toggle WAF for ALB
+variable "enable_alb_waf" {
+  description = "Enable or disable WAF for ALB"
+  type        = bool
+  default     = false
+}
+
+# --- Enable WAF Logging --- #
+# This variable controls the creation of WAF logging resources. WAF logging will be enabled only if:
+# 1. `enable_waf_logging` is set to true.
+# 2. Firehose (`enable_firehose`) is also enabled, as it is required for delivering logs.
+# By default, WAF logging is disabled.
+variable "enable_alb_waf_logging" {
+  description = "Enable or disable logging for WAF independently of WAF enablement"
+  type        = bool
+  default     = false
+}
+
+# Enable or disable Firehose and related resources
+variable "enable_alb_firehose" {
+  description = "Enable or disable Firehose and related resources"
   type        = bool
   default     = false
 }

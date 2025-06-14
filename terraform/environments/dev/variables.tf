@@ -753,38 +753,8 @@ variable "enable_target_response_time_alarm" {
   default     = false
 }
 
-# --- CloudFront Variables --- #
-
-# Enable CloudFront for WordPress media files
-variable "wordpress_media_cloudfront_enabled" {
-  description = "Enable CloudFront distribution for WordPress media files."
-  type        = bool
-  default     = false
-}
-
-variable "enable_cloudfront_access_logging" {
-  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
-  type        = bool
-  default     = false
-}
-
-# Enable WAF for CloudFront
-# This variable controls whether AWS WAFv2 Web ACL is created for the CloudFront distribution.
-variable "enable_cloudfront_waf" {
-  description = "Enable AWS WAFv2 Web ACL for the CloudFront distribution."
-  type        = bool
-  default     = false
-}
-
-variable "enable_cloudfront_waf_logging" {
-  description = "Enable logging for the CloudFront WAF to a Kinesis Firehose stream."
-  type        = bool
-  default     = false
-}
-
-# --- WAF Variables --- #
-
-variable "enable_waf" {
+# Toggle WAF for ALB
+variable "enable_alb_waf" {
   description = "Enable or disable WAF for ALB" # Description of the variable
   type        = bool                            # Boolean type for true/false values
   default     = false                           # Default value is false
@@ -795,17 +765,52 @@ variable "enable_waf" {
 # 1. `enable_waf_logging` is set to true.
 # 2. Firehose (`enable_firehose`) is also enabled, as it is required for delivering logs.
 # By default, WAF logging is disabled.
-variable "enable_waf_logging" {
+variable "enable_alb_waf_logging" {
   description = "Enable or disable logging for WAF independently of WAF enablement"
   type        = bool
   default     = false
 }
 
-# --- Firehose Variables --- #
-
 # Enable or disable Firehose and related resources
-variable "enable_firehose" {
+variable "enable_alb_firehose" {
   description = "Enable or disable Firehose and related resources"
+  type        = bool
+  default     = false
+}
+
+# --- CloudFront Module Variables --- #
+# These variables are passed to the CloudFront module to control its behavior.
+
+variable "wordpress_media_cloudfront_enabled" {
+  description = "Set to true to enable the CloudFront distribution for WordPress media files."
+  type        = bool
+  default     = true
+}
+
+variable "cloudfront_price_class" {
+  description = "The price class for the CloudFront distribution. 'PriceClass_100', 'PriceClass_200', or 'PriceClass_All'."
+  type        = string
+  default     = "PriceClass_100"
+  validation {
+    condition     = contains(["PriceClass_100", "PriceClass_200", "PriceClass_All"], var.cloudfront_price_class)
+    error_message = "Invalid CloudFront price class. Must be 'PriceClass_100', 'PriceClass_200', or 'PriceClass_All'."
+  }
+}
+
+variable "enable_cloudfront_waf" {
+  description = "Set to true to enable AWS WAFv2 Web ACL protection for the CloudFront distribution."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_firehose" {
+  description = "Set to true to enable Kinesis Firehose for AWS WAF logging. This is required if `enable_cloudfront_waf` is true."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudfront_access_logging" {
+  description = "Set to true to enable CloudFront Access Logging v2 via AWS CloudWatch Log Delivery to S3."
   type        = bool
   default     = false
 }

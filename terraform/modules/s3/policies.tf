@@ -308,7 +308,8 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           Service = "cloudfront.amazonaws.com"
         },
         Action = [
-          "s3:GetObject"
+          "s3:GetObject",
+          "kms:Decrypt"
         ],
         Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
         Condition = {
