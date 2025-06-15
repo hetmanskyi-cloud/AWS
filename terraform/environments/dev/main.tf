@@ -336,14 +336,10 @@ module "s3" {
   # Replication region
   replication_region = var.replication_region
 
-  # --- CloudFront Integration (Revised) ---
-  # If your S3 module needs the OAC ID to build the bucket policy,
-  # you'd pass it like this from the CloudFront module's output:
-  # Example (assuming CloudFront module outputs 'oac_id'):
-  # cloudfront_oac_id = var.wordpress_media_cloudfront_enabled ? module.cloudfront.oac_id : null
-
-  # You might also pass the 'enabled' flag if S3 module logic depends on it:
-  # enable_cloudfront_integration = var.wordpress_media_cloudfront_enabled # Only if the S3 module truly needs this flag  
+  # CloudFront Integration
+  wordpress_media_cloudfront_distribution_arn = module.cloudfront.cloudfront_distribution_arn
+  wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
+  enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
 
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
@@ -489,7 +485,6 @@ module "cloudfront" {
   enable_cloudfront_access_logging = var.enable_cloudfront_access_logging
 
   depends_on = [
-    module.s3, # CloudFront depends on S3 bucket existence and outputs
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS
   ]
 }

@@ -10,7 +10,7 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose_alb_waf_logs" {
   # Extended S3 Configuration
   extended_s3_configuration {
     role_arn   = aws_iam_role.alb_firehose_role[0].arn # IAM Role for Firehose permissions.
-    bucket_arn = var.logging_bucket_arn            # Target S3 bucket for logs.
+    bucket_arn = var.logging_bucket_arn                # Target S3 bucket for logs.
     prefix     = "${var.name_prefix}/alb-waf-logs/"    # Prefix for organizing WAF logs in the bucket.
 
     # These buffering settings represent a default configuration suitable for testing. 

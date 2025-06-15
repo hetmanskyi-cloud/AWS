@@ -5,10 +5,10 @@
 terraform {
   required_providers {
     aws = {
-      source              = "hashicorp/aws"
-      version             = "~> 5.0"
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
       configuration_aliases = [
-        aws,          # Default AWS provider alias
+        aws,            # Default AWS provider alias
         aws.cloudfront, # Alias for AWS provider configured to us-east-1
       ]
     }
@@ -34,11 +34,11 @@ resource "aws_cloudfront_origin_access_control" "wordpress_media_oac" {
   provider = aws.cloudfront
   count    = local.enable_cloudfront_media_distribution ? 1 : 0
 
-  name                          = "${var.name_prefix}-wordpress-media-oac-${var.environment}"
-  description                   = "OAC for CloudFront to securely access the WordPress media S3 bucket"
+  name                              = "${var.name_prefix}-wordpress-media-oac-${var.environment}"
+  description                       = "OAC for CloudFront to securely access the WordPress media S3 bucket"
   origin_access_control_origin_type = "s3"
-  signing_behavior              = "always"
-  signing_protocol              = "sigv4"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
 }
 
 # --- CloudFront Cache Policy for WordPress Media --- #
@@ -113,7 +113,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   # For production, a custom domain and an ACM certificate (in us-east-1) are recommended.
   viewer_certificate {
     cloudfront_default_certificate = true
-    minimum_protocol_version      = "TLSv1.2_2021"
+    minimum_protocol_version       = "TLSv1.2_2021"
   }
 
   # --- Geo Restrictions --- #

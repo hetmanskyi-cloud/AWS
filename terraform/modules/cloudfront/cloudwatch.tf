@@ -18,7 +18,7 @@ resource "aws_cloudwatch_log_delivery_source" "cloudfront_access_logs_source" {
   count = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? 1 : 0
 
   name         = "${var.name_prefix}-cloudfront-access-logs-source-${var.environment}"
-  log_type     = "ACCESS_LOGS" # Specifies that this source collects CloudFront access logs
+  log_type     = "ACCESS_LOGS"                                      # Specifies that this source collects CloudFront access logs
   resource_arn = aws_cloudfront_distribution.wordpress_media[0].arn # References the ARN of our CloudFront distribution
 
   tags = merge(var.tags, {

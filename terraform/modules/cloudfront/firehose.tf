@@ -19,9 +19,9 @@ resource "aws_kinesis_firehose_delivery_stream" "cloudfront_waf_logs" {
   # ALL related configurations (buffering, CloudWatch logs for S3 destination)
   # must be defined WITHIN this block, as per the documentation's 's3_configuration' structure.
   extended_s3_configuration {
-    role_arn           = aws_iam_role.cloudfront_firehose_role[0].arn # IAM role granting Firehose permissions to S3 and KMS
-    bucket_arn         = var.logging_bucket_arn                        # ARN of your centralized S3 logging bucket
-    prefix             = "cloudfront-waf-logs/${var.environment}/"   # S3 prefix for WAF logs
+    role_arn            = aws_iam_role.cloudfront_firehose_role[0].arn     # IAM role granting Firehose permissions to S3 and KMS
+    bucket_arn          = var.logging_bucket_arn                           # ARN of your centralized S3 logging bucket
+    prefix              = "cloudfront-waf-logs/${var.environment}/"        # S3 prefix for WAF logs
     error_output_prefix = "cloudfront-waf-logs-errors/${var.environment}/" # S3 prefix for delivery errors
 
     # Configure data compression for cost efficiency and faster analysis
