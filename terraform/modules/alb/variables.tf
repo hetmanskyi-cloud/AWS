@@ -205,6 +205,13 @@ variable "enable_alb_firehose" {
   default     = false
 }
 
+# Enable or disable CloudWatch logging for Firehose delivery stream
+variable "enable_alb_firehose_cloudwatch_logs" {
+  description = "Enable CloudWatch logging for Firehose delivery stream. Useful for debugging failures."
+  type        = bool
+  default     = false
+}
+
 # --- Notes --- #
 # - In production, enable HTTPS listener, WAF, and logging for improved security and observability.
 # - Features controlled by `enable_*` variables (e.g., enable_waf, enable_firehose, enable_high_request_alarm) 

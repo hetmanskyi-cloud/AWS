@@ -31,7 +31,7 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   # HTTPS policy for default region buckets (EXCLUDING Logging, ALB Logs and CloudTrail)
   for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging" && key != "cloudtrail"
+    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging" && key != "cloudtrail" && key != "wordpress_media"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -61,7 +61,7 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
 }
 
 # --- Logging Bucket Policy (Allow Log Delivery & Enforce HTTPS) --- #
-# This policy allows AWS S3 Server Access Logs (`logging.s3.amazonaws.com`) to write logs
+# This policy allows AWS S3 Server Access Logs (`logging.s3.amazonaws.com`) and Firehose (`firehose.amazonaws.com`) to write logs
 # to the logging bucket (`logging`). It also enforces HTTPS by denying insecure (HTTP) connections.
 resource "aws_s3_bucket_policy" "logging_bucket_policy" {
   count  = var.default_region_buckets["logging"].enabled ? 1 : 0
@@ -76,6 +76,21 @@ resource "aws_s3_bucket_policy" "logging_bucket_policy" {
         Effect = "Allow"
         Principal = {
           Service = "logging.s3.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      # Allow Firehose (for WAF/ALB logging) to write logs to this bucket
+      {
+        Sid    = "AllowFirehoseDelivery"
+        Effect = "Allow"
+        Principal = {
+          Service = "delivery.logs.amazonaws.com"
         }
         Action   = "s3:PutObject"
         Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
@@ -293,35 +308,63 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 # --- WordPress Media Bucket Policy for CloudFront OAC --- #
 # Grants CloudFront distribution (via Origin Access Control) read-only access to 'wordpress_media' bucket.
 # Ensures only CloudFront can access media files directly; all public access is blocked.
+# This policy now also includes the DenyInsecureTransport statement, making it the sole policy for this bucket.
 resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
+  # This policy is applied only if the 'wordpress_media' bucket is enabled
+  # AND the CloudFront distribution for it is also enabled.
   count = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket
+  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket for the policy
 
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontOACReadOnly",
-        Effect = "Allow",
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        },
-        Action = [
-          "s3:GetObject",
-          "kms:Decrypt"
-        ],
-        Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = var.wordpress_media_cloudfront_distribution_arn
+    Statement = concat(
+      # Statement 1: Enforce HTTPS Only
+      # Denies any requests to the bucket that do not use HTTPS.
+      [
+        {
+          Sid       = "DenyInsecureTransport",
+          Effect    = "Deny",
+          Principal = { "AWS" : "*" },
+          Action    = "s3:*"
+          Resource  = [
+            "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}",
+            "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"
+          ],
+          Condition = {
+            Bool = {
+              "aws:SecureTransport" = "false"
+            }
           }
         }
-      }
-    ]
+      ],
+      # Statement 2: Allow CloudFront OAC Read-Only Access
+      # This statement is included only if CloudFront integration is enabled
+      # AND the CloudFront Distribution ARN is known (not null).
+      # It grants CloudFront permission to retrieve objects from the bucket.
+      (var.wordpress_media_cloudfront_enabled && var.wordpress_media_cloudfront_distribution_arn != null) ? [
+        {
+          Sid       = "AllowCloudFrontOACReadOnly",
+          Effect    = "Allow",
+          Principal = {
+            Service = "cloudfront.amazonaws.com"
+          },
+          Action = [
+            "s3:GetObject",
+            "kms:Decrypt" # Required if your S3 bucket objects are encrypted with KMS
+          ],
+          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
+          Condition = {
+            StringEquals = {
+              "AWS:SourceArn" = var.wordpress_media_cloudfront_distribution_arn
+            }
+          }
+        }
+      ] : [] # If CloudFront is not enabled OR ARN is null, this statement list will be empty
+    )
   })
 
-  # Explicitly depends on CloudFront distribution to ensure proper dependency ordering.
+  # Explicitly depends on the S3 bucket creation to ensure the bucket exists before policy application.
   depends_on = [
     aws_s3_bucket.default_region_buckets,
   ]

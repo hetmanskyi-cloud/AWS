@@ -404,25 +404,27 @@ module "alb" {
   source = "../../modules/alb"
 
   # AWS region, tags and account settings
-  aws_region                        = var.aws_region
-  aws_account_id                    = var.aws_account_id
-  tags                              = merge(local.common_tags, local.tags_alb)
-  name_prefix                       = var.name_prefix
-  environment                       = var.environment
-  public_subnets                    = module.vpc.public_subnets
-  alb_logs_bucket_name              = module.s3.alb_logs_bucket_name
-  vpc_id                            = module.vpc.vpc_id
-  kms_key_arn                       = module.kms.kms_key_arn
-  sns_topic_arn                     = aws_sns_topic.cloudwatch_alarms.arn
-  alb_enable_deletion_protection    = var.alb_enable_deletion_protection
-  enable_https_listener             = var.enable_https_listener
-  enable_alb_access_logs            = var.enable_alb_access_logs
-  enable_high_request_alarm         = var.enable_high_request_alarm
-  enable_5xx_alarm                  = var.enable_5xx_alarm
-  enable_target_response_time_alarm = var.enable_target_response_time_alarm
-  enable_alb_waf                    = var.enable_alb_waf
-  enable_alb_waf_logging            = var.enable_alb_waf_logging
-  enable_alb_firehose               = var.enable_alb_firehose
+  aws_region                          = var.aws_region
+  aws_account_id                      = var.aws_account_id
+  tags                                = merge(local.common_tags, local.tags_alb)
+  name_prefix                         = var.name_prefix
+  environment                         = var.environment
+  public_subnets                      = module.vpc.public_subnets
+  alb_logs_bucket_name                = module.s3.alb_logs_bucket_name
+  logging_bucket_arn                  = module.s3.logging_bucket_arn
+  vpc_id                              = module.vpc.vpc_id
+  kms_key_arn                         = module.kms.kms_key_arn
+  sns_topic_arn                       = aws_sns_topic.cloudwatch_alarms.arn
+  alb_enable_deletion_protection      = var.alb_enable_deletion_protection
+  enable_https_listener               = var.enable_https_listener
+  enable_alb_access_logs              = var.enable_alb_access_logs
+  enable_high_request_alarm           = var.enable_high_request_alarm
+  enable_5xx_alarm                    = var.enable_5xx_alarm
+  enable_target_response_time_alarm   = var.enable_target_response_time_alarm
+  enable_alb_waf                      = var.enable_alb_waf
+  enable_alb_waf_logging              = var.enable_alb_waf_logging
+  enable_alb_firehose                 = var.enable_alb_firehose
+  enable_alb_firehose_cloudwatch_logs = var.enable_alb_firehose_cloudwatch_logs
 
   depends_on = [module.vpc, module.s3, aws_sns_topic.cloudwatch_alarms]
 }

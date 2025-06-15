@@ -778,6 +778,13 @@ variable "enable_alb_firehose" {
   default     = false
 }
 
+# Enable or disable CloudWatch logging for Firehose delivery stream
+variable "enable_alb_firehose_cloudwatch_logs" {
+  description = "Enable CloudWatch logging for Firehose delivery stream. Useful for debugging failures."
+  type        = bool
+  default     = false
+}
+
 # --- CloudFront Module Variables --- #
 # These variables are passed to the CloudFront module to control its behavior.
 

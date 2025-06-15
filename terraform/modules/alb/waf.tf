@@ -97,7 +97,10 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.alb_waf[0].arn
 
-  depends_on = [aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs]
+  depends_on = [
+    aws_kinesis_firehose_delivery_stream.firehose_alb_waf_logs,
+    aws_wafv2_web_acl.alb_waf
+  ]
 }
 
 # --- Notes --- #
