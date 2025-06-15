@@ -327,7 +327,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           Effect    = "Deny",
           Principal = { "AWS" : "*" },
           Action    = "s3:*"
-          Resource  = [
+          Resource = [
             "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}",
             "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"
           ],
@@ -344,8 +344,8 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
       # It grants CloudFront permission to retrieve objects from the bucket.
       (var.wordpress_media_cloudfront_enabled && var.wordpress_media_cloudfront_distribution_arn != null) ? [
         {
-          Sid       = "AllowCloudFrontOACReadOnly",
-          Effect    = "Allow",
+          Sid    = "AllowCloudFrontOACReadOnly",
+          Effect = "Allow",
           Principal = {
             Service = "cloudfront.amazonaws.com"
           },

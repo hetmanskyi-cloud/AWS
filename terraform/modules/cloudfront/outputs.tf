@@ -51,13 +51,13 @@ output "waf_web_acl_arn" {
 # --- Kinesis Firehose (for WAF Logs) Outputs --- #
 output "firehose_delivery_stream_name" {
   description = "The name of the Kinesis Firehose Delivery Stream for CloudFront WAF logs."
-  value       = var.enable_cloudfront_firehose && var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? aws_kinesis_firehose_delivery_stream.cloudfront_waf_logs[0].name : null
+  value       = var.enable_cloudfront_firehose && var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? aws_kinesis_firehose_delivery_stream.firehose_cloudfront_waf_logs[0].name : null
   # Condition: Output only if Firehose, WAF, and the distribution are enabled.
 }
 
 output "firehose_delivery_stream_arn" {
   description = "The ARN of the Kinesis Firehose Delivery Stream for CloudFront WAF logs."
-  value       = var.enable_cloudfront_firehose && var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? aws_kinesis_firehose_delivery_stream.cloudfront_waf_logs[0].arn : null
+  value       = var.enable_cloudfront_firehose && var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? aws_kinesis_firehose_delivery_stream.firehose_cloudfront_waf_logs[0].arn : null
   # Condition: Output only if Firehose, WAF, and the distribution are enabled.
 }
 

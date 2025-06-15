@@ -56,6 +56,8 @@ resource "aws_iam_policy" "cloudfront_firehose_policy" {
         Resource = var.kms_key_arn
       },
       {
+        # This permission allows Firehose to write error logs to CloudWatch if data delivery to S3 fails.
+        # It requires the corresponding log group to exist.
         Effect = "Allow",
         Action = [
           "logs:PutLogEvents"
@@ -77,6 +79,22 @@ resource "aws_iam_role_policy_attachment" "cloudfront_firehose_policy_attachment
   count      = var.enable_cloudfront_firehose ? 1 : 0
   role       = aws_iam_role.cloudfront_firehose_role[0].name
   policy_arn = aws_iam_policy.cloudfront_firehose_policy[0].arn
+}
+
+# --- CloudWatch Log Group for Firehose Error Logging (us-east-1) --- #
+# This resource creates a dedicated CloudWatch Log Group for Kinesis Firehose delivery error logging.
+# It is required by the logs:PutLogEvents permission in the IAM policy above to ensure robust error handling.
+resource "aws_cloudwatch_log_group" "cloudfront_firehose_log_group" {
+  provider = aws.cloudfront
+  count    = var.enable_cloudfront_firehose ? 1 : 0
+
+  # The name must follow the pattern /aws/kinesisfirehose/<delivery-stream-name>
+  name              = "/aws/kinesisfirehose/${var.name_prefix}-cloudfront-waf-logs-firehose-${var.environment}"
+  retention_in_days = 7 # A reasonable retention period for error logs.
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-cloudfront-waf-logs-firehose-log-group-${var.environment}"
+  })
 }
 
 # --- Notes --- #

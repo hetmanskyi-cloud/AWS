@@ -4,14 +4,14 @@
 # All CloudFront WAF-related logging components, including Firehose, must be
 # provisioned in the us-east-1 region.
 
-resource "aws_kinesis_firehose_delivery_stream" "cloudfront_waf_logs" {
+resource "aws_kinesis_firehose_delivery_stream" "firehose_cloudfront_waf_logs" {
   provider = aws.cloudfront # Firehose for CloudFront WAF logs must be in us-east-1
 
   # Create Firehose only if CloudFront WAF is enabled and the main CloudFront distribution is enabled.
   # This ensures the logging infrastructure is spun up only when needed.
   count = var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? 1 : 0
 
-  name        = "${var.name_prefix}-cloudfront-waf-logs-firehose-${var.environment}"
+  name        = "aws-waf-logs-${var.name_prefix}-cloudfront-firehose-${var.environment}"
   destination = "extended_s3" # The destination type for the logs will be extended_s3
 
   # --- Extended S3 Configuration for log delivery --- #

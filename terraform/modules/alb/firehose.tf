@@ -7,7 +7,7 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose_alb_waf_logs" {
   # NOTE: The delivery stream name MUST start with "aws-waf-logs-" 
   # because AWS WAF requires it for logging configuration. 
   # Otherwise, PutLoggingConfiguration will fail with "The ARN isn't valid".
-  name = "aws-waf-logs-${var.name_prefix}-alb-${var.environment}" 
+  name = "aws-waf-logs-${var.name_prefix}-alb-firehose-${var.environment}"
 
   destination = "extended_s3" # Destination is an S3 bucket with extended configuration.
 
@@ -129,7 +129,7 @@ resource "aws_iam_role_policy_attachment" "alb_firehose_policy_attachment" {
 
 # IAM Policy for allowing Kinesis Firehose to log to CloudWatch
 resource "aws_iam_policy" "alb_firehose_cw_policy" {
-  count = var.enable_alb_firehose_cloudwatch_logs && var.enable_alb_firehose ? 1 : 0
+  count       = var.enable_alb_firehose_cloudwatch_logs && var.enable_alb_firehose ? 1 : 0
   name        = "${var.name_prefix}-alb-firehose-cw-policy-${var.environment}"
   description = "Allows Kinesis Firehose to log delivery errors to CloudWatch Logs"
   policy = jsonencode({
@@ -150,7 +150,7 @@ resource "aws_iam_policy" "alb_firehose_cw_policy" {
 
 # Attach the policy to the Firehose role
 resource "aws_iam_role_policy_attachment" "alb_firehose_cw_attach" {
-  count = var.enable_alb_firehose_cloudwatch_logs && var.enable_alb_firehose ? 1 : 0
+  count      = var.enable_alb_firehose_cloudwatch_logs && var.enable_alb_firehose ? 1 : 0
   role       = aws_iam_role.alb_firehose_role[0].name
   policy_arn = aws_iam_policy.alb_firehose_cw_policy[0].arn
 }
