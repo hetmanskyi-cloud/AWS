@@ -105,3 +105,11 @@ variable "enable_cloudfront_access_logging" {
   type        = bool
   default     = false
 }
+
+# --- SNS Topic for CloudWatch Alarms --- #
+# This variable allows the module to send CloudWatch alarms to a specified SNS topic.
+variable "sns_alarm_topic_arn" {
+  description = "The ARN of the SNS topic to which CloudWatch alarms from this module will be sent."
+  type        = string
+  default     = null # Making it optional
+}

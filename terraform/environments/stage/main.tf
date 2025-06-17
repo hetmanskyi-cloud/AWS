@@ -218,7 +218,7 @@ module "asg" {
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
   depends_on = [module.vpc, module.kms,
-    module.s3, aws_secretsmanager_secret_version.wp_secrets_version,
+    aws_secretsmanager_secret_version.wp_secrets_version,
     aws_cloudwatch_log_group.user_data_logs,
     aws_cloudwatch_log_group.system_logs,
     aws_cloudwatch_log_group.nginx_logs,
@@ -340,6 +340,9 @@ module "s3" {
   wordpress_media_cloudfront_distribution_arn = module.cloudfront.cloudfront_distribution_arn
   wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
   enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
+
+  # ASG EC2 Instance Role ARNs for WordPress media
+  asg_instance_role_arn = module.asg.instance_role_arn
 
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
@@ -466,6 +469,10 @@ module "cloudfront" {
   wordpress_media_cloudfront_enabled = var.wordpress_media_cloudfront_enabled
   cloudfront_price_class             = var.cloudfront_price_class
 
+  # Pass the entire map of bucket configurations. This allows the module to know
+  # that the 'wordpress_media' bucket is indeed enabled.
+  default_region_buckets = var.default_region_buckets
+
   # Dependencies from other modules (S3, KMS)
   # The `s3_module_outputs` variable in the CloudFront module expects an object
   # containing specific outputs from your S3 module.
@@ -485,6 +492,9 @@ module "cloudfront" {
 
   # CloudFront Access Logging v2 Settings
   enable_cloudfront_access_logging = var.enable_cloudfront_access_logging
+
+  # SNS Topic for CloudWatch Alarms notifications
+  sns_alarm_topic_arn = one(aws_sns_topic.cloudfront_alarms_topic[*].arn)
 
   depends_on = [
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS

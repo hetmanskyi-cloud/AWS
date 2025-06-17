@@ -170,6 +170,13 @@ variable "enable_dynamodb" {
   }
 }
 
+# --- ASG Instance Role ARN --- #
+variable "asg_instance_role_arn" {
+  description = "The ARN of the ASG instance role, used to grant S3 bucket access."
+  type        = string
+  default     = null
+}
+
 # --- Notes --- #
 # 1. Bucket Configuration: 'default_region_buckets' and 'replication_region_buckets' maps control bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.

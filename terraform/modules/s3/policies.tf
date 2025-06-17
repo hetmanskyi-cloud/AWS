@@ -60,66 +60,104 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   depends_on = [aws_s3_bucket.default_region_buckets] # Depends on buckets
 }
 
-# --- Logging Bucket Policy (Allow Log Delivery & Enforce HTTPS) --- #
-# This policy allows AWS S3 Server Access Logs (`logging.s3.amazonaws.com`) and Firehose (`firehose.amazonaws.com`) to write logs
-# to the logging bucket (`logging`). It also enforces HTTPS by denying insecure (HTTP) connections.
-resource "aws_s3_bucket_policy" "logging_bucket_policy" {
-  count  = var.default_region_buckets["logging"].enabled ? 1 : 0
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+# --- Unified Policy Document for the S3 Logging Bucket --- #
+# This data source constructs a single, comprehensive policy for the 'logging' bucket.
+# It aggregates all required permissions into one document to avoid conflicts and ensure
+# that a single resource manages the bucket policy.
+data "aws_iam_policy_document" "unified_logging_bucket_policy" {
+  # This policy is constructed only if the logging bucket itself is enabled.
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
 
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # Allow AWS S3 Server Access Logs service to write logs to this bucket
-      {
-        Sid    = "AllowS3ServerAccessLogs"
-        Effect = "Allow"
-        Principal = {
-          Service = "logging.s3.amazonaws.com"
-        }
-        Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
-          }
-        }
-      },
-      # Allow Firehose (for WAF/ALB logging) to write logs to this bucket
-      {
-        Sid    = "AllowFirehoseDelivery"
-        Effect = "Allow"
-        Principal = {
-          Service = "delivery.logs.amazonaws.com"
-        }
-        Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
-          }
-        }
-      },
-      # Enforce HTTPS-only access: deny any requests using insecure HTTP
-      {
-        Sid       = "EnforceHTTPSOnly"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource = [
-          aws_s3_bucket.default_region_buckets["logging"].arn,
-          "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-        ]
-        Condition = {
-          Bool = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      }
+  # Statement 1: Allow S3 Server Access Logs to write to this bucket.
+  # This is required for other S3 buckets to deliver their own access logs here.
+  statement {
+    sid     = "AllowS3ServerAccessLogs"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    resources = [
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
     ]
-  })
 
-  depends_on = [aws_s3_bucket.default_region_buckets]
+    # This condition ensures the bucket owner gets full control over the delivered log objects.
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+
+  # Statement 2: Allow CloudFront Access Logs v2 (via CloudWatch Log Delivery) to write to this bucket.
+  # This is for the modern CloudFront access logging method.
+  statement {
+    sid    = "AllowCloudFrontAccessLogsV2"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetBucketAcl" # Required by the delivery service for validation.
+    ]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    resources = [
+      aws_s3_bucket.default_region_buckets["logging"].arn,
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+    ]
+
+    # This security condition restricts access to delivery services originating from your AWS account.
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [var.aws_account_id]
+    }
+  }
+
+  # Statement 3: Enforce HTTPS-only access by denying all insecure (HTTP) requests.
+  # This is a security best practice for all buckets.
+  statement {
+    sid     = "EnforceHTTPSOnly"
+    effect  = "Deny"
+    actions = ["s3:*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    resources = [
+      aws_s3_bucket.default_region_buckets["logging"].arn,
+      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+# --- Apply the Unified Policy to the Logging Bucket --- #
+# This single resource applies the comprehensive policy constructed above,
+# acting as the sole source of truth for the logging bucket's policy.
+resource "aws_s3_bucket_policy" "unified_logging_bucket_policy" {
+  count = var.default_region_buckets["logging"].enabled ? 1 : 0
+
+  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  policy = data.aws_iam_policy_document.unified_logging_bucket_policy[0].json
+
+  depends_on = [
+    # Ensure the policy document is fully rendered before attempting to apply it.
+    data.aws_iam_policy_document.unified_logging_bucket_policy
+  ]
 }
 
 # --- Unified Replication Destination Bucket Policy --- #
@@ -305,10 +343,10 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   ]
 }
 
-# --- WordPress Media Bucket Policy for CloudFront OAC --- #
-# Grants CloudFront distribution (via Origin Access Control) read-only access to 'wordpress_media' bucket.
-# Ensures only CloudFront can access media files directly; all public access is blocked.
-# This policy now also includes the DenyInsecureTransport statement, making it the sole policy for this bucket.
+# --- WordPress Media Bucket Policy for CloudFront OAC and EC2 Role Uploads --- #
+# Grants CloudFront distribution (via Origin Access Control) read-only access
+# and the WordPress EC2 Role write access for media uploads.
+# This policy is the single source of truth for all permissions on this bucket.
 resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
   # This policy is applied only if the 'wordpress_media' bucket is enabled
   # AND the CloudFront distribution for it is also enabled.
@@ -326,10 +364,10 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           Sid       = "DenyInsecureTransport",
           Effect    = "Deny",
           Principal = { "AWS" : "*" },
-          Action    = "s3:*"
+          Action    = "s3:*",
           Resource = [
             "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}",
-            "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"
+            "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
           ],
           Condition = {
             Bool = {
@@ -351,7 +389,6 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           },
           Action = [
             "s3:GetObject",
-            "kms:Decrypt" # Required if your S3 bucket objects are encrypted with KMS
           ],
           Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
           Condition = {
@@ -360,7 +397,47 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
             }
           }
         }
-      ] : [] # If CloudFront is not enabled OR ARN is null, this statement list will be empty
+      ] : [], # If CloudFront is not enabled OR ARN is null, this statement list will be empty
+
+      # Statement 3: Allow WordPress (via ASG EC2 Instance Role) to UPLOAD and SET ACLs for media files.
+      # This is conditional on the EC2 role ARN being provided.
+      # The condition prevents uploads from being made public at the S3 level.
+      (var.asg_instance_role_arn != null) ? [
+        {
+          Sid    = "AllowWordPressEC2RoleUploads",
+          Effect = "Allow",
+          Principal = {
+            AWS = var.asg_instance_role_arn # ARN of the IAM role from the ASG module
+          },
+          Action = [
+            "s3:PutObject",
+            "s3:PutObjectAcl" # Allow setting ACLs for uploaded objects
+          ],
+          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
+          Condition = {
+            StringNotEquals = {
+              "s3:x-amz-acl" = "public-read" # Prevent public read access
+            }
+          }
+        }
+      ] : [], # If the EC2 role ARN is null, this statement list will be empty
+
+      # Statement 4: Allow WordPress (via ASG EC2 Instance Role) to READ and DELETE media files.
+      # These actions do not support the s3:x-amz-acl condition key, so they are in a separate statement.
+      (var.asg_instance_role_arn != null) ? [
+        {
+          Sid    = "AllowWordPressEC2RoleReadDelete",
+          Effect = "Allow",
+          Principal = {
+            AWS = var.asg_instance_role_arn # ARN of the IAM role from the ASG module
+          },
+          Action = [
+            "s3:GetObject",
+            "s3:DeleteObject" # Allow deleting media files
+          ],
+          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"
+        }
+      ] : [] # If the EC2 role ARN is null, this statement list will be empty
     )
   })
 
@@ -368,47 +445,6 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
   depends_on = [
     aws_s3_bucket.default_region_buckets,
   ]
-}
-
-# --- Policy to allow CloudFront Log Delivery to the 'logging' bucket --- #
-# This policy grants CloudFront's log delivery service the necessary permissions
-# to write access logs into the designated S3 logging bucket.
-resource "aws_s3_bucket_policy" "cloudfront_logging_policy" {
-  count  = var.default_region_buckets["logging"].enabled && var.enable_cloudfront_access_logging ? 1 : 0
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontLogging"
-        Effect = "Allow"
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        }
-        Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.default_region_buckets["logging"].arn}/cloudfront-media-logs/*" # Specific prefix
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
-          }
-        }
-      },
-      # Optional: Add a statement to allow CloudFront to get the bucket ACL for validation,
-      # though PutObject is often sufficient for logging.
-      {
-        Sid    = "AllowCloudFrontGetBucketAcl"
-        Effect = "Allow"
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        }
-        Action   = "s3:GetBucketAcl"
-        Resource = aws_s3_bucket.default_region_buckets["logging"].arn
-      }
-    ]
-  })
-
-  depends_on = [aws_s3_bucket.default_region_buckets]
 }
 
 # --- Notes --- #
