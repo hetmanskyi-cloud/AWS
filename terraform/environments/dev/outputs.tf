@@ -247,16 +247,40 @@ output "wordpress_tg_arn" {
 
 # --- Secrets Manager Outputs --- #
 
-# Output the Name of the WordPress secrets
+# Provides clear access to the names and ARNs of all created secrets.
+# This is a best practice for visibility, debugging, and interoperability with other Terraform states.
+
+# --- WordPress Application Secret --- #
 output "wordpress_secrets_name" {
-  description = "The name of the WordPress secret for ASG consumption"
+  description = "The name of the WordPress application secret (contains keys, salts, admin credentials)."
   value       = aws_secretsmanager_secret.wp_secrets.name
 }
 
-# Output the ARN of the WordPress secrets
 output "wordpress_secrets_arn" {
-  description = "The ARN of the WordPress Secrets Manager secret"
+  description = "The ARN of the WordPress application secret."
   value       = aws_secretsmanager_secret.wp_secrets.arn
+}
+
+# --- RDS Database Secret --- #
+output "rds_secrets_name" {
+  description = "The name of the RDS database secret."
+  value       = aws_secretsmanager_secret.rds_secrets.name
+}
+
+output "rds_secrets_arn" {
+  description = "The ARN of the RDS database secret."
+  value       = aws_secretsmanager_secret.rds_secrets.arn
+}
+
+# --- Redis AUTH Secret --- #
+output "redis_auth_secret_name" {
+  description = "The name of the Redis AUTH token secret."
+  value       = aws_secretsmanager_secret.redis_auth.name
+}
+
+output "redis_auth_secret_arn" {
+  description = "The ARN of the Redis AUTH token secret."
+  value       = aws_secretsmanager_secret.redis_auth.arn
 }
 
 # --- CloudTrail Output --- #

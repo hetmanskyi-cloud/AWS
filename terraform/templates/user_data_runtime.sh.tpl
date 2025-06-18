@@ -31,7 +31,8 @@ log "Exporting environment variables..."
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
   
   # Export other necessary environment variables
-  echo "SECRET_NAME=\"${wordpress_secrets_name}\""
+  echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
+  echo "RDS_SECRETS_NAME=\"${rds_secrets_name}\""
   echo "REDIS_AUTH_SECRET_NAME=\"${redis_auth_secret_name}\""
   echo "AWS_DEFAULT_REGION=\"${aws_region}\""
 
@@ -66,39 +67,37 @@ set +a
 
 # --- 3. Retrieve secrets from AWS Secrets Manager --- #
 
-log "Retrieving secrets from AWS Secrets Manager..."
-SECRETS=$(aws secretsmanager get-secret-value \
+# Retrieve WordPress Secrets
+log "Retrieving WordPress secrets from AWS Secrets Manager..."
+WP_SECRETS=$(aws secretsmanager get-secret-value \
   --region "${aws_region}" \
   --secret-id "${wordpress_secrets_name}" \
   --query 'SecretString' \
   --output text)
 
 # Verify secrets retrieval
-if [ -z "$SECRETS" ]; then
-  log "ERROR: Failed to retrieve secrets from AWS Secrets Manager"
+if [ -z "$WP_SECRETS" ]; then
+  log "ERROR: Failed to retrieve WordPress secrets from AWS Secrets Manager"
   exit 1
 fi
 
-log "Secrets retrieved successfully."
+log "WordPress secrets retrieved successfully."
 
-# Export secrets for WordPress configuration
-export DB_NAME=$(echo "$SECRETS" | jq -r '.DB_NAME')
-export DB_USER=$(echo "$SECRETS" | jq -r '.DB_USER')
-export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.DB_PASSWORD')
+# Retrieve RDS Database Secrets
+log "Retrieving RDS database secrets from AWS Secrets Manager..."
+RDS_SECRETS=$(aws secretsmanager get-secret-value \
+  --region "${aws_region}" \
+  --secret-id "${rds_secrets_name}" \
+  --query 'SecretString' \
+  --output text)
 
-export WP_ADMIN=$(echo "$SECRETS" | jq -r '.ADMIN_USER')
-export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.ADMIN_EMAIL')
-export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.ADMIN_PASSWORD')
+# Verify secrets retrieval
+if [ -z "$RDS_SECRETS" ]; then
+  log "ERROR: Failed to retrieve RDS database secrets from AWS Secrets Manager"
+  exit 1
+fi
 
-# Export WordPress security keys and salts
-export AUTH_KEY=$(echo "$SECRETS" | jq -r '.AUTH_KEY')
-export SECURE_AUTH_KEY=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_KEY')
-export LOGGED_IN_KEY=$(echo "$SECRETS" | jq -r '.LOGGED_IN_KEY')
-export NONCE_KEY=$(echo "$SECRETS" | jq -r '.NONCE_KEY')
-export AUTH_SALT=$(echo "$SECRETS" | jq -r '.AUTH_SALT')
-export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_SALT')
-export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.LOGGED_IN_SALT')
-export NONCE_SALT=$(echo "$SECRETS" | jq -r '.NONCE_SALT')
+log "All RDS database secrets retrieved successfully."
 
 # Retrieve Redis AUTH token from AWS Secrets Manager
 log "Retrieving Redis AUTH token from AWS Secrets Manager..."
@@ -115,6 +114,28 @@ if [ -z "$REDIS_AUTH_SECRETS" ]; then
 fi
 
 log "Redis AUTH secret retrieved successfully."
+
+# --- Export secrets for WordPress configuration --- #
+
+# Export WordPress admin credentials from the correct source ($WP_SECRETS)
+export WP_ADMIN=$(echo "$WP_SECRETS" | jq -r '.ADMIN_USER')
+export WP_ADMIN_EMAIL=$(echo "$WP_SECRETS" | jq -r '.ADMIN_EMAIL')
+export WP_ADMIN_PASSWORD=$(echo "$WP_SECRETS" | jq -r '.ADMIN_PASSWORD')
+
+# Export WordPress security keys and salts from the correct source ($WP_SECRETS)
+export AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.AUTH_KEY')
+export SECURE_AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.SECURE_AUTH_KEY')
+export LOGGED_IN_KEY=$(echo "$WP_SECRETS" | jq -r '.LOGGED_IN_KEY')
+export NONCE_KEY=$(echo "$WP_SECRETS" | jq -r '.NONCE_KEY')
+export AUTH_SALT=$(echo "$WP_SECRETS" | jq -r '.AUTH_SALT')
+export SECURE_AUTH_SALT=$(echo "$WP_SECRETS" | jq -r '.SECURE_AUTH_SALT')
+export LOGGED_IN_SALT=$(echo "$WP_SECRETS" | jq -r '.LOGGED_IN_SALT')
+export NONCE_SALT=$(echo "$WP_SECRETS" | jq -r '.NONCE_SALT')
+
+# Export RDS secrets from the correct source ($RDS_SECRETS)
+export DB_NAME=$(echo "$RDS_SECRETS" | jq -r '.DB_NAME')
+export DB_USER=$(echo "$RDS_SECRETS" | jq -r '.DB_USER')
+export DB_PASSWORD=$(echo "$RDS_SECRETS" | jq -r '.DB_PASSWORD')
   
 # Export Redis AUTH token for WordPress configuration
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')

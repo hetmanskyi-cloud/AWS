@@ -6,7 +6,7 @@
 # - CloudWatch Agent and custom log publishing
 # - Systems Manager (SSM) for secure remote management
 # - KMS access for decrypting EBS and S3 objects
-# - Secrets Manager access for WordPress and Redis credentials
+# - Secrets Manager access for WordPress, RDS and Redis credentials
 # Temporary credentials are delivered via IMDSv2 (Instance Metadata Service v2),
 # eliminating the need to hardcode or rotate keys manually.
 
@@ -146,11 +146,15 @@ resource "aws_iam_role_policy_attachment" "ssm_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# --- WordPress Instance Access Policy --- #
-# Allows ASG instances to retrieve database credentials from AWS Secrets Manager.
-resource "aws_iam_policy" "wordpress_instance_policy" {
-  name        = "${var.name_prefix}-wordpress-instance-policy-${var.environment}"
-  description = "Allows WordPress instances to retrieve database credentials from AWS Secrets Manager"
+# --- Secrets Manager Access Policy --- #
+
+# This single policy grants instance access to all required secrets:
+# 1. WordPress application keys/salts
+# 2. RDS database credentials
+# 3. Redis AUTH token
+resource "aws_iam_policy" "secrets_manager_access_policy" {
+  name        = "${var.name_prefix}-secrets-access-policy-${var.environment}"
+  description = "Allows instances to retrieve secrets for WordPress, RDS, and Redis."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -161,43 +165,21 @@ resource "aws_iam_policy" "wordpress_instance_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = var.wordpress_secrets_arn
-      }
-    ]
-  })
-}
-
-# Attach WordPress instance policy to the role
-resource "aws_iam_role_policy_attachment" "wordpress_instance_policy_attachment" {
-  role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.wordpress_instance_policy.arn
-}
-
-# --- Redis AUTH Secret Access Policy --- #
-# Allows ASG instances to retrieve Redis AUTH token from AWS Secrets Manager.
-resource "aws_iam_policy" "redis_auth_policy" {
-  name        = "${var.name_prefix}-redis-auth-policy-${var.environment}"
-  description = "Allows WordPress instances to retrieve Redis AUTH token from AWS Secrets Manager"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
+        # The Resource block lists all three secret ARNs.
+        Resource = [
+          var.wordpress_secrets_arn,
+          var.rds_secrets_arn,
+          var.redis_auth_secret_arn
         ]
-        Resource = var.redis_auth_secret_arn
       }
     ]
   })
 }
 
-# Attach Redis AUTH policy to the role only if ARN is provided
-resource "aws_iam_role_policy_attachment" "redis_auth_policy_attachment" {
+# Attach the new consolidated Secrets Manager policy to the role.
+resource "aws_iam_role_policy_attachment" "secrets_manager_access_policy_attachment" {
   role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.redis_auth_policy.arn
+  policy_arn = aws_iam_policy.secrets_manager_access_policy.arn
 }
 
 # --- KMS Decryption Policy --- #
@@ -327,13 +309,10 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 #    - Enable CloudTrail logging for IAM actions to track access.
 #
 # 9. Secrets Manager integration:
-#    - A dedicated IAM policy grants ASG instances read-only access (Get/Describe) to the 
-#      specified secret in AWS Secrets Manager.
-#    - This avoids storing raw passwords in Terraform variables and leverages AWS-native
-#      secrets management.
-#    - Two separate policies are created for WordPress secrets and Redis AUTH token:
-#      * wordpress_instance_policy: Always created, grants access to WordPress secrets
-#      * redis_auth_policy: Provides access to Redis AUTH token secret
+#    - A single, consolidated IAM policy (`secrets_manager_access_policy`) grants the instance role
+#      read-only access (Get/Describe) to all three required secrets: WordPress, RDS, and Redis.
+#    - This avoids storing raw passwords in Terraform variables, leverages AWS-native secrets management,
+#      and simplifies policy administration.
 # 10. SSM Ansible logs policy:
 #    - Grants ASG instances permission to write and read Ansible logs to a dedicated S3 bucket in the "dev" environment.
 #    - The policy is conditionally created and attached only if the SSM Ansible logs bucket ARN is provided.

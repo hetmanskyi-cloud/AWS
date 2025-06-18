@@ -71,7 +71,8 @@ log "Exporting environment variables..."
   echo "WP_VERSION=\"${wordpress_version}\""
   
   # Export other necessary environment variables
-  echo "SECRET_NAME=\"${wordpress_secrets_name}\""
+  echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
+  echo "RDS_SECRETS_NAME=\"${rds_secrets_name}\""
   echo "REDIS_AUTH_SECRET_NAME=\"${redis_auth_secret_name}\""
   echo "HEALTHCHECK_S3_PATH=\"${healthcheck_s3_path}\""
   echo "AWS_DEFAULT_REGION=\"${aws_region}\""

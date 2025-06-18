@@ -242,6 +242,16 @@ variable "db_port" {
   type        = number
 }
 
+variable "rds_secrets_name" {
+  description = "The name of the AWS Secrets Manager secret containing RDS credentials."
+  type        = string
+}
+
+variable "rds_secrets_arn" {
+  description = "The ARN of the AWS Secrets Manager secret containing RDS credentials."
+  type        = string
+}
+
 # --- PHP configuration for WordPress setup --- #
 variable "php_version" {
   description = "PHP version used for WordPress installation"

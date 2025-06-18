@@ -337,16 +337,6 @@ variable "wp_admin_email" {
   sensitive   = true
 }
 
-variable "wordpress_secret_name" {
-  description = "The name of the Secrets Manager secret for WordPress credentials"
-  type        = string
-}
-
-variable "redis_auth_secret_name" {
-  description = "The name of the Secrets Manager secret for Redis AUTH token"
-  type        = string
-}
-
 # WordPress Database Configuration
 
 variable "db_name" {
@@ -855,6 +845,35 @@ variable "cw_logs_retention_in_days" {
     condition     = var.cw_logs_retention_in_days >= 1
     error_message = "Log retention must be at least 1 day."
   }
+}
+
+# --- Secrets Manager Variables --- #
+
+# Random Secrets Versioning
+# This variable is used to trigger the re-creation of all random secrets.
+variable "secrets_version" {
+  description = "A version identifier (e.g., release number '1.2.0' or a date '2025-06-17') to trigger the re-creation of ALL random secrets. Change this to rotate credentials during a new AMI rollout."
+  type        = string
+  default     = "1.0.0"
+}
+
+# Secrets Manager Secret Names
+
+variable "wordpress_secret_name" {
+  description = "The name of the Secrets Manager secret for WordPress credentials"
+  type        = string
+}
+
+variable "redis_auth_secret_name" {
+  description = "The name of the Secrets Manager secret for Redis AUTH token"
+  type        = string
+}
+
+# variables.tf
+variable "rds_secret_name" {
+  description = "The name of the AWS Secrets Manager secret for RDS credentials."
+  type        = string
+  default     = "rds-secrets"
 }
 
 # --- Notes --- #

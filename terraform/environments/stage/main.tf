@@ -214,6 +214,8 @@ module "asg" {
   # Secrets Configuration  
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
   wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn
+  rds_secrets_name       = var.rds_secret_name
+  rds_secrets_arn        = aws_secretsmanager_secret.rds_secrets.arn
   redis_auth_secret_arn  = aws_secretsmanager_secret.redis_auth.arn
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 

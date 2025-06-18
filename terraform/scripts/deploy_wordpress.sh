@@ -45,39 +45,36 @@ fi
 
 # --- 3. Retrieve secrets from AWS Secrets Manager --- #
 
-log "Retrieving secrets from AWS Secrets Manager..."
-SECRETS=$(aws secretsmanager get-secret-value \
+# Retrieve WordPress Secrets
+log "Retrieving WordPress secrets from AWS Secrets Manager..."
+WP_SECRETS=$(aws secretsmanager get-secret-value \
   --region "${AWS_DEFAULT_REGION}" \
-  --secret-id "${SECRET_NAME}" \
+  --secret-id "${WP_SECRETS_NAME}" \
   --query 'SecretString' \
   --output text)
 
 # Verify secrets retrieval
-if [ -z "$SECRETS" ]; then
-  log "ERROR: Failed to retrieve secrets from AWS Secrets Manager"
+if [ -z "$WP_SECRETS" ]; then
+  log "ERROR: Failed to retrieve WordPress secrets from AWS Secrets Manager"
   exit 1
 fi
 
-log "Secrets retrieved successfully."
+log "WordPress secrets retrieved successfully."
 
-# Export secrets for WordPress configuration
-export DB_NAME=$(echo "$SECRETS" | jq -r '.DB_NAME')
-export DB_USER=$(echo "$SECRETS" | jq -r '.DB_USER')
-export DB_PASSWORD=$(echo "$SECRETS" | jq -r '.DB_PASSWORD')
+# Retrieve RDS Database Secrets
+log "Retrieving RDS database secrets from AWS Secrets Manager..."
+RDS_SECRETS=$(aws secretsmanager get-secret-value \
+  --region "${AWS_DEFAULT_REGION}" \
+  --secret-id "${RDS_SECRETS_NAME}" \
+  --query 'SecretString' \
+  --output text)
 
-export WP_ADMIN=$(echo "$SECRETS" | jq -r '.ADMIN_USER')
-export WP_ADMIN_EMAIL=$(echo "$SECRETS" | jq -r '.ADMIN_EMAIL')
-export WP_ADMIN_PASSWORD=$(echo "$SECRETS" | jq -r '.ADMIN_PASSWORD')
-
-# Export WordPress security keys and salts
-export AUTH_KEY=$(echo "$SECRETS" | jq -r '.AUTH_KEY')
-export SECURE_AUTH_KEY=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_KEY')
-export LOGGED_IN_KEY=$(echo "$SECRETS" | jq -r '.LOGGED_IN_KEY')
-export NONCE_KEY=$(echo "$SECRETS" | jq -r '.NONCE_KEY')
-export AUTH_SALT=$(echo "$SECRETS" | jq -r '.AUTH_SALT')
-export SECURE_AUTH_SALT=$(echo "$SECRETS" | jq -r '.SECURE_AUTH_SALT')
-export LOGGED_IN_SALT=$(echo "$SECRETS" | jq -r '.LOGGED_IN_SALT')
-export NONCE_SALT=$(echo "$SECRETS" | jq -r '.NONCE_SALT')
+# Verify secrets retrieval
+if [ -z "$RDS_SECRETS" ]; then
+  log "ERROR: Failed to retrieve RDS database secrets from AWS Secrets Manager"
+  exit 1
+fi
+log "RDS database secrets retrieved successfully."
 
 # Retrieve Redis AUTH token from AWS Secrets Manager
 log "Retrieving Redis AUTH token from AWS Secrets Manager..."
@@ -94,14 +91,34 @@ if [ -z "$REDIS_AUTH_SECRETS" ]; then
 fi
 
 log "Redis AUTH secret retrieved successfully."
+
+# Export WordPress admin credentials from the $WP_SECRETS variable
+export WP_ADMIN=$(echo "$WP_SECRETS" | jq -r '.ADMIN_USER')
+export WP_ADMIN_EMAIL=$(echo "$WP_SECRETS" | jq -r '.ADMIN_EMAIL')
+export WP_ADMIN_PASSWORD=$(echo "$WP_SECRETS" | jq -r '.ADMIN_PASSWORD')
+
+# Export WordPress security keys and salts from the $WP_SECRETS variable
+export AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.AUTH_KEY')
+export SECURE_AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.SECURE_AUTH_KEY')
+export LOGGED_IN_KEY=$(echo "$WP_SECRETS" | jq -r '.LOGGED_IN_KEY')
+export NONCE_KEY=$(echo "$WP_SECRETS" | jq -r '.NONCE_KEY')
+export AUTH_SALT=$(echo "$WP_SECRETS" | jq -r '.AUTH_SALT')
+export SECURE_AUTH_SALT=$(echo "$WP_SECRETS" | jq -r '.SECURE_AUTH_SALT')
+export LOGGED_IN_SALT=$(echo "$WP_SECRETS" | jq -r '.LOGGED_IN_SALT')
+export NONCE_SALT=$(echo "$WP_SECRETS" | jq -r '.NONCE_SALT')
+
+# Export RDS secrets from the $RDS_SECRETS variable
+export DB_NAME=$(echo "$RDS_SECRETS" | jq -r '.DB_NAME')
+export DB_USER=$(echo "$RDS_SECRETS" | jq -r '.DB_USER')
+export DB_PASSWORD=$(echo "$RDS_SECRETS" | jq -r '.DB_PASSWORD')
   
-# Export Redis AUTH token for WordPress configuration
+# Export Redis AUTH token from the $REDIS_AUTH_SECRETS variable
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
 
 # Verify all required values are present
-for VAR in DB_NAME DB_USER DB_PASSWORD WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD \
+for VAR in WP_ADMIN WP_ADMIN_EMAIL WP_ADMIN_PASSWORD \
            AUTH_KEY SECURE_AUTH_KEY LOGGED_IN_KEY NONCE_KEY AUTH_SALT SECURE_AUTH_SALT \
-           LOGGED_IN_SALT NONCE_SALT REDIS_AUTH_TOKEN; do
+           LOGGED_IN_SALT NONCE_SALT DB_NAME DB_USER DB_PASSWORD REDIS_AUTH_TOKEN; do
   if [ -z "${!VAR}" ]; then
     log "ERROR: Required secret variable $VAR is empty."
     exit 1

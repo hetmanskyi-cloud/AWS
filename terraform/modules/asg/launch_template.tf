@@ -47,6 +47,7 @@ locals {
       retry_retry_interval   = local.retry_config.RETRY_INTERVAL
       healthcheck_s3_path    = local.healthcheck_s3_path
       wordpress_secrets_name = var.wordpress_secrets_name
+      rds_secrets_name       = var.rds_secrets_name
       redis_auth_secret_name = var.redis_auth_secret_name
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
@@ -69,6 +70,7 @@ locals {
       retry_max_retries      = local.retry_config.MAX_RETRIES
       retry_retry_interval   = local.retry_config.RETRY_INTERVAL
       wordpress_secrets_name = var.wordpress_secrets_name
+      rds_secrets_name       = var.rds_secrets_name
       redis_auth_secret_name = var.redis_auth_secret_name
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
