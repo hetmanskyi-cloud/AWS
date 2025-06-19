@@ -483,8 +483,9 @@ module "cloudfront" {
     # Add any other relevant S3 bucket outputs here that CloudFront module might need
   }
 
-  logging_bucket_arn = module.s3.logging_bucket_arn # Assuming your S3 module outputs a general logging bucket ARN
-  kms_key_arn        = module.kms.kms_key_arn       # Pass the KMS key for logging encryption
+  logging_bucket_arn         = module.s3.logging_bucket_arn         # Assuming your S3 module outputs a general logging bucket ARN
+  logging_bucket_domain_name = module.s3.logging_bucket_domain_name # Domain name for the logging bucket
+  kms_key_arn                = module.kms.kms_key_arn               # Pass the KMS key for logging encryption
 
   # WAF Integration Settings
   enable_cloudfront_waf = var.enable_cloudfront_waf
@@ -494,6 +495,9 @@ module "cloudfront" {
 
   # CloudFront Access Logging v2 Settings
   enable_cloudfront_access_logging = var.enable_cloudfront_access_logging
+
+  # CloudFront Standard S3 Logging Settings
+  enable_cloudfront_standard_s3_logging = var.enable_cloudfront_standard_s3_logging
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_alarm_topic_arn = one(aws_sns_topic.cloudfront_alarms_topic[*].arn)

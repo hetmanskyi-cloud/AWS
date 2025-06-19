@@ -812,6 +812,12 @@ variable "enable_cloudfront_access_logging" {
   default     = false
 }
 
+variable "enable_cloudfront_standard_s3_logging" {
+  description = "A boolean flag to enable Standard Access Logging to an S3 bucket. This is required to fix the tfsec warning."
+  type        = bool
+  default     = false
+}
+
 # --- CloudTrail Variables --- #
 
 variable "cloudtrail_logs_retention_in_days" {

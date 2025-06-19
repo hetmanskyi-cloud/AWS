@@ -22,20 +22,18 @@ variable "tags" {
 # --- CloudFront Distribution Settings --- #
 # Variables specific to the CloudFront distribution itself.
 
+# --- S3 Buckets Configuration --- #
+# This variable receives a map of S3 bucket configurations from the root module.
+# It allows this module to make conditional decisions based on whether specific
+# buckets (like 'wordpress_media' or 'logging') are enabled.
 variable "default_region_buckets" {
-  description = "A map describing S3 buckets in the default region, including their enabled status. Used for conditional resource creation."
-  type = object({
-    wordpress_media = object({
-      enabled = bool
-    })
-    # Add other buckets here if they are relevant for this module's conditional logic
-  })
-  # Example default structure; replace with your actual bucket configurations
-  default = {
-    wordpress_media = {
-      enabled = false # Set to true if the bucket is enabled in the default region
-    }
-  }
+  description = "A map describing S3 buckets, used for conditional resource creation."
+
+  type = map(object({
+    enabled = bool
+  }))
+
+  default = {}
 }
 
 variable "wordpress_media_cloudfront_enabled" {
@@ -82,6 +80,12 @@ variable "logging_bucket_arn" {
   # No default, as this is a critical dependency. Example: "arn:aws:s3:::your-central-logs-bucket"
 }
 
+variable "logging_bucket_domain_name" {
+  description = "The domain name of the S3 bucket to store CloudFront access logs (e.g., my-logs.s3.amazonaws.com). If null, logging is disabled."
+  type        = string
+  default     = null
+}
+
 variable "kms_key_arn" {
   description = "The ARN of the KMS key used for encrypting logs in the S3 logging bucket. Set to `null` to disable KMS encryption."
   type        = string
@@ -102,6 +106,14 @@ variable "enable_cloudfront_firehose" {
 
 variable "enable_cloudfront_access_logging" {
   description = "Set to true to enable CloudFront Access Logging v2 via AWS CloudWatch Log Delivery to S3."
+  type        = bool
+  default     = false
+}
+
+# --- S3 Standard CloudFront Access Logging --- #
+
+variable "enable_cloudfront_standard_s3_logging" {
+  description = "A boolean flag to enable Standard Access Logging to an S3 bucket. This is required to fix the tfsec warning."
   type        = bool
   default     = false
 }

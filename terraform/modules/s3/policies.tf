@@ -93,7 +93,7 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
   }
 
   # Statement 2: Allow CloudFront Access Logs v2 (via CloudWatch Log Delivery) to write to this bucket.
-  # This is for the modern CloudFront access logging method.
+  # This is for the modern CloudFront access logging method for Real-time Logs.
   statement {
     sid    = "AllowCloudFrontAccessLogsV2"
     effect = "Allow"

@@ -69,7 +69,7 @@ resource "aws_cloudwatch_log_delivery" "cloudfront_access_logs_delivery" {
     # The valid variables to use in the suffix path will vary by each log source.
     # For CloudFront, common variables include {DistributionId}, {yyyy}, {MM}, {dd}, {HH}.
     # We'll include a static prefix and dynamic components here.
-    suffix_path = "cloudfront-access-logs/${var.environment}/{DistributionId}/{yyyy}/{MM}/{dd}/{HH}/" # Combined static prefix and dynamic path
+    suffix_path = "cloudfront-access-logs/{DistributionId}/{yyyy}/{MM}/{dd}/{HH}/" # Combined static prefix and dynamic path
   }
 
   tags = merge(var.tags, {

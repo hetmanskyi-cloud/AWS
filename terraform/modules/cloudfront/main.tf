@@ -108,6 +108,20 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63"
   }
 
+  # --- Standart Access Logging Configuration --- #
+  # This dynamic block adds the logging configuration ONLY IF a bucket name is provided.  
+  dynamic "logging_config" {
+    # This for_each creates the block if the variable is not null,
+    # and does nothing if the variable is null.
+    for_each = var.enable_cloudfront_standard_s3_logging && lookup(var.default_region_buckets, "logging", { enabled = false }).enabled ? [1] : []
+
+    content {
+      bucket          = var.logging_bucket_domain_name
+      include_cookies = false
+      prefix          = "cloudfront-access-logs/" # A structured prefix for better log organization
+    }
+  }
+
   # --- Viewer Certificate (Default CloudFront SSL) --- #
   # Configures SSL using the default CloudFront certificate for simplicity in non-production environments.
   # For production, a custom domain and an ACM certificate (in us-east-1) are recommended.
@@ -133,6 +147,54 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   # Applies consistent tagging across the CloudFront distribution for identification and cost management.
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-wordpress-media-cdn-${var.environment}"
+  })
+}
+
+# --- CloudFront Log Bucket Policy --- #
+# This policy grants CloudFront permission to write Standard Access Logs to the specified S3 bucket.
+# It is created inside the CloudFront module to avoid circular dependencies.
+resource "aws_s3_bucket_policy" "cloudfront_logs_bucket_policy" {
+
+  count = var.enable_cloudfront_standard_s3_logging && lookup(var.default_region_buckets, "logging", { enabled = false }).enabled ? 1 : 0
+
+  bucket = split(":", var.logging_bucket_arn)[5]
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Statement 1: Allow CloudFront to write log objects
+      {
+        Sid    = "AllowCloudFrontPutObject",
+        Effect = "Allow",
+        Principal = {
+          Service = "delivery.cloudfront.amazonaws.com"
+        },
+        Action = "s3:PutObject",
+        # Resource path is now shorter and without the redundant environment folder
+        Resource = "${var.logging_bucket_arn}/cloudfront-access-logs/*",
+        Condition = {
+          StringEquals = {
+            "aws:SourceArn" = aws_cloudfront_distribution.wordpress_media[0].arn
+          }
+        }
+      },
+      # Statement 2: Allow CloudFront to check bucket ACL before writing
+      {
+        Sid    = "AllowCloudFrontGetAcl",
+        Effect = "Allow",
+        Principal = {
+          Service = "delivery.cloudfront.amazonaws.com"
+        },
+        Action = "s3:GetBucketAcl",
+        # This permission applies to the bucket resource itself
+        Resource = var.logging_bucket_arn,
+        Condition = {
+          StringEquals = {
+            "aws:SourceArn" = aws_cloudfront_distribution.wordpress_media[0].arn
+          }
+        }
+      }
+    ]
   })
 }
 

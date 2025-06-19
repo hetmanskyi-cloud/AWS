@@ -32,6 +32,11 @@ output "logging_bucket_id" {
   value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].id : null
 }
 
+output "logging_bucket_domain_name" {
+  description = "The domain name of the central logging S3 bucket."
+  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].bucket_domain_name : null
+}
+
 # --- ALB Logs Bucket --- #
 
 # --- Output: ALB Logs Bucket Name --- #
