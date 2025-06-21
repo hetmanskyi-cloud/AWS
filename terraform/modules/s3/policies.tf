@@ -94,29 +94,31 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
 
   # Statement 2: Allow CloudFront Access Logs v2 (via CloudWatch Log Delivery) to write to this bucket.
   # This is for the modern CloudFront access logging method for Real-time Logs.
-  statement {
-    sid    = "AllowCloudFrontAccessLogsV2"
-    effect = "Allow"
-    actions = [
-      "s3:PutObject",
-      "s3:GetBucketAcl" # Required by the delivery service for validation.
-    ]
+  dynamic "statement" {
+    for_each = var.enable_cloudfront_standard_logging_v2 ? [1] : []
+    content {
+      sid    = "AllowCloudFrontAccessLogsV2"
+      effect = "Allow"
+      actions = [
+        "s3:PutObject",
+        "s3:GetBucketAcl" # Required by the delivery service for validation.
+      ]
+      principals {
+        type        = "Service"
+        identifiers = ["delivery.logs.amazonaws.com"]
+      }
 
-    principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
-    }
+      resources = [
+        aws_s3_bucket.default_region_buckets["logging"].arn,
+        "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+      ]
 
-    resources = [
-      aws_s3_bucket.default_region_buckets["logging"].arn,
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-    ]
-
-    # This security condition restricts access to delivery services originating from your AWS account.
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [var.aws_account_id]
+      # This security condition restricts access to delivery services originating from your AWS account.
+      condition {
+        test     = "StringEquals"
+        variable = "aws:SourceAccount"
+        values   = [var.aws_account_id]
+      }
     }
   }
 

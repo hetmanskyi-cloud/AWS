@@ -10,19 +10,6 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
   })
 }
 
-# --- Redis AUTH Token from Secrets Manager --- #
-# Retrieves the Redis AUTH token from AWS Secrets Manager for secure authentication
-data "aws_secretsmanager_secret" "redis_auth" {
-  count = var.redis_auth_secret_name != "" ? 1 : 0
-  name  = var.redis_auth_secret_name
-}
-
-# Retrieves the secret version from AWS Secrets Manager
-data "aws_secretsmanager_secret_version" "redis_auth" {
-  count     = var.redis_auth_secret_name != "" ? 1 : 0
-  secret_id = data.aws_secretsmanager_secret.redis_auth[0].id
-}
-
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
 resource "aws_elasticache_replication_group" "redis" {
@@ -50,9 +37,9 @@ resource "aws_elasticache_replication_group" "redis" {
   snapshot_window          = var.snapshot_window          # Preferred time window for snapshots.
 
   # Security and Encryption
-  at_rest_encryption_enabled = true # Encrypts data at rest using KMS.
-  transit_encryption_enabled = true # Encrypts data in transit between nodes.
-  auth_token                 = var.redis_auth_secret_name != "" ? jsondecode(data.aws_secretsmanager_secret_version.redis_auth[0].secret_string).REDIS_AUTH_TOKEN : null
+  at_rest_encryption_enabled = true                 # Encrypts data at rest using KMS.
+  transit_encryption_enabled = true                 # Encrypts data in transit between nodes.
+  auth_token                 = var.redis_auth_token # Redis AUTH token for client authentication.
 
   lifecycle {
     prevent_destroy = false # Prevent accidental deletion

@@ -62,10 +62,11 @@ variable "redis_security_group_id" {
   default     = null
 }
 
-variable "redis_auth_secret_name" {
-  description = "Name of the Secrets Manager secret containing the Redis AUTH token"
+variable "redis_auth_token" {
+  description = "The AUTH token for Redis. Should be passed from the root module."
   type        = string
-  default     = ""
+  sensitive   = true
+  default     = null
 }
 
 variable "kms_key_arn" {

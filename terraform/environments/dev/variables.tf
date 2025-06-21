@@ -806,16 +806,10 @@ variable "enable_cloudfront_firehose" {
   default     = false
 }
 
-variable "enable_cloudfront_access_logging" {
-  description = "Set to true to enable CloudFront Access Logging v2 via AWS CloudWatch Log Delivery to S3."
+variable "enable_cloudfront_standard_logging_v2" {
+  description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"
   type        = bool
-  default     = false
-}
-
-variable "enable_cloudfront_standard_s3_logging" {
-  description = "A boolean flag to enable Standard Access Logging to an S3 bucket. This is required to fix the tfsec warning."
-  type        = bool
-  default     = false
+  default     = true
 }
 
 # --- CloudTrail Variables --- #

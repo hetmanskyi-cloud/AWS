@@ -15,7 +15,7 @@ resource "aws_cloudwatch_log_delivery_source" "cloudfront_access_logs_source" {
 
   # Create the log delivery source only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
 
   name         = "${var.name_prefix}-cloudfront-access-logs-source-${var.environment}"
   log_type     = "ACCESS_LOGS"                                      # Specifies that this source collects CloudFront access logs
@@ -34,7 +34,7 @@ resource "aws_cloudwatch_log_delivery_destination" "cloudfront_access_logs_s3_de
 
   # Create the log delivery destination only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
 
   name          = "${var.name_prefix}-cloudfront-access-logs-s3-destination-${var.environment}"
   output_format = "parquet" # Recommended format for analytics and cost reduction
@@ -58,7 +58,7 @@ resource "aws_cloudwatch_log_delivery" "cloudfront_access_logs_delivery" {
 
   # Create the log delivery only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
 
   delivery_source_name     = aws_cloudwatch_log_delivery_source.cloudfront_access_logs_source[0].name
   delivery_destination_arn = aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].arn
@@ -68,7 +68,7 @@ resource "aws_cloudwatch_log_delivery" "cloudfront_access_logs_delivery" {
     # This string allows re-configuring the S3 object prefix to contain either static or variable sections.
     # The valid variables to use in the suffix path will vary by each log source.
     # For CloudFront, common variables include {DistributionId}, {yyyy}, {MM}, {dd}, {HH}.
-    # We'll include a static prefix and dynamic components here.
+    # Includes a static prefix and dynamic components here.
     suffix_path = "cloudfront-access-logs/{DistributionId}/{yyyy}/{MM}/{dd}/{HH}/" # Combined static prefix and dynamic path
   }
 
@@ -114,7 +114,7 @@ resource "aws_cloudwatch_log_delivery" "cloudfront_access_logs_delivery" {
 #    }
 #    ```
 #    Ensure this policy is attached to your S3 logging bucket.
-# 5. Resources are conditionally created based on `var.enable_cloudfront_access_logging`
+# 5. Resources are conditionally created based on `var.enable_cloudfront_standard_logging_v2g`
 #    and `local.enable_cloudfront_media_distribution`, ensuring deployment only when logging
 #    and the associated CloudFront distribution are enabled.
 # 6. Consistent tagging (`var.tags`) is applied for resource identification and cost allocation.

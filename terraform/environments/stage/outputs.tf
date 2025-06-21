@@ -323,6 +323,16 @@ output "cloudwatch_wordpress_log_group_name" {
   description = "CloudWatch Log Group for WordPress debug/application logs"
 }
 
+# --- CloudFront Module Outputs --- #
+
+# Output: CloudFront Standard Logging v2 S3 Log Path (from CloudFront Module)
+# This output exposes the S3 URI prefix for CloudFront Standard Logging v2 access logs
+# from the child 'cloudfront' module to the root level.
+output "cloudfront_standard_logging_v2_log_prefix" {
+  description = "S3 URI prefix for CloudFront Standard Logging v2 Parquet logs."
+  value       = module.cloudfront.cloudfront_standard_logging_v2_log_prefix
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.

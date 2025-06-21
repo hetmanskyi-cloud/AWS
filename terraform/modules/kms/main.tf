@@ -86,12 +86,14 @@ locals {
       "wafv2.amazonaws.com",          # WAFv2
       "vpc-flow-logs.amazonaws.com",  # VPC Flow Logs
       "secretsmanager.amazonaws.com", # Secrets Manager for Secrets encryption
+      "cloudfront.amazonaws.com",     # CloudFront
     ],
     # Conditional services (enabled via variables):
     var.default_region_buckets["cloudtrail"].enabled ? ["cloudtrail.amazonaws.com"] : [],          # CloudTrail Logging
     var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],                                         # DynamoDB
     (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [], # ALB & CloudFront Firehose
-    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],        # ALB & Cloudfront WAF
+    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],        # ALB & Cloudfront WAF    
+    var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],              # CloudFront Realtime S3 Logging
   ))
 
   # Extract S3 bucket names for conditional CloudTrail access in KMS policy.

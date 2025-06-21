@@ -35,34 +35,34 @@ resource "aws_iam_policy" "cloudfront_firehose_policy" {
       {
         Effect = "Allow",
         Action = [
-          "s3:PutObject",
-          "s3:GetBucketLocation",
-          "s3:ListBucket"
+          "s3:PutObject",         # Grants Firehose the ability to put logs into the S3 bucket
+          "s3:GetBucketLocation", # Allows Firehose to get the location of the bucket
+          "s3:ListBucket"         # Allows Firehose to list the bucket contents for logging
         ],
         Resource = [
-          "${var.logging_bucket_arn}/*",
-          var.logging_bucket_arn
+          "${var.logging_bucket_arn}/*", # Permission to write to all objects inside the bucket
+          var.logging_bucket_arn         # Permission to access the bucket itself
         ]
       },
       {
         Effect = "Allow",
         Action = [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey"
+          "kms:Encrypt",          # Allow encryption with KMS
+          "kms:Decrypt",          # Allow decryption of objects with KMS
+          "kms:ReEncrypt*",       # Allows re-encryption of data
+          "kms:GenerateDataKey*", # Allows generating encryption keys for Firehose
+          "kms:DescribeKey"       # Allows Firehose to describe the KMS key
         ],
-        Resource = var.kms_key_arn
+        Resource = var.kms_key_arn # Specifies the KMS key for encryption and decryption
       },
       {
         # This permission allows Firehose to write error logs to CloudWatch if data delivery to S3 fails.
         # It requires the corresponding log group to exist.
         Effect = "Allow",
         Action = [
-          "logs:PutLogEvents"
+          "logs:PutLogEvents" # Allows Firehose to send logs to CloudWatch for error tracking
         ],
-        Resource = "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/*:log-stream:*"
+        Resource = "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/*:log-stream:*" # Logs for Firehose error events
       }
     ]
   })

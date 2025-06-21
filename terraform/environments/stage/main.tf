@@ -99,6 +99,9 @@ module "kms" {
   enable_cloudfront_firehose = var.enable_cloudfront_firehose # Enable KMS permissions for CloudFront Firehose
   enable_cloudfront_waf      = var.enable_cloudfront_waf      # Enable KMS permissions for CloudFront WAF
 
+  # CloudFront Logging Settings
+  enable_cloudfront_standard_logging_v2 = var.enable_cloudfront_standard_logging_v2 # Enable CloudFront standard logging v2
+
   # S3 buckets for KMS permissions
   default_region_buckets     = var.default_region_buckets
   replication_region_buckets = var.replication_region_buckets
@@ -341,7 +344,7 @@ module "s3" {
   # CloudFront Integration
   wordpress_media_cloudfront_distribution_arn = module.cloudfront.cloudfront_distribution_arn
   wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
-  enable_cloudfront_access_logging            = var.enable_cloudfront_access_logging
+  enable_cloudfront_standard_logging_v2       = var.enable_cloudfront_standard_logging_v2
 
   # ASG EC2 Instance Role ARNs for WordPress media
   asg_instance_role_arn = module.asg.instance_role_arn
@@ -392,7 +395,7 @@ module "elasticache" {
   redis_cpu_credits_threshold          = var.redis_cpu_credits_threshold
 
   # Secrets Configuration
-  redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
+  redis_auth_token = random_password.redis_auth_token.result
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
@@ -484,6 +487,7 @@ module "cloudfront" {
   }
 
   logging_bucket_arn         = module.s3.logging_bucket_arn         # Assuming your S3 module outputs a general logging bucket ARN
+  logging_bucket_name        = module.s3.logging_bucket_name        # Name of the logging bucket
   logging_bucket_domain_name = module.s3.logging_bucket_domain_name # Domain name for the logging bucket
   kms_key_arn                = module.kms.kms_key_arn               # Pass the KMS key for logging encryption
 
@@ -494,10 +498,7 @@ module "cloudfront" {
   enable_cloudfront_firehose = var.enable_cloudfront_firehose
 
   # CloudFront Access Logging v2 Settings
-  enable_cloudfront_access_logging = var.enable_cloudfront_access_logging
-
-  # CloudFront Standard S3 Logging Settings
-  enable_cloudfront_standard_s3_logging = var.enable_cloudfront_standard_s3_logging
+  enable_cloudfront_standard_logging_v2 = var.enable_cloudfront_standard_logging_v2
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_alarm_topic_arn = one(aws_sns_topic.cloudfront_alarms_topic[*].arn)

@@ -71,32 +71,41 @@ output "firehose_iam_role_arn" {
 # --- CloudWatch Log Delivery Source Outputs --- #
 output "cloudfront_access_logs_source_name" {
   description = "The name of the CloudWatch Log Delivery Source for CloudFront access logs."
-  value       = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_source.cloudfront_access_logs_source[0].name : null
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_source.cloudfront_access_logs_source[0].name : null
   # Condition: Output only if access logging and the distribution are enabled.
 }
 
 # --- CloudWatch Log Delivery Destination Outputs --- #
 output "cloudfront_access_logs_destination_name" {
   description = "The name of the CloudWatch Log Delivery Destination (S3 bucket) for CloudFront access logs."
-  value       = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].name : null
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].name : null
   # Condition: Output only if access logging and the distribution are enabled.
 }
 
 output "cloudfront_access_logs_destination_arn" {
   description = "The ARN of the CloudWatch Log Delivery Destination (S3 bucket) for CloudFront access logs."
-  value       = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].arn : null
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].arn : null
   # Condition: Output only if access logging and the distribution are enabled.
 }
 
 # --- CloudWatch Log Delivery Outputs --- #
 output "cloudfront_access_logs_delivery_id" {
   description = "The ID of the CloudWatch Log Delivery connection for CloudFront access logs."
-  value       = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery.cloudfront_access_logs_delivery[0].id : null
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery.cloudfront_access_logs_delivery[0].id : null
   # Condition: Output only if access logging and the distribution are enabled.
 }
 
 output "cloudfront_access_logs_delivery_arn" {
   description = "The ARN of the CloudWatch Log Delivery connection for CloudFront access logs."
-  value       = var.enable_cloudfront_access_logging && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery.cloudfront_access_logs_delivery[0].arn : null
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? aws_cloudwatch_log_delivery.cloudfront_access_logs_delivery[0].arn : null
   # Condition: Output only if access logging and the distribution are enabled.
+}
+
+# --- Output: CloudFront Standard Logging v2 S3 Log Path --- #
+# This output variable provides the full S3 URI prefix for CloudFront Standard Logging v2 access logs,
+# generated in Parquet format by CloudWatch Log Delivery. Use this for analytics, Athena, or integrations.
+# Example: s3://wordpress-logging-gvbsn/AWSLogs/123456789012/CloudFront/cloudfront-access-logs/E2QFTKZ57D5PGR/
+output "cloudfront_standard_logging_v2_log_prefix" {
+  description = "S3 URI prefix for CloudFront Standard Logging v2 Parquet logs (via CloudWatch Log Delivery)."
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? "s3://${var.logging_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/CloudFront/cloudfront-access-logs/${aws_cloudfront_distribution.wordpress_media[0].id}/" : null
 }

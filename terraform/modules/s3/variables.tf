@@ -177,6 +177,13 @@ variable "asg_instance_role_arn" {
   default     = null
 }
 
+# --- CloudFront Logging Configuration --- #
+variable "enable_cloudfront_standard_logging_v2" {
+  description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"
+  type        = bool
+  default     = true
+}
+
 # --- Notes --- #
 # 1. Bucket Configuration: 'default_region_buckets' and 'replication_region_buckets' maps control bucket creation and properties.
 # 2. Security: KMS encryption, bucket policies, HTTPS enforced.

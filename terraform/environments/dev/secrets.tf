@@ -151,7 +151,7 @@ resource "aws_secretsmanager_secret" "wp_secrets" {
   # Tags can be used for tracking and cost allocation.
   tags = merge(local.common_tags, local.tags_secrets, {
     Name     = "${var.name_prefix}-wordpress-credentials-${var.environment}"
-    Rotation = "IaC-driven (via secrets_version variable)"
+    Rotation = "IaC-driven"
   })
 
   # Lifecycle control: allow destroy in non-production. Set to true in prod for safety.
@@ -180,7 +180,7 @@ resource "aws_secretsmanager_secret" "rds_secrets" {
 
   tags = merge(local.common_tags, local.tags_secrets, {
     Name     = "${var.name_prefix}-rds-credentials-${var.environment}"
-    Rotation = "IaC-driven (via secrets_version variable)"
+    Rotation = "IaC-driven"
   })
 
   lifecycle {
@@ -222,7 +222,7 @@ resource "aws_secretsmanager_secret" "redis_auth" {
 
   tags = merge(local.common_tags, local.tags_secrets, {
     Name     = "${var.name_prefix}-redis-credentials-${var.environment}"
-    Rotation = "IaC-driven (via secrets_version variable)"
+    Rotation = "IaC-driven"
   })
 
   lifecycle {

@@ -15,6 +15,12 @@ terraform {
   }
 }
 
+# --- AWS Account Identity Data Source --- #
+# This data source retrieves the AWS account ID for use in resource ARNs,
+# S3 path constructions, and tagging. It is required for dynamically referencing
+# the current AWS account in output variables and policy documents.
+data "aws_caller_identity" "current" {}
+
 # --- CloudFront Distribution for WordPress Media CDN --- #
 # This module creates a secure and performant CloudFront CDN to serve static media files
 # (images, videos, documents) from a private S3 bucket for WordPress.
@@ -23,13 +29,17 @@ terraform {
 
 # --- Locals --- #
 # Centralized conditional logic for enabling CloudFront resources.
+# This variable controls whether CloudFront media distribution should be enabled 
+# based on the configuration in 'default_region_buckets' and 'wordpress_media_cloudfront_enabled'.
+# When both conditions are true, CloudFront media distribution will be created.
 locals {
   enable_cloudfront_media_distribution = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled
 }
 
 # --- Origin Access Control (OAC) for S3 --- #
-# Creates an OAC to restrict direct S3 bucket access, ensuring that CloudFront is the only service
-# allowed to fetch objects from the WordPress media S3 bucket.
+# CloudFront Origin Access Control (OAC) for S3.
+# This OAC ensures that only CloudFront has access to fetch objects from the private WordPress media S3 bucket.
+# The signing behavior and protocol are configured to 'always' and 'sigv4' respectively, ensuring secure and authenticated requests.
 resource "aws_cloudfront_origin_access_control" "wordpress_media_oac" {
   provider = aws.cloudfront
   count    = local.enable_cloudfront_media_distribution ? 1 : 0
@@ -73,9 +83,9 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 }
 
 # --- CloudFront Distribution --- #
-# Establishes the global CDN endpoint for WordPress media files, integrating with
-# the private S3 origin, a custom cache policy, and a default AWS SSL certificate.
-# checkov:skip=CKV2_AWS_42 Justification: Default CloudFront certificate is acceptable for dev/stage environments; no custom domain used.
+# Creates the CloudFront distribution for serving static media files from the private S3 origin.
+# The distribution uses the custom cache policy defined earlier to ensure optimal performance.
+# Logging is handled separately through CloudWatch Log Delivery, ensuring efficient and cost-effective log storage.
 resource "aws_cloudfront_distribution" "wordpress_media" {
   provider = aws.cloudfront
   count    = local.enable_cloudfront_media_distribution ? 1 : 0
@@ -106,20 +116,13 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
     # Utilizes an AWS-managed response headers policy to automatically add essential security headers and handle CORS.
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63"
-  }
 
-  # --- Standart Access Logging Configuration --- #
-  # This dynamic block adds the logging configuration ONLY IF a bucket name is provided.  
-  dynamic "logging_config" {
-    # This for_each creates the block if the variable is not null,
-    # and does nothing if the variable is null.
-    for_each = var.enable_cloudfront_standard_s3_logging && lookup(var.default_region_buckets, "logging", { enabled = false }).enabled ? [1] : []
-
-    content {
-      bucket          = var.logging_bucket_domain_name
-      include_cookies = false
-      prefix          = "cloudfront-access-logs/" # A structured prefix for better log organization
-    }
+    # CloudFront Function for advanced/custom security headers (optional, mutually exclusive with response_headers_policy_id).
+    # Uncomment the block below and comment out the line above if you need custom headers (e.g., CSP).
+    # function_association {
+    #   event_type   = "viewer-response"
+    #   function_arn = aws_cloudfront_function.security_headers_function[0].arn
+    # }
   }
 
   # --- Viewer Certificate (Default CloudFront SSL) --- #
@@ -128,6 +131,17 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   viewer_certificate {
     cloudfront_default_certificate = true
     minimum_protocol_version       = "TLSv1.2_2021"
+  }
+
+  # --- Lifecycle Configuration --- #
+  # This lifecycle block ensures that changes to the minimum_protocol_version are ignored
+  # when the default CloudFront domain is used (since CloudFront automatically sets TLSv1).
+  # If using a custom domain with an ACM certificate, you can set minimum_protocol_version to TLSv1.2 or TLSv1.3,
+  # but with the default domain, it will remain TLSv1.
+  lifecycle {
+    ignore_changes = [
+      viewer_certificate[0].minimum_protocol_version
+    ]
   }
 
   # --- Geo Restrictions --- #
@@ -150,54 +164,6 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   })
 }
 
-# --- CloudFront Log Bucket Policy --- #
-# This policy grants CloudFront permission to write Standard Access Logs to the specified S3 bucket.
-# It is created inside the CloudFront module to avoid circular dependencies.
-resource "aws_s3_bucket_policy" "cloudfront_logs_bucket_policy" {
-
-  count = var.enable_cloudfront_standard_s3_logging && lookup(var.default_region_buckets, "logging", { enabled = false }).enabled ? 1 : 0
-
-  bucket = split(":", var.logging_bucket_arn)[5]
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # Statement 1: Allow CloudFront to write log objects
-      {
-        Sid    = "AllowCloudFrontPutObject",
-        Effect = "Allow",
-        Principal = {
-          Service = "delivery.cloudfront.amazonaws.com"
-        },
-        Action = "s3:PutObject",
-        # Resource path is now shorter and without the redundant environment folder
-        Resource = "${var.logging_bucket_arn}/cloudfront-access-logs/*",
-        Condition = {
-          StringEquals = {
-            "aws:SourceArn" = aws_cloudfront_distribution.wordpress_media[0].arn
-          }
-        }
-      },
-      # Statement 2: Allow CloudFront to check bucket ACL before writing
-      {
-        Sid    = "AllowCloudFrontGetAcl",
-        Effect = "Allow",
-        Principal = {
-          Service = "delivery.cloudfront.amazonaws.com"
-        },
-        Action = "s3:GetBucketAcl",
-        # This permission applies to the bucket resource itself
-        Resource = var.logging_bucket_arn,
-        Condition = {
-          StringEquals = {
-            "aws:SourceArn" = aws_cloudfront_distribution.wordpress_media[0].arn
-          }
-        }
-      }
-    ]
-  })
-}
-
 # --- CloudFront Module Notes --- #
 # 1. All CloudFront-related resources (distributions, OACs, cache policies, and associated WAF/Firehose/CloudWatch Log Delivery
 #    components) must be provisioned in the us-east-1 region using the 'aws.cloudfront' provider alias.
@@ -213,7 +179,7 @@ resource "aws_s3_bucket_policy" "cloudfront_logs_bucket_policy" {
 # 5. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for content requests, and all HTTP traffic is automatically
 #    redirected to HTTPS, enforcing secure communication channels.
 # 6. CloudFront **Access Logging v2** is implemented through AWS CloudWatch Log Delivery services, configured within the
-#    'cloudwatch.tf' file. This approach offers enhanced flexibility for log destinations (e.g., S3, CloudWatch Logs)
+#    'cloudfront/logging.tf' file. This approach offers enhanced flexibility for log destinations (e.g., S3, CloudWatch Logs)
 #    and various output formats (e.g., JSON, Parquet), providing robust analytics capabilities.
 # 7. Integration with AWS WAF for Layer 7 protection is optional and managed within the 'waf.tf' file.
 #    Remember that all CloudFront WAF resources must specify 'scope = "CLOUDFRONT"' and be provisioned via

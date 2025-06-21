@@ -80,6 +80,12 @@ variable "logging_bucket_arn" {
   # No default, as this is a critical dependency. Example: "arn:aws:s3:::your-central-logs-bucket"
 }
 
+# Name of the S3 bucket where CloudFront Standard Logging v2 logs are delivered.
+variable "logging_bucket_name" {
+  description = "Name of the S3 bucket for CloudFront Standard Logging v2 access logs (must match the bucket used in logging_bucket_arn)."
+  type        = string
+}
+
 variable "logging_bucket_domain_name" {
   description = "The domain name of the S3 bucket to store CloudFront access logs (e.g., my-logs.s3.amazonaws.com). If null, logging is disabled."
   type        = string
@@ -104,18 +110,10 @@ variable "enable_cloudfront_firehose" {
 # --- CloudFront Access Logging v2 Settings (CloudWatch Log Delivery) --- #
 # Variables specific to the CloudFront Access Logging v2 setup via CloudWatch Log Delivery.
 
-variable "enable_cloudfront_access_logging" {
-  description = "Set to true to enable CloudFront Access Logging v2 via AWS CloudWatch Log Delivery to S3."
+variable "enable_cloudfront_standard_logging_v2" {
+  description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"
   type        = bool
-  default     = false
-}
-
-# --- S3 Standard CloudFront Access Logging --- #
-
-variable "enable_cloudfront_standard_s3_logging" {
-  description = "A boolean flag to enable Standard Access Logging to an S3 bucket. This is required to fix the tfsec warning."
-  type        = bool
-  default     = false
+  default     = true
 }
 
 # --- SNS Topic for CloudWatch Alarms --- #

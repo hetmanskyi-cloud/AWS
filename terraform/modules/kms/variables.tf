@@ -205,3 +205,9 @@ variable "enable_cloudfront_waf" {
   type        = bool
   default     = false
 }
+
+variable "enable_cloudfront_standard_logging_v2" {
+  description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"
+  type        = bool
+  default     = true
+}
