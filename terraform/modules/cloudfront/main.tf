@@ -85,7 +85,11 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 # --- CloudFront Distribution --- #
 # Creates the CloudFront distribution for serving static media files from the private S3 origin.
 # The distribution uses the custom cache policy defined earlier to ensure optimal performance.
-# Logging is handled separately through CloudWatch Log Delivery, ensuring efficient and cost-effective log storage.
+# Logging is handled separately through CloudWatch Log Delivery in `cloudfront/logging.tf`, ensuring efficient and cost-effective log storage.
+
+# CloudFront Standard Logging v2 (CloudWatch Log Delivery to S3 in Parquet format) is enabled instead of the legacy logging_config block.
+# See the output 'cloudfront_standard_logging_v2_log_prefix' for the S3 path to logs.
+# tfsec:ignore:aws-cloudfront-enable-logging
 resource "aws_cloudfront_distribution" "wordpress_media" {
   provider = aws.cloudfront
   count    = local.enable_cloudfront_media_distribution ? 1 : 0
