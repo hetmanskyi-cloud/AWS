@@ -54,7 +54,7 @@ graph TB
     S3Media["S3 Bucket<br>(WordPress Media)"]
     S3Scripts["S3 Bucket<br>(Deployment Scripts)"]
     SecretsManager["AWS Secrets Manager"]
-    
+
     %% Subgraphs for organization
     subgraph "Security"
         SG["Security Group"]
@@ -62,61 +62,61 @@ graph TB
         KMS["KMS Encryption"]
         IMDSv2["IMDSv2 Metadata Security"]
     end
-    
+
     subgraph "Scaling Policies"
         ScaleOut["Scale-Out Policy<br>(High CPU)"]
         ScaleIn["Scale-In Policy<br>(Low CPU)"]
         TargetTracking["Target Tracking Policy<br>(Optional)"]
     end
-    
+
     subgraph "Monitoring"
         CPUAlarms["CPU Utilization Alarms"]
         StatusAlarms["Instance Status Alarms"]
         NetworkAlarms["Network Traffic Alarms"]
     end
-    
+
     %% Connections
     CloudWatch -->|"Triggers"| SNS
     SNS -->|"Notifications"| ASG
-    
+
     CPUAlarms -->|"High CPU"| ScaleOut
     CPUAlarms -->|"Low CPU"| ScaleIn
     StatusAlarms -->|"Instance Health"| CloudWatch
     NetworkAlarms -->|"Traffic Anomalies"| CloudWatch
-    
+
     ScaleOut -->|"Add Instance"| ASG
     ScaleIn -->|"Remove Instance"| ASG
     TargetTracking -->|"Auto-adjust Capacity"| ASG
-    
+
     ASG -->|"Uses"| LT
     ASG -->|"Registers with"| ALB
-    
+
     LT -->|"Configures"| EC2
     LT -->|"Applies"| SG
     LT -->|"Attaches"| IAM
     LT -->|"Enforces"| IMDSv2
     LT -->|"Enables"| KMS
-    
+
     EC2 -->|"Connects to"| RDS
     EC2 -->|"Caches with"| Redis
     EC2 -->|"Stores media in"| S3Media
     EC2 -->|"Fetches scripts from"| S3Scripts
     EC2 -->|"Retrieves secrets from"| SecretsManager
-    
+
     ALB -->|"Routes traffic to"| EC2
     SG -->|"Controls traffic for"| EC2
     IAM -->|"Grants permissions to"| EC2
     KMS -->|"Encrypts data for"| EC2
-    
+
     %% Redis AUTH Integration
     SecretsManager -->|"Provides Redis AUTH token"| Redis
-    
+
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef security fill:#DD3522,stroke:#232F3E,color:white;
     classDef monitoring fill:#3F8624,stroke:#232F3E,color:white;
     classDef policy fill:#1A73E8,stroke:#232F3E,color:white;
-    
+
     class CloudWatch,SNS,ASG,LT,EC2,ALB,RDS,Redis,S3Media,S3Scripts,SecretsManager aws;
     class SG,IAM,KMS,IMDSv2 security;
     class CPUAlarms,StatusAlarms,NetworkAlarms monitoring;
@@ -260,7 +260,7 @@ module "asg" {
 
   # Optional
   kms_key_arn       = module.kms.kms_key_arn
-  
+
   # Optionally pass the ARN and NAME of your secrets in AWS Secrets Manager
   # If you are storing WordPress and DB credentials there:
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
@@ -284,7 +284,7 @@ module "asg" {
 - Sensitive secrets (WordPress DB, Redis AUTH) are **not hardcoded** in user_data.
 - The `user_data` script only exports **non-sensitive variables**.
 - All secrets are securely fetched at runtime by `deploy_wordpress.sh` using `aws secretsmanager get-secret-value`.
-- Outbound access to `0.0.0.0/0` is allowed by default for internet access (updates, SSM, etc.).  
+- Outbound access to `0.0.0.0/0` is allowed by default for internet access (updates, SSM, etc.).
 - For production, either restrict egress rules to specific AWS services or enable `enable_interface_endpoints = true`.
 
 ---
@@ -346,84 +346,84 @@ This module is designed to integrate seamlessly with the following components:
 ## 15. Troubleshooting and Common Issues
 
 ### 1. EC2 Instances Have No Internet Access
-**Cause:** Missing or incorrect route to the Internet Gateway in public subnets.  
-**Solution:**  
-- Ensure the `vpc_zone_identifier` references public subnets.  
+**Cause:** Missing or incorrect route to the Internet Gateway in public subnets.
+**Solution:**
+- Ensure the `vpc_zone_identifier` references public subnets.
 - Verify the route table includes `0.0.0.0/0 → igw` pointing to the Internet Gateway.
 
 ---
 
 ### 2. User Data Script Not Executed or WordPress Not Installed
-**Cause:** Incorrect user data rendering, missing execution permissions, or failed S3 script fetch.  
-**Solution:**  
-- Check the `rendered_user_data` output for correctness.  
-- Ensure the script is executable (`chmod +x`).  
+**Cause:** Incorrect user data rendering, missing execution permissions, or failed S3 script fetch.
+**Solution:**
+- Check the `rendered_user_data` output for correctness.
+- Ensure the script is executable (`chmod +x`).
 If using S3, validate bucket permissions and that `enable_s3_script = true` is correctly set (default behavior).
 
 ---
 
 ### 3. Auto Scaling (Scale-Out/Scale-In) Not Triggering
-**Cause:** Misconfigured CloudWatch thresholds, disabled scaling policies, or target tracking issues.  
-**Solution:**  
-- Adjust `scale_out_cpu_threshold` and `scale_in_cpu_threshold`.  
-- Ensure `enable_scaling_policies = true`.  
+**Cause:** Misconfigured CloudWatch thresholds, disabled scaling policies, or target tracking issues.
+**Solution:**
+- Adjust `scale_out_cpu_threshold` and `scale_in_cpu_threshold`.
+- Ensure `enable_scaling_policies = true`.
 - Check CloudWatch metrics and alarms are configured correctly.
 
 ---
 
 ### 4. Instances Marked Unhealthy by ALB
-**Cause:** ALB health check path misconfigured or application not ready.  
-**Solution:**  
-- Validate the ALB Target Group health check settings.  
+**Cause:** ALB health check path misconfigured or application not ready.
+**Solution:**
+- Validate the ALB Target Group health check settings.
 - Ensure the WordPress health check endpoint is created and reachable in `user_data`.
 
 ---
 
 ### 5. SSM Connection Fails
-**Cause:** Missing SSM IAM policy or instance not registered.  
-**Solution:**  
-- Confirm the `AmazonSSMManagedInstanceCore` policy is attached to the instance IAM role.  
+**Cause:** Missing SSM IAM policy or instance not registered.
+**Solution:**
+- Confirm the `AmazonSSMManagedInstanceCore` policy is attached to the instance IAM role.
 - Check Systems Manager → Managed Instances for registration status.
 
 ---
 
 ### 6. Security Group is Too Open
-**Cause:** Default wide-open SSH (0.0.0.0/0) or unrestricted outbound rules.  
-**Solution:**  
-- Limit `ssh_allowed_cidr` to trusted IPs in production.  
+**Cause:** Default wide-open SSH (0.0.0.0/0) or unrestricted outbound rules.
+**Solution:**
+- Limit `ssh_allowed_cidr` to trusted IPs in production.
 - Restrict outbound rules to required destinations only.
 
 ---
 
 ### 7. KMS Decryption Fails
-**Cause:** Incorrect KMS permissions or wrong KMS Key ARN.  
-**Solution:**  
-- Check that the IAM role has `kms:Decrypt` permission.  
+**Cause:** Incorrect KMS permissions or wrong KMS Key ARN.
+**Solution:**
+- Check that the IAM role has `kms:Decrypt` permission.
 - Validate the `kms_key_arn` used.
 - Check that the IAM role has all required KMS permissions: `kms:Decrypt`, `kms:DescribeKey`, `kms:CreateGrant`, `kms:GenerateDataKeyWithoutPlainText`, and `kms:ReEncrypt*` for EBS encryption.
 
 ---
 
 ### 8. S3 Access Denied Errors
-**Cause:** Missing or incorrect S3 bucket policy or IAM permissions.  
-**Solution:**  
-- Review the S3 bucket policy for required permissions.  
+**Cause:** Missing or incorrect S3 bucket policy or IAM permissions.
+**Solution:**
+- Review the S3 bucket policy for required permissions.
 - Ensure the `s3_access_policy` is attached and correct ARNs are provided.
 
 ---
 
 ### 9. CloudWatch Alarms Do Not Trigger
-**Cause:** Alarms disabled or metric misconfiguration.  
-**Solution:**  
-- Verify `enable_*_alarm` variables are set to `true`.  
+**Cause:** Alarms disabled or metric misconfiguration.
+**Solution:**
+- Verify `enable_*_alarm` variables are set to `true`.
 - Review thresholds and metric dimensions in alarm configurations.
 
 ---
 
 ### 10. Frequent Instance Replacement in ASG
-**Cause:** Misconfigured termination policies or overly aggressive scaling thresholds.  
-**Solution:**  
-- Check `termination_policies`.  
+**Cause:** Misconfigured termination policies or overly aggressive scaling thresholds.
+**Solution:**
+- Check `termination_policies`.
 - Increase cooldown periods and fine-tune scaling thresholds to reduce churn.
 
 ### 11. AWS CLI Reference

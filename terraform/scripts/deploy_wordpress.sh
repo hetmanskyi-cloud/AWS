@@ -111,7 +111,7 @@ export NONCE_SALT=$(echo "$WP_SECRETS" | jq -r '.NONCE_SALT')
 export DB_NAME=$(echo "$RDS_SECRETS" | jq -r '.DB_NAME')
 export DB_USER=$(echo "$RDS_SECRETS" | jq -r '.DB_USER')
 export DB_PASSWORD=$(echo "$RDS_SECRETS" | jq -r '.DB_PASSWORD')
-  
+
 # Export Redis AUTH token from the $REDIS_AUTH_SECRETS variable
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
 
@@ -502,18 +502,18 @@ else
     --admin_email="$WP_ADMIN_EMAIL" \
     --skip-email || {
       log "ERROR: wp core install failed"
-      
+
       # Extended diagnostics for database connection
       log "Running extended diagnostics..."
-      
+
       # Check database connection using wp-cli with debug mode
       log "Checking database connection via wp-cli:"
       sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" db check --path="$WP_PATH" --debug || true
-      
+
       # Check network connectivity to database
       log "Checking network connectivity to database:"
       nc -zv "$DB_HOST" "$DB_PORT" || log "Cannot connect to database at $DB_HOST:$DB_PORT"
-      
+
       exit 1
     }
 
@@ -556,7 +556,7 @@ if [ -n "${HEALTHCHECK_S3_PATH:-}" ]; then
     exit 1
   else
     log "ALB health check endpoint created successfully from S3"
-    
+
     # Set ownership and permissions only if file was downloaded
     sudo chown www-data:www-data "$WP_PATH/healthcheck.php"
     sudo chmod 644 "$WP_PATH/healthcheck.php"

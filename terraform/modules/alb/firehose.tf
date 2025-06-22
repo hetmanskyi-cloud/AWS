@@ -4,8 +4,8 @@
 resource "aws_kinesis_firehose_delivery_stream" "firehose_alb_waf_logs" {
   count = var.enable_alb_firehose ? 1 : 0
 
-  # NOTE: The delivery stream name MUST start with "aws-waf-logs-" 
-  # because AWS WAF requires it for logging configuration. 
+  # NOTE: The delivery stream name MUST start with "aws-waf-logs-"
+  # because AWS WAF requires it for logging configuration.
   # Otherwise, PutLoggingConfiguration will fail with "The ARN isn't valid".
   name = "aws-waf-logs-${var.name_prefix}-alb-firehose-${var.environment}"
 
@@ -31,7 +31,7 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose_alb_waf_logs" {
       }
     }
 
-    # These buffering settings represent a default configuration suitable for testing. 
+    # These buffering settings represent a default configuration suitable for testing.
     # For production, these values should be adjusted based on anticipated log volume and delivery latency requirements.
     buffering_interval = 300 # Buffering interval in seconds.
     buffering_size     = 5   # Buffering size in MB.

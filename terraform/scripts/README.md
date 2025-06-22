@@ -4,26 +4,26 @@
 
 ## Table of Contents
 
-1. [Overview](#1-overview)  
-2. [Prerequisites / Requirements](#2-prerequisites--requirements)  
-3. [Architecture Diagram](#3-architecture-diagram)  
-4. [Features](#4-features)  
-5. [Scripts Structure](#5-scripts-structure)  
-6. [Script Details](#6-script-details)  
-   - [6.1 deploy_wordpress.sh](#61-deploy_wordpresssh)  
-   - [6.2 check_aws_resources.sh](#62-check_aws_resourcessh)  
-   - [6.3 debug_monitor.sh](#63-debug_monitorsh)  
-   - [6.4 fix_php_encoding.sh](#64-fix_php_encodingsh)  
-   - [6.5 healthcheck.php](#65-healthcheckphp)  
-   - [6.6 WordPress Source Repository](#66-wordpress-source-repository)  
-7. [Example Usage](#7-example-usage)  
-8. [Security Considerations / Recommendations](#8-security-considerations--recommendations)  
-9. [Conditional Resource Creation](#9-conditional-resource-creation)  
-10. [Best Practices](#10-best-practices)  
-11. [Integration](#11-integration)  
-12. [Future Improvements](#12-future-improvements)  
-13. [Troubleshooting and Common Issues](#13-troubleshooting-and-common-issues)  
-14. [Notes](#14-notes)  
+1. [Overview](#1-overview)
+2. [Prerequisites / Requirements](#2-prerequisites--requirements)
+3. [Architecture Diagram](#3-architecture-diagram)
+4. [Features](#4-features)
+5. [Scripts Structure](#5-scripts-structure)
+6. [Script Details](#6-script-details)
+   - [6.1 deploy_wordpress.sh](#61-deploy_wordpresssh)
+   - [6.2 check_aws_resources.sh](#62-check_aws_resourcessh)
+   - [6.3 debug_monitor.sh](#63-debug_monitorsh)
+   - [6.4 fix_php_encoding.sh](#64-fix_php_encodingsh)
+   - [6.5 healthcheck.php](#65-healthcheckphp)
+   - [6.6 WordPress Source Repository](#66-wordpress-source-repository)
+7. [Example Usage](#7-example-usage)
+8. [Security Considerations / Recommendations](#8-security-considerations--recommendations)
+9. [Conditional Resource Creation](#9-conditional-resource-creation)
+10. [Best Practices](#10-best-practices)
+11. [Integration](#11-integration)
+12. [Future Improvements](#12-future-improvements)
+13. [Troubleshooting and Common Issues](#13-troubleshooting-and-common-issues)
+14. [Notes](#14-notes)
 15. [Useful Resources](#15-useful-resources)
 
 ---
@@ -57,27 +57,27 @@ This directory contains scripts used for deploying, configuring, and monitoring 
 graph LR
     %% Main Components
     A["EC2 Instance"] --> B["Scripts"]
-    
+
     %% Script Components
     subgraph "Deployment Scripts"
         Deploy["deploy_wordpress.sh"]
         HealthCheck["healthcheck.php"]
     end
-    
+
     subgraph "Monitoring Scripts"
         AWSResources["check_aws_resources.sh"]
         DebugMonitor["debug_monitor.sh"]
     end
-    
+
     subgraph "Utility Scripts"
         FixPHPEncoding["fix_php_encoding.sh"]
     end
-    
+
     B --> Deploy
     B --> AWSResources
     B --> DebugMonitor
     B --> FixPHPEncoding
-    
+
     %% External AWS Services
     RDS["RDS MySQL"]
     Redis["ElastiCache Redis"]
@@ -86,7 +86,7 @@ graph LR
     CloudWatch["CloudWatch Logs"]
     SSM["AWS SSM (Session Manager)"]
     GitMirror["GitHub WordPress Mirror"]
-    
+
     %% Deployment Flow
     Deploy -->|"Installs"| Nginx["Nginx Web Server"]
     Deploy -->|"Installs"| PHP["PHP-FPM"]
@@ -98,18 +98,18 @@ graph LR
     Deploy -->|"Deploys"| HealthCheck
     Deploy -->|"Sends Logs"| CloudWatch
     Deploy -->|"Clones WordPress from"| GitMirror
-    
+
     %% Monitoring Flows
     DebugMonitor -->|"Monitors"| Nginx
     DebugMonitor -->|"Monitors"| PHP
     DebugMonitor -->|"Monitors"| WP
     DebugMonitor -->|"Connects via"| SSM
-    
+
     AWSResources -->|"Validates"| VPC["VPC Resources"]
     AWSResources -->|"Validates"| EC2["EC2 Resources"]
     AWSResources -->|"Validates"| RDS
     AWSResources -->|"Validates"| ALB
-    
+
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
     classDef database fill:#3B48CC,stroke:#232F3E,color:white
@@ -119,7 +119,7 @@ graph LR
     classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
     classDef utility fill:#2874A6,stroke:#232F3E,color:white
     classDef repository fill:#0B5345,stroke:#232F3E,color:white
-    
+
     class A,B primary
     class RDS database
     class Redis cache

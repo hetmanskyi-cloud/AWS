@@ -68,19 +68,19 @@ graph LR
     KMSKey[Customer KMS Key]
     KeyPolicy[Key Policy]
     KeyRotation[Automatic Key Rotation]
-    
+
     %% Replication Components
     ReplicaKey[Replica KMS Key]
     KMSGrant[KMS Grants for S3]
-    
+
     %% IAM Components
     IAMRole[IAM Role]
     IAMPolicy[KMS Management Policy]
-    
+
     %% Monitoring Components
     CWAlarm[CloudWatch Alarm]
     SNSTopic[SNS Topic]
-    
+
     %% AWS Services Integration - Core Services
     S3[S3 Buckets]
     CloudTrail[CloudTrail]
@@ -90,26 +90,26 @@ graph LR
     SSM[SSM]
     EBS[EBS Volumes]
     SecretsManager[Secrets Manager]
-    
+
     %% AWS Services Integration - Optional Services
     DynamoDB[DynamoDB]
     Firehose[Kinesis Firehose]
     WAF[WAF Logging]
-    
+
     %% Cross-Region Replication
     ReplicaS3[S3 Replica Buckets]
-    
+
     %% External KMS VPC Interface Endpoint (from interface_endpoints module)
     VPCEndpoint["KMS VPC Endpoint<br/>(from interface_endpoints module)"]
-    
+
     %% Connections - Main KMS Structure
     KMSKey -->|Defines| KeyPolicy
     KMSKey -->|Enables| KeyRotation
-    
+
     %% Connections - Replication
     KMSKey -->|Multi-Region| ReplicaKey
     ReplicaKey -->|Authorizes| KMSGrant
-    
+
     %% Connections - IAM
     KMSKey -->|Managed by| IAMRole
     IAMRole -->|Uses| IAMPolicy
@@ -118,11 +118,11 @@ graph LR
     KMSKey -.->|Temporary Access| RootUser
     RootUser[Root Account]
     class RootUser optional
-    
+
     %% Connections - Monitoring
     KMSKey -->|Monitored by| CWAlarm
     CWAlarm -->|Notifies| SNSTopic
-    
+
     %% Connections - Core Services
     S3 -->|Encrypted with| KMSKey
     CloudTrail -->|Encrypted with| KMSKey
@@ -132,29 +132,29 @@ graph LR
     SSM -->|Encrypted with| KMSKey
     EBS -->|Encrypted with| KMSKey
     SecretsManager -->|Encrypted with| KMSKey
-    
+
     %% Connections - Optional Services
     DynamoDB -.->|Optional Encryption| KMSKey
     Firehose -.->|Optional Encryption| KMSKey
     WAF -.->|Optional Encryption| KMSKey
-    
+
     %% Connections - Cross-Region Replication
     S3 -->|Cross-Region Replication| ReplicaS3
     ReplicaS3 -->|Encrypted with| ReplicaKey
 
     %% Connections - Audit
     KMSKey -->|Audit Logs| CloudTrail
-    
+
     %% Connections - Optional VPC Endpoint
     KMSKey -.->|Private Access| VPCEndpoint
-    
+
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
     classDef optional fill:#3F8624,stroke:#232F3E,color:white,stroke-dasharray:5 5
     classDef service fill:#1E8449,stroke:#232F3E,color:white
     classDef security fill:#DD3522,stroke:#232F3E,color:white
     classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
-    
+
     class KMSKey,KeyPolicy,KeyRotation primary
     class ReplicaKey,IAMRole,IAMPolicy,KMSGrant,VPCEndpoint optional
     class S3,CloudTrail,RDS,ElastiCache,CloudWatch,SSM,EBS,DynamoDB,Firehose,WAF,ReplicaS3,SecretsManager service
@@ -268,12 +268,12 @@ module "kms" {
   # S3 bucket configuration with CloudTrail enabled
   default_region_buckets = {
     cloudtrail = { enabled = true },
-    logs = { 
+    logs = {
       enabled = true,
       versioning = true
     }
   }
-  
+
   # Cross-region replication configuration
   replication_region = "us-east-1"
   replication_region_buckets = {
@@ -407,16 +407,16 @@ When using this KMS key for EBS volume encryption:
 
 ## 14. Future Improvements
 
-- **Enhanced Policy Flexibility:**  
+- **Enhanced Policy Flexibility:**
   Allow finer-grained permissions customization per AWS service and principal.
 
-- **Expanded Monitoring:**  
+- **Expanded Monitoring:**
   Add additional CloudWatch metrics for better anomaly detection and alerting.
 
-- **Automated Policy Management:**  
+- **Automated Policy Management:**
   Automate the secure removal of initial root access post-setup.
 
-- **Cross-Account Support:**  
+- **Cross-Account Support:**
   Simplify configuration of cross-account permissions where necessary.
 
 ---
@@ -424,88 +424,88 @@ When using this KMS key for EBS volume encryption:
 ## 15. Troubleshooting and Common Issues
 
 ### 1. KMS Decrypt Operations Alarm Constantly Triggering
-**Cause:** Threshold for `DecryptCount` is too low for the workload.  
-**Solution:**  
-- Increase the `key_decrypt_threshold` value in `terraform.tfvars`.  
-- Review actual KMS usage in CloudWatch Metrics and adjust accordingly.  
+**Cause:** Threshold for `DecryptCount` is too low for the workload.
+**Solution:**
+- Increase the `key_decrypt_threshold` value in `terraform.tfvars`.
+- Review actual KMS usage in CloudWatch Metrics and adjust accordingly.
 - Validate that legitimate services (e.g., S3, CloudWatch) generate expected decrypt operations.
 
 ---
 
 ### 2. Root Access Not Removed After Setup
-**Cause:** Initial root permissions in the KMS Key Policy were not manually revoked.  
-**Solution:**  
-- Follow the **Root Access Removal Process** section in the README.  
-- Remove the root access statement from `aws_kms_key_policy.general_encryption_key_policy`.  
+**Cause:** Initial root permissions in the KMS Key Policy were not manually revoked.
+**Solution:**
+- Follow the **Root Access Removal Process** section in the README.
+- Remove the root access statement from `aws_kms_key_policy.general_encryption_key_policy`.
 - Re-apply the Terraform configuration to enforce least privilege.
 
 ---
 
 ### 3. CloudWatch Alarm Not Sending Notifications
-**Cause:** `sns_topic_arn` not configured or incorrect.  
-**Solution:**  
-- Ensure `sns_topic_arn` is correctly set and matches an existing SNS Topic ARN.  
+**Cause:** `sns_topic_arn` not configured or incorrect.
+**Solution:**
+- Ensure `sns_topic_arn` is correctly set and matches an existing SNS Topic ARN.
 - Verify that the SNS topic has the correct subscription and policy to allow CloudWatch to publish.
 
 ---
 
 ### 4. Replica KMS Key Not Created
-**Cause:** `replication_region_buckets` misconfigured or replication bucket missing `enabled = true`.  
-**Solution:**  
-- Validate `replication_region_buckets` contains at least one bucket with `enabled = true`.  
+**Cause:** `replication_region_buckets` misconfigured or replication bucket missing `enabled = true`.
+**Solution:**
+- Validate `replication_region_buckets` contains at least one bucket with `enabled = true`.
 - Ensure `replication_region` is properly set and matches the destination region.
 
 ---
 
 ### 5. S3 Replication Fails with KMS Permission Error
-**Cause:** Missing or incorrect KMS Grant for S3 replication.  
-**Solution:**  
-- Check that the module created the `aws_kms_grant.s3_replication_grant`.  
+**Cause:** Missing or incorrect KMS Grant for S3 replication.
+**Solution:**
+- Check that the module created the `aws_kms_grant.s3_replication_grant`.
 - Verify that `s3.amazonaws.com` is listed as the grantee principal in the KMS Grant.
 
 ---
 
 ### 6. DynamoDB, Firehose, or WAF Fails to Use KMS Key
-**Cause:** Corresponding `enable_*` variables not enabled.  
-**Solution:**  
-- Set `enable_dynamodb`, `enable_firehose`, or `enable_waf_logging` to `true` in `terraform.tfvars` if these services require KMS access.  
+**Cause:** Corresponding `enable_*` variables not enabled.
+**Solution:**
+- Set `enable_dynamodb`, `enable_firehose`, or `enable_waf_logging` to `true` in `terraform.tfvars` if these services require KMS access.
 - Re-apply the configuration.
 
 ---
 
 ### 7. Monitoring Disabled but Alarms Exist
-**Cause:** `enable_key_monitoring` set to `false`, but CloudWatch Alarm resources remain.  
-**Solution:**  
-- Run `terraform apply` again to ensure alarms are destroyed when monitoring is disabled.  
-- Check `metrics.tf` for conditional resource creation based on `enable_key_monitoring`.  
+**Cause:** `enable_key_monitoring` set to `false`, but CloudWatch Alarm resources remain.
+**Solution:**
+- Run `terraform apply` again to ensure alarms are destroyed when monitoring is disabled.
+- Check `metrics.tf` for conditional resource creation based on `enable_key_monitoring`.
 
 ---
 
 ### 8. KMS Key Not Accessible from Private Subnets
-**Cause:** Missing KMS VPC Interface Endpoint when EC2 is fully private.  
-**Solution:**  
-- Enable Interface Endpoints for KMS if EC2 instances are in private subnets without internet access.  
+**Cause:** Missing KMS VPC Interface Endpoint when EC2 is fully private.
+**Solution:**
+- Enable Interface Endpoints for KMS if EC2 instances are in private subnets without internet access.
 - Add `enable_interface_endpoints = true` in your Terraform configuration.
 
 ---
 
 ### 9. Terraform Plan Fails Due to Missing KMS Key Policy
-**Cause:** Changes in IAM roles or incorrect references to KMS policy resources.  
-**Solution:**  
-- Re-check `aws_kms_key_policy` resource dependencies.  
+**Cause:** Changes in IAM roles or incorrect references to KMS policy resources.
+**Solution:**
+- Re-check `aws_kms_key_policy` resource dependencies.
 - Ensure the `aws_iam_role.kms_admin_role` is properly created and referenced.
 
 ---
 
 ### 10. Cross-Region Replication Data Not Encrypted
-**Cause:** Replica KMS Key or KMS Grant not applied correctly.  
-**Solution:**  
-- Verify the replica KMS key exists in the replication region.  
+**Cause:** Replica KMS Key or KMS Grant not applied correctly.
+**Solution:**
+- Verify the replica KMS key exists in the replication region.
 - Confirm the KMS Grant is created and linked to the S3 replication process.
 
 ### 11. EC2 Instances Fail to Launch with Encrypted EBS Volumes
-**Cause:** Missing permissions in KMS key policy for EBS encryption.  
-**Solution:**  
+**Cause:** Missing permissions in KMS key policy for EBS encryption.
+**Solution:**
 - Verify that the KMS key policy includes the `AllowAutoScalingServiceRoleUsage` and `AllowAutoScalingServiceRoleCreateGrant` statements.
 - Ensure the `AllowAutoScalingServiceRoleUsage` statement includes all necessary actions: `kms:Encrypt`, `kms:Decrypt`, `kms:ReEncrypt*`, `kms:GenerateDataKey*`, and `kms:DescribeKey`.
 - Confirm the `AllowAutoScalingServiceRoleCreateGrant` statement allows `kms:CreateGrant` with condition `"kms:GrantIsForAWSResource": "true"`.

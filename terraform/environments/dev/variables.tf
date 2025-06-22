@@ -249,13 +249,13 @@ variable "enable_data_source" {
   default     = false
 }
 
-# Threshold for high incoming network traffic. Triggers an alarm when exceeded. 
+# Threshold for high incoming network traffic. Triggers an alarm when exceeded.
 variable "network_in_threshold" {
   description = "Threshold for high incoming network traffic"
   type        = number
 }
 
-# Threshold for high outgoing network traffic. Triggers an alarm when exceeded. 
+# Threshold for high outgoing network traffic. Triggers an alarm when exceeded.
 variable "network_out_threshold" {
   description = "Threshold for high outgoing network traffic"
   type        = number
@@ -503,7 +503,7 @@ variable "default_region_buckets" {
     versioning            = optional(bool, false)
     replication           = optional(bool, false)
     server_access_logging = optional(bool, false)
-    region                = optional(string, null) # Optional: region (defaults to provider)    
+    region                = optional(string, null) # Optional: region (defaults to provider)
   }))
   description = "Config for default AWS region buckets." # Description: Default region buckets config
   default     = {}
@@ -512,7 +512,7 @@ variable "default_region_buckets" {
 variable "replication_region_buckets" {
   type = map(object({
     enabled               = optional(bool, false)
-    versioning            = optional(bool, false) # Versioning MUST be enabled for replication destinations    
+    versioning            = optional(bool, false) # Versioning MUST be enabled for replication destinations
     server_access_logging = optional(bool, false)
     region                = string # AWS region for the replication bucket (REQUIRED)
   }))
@@ -552,19 +552,6 @@ variable "enable_dynamodb" {
   validation {
     condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
     error_message = "enable_dynamodb requires `terraform_state` bucket to be enabled."
-  }
-}
-
-# --- Logging Bucket ARN --- #
-# ARN of the S3 bucket for Firehose logging.
-variable "logging_bucket_arn" {
-  description = "The ARN of the S3 bucket used for ALB access logs. If not provided, logging is disabled."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.logging_bucket_arn == null ? true : length(var.logging_bucket_arn) > 0
-    error_message = "If provided, logging_bucket_arn must be a non-empty string."
   }
 }
 

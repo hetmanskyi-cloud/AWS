@@ -133,16 +133,6 @@ resource "aws_vpc_endpoint" "dynamodb" {
   })
 }
 
-# --- Data Sources for AWS Managed Prefix Lists --- #
-# These prefix lists are used for Gateway Endpoints (S3 and DynamoDB)
-data "aws_prefix_list" "s3" {
-  name = "com.amazonaws.${var.aws_region}.s3"
-}
-
-data "aws_prefix_list" "dynamodb" {
-  name = "com.amazonaws.${var.aws_region}.dynamodb"
-}
-
 # --- Notes --- #
 # 1. **Public route table**:
 #   - Routes general outbound traffic from public subnets to the internet through the Internet Gateway (IGW).

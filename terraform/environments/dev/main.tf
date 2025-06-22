@@ -1,23 +1,12 @@
 # --- Locals Block --- #
 locals {
-  # CIDR blocks used for creating public and private subnets in the VPC
-  public_subnet_cidr_blocks = [
-    module.vpc.public_subnet_cidr_block_1,
-    module.vpc.public_subnet_cidr_block_2,
-    module.vpc.public_subnet_cidr_block_3
-  ]
-  private_subnet_cidr_blocks = [
-    module.vpc.private_subnet_cidr_block_1,
-    module.vpc.private_subnet_cidr_block_2,
-    module.vpc.private_subnet_cidr_block_3
-  ]
 
-  # Individual subnet IDs  
+  # Individual subnet IDs
   private_subnet_id_1 = module.vpc.private_subnet_1_id
   private_subnet_id_2 = module.vpc.private_subnet_2_id
   private_subnet_id_3 = module.vpc.private_subnet_3_id
 
-  # Lists of subnet IDs  
+  # Lists of subnet IDs
   private_subnet_ids = [
     local.private_subnet_id_1,
     local.private_subnet_id_2,
@@ -72,7 +61,6 @@ module "kms" {
   source = "../../modules/kms" # Path to the KMS module
 
   # AWS region and account-specific details
-  aws_region         = var.aws_region         # Region where resources are created
   replication_region = var.replication_region # Region for replication
   aws_account_id     = var.aws_account_id     # Account ID for KMS key permissions
 
@@ -113,11 +101,10 @@ module "asg" {
   source = "../../modules/asg" # Path to module ASG
 
   # General naming, tags and environment configuration
-  name_prefix    = var.name_prefix
-  environment    = var.environment
-  aws_region     = var.aws_region
-  aws_account_id = var.aws_account_id
-  tags           = merge(local.common_tags, local.tags_asg)
+  name_prefix = var.name_prefix
+  environment = var.environment
+  aws_region  = var.aws_region
+  tags        = merge(local.common_tags, local.tags_asg)
 
   # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
@@ -149,7 +136,7 @@ module "asg" {
   enable_high_network_in_alarm  = var.enable_high_network_in_alarm
   enable_high_network_out_alarm = var.enable_high_network_out_alarm
 
-  # CloudWatch Log Groups  
+  # CloudWatch Log Groups
   enable_cloudwatch_logs = var.enable_cloudwatch_logs
   cloudwatch_log_groups = var.enable_cloudwatch_logs ? {
     user_data = aws_cloudwatch_log_group.user_data_logs[0].name
@@ -176,8 +163,6 @@ module "asg" {
   # Networking and security configurations
   public_subnet_ids              = module.vpc.public_subnets
   alb_security_group_id          = module.alb.alb_security_group_id
-  rds_security_group_id          = module.rds.rds_security_group_id
-  redis_security_group_id        = module.elasticache.redis_security_group_id
   vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
   vpc_id                         = module.vpc.vpc_id
 
@@ -188,33 +173,28 @@ module "asg" {
   enable_https_listener = module.alb.enable_https_listener
 
   # S3 bucket configurations for scripts and media
-  default_region_buckets      = var.default_region_buckets
-  replication_region_buckets  = var.replication_region_buckets
-  wordpress_media_bucket_name = module.s3.wordpress_media_bucket_name
-  wordpress_media_bucket_arn  = module.s3.wordpress_media_bucket_arn
-  scripts_bucket_name         = module.s3.scripts_bucket_name
-  scripts_bucket_arn          = module.s3.scripts_bucket_arn
+  default_region_buckets     = var.default_region_buckets
+  wordpress_media_bucket_arn = module.s3.wordpress_media_bucket_arn
+  scripts_bucket_name        = module.s3.scripts_bucket_name
+  scripts_bucket_arn         = module.s3.scripts_bucket_arn
 
-  # Database Configuration (non-sensitive)  
-  db_host     = module.rds.db_host
-  db_endpoint = module.rds.db_endpoint
+  # Database Configuration (non-sensitive)
+  db_host = module.rds.db_host
 
   # WordPress Configuration
-  db_name           = var.db_name
   db_port           = var.db_port
   wp_title          = var.wp_title
   alb_dns_name      = module.alb.alb_dns_name
   php_version       = var.php_version
-  php_fpm_service   = "php${var.php_version}-fpm"
   redis_endpoint    = module.elasticache.redis_endpoint
   redis_port        = var.redis_port
   wordpress_version = var.wordpress_version
 
 
-  # Script path for deployment 
+  # Script path for deployment
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
 
-  # Secrets Configuration  
+  # Secrets Configuration
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
   wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn
   rds_secrets_name       = var.rds_secret_name
@@ -242,10 +222,6 @@ module "rds" {
   environment = var.environment
   tags        = merge(local.common_tags, local.tags_rds)
 
-  # AWS region and account settings
-  aws_region     = var.aws_region
-  aws_account_id = var.aws_account_id
-
   # Database configuration
   allocated_storage = var.allocated_storage
   instance_class    = var.instance_class
@@ -257,11 +233,8 @@ module "rds" {
   db_port           = var.db_port
 
   # Network configuration for private subnets
-  vpc_id                     = module.vpc.vpc_id
-  vpc_cidr_block             = module.vpc.vpc_cidr_block
-  private_subnet_ids         = local.private_subnet_ids
-  private_subnet_cidr_blocks = local.private_subnet_cidr_blocks
-  public_subnet_cidr_blocks  = local.public_subnet_cidr_blocks
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = local.private_subnet_ids
 
   # Security group for RDS access (if needed in other modules)
   asg_security_group_id = module.asg.asg_security_group_id
@@ -338,9 +311,6 @@ module "s3" {
   default_region_buckets     = var.default_region_buckets
   replication_region_buckets = var.replication_region_buckets
 
-  # Replication region
-  replication_region = var.replication_region
-
   # CloudFront Integration
   wordpress_media_cloudfront_distribution_arn = module.cloudfront.cloudfront_distribution_arn
   wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
@@ -412,8 +382,6 @@ module "alb" {
   source = "../../modules/alb"
 
   # AWS region, tags and account settings
-  aws_region                          = var.aws_region
-  aws_account_id                      = var.aws_account_id
   tags                                = merge(local.common_tags, local.tags_alb)
   name_prefix                         = var.name_prefix
   environment                         = var.environment
@@ -434,13 +402,16 @@ module "alb" {
   enable_alb_firehose                 = var.enable_alb_firehose
   enable_alb_firehose_cloudwatch_logs = var.enable_alb_firehose_cloudwatch_logs
 
-  depends_on = [module.vpc, module.s3, aws_sns_topic.cloudwatch_alarms]
+  # CloudFront to ALB integration
+  cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
+
+  depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms]
 }
 
 # --- Interface Endpoints Module Configuration (Now disabled) --- #
 # Configures the VPC Interface Endpoints for secure access to AWS services within the VPC.
 module "interface_endpoints" {
-  source = "../../modules/interface_endpoints" # Path to module Interface Endpoints  
+  source = "../../modules/interface_endpoints" # Path to module Interface Endpoints
 
   aws_region                 = var.aws_region
   name_prefix                = var.name_prefix
@@ -486,10 +457,9 @@ module "cloudfront" {
     # Add any other relevant S3 bucket outputs here that CloudFront module might need
   }
 
-  logging_bucket_arn         = module.s3.logging_bucket_arn         # Assuming your S3 module outputs a general logging bucket ARN
-  logging_bucket_name        = module.s3.logging_bucket_name        # Name of the logging bucket
-  logging_bucket_domain_name = module.s3.logging_bucket_domain_name # Domain name for the logging bucket
-  kms_key_arn                = module.kms.kms_key_arn               # Pass the KMS key for logging encryption
+  logging_bucket_arn  = module.s3.logging_bucket_arn  # Assuming your S3 module outputs a general logging bucket ARN
+  logging_bucket_name = module.s3.logging_bucket_name # Name of the logging bucket
+  kms_key_arn         = module.kms.kms_key_arn        # Pass the KMS key for logging encryption
 
   # WAF Integration Settings
   enable_cloudfront_waf = var.enable_cloudfront_waf
@@ -502,6 +472,12 @@ module "cloudfront" {
 
   # SNS Topic for CloudWatch Alarms notifications
   sns_alarm_topic_arn = one(aws_sns_topic.cloudfront_alarms_topic[*].arn)
+
+  # CloudFront to ALB integration
+  cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
+
+  # ALB DNS Name (from ALB module)
+  alb_dns_name = module.alb.alb_dns_name
 
   depends_on = [
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS

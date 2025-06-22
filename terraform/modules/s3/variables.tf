@@ -7,12 +7,6 @@ variable "aws_region" {
   type        = string
 }
 
-# --- Replication AWS Region --- #
-variable "replication_region" {
-  description = "AWS region for replication bucket."
-  type        = string
-}
-
 # --- Environment --- #
 variable "environment" {
   description = "Deployment environment (dev, stage, prod)."
@@ -90,7 +84,7 @@ variable "default_region_buckets" {
     versioning            = optional(bool, false)
     replication           = optional(bool, false)
     server_access_logging = optional(bool, false)
-    region                = optional(string, null) # Optional: region (defaults to provider)    
+    region                = optional(string, null) # Optional: region (defaults to provider)
   }))
   description = <<-EOT
     Config for default AWS region buckets.
@@ -105,7 +99,7 @@ variable "default_region_buckets" {
 variable "replication_region_buckets" {
   type = map(object({
     enabled               = optional(bool, false)
-    versioning            = optional(bool, false) # Required: versioning for replication    
+    versioning            = optional(bool, false) # Required: versioning for replication
     server_access_logging = optional(bool, false)
     region                = string # Required: AWS region for replication
   }))
@@ -122,13 +116,6 @@ variable "wordpress_media_cloudfront_distribution_arn" {
 
 variable "wordpress_media_cloudfront_enabled" {
   description = "Enable CloudFront policy for wordpress_media bucket."
-  type        = bool
-  default     = false
-}
-
-# --- CloudFront Access Logging Configuration (for logging bucket) --- #
-variable "enable_cloudfront_access_logging" {
-  description = "Enable CloudFront access logging to the 'logging' S3 bucket."
   type        = bool
   default     = false
 }

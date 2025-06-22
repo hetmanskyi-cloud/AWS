@@ -86,12 +86,6 @@ variable "logging_bucket_name" {
   type        = string
 }
 
-variable "logging_bucket_domain_name" {
-  description = "The domain name of the S3 bucket to store CloudFront access logs (e.g., my-logs.s3.amazonaws.com). If null, logging is disabled."
-  type        = string
-  default     = null
-}
-
 variable "kms_key_arn" {
   description = "The ARN of the KMS key used for encrypting logs in the S3 logging bucket. Set to `null` to disable KMS encryption."
   type        = string
@@ -122,4 +116,19 @@ variable "sns_alarm_topic_arn" {
   description = "The ARN of the SNS topic to which CloudWatch alarms from this module will be sent."
   type        = string
   default     = null # Making it optional
+}
+
+# --- Custom Header for CloudFront to ALB Communication --- #
+
+variable "cloudfront_to_alb_secret_header_value" {
+  description = "Secret value for the custom CloudFront → ALB header."
+  type        = string
+  sensitive   = true
+}
+
+# --- ALB DNS Name --- #
+
+variable "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer to use as CloudFront origin"
+  type        = string
 }

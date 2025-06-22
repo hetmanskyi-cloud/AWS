@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- Application Load Balancer --- #
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 
@@ -57,7 +73,7 @@ resource "aws_lb_target_group" "wordpress" {
   # Consider stricter criteria for critical applications:
   # - Lower `timeout` and `interval` values for faster detection of failures.
   # - Higher `healthy_threshold` to ensure stability before marking targets as healthy.
-  # 
+  #
   # During WordPress installation:
   # - Higher unhealthy_threshold to be more tolerant of temporary failures
   # - Shorter interval for more frequent checks

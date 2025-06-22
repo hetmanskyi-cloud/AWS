@@ -32,11 +32,11 @@ This module creates and manages S3 buckets for various use cases within a projec
 
 ## 2. Prerequisites / Requirements
 
-- **AWS Provider Configuration**:  
+- **AWS Provider Configuration**:
   The `aws` provider configuration, including the region and credentials, must be set in the root block of the Terraform project. An additional provider configuration for replication is required with the alias `aws.replication`.
-- **KMS Key**:  
+- **KMS Key**:
   A KMS key ARN must be provided via the `kms_key_arn` variable for bucket encryption. For replication, a `kms_replica_key_arn` can be provided for the destination region.
-- **SNS Topic**:  
+- **SNS Topic**:
   An SNS topic ARN must be provided via `sns_topic_arn` for notifications and alarms. For replication, a `replication_region_sns_topic_arn` can be provided.
 - **CORS Configuration**:
   When enabling CORS for WordPress media bucket, configure `allowed_origins` appropriately for your environment.
@@ -403,16 +403,16 @@ module "s3" {
   environment        = "dev"
   name_prefix        = "dev"
   aws_account_id     = "123456789012"
-  
+
   # KMS and SNS configuration
   kms_key_arn                      = module.kms.key_arn
   kms_replica_key_arn              = module.kms_replica.key_arn
   sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
   replication_region_sns_topic_arn = module.sns_replica.topic_arn
-  
+
   # Versioning configuration
   noncurrent_version_retention_days = 30
-  
+
   # Default region buckets
   default_region_buckets = {
     scripts = {
@@ -452,7 +452,7 @@ module "s3" {
       server_access_logging = false
     }
   }
-  
+
   # Replication region buckets
   replication_region_buckets = {
     wordpress_media = {
@@ -462,17 +462,17 @@ module "s3" {
       region                = "eu-west-1"
     }
   }
-  
+
   # WordPress scripts
   s3_scripts = {
   "wordpress/deploy_wordpress.sh" = "scripts/deploy_wordpress.sh"
-  "wordpress/healthcheck.php"     = "scripts/healthcheck.php"  
+  "wordpress/healthcheck.php"     = "scripts/healthcheck.php"
 }
-  
+
   # CORS configuration (IMPORTANT: Restrict origins in production)
   enable_cors = true
   allowed_origins = ["https://myproject.example.com"]
-  
+
   # DynamoDB for state locking
   enable_dynamodb = true
 }
@@ -557,63 +557,63 @@ This S3 module integrates with the following modules and AWS services:
 ## 15. Troubleshooting and Common Issues
 
 ### 1. Replication Fails with Access Denied
-**Cause:** Missing or incorrect IAM role/policy for replication.  
-**Solution:**  
+**Cause:** Missing or incorrect IAM role/policy for replication.
+**Solution:**
 - Ensure the replication role is created and attached correctly.
 - Verify KMS key permissions cover both source and replica buckets.
 
 ---
 
 ### 2. ALB Logs Not Delivered to Bucket
-**Cause:** Missing bucket policy or incorrect ACL for ALB logs delivery.  
-**Solution:**  
+**Cause:** Missing bucket policy or incorrect ACL for ALB logs delivery.
+**Solution:**
 - Check that `delivery.logs.amazonaws.com` service has `s3:PutObject` permission.
 - Verify `bucket-owner-full-control` ACL is enforced.
 
 ---
 
 ### 3. Terraform Plan Fails: "DynamoDB requires terraform_state bucket"
-**Cause:** `enable_dynamodb = true`, but the `terraform_state` bucket is missing or disabled.  
-**Solution:**  
+**Cause:** `enable_dynamodb = true`, but the `terraform_state` bucket is missing or disabled.
+**Solution:**
 - Ensure the `terraform_state` bucket is defined and `enabled = true`.
 - Re-run `terraform apply`.
 
 ---
 
 ### 4. CORS Preflight Requests Failing
-**Cause:** Missing or incorrect CORS configuration on `wordpress_media` bucket.  
-**Solution:**  
+**Cause:** Missing or incorrect CORS configuration on `wordpress_media` bucket.
+**Solution:**
 - Check that `enable_cors = true` and `allowed_origins` are properly configured.
 - Review allowed methods and headers.
 
 ---
 
 ### 5. "KMS Access Denied" on Replication
-**Cause:** `kms_replica_key_arn` not provided or IAM policy missing KMS permissions.  
-**Solution:**  
+**Cause:** `kms_replica_key_arn` not provided or IAM policy missing KMS permissions.
+**Solution:**
 - Validate that the correct KMS replica key ARN is set.
 - Ensure the replication role has access to both KMS keys (source and replica).
 
 ---
 
 ### 6. Lifecycle Rules Deleting Data Too Early
-**Cause:** The default test rule (`expiration.days = 1`) is active in production.  
-**Solution:**  
+**Cause:** The default test rule (`expiration.days = 1`) is active in production.
+**Solution:**
 - Increase `noncurrent_version_retention_days` in production.
 - Remove the 1-day expiration rule for production workloads.
 
 ---
 
 ### 7. S3 Bucket Destroy Fails Due to prevent_destroy
-**Cause:** `prevent_destroy = true` enabled on critical resources (e.g., DynamoDB or terraform_state bucket).  
-**Solution:**  
+**Cause:** `prevent_destroy = true` enabled on critical resources (e.g., DynamoDB or terraform_state bucket).
+**Solution:**
 - Temporarily remove or override the lifecycle block for testing or teardown.
 
 ---
 
 ### 8. WordPress Scripts Not Uploaded to S3
-**Cause:** `s3_scripts` not provided or `scripts` bucket disabled.  
-**Solution:**  
+**Cause:** `s3_scripts` not provided or `scripts` bucket disabled.
+**Solution:**
 - Provide `s3_scripts` with the files to upload.
 - Ensure `scripts` bucket is enabled in `default_region_buckets`.
 
@@ -675,7 +675,7 @@ These commands help confirm the configuration and state of each bucket deployed 
 - The `terraform_state` bucket has special lifecycle rules to prevent accidental deletion of state files.
 - Always strictly validate and limit CORS `allowed_origins` in production environments to prevent cross-origin vulnerabilities and data leaks.
 - The scripts bucket must always be enabled in `default_region_buckets`. It is used to deliver the `deploy_wordpress.sh` and `healthcheck.php` script to EC2. Without it, WordPress cannot be deployed.
-- **S3 Bucket Ownership Controls**:  
+- **S3 Bucket Ownership Controls**:
   - The module configures S3 Object Ownership based on the bucket's function and region
   - 'BucketOwnerPreferred' is applied to log-receiving buckets (logging, alb_logs, cloudtrail) in the default region to enable ACLs required for legacy log delivery mechanisms.
   - 'BucketOwnerEnforced' is applied to all other default region buckets (scripts, terraform_state, wordpress_media) and all replication region buckets (wordpress_media replica). This disables ACLs and ensures the bucket owner is the sole owner of objects, simplifying access control through IAM and Bucket Policies.

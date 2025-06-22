@@ -1,24 +1,5 @@
 # --- RDS Module Variables --- #
 
-# --- AWS Region Configuration --- #
-# Specifies the AWS region where RDS resources will be created.
-variable "aws_region" {
-  description = "The AWS region where resources will be created"
-  type        = string
-}
-
-# --- AWS Account ID --- #
-# Used for permissions and resource identification.
-variable "aws_account_id" {
-  description = "AWS account ID for permissions and policies"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
-    error_message = "AWS Account ID must be a 12-digit numeric string."
-  }
-}
-
 # --- Naming and Environment Variables --- #
 # General variables for consistent naming and environment configuration.
 variable "name_prefix" {
@@ -150,24 +131,9 @@ variable "vpc_id" {
 }
 
 # --- VPC CIDR Block --- #
-# VPC CIDR block.
-variable "vpc_cidr_block" {
-  description = "CIDR block of the VPC where RDS is deployed."
-  type        = string
-}
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for RDS deployment"
-  type        = list(string)
-}
-
-variable "private_subnet_cidr_blocks" {
-  description = "List of CIDR blocks for private subnets"
-  type        = list(string)
-}
-
-variable "public_subnet_cidr_blocks" {
-  description = "List of CIDR blocks for public subnets"
   type        = list(string)
 }
 

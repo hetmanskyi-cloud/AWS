@@ -86,7 +86,7 @@ A comprehensive Terraform project leveraging a modular structure for deploying a
 - **S3 bucket and DynamoDB table must be deployed first** for remote state management
 
 ### Remote State Requirement
-This project uses **S3** for remote state storage and **DynamoDB** for state locking.  
+This project uses **S3** for remote state storage and **DynamoDB** for state locking.
 **Important:** These resources **must be deployed first** before running `terraform apply`.
 
 ---
@@ -127,10 +127,10 @@ graph TD
     ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM<br/>(asg/main.tf)"]
     ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas<br/>(rds/main.tf)"]
     ASG --> Redis["ElastiCache Redis<br/>Replication Groups<br/>(elasticache/main.tf)"]
-    
+
     %% WordPress Source Repository
     GitMirror["GitHub WordPress Mirror<br/>Version-controlled Source"] --> ASG
-    
+
     %% Storage and encryption
     ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication<br/>(s3/main.tf)"]
     S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies<br/>(kms/main.tf)"]
@@ -144,7 +144,7 @@ graph TD
     Redis --> CloudWatch
     VPC --> CloudWatch
     CloudWatch --> SNS["SNS Topics<br/>Notifications<br/>(sns_topics.tf)"]
-    
+
     %% CloudTrail
     CloudTrail["CloudTrail<br/>API Activity Logging<br/>(cloudtrail.tf)"] --> S3
     CloudTrail --> CloudWatch
@@ -166,7 +166,7 @@ graph TD
     ASG --> Secrets["AWS Secrets Manager<br/>Credentials Storage<br/>(secrets.tf)"]
     Secrets --> RDS
     Secrets --> Redis
-    
+
     %% Automation Tools
     Makefile["Makefile<br/>Infrastructure Automation<br/>(Makefile)"] --> TerraformCore["Terraform Core<br/>Operations"]
     TerraformCore --> VPC
@@ -178,23 +178,23 @@ graph TD
     TerraformCore --> CloudTrail
     TerraformCore --> S3State
     TerraformCore --> Secrets
-    
+
     %% Debug and Monitoring Tools
     Makefile --> DebugTools["Debug & Monitoring<br/>Tools"]
     DebugTools --> ASG
     DebugTools --> CloudWatch
-    
+
     %% Resource Verification
     Makefile --> ResourceCheck["Resource<br/>Verification"]
     ResourceCheck --> VPC
     ResourceCheck --> ASG
     ResourceCheck --> RDS
     ResourceCheck --> S3
-    
+
     %% Environment Preparation
     Makefile --> EnvTools["Environment<br/>Preparation"]
     EnvTools --> TerraformCore
-    
+
     %% Style Definitions
     class Makefile,TerraformCore,DebugTools,ResourceCheck,EnvTools aws_automation
     class GitMirror aws_repository
@@ -345,7 +345,7 @@ All modules are self-contained and documented for reusability.
 ```
 
 <div align="center">
-<b>Color Legend:</b>  
+<b>Color Legend:</b>
 🟧 Repository | 🟨 Module | 🟩 Terraform | 🟦 Template | 🟠 Script | 🟫 Makefile | 🟪 README
 </div>
 
@@ -458,7 +458,7 @@ backend "s3" {
 ```
 ### Re-initialize Terraform with Backend Reconfiguration and Migrate State
 
-If you initially deployed infrastructure using **local Terraform state (`terraform.tfstate`)**,  
+If you initially deployed infrastructure using **local Terraform state (`terraform.tfstate`)**,
 you **must** migrate the state file to the remote S3 backend to avoid resource duplication or data loss.
 
 ### Migration Steps:
@@ -484,7 +484,7 @@ you **must** migrate the state file to the remote S3 backend to avoid resource d
 - Allows team collaboration with a consistent state file
 - Provides state locking to prevent concurrent changes
 
-After successful migration, **the local `terraform.tfstate` is no longer used**.  
+After successful migration, **the local `terraform.tfstate` is no longer used**.
 You can archive or delete it safely:
 
 ```bash
@@ -586,7 +586,7 @@ This project is designed for seamless integration between modules:
 - **Expand IAM least privilege analysis** using `AWS Access Analyzer`
 - **Evaluate AWS Shield Advanced** for enhanced DDoS protection
 
-> **Note:** Graviton (`t4g.*`) ARM instances are not included in the AWS Free Tier. 
+> **Note:** Graviton (`t4g.*`) ARM instances are not included in the AWS Free Tier.
 > Use `t2.micro` instance types to stay within Free Tier limits.
 
 ---
@@ -895,21 +895,21 @@ make plan ENV=staging
 
 ## 16. Useful Resources
 
-- [Terraform Documentation](https://www.terraform.io/docs) — Official Terraform documentation  
-- [Terraform AWS Provider Guide](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) — Full AWS Provider resource reference  
-- [AWS Best Practices](https://aws.amazon.com/architecture/well-architected/) — AWS Well-Architected Framework  
-- [WordPress on AWS Best Practices](https://aws.amazon.com/blogs/architecture/wordpress-best-practices-on-aws/) — Architecture recommendations for WordPress  
-- [Terraform Releases](https://github.com/hashicorp/terraform/releases) — Latest Terraform versions  
-- [AWS KMS Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html) — Key management guidelines  
-- [AWS S3 Cross-Region Replication Guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html) — S3 replication overview  
-- [AWS VPC Best Practices](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-best-practices.html) — Designing secure and scalable VPCs  
-- [CloudWatch Metrics and Alarms Guide](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html) — Monitoring with CloudWatch  
+- [Terraform Documentation](https://www.terraform.io/docs) — Official Terraform documentation
+- [Terraform AWS Provider Guide](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) — Full AWS Provider resource reference
+- [AWS Best Practices](https://aws.amazon.com/architecture/well-architected/) — AWS Well-Architected Framework
+- [WordPress on AWS Best Practices](https://aws.amazon.com/blogs/architecture/wordpress-best-practices-on-aws/) — Architecture recommendations for WordPress
+- [Terraform Releases](https://github.com/hashicorp/terraform/releases) — Latest Terraform versions
+- [AWS KMS Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html) — Key management guidelines
+- [AWS S3 Cross-Region Replication Guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html) — S3 replication overview
+- [AWS VPC Best Practices](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-best-practices.html) — Designing secure and scalable VPCs
+- [CloudWatch Metrics and Alarms Guide](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html) — Monitoring with CloudWatch
 - [AWS Security Best Practices](https://docs.aws.amazon.com/general/latest/gr/aws-security-best-practices.html) — Comprehensive security guidelines
 
 ---
 
 ## Other:
-**README Location:**  
+**README Location:**
 This `README.md` is intentionally placed inside the `terraform/` directory as it documents the entire Terraform infrastructure
 project, including modules, architecture, deployment steps, and best practices.
 

@@ -51,36 +51,36 @@ graph LR
     ASG["Auto Scaling Group<br>(Target)"]
     KMS["KMS Key<br>(Encryption)"]
     SNS["SNS Topic<br>(Notifications)"]
-    
+
     %% Listeners and Target Group
     HTTP["HTTP Listener<br>(Port 80)"]
     HTTPS["HTTPS Listener<br>(Port 443, Optional)"]
     TargetGroup["Target Group<br>(Health Checks & Stickiness)"]
-    
+
     %% Security Components
     ALB_SG["ALB Security Group"]
     IngressRules["Ingress Rules<br>(HTTP/HTTPS)"]
     EgressRules["Egress Rules<br>(To Targets)"]
     WAF["Web Application Firewall<br>(Optional)"]
     RateLimiting["Rate Limiting Rule"]
-    
+
     %% Monitoring Components
     CWAlarms["CloudWatch Alarms"]
     HighRequestAlarm["High Request Count<br>Alarm"]
     ErrorAlarm["5XX Errors<br>Alarm"]
     ResponseTimeAlarm["Target Response Time<br>Alarm"]
     UnhealthyHostAlarm["Unhealthy Host<br>Alarm"]
-    
+
     %% Logging Components
     AccessLogs["Access Logs<br>(Optional)"]
     S3_ALB["S3 Bucket<br>(ALB Logs)"]
     Firehose["Kinesis Firehose<br>(Optional)"]
     S3_WAF["S3 Bucket<br>(WAF Logs)"]
-    
+
     %% Network Structure
     VPC -->|"Contains"| PublicSubnets
     PublicSubnets -->|"Hosts"| ALB
-    
+
     %% ALB Configuration
     ALB -->|"Has"| HTTP
     ALB -->|"Has (Optional)"| HTTPS
@@ -89,32 +89,32 @@ graph LR
     ALB -->|"Generates"| AccessLogs
     ALB -->|"DNS Name"| DNS["ALB DNS Name (Output)"]
     ALB -->|"Deletion Protection"| Protection["Deletion Protection Enabled (Optional)"]
-    
+
     %% Security
     ALB -->|"Uses"| ALB_SG
     ALB_SG -->|"Contains"| IngressRules
     ALB_SG -->|"Contains"| EgressRules
     WAF -->|"Protects"| ALB
     WAF -->|"Includes"| RateLimiting
-    
+
     %% Monitoring
     ALB -->|"Monitored by"| CWAlarms
     CWAlarms -->|"Includes"| HighRequestAlarm
     CWAlarms -->|"Includes"| ErrorAlarm
     CWAlarms -->|"Includes"| ResponseTimeAlarm
     CWAlarms -->|"Includes"| UnhealthyHostAlarm
-    
+
     HighRequestAlarm -->|"Notifies"| SNS
     ErrorAlarm -->|"Notifies"| SNS
     ResponseTimeAlarm -->|"Notifies"| SNS
     UnhealthyHostAlarm -->|"Notifies"| SNS
-    
+
     %% Logging
     AccessLogs -->|"Stored in"| S3_ALB
     WAF -->|"Logs via"| Firehose
     Firehose -->|"Delivers to"| S3_WAF
     KMS -->|"Encrypts"| Firehose
-    
+
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef security fill:#DD3522,stroke:#232F3E,color:white;
@@ -122,7 +122,7 @@ graph LR
     classDef logging fill:#1A73E8,stroke:#232F3E,color:white;
     classDef config fill:#7D3C98,stroke:#232F3E,color:white;
     classDef network fill:#1E8449,stroke:#232F3E,color:white;
-    
+
     class ALB,ASG,KMS,SNS aws;
     class ALB_SG,IngressRules,EgressRules,WAF,RateLimiting security;
     class CWAlarms,HighRequestAlarm,ErrorAlarm,ResponseTimeAlarm,UnhealthyHostAlarm monitoring;

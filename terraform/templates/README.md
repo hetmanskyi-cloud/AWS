@@ -60,10 +60,10 @@ graph TD
   RetryParams["Retry Parameters"]
   CloudWatchAgent["CloudWatch Agent"]
   CloudWatchLogs["CloudWatch Logs"]
-  
+
   %% S3 Components
   S3Script["S3 Bucket<br>(Deployment Scripts)"]
-  
+
   %% Main Flow
   EC2 -->|"Startup"| UserData
   UserData -->|"Installs"| AWSCLI
@@ -74,23 +74,23 @@ graph TD
   UserData -->|"Installs & Configures"| CloudWatchAgent
   CloudWatchAgent -->|"Forwards Logs"| CloudWatchLogs
   EnvVars -->|"Provides Config"| WPScript
-  
+
   %% Script Download Logic
   UserData -->|"Downloads From"| S3Script
   S3Script -->|"Provides"| WPScript
-  
+
   %% Secrets Flow
   UserData -->|"Passes Secret Names"| SecretsManager
   SecretsManager -->|"WordPress Credentials"| WPScript
   SecretsManager -->|"Redis Token"| RedisAuth
   RedisAuth -->|"Secure Connection"| WPScript
-  
+
   %% WordPress Configuration
   WPScript -->|"Configures"| WordPress
   WPScript -->|"Starts"| WebServer
   WebServer -->|"Serves"| WordPress
   WebServer -->|"Logs"| CloudWatchLogs
-  
+
   %% Styling
   classDef compute fill:#FF9900,stroke:#232F3E,color:white
   classDef storage fill:#1E8449,stroke:#232F3E,color:white
@@ -99,7 +99,7 @@ graph TD
   classDef service fill:#7D3C98,stroke:#232F3E,color:white
   classDef network fill:#2E86C1,stroke:#232F3E,color:white
   classDef monitoring fill:#3F8624,stroke:#232F3E,color:white
-  
+
   class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer,RetryParams compute
   class S3Script storage
   class SecretsManager,RedisAuth security
@@ -204,7 +204,7 @@ resource "aws_launch_template" "asg_launch_template" {
   - Enable Redis Object Cache
   - Download a more comprehensive healthcheck file from S3 (if specified)
 - If `enable_cloudwatch_logs` is set to `true`, the CloudWatch Agent is automatically installed and configured on instance launch to forward logs to the specified CloudWatch Log Groups.
-- If `enable_cloudwatch_logs` is set to `false`, the CloudWatch Agent will not be installed and no logs will be forwarded.  
+- If `enable_cloudwatch_logs` is set to `false`, the CloudWatch Agent will not be installed and no logs will be forwarded.
   To enable CloudWatch log streaming later, set `enable_cloudwatch_logs = true` and **recreate the EC2 instance** via ASG refresh or instance replacement.
 
 ---

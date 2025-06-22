@@ -286,7 +286,7 @@ resource "aws_network_acl_association" "private_nacl_association_3" {
 }
 
 # --- Notes --- #
-# 1. Public NACLs are configured to allow HTTP, HTTPS, and SSH traffic, 
+# 1. Public NACLs are configured to allow HTTP, HTTPS, and SSH traffic,
 #    but these rules can be toggled via variables for enhanced security.
 # 2. Private NACLs allow restricted access to resources like MySQL and Redis within the VPC.
 # 3. Egress rules permit outbound traffic to DNS and ephemeral ports for normal operations.

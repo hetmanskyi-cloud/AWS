@@ -141,4 +141,4 @@
         host: 127.0.0.1
         timeout: 5
       ignore_errors: yes
-      tags: [test, optional, network]   
+      tags: [test, optional, network]

@@ -26,7 +26,7 @@ try {
         MYSQLI_CLIENT_SSL
     );
     echo "PHP OK\n";
-    echo "MySQL OK\n";    
+    echo "MySQL OK\n";
     $conn->close();
 } catch (mysqli_sql_exception $e) {
     http_response_code(500);

@@ -34,7 +34,7 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 
 - **AWS Provider Configuration**:
   - The AWS provider (`aws`) must be properly configured in the root module with region and credentials.
-  
+
 - **KMS Key for Flow Logs**:
   - An existing KMS key ARN is required for encrypting VPC Flow Logs.
 
@@ -51,49 +51,49 @@ This module creates and manages a Virtual Private Cloud (VPC) in AWS, including 
 ```mermaid
 graph LR
     %% Main VPC Component
-    VPC["VPC<br/>(CIDR Block)"] 
-    
+    VPC["VPC<br/>(CIDR Block)"]
+
     %% Internet Gateway
     IGW["Internet Gateway"]
-    
+
     %% Subnets
     subgraph "Public Subnets"
         PubSub1["Public Subnet 1<br/>(AZ-1)"]
         PubSub2["Public Subnet 2<br/>(AZ-2)"]
         PubSub3["Public Subnet 3<br/>(AZ-3)"]
     end
-    
+
     subgraph "Private Subnets"
         PrivSub1["Private Subnet 1<br/>(AZ-1)"]
         PrivSub2["Private Subnet 2<br/>(AZ-2)"]
         PrivSub3["Private Subnet 3<br/>(AZ-3)"]
     end
-    
+
     %% Route Tables
     PubRT["Public Route Table"]
     PrivRT["Private Route Table"]
-    
+
     %% NACLs
     PubNACL["Public NACL"]
     PrivNACL["Private NACL"]
-    
+
     %% VPC Endpoints
     S3EP["S3 Gateway Endpoint"]
     DynamoEP["DynamoDB Gateway Endpoint"]
-    
+
     %% Flow Logs and Monitoring
     FlowLogs["VPC Flow Logs"]
     LogGroup["CloudWatch Log Group<br/>(KMS Encrypted)"]
     CWAlarm["CloudWatch Alarm<br/>(Flow Logs Delivery Errors)"]
     SNS["SNS Topic<br/>(Optional)"]
-    
+
     %% IAM Components for Flow Logs
     IAMRole["IAM Role<br/>(VPC Flow Logs)"]
     IAMPolicy["IAM Policy<br/>(CloudWatch Logs)"]
-    
+
     %% Default Security Group
     DefSG["Default Security Group<br/>(Locked Down)"]
-    
+
     %% Connections
     VPC --> IGW
     VPC --> PubSub1 & PubSub2 & PubSub3
@@ -101,26 +101,26 @@ graph LR
     VPC --> S3EP & DynamoEP
     VPC -->|"Captures Traffic"| FlowLogs
     VPC --> DefSG
-    
+
     PubSub1 & PubSub2 & PubSub3 -->|"Associated with"| PubRT
     PrivSub1 & PrivSub2 & PrivSub3 -->|"Associated with"| PrivRT
-    
+
     PubSub1 & PubSub2 & PubSub3 -->|"Protected by"| PubNACL
     PrivSub1 & PrivSub2 & PrivSub3 -->|"Protected by"| PrivNACL
-    
+
     PubRT -->|"Routes to"| IGW
     PubRT -->|"Routes to"| S3EP & DynamoEP
     PrivRT -->|"Routes to"| S3EP & DynamoEP
-    
+
     FlowLogs -->|"Stores in"| LogGroup
     LogGroup -->|"Monitored by"| CWAlarm
     CWAlarm -->|"Notifies"| SNS
-    
+
     %% IAM Connections
     IAMRole -->|"Assumes"| IAMPolicy
     IAMPolicy -->|"Grants Access"| LogGroup
     FlowLogs -->|"Uses"| IAMRole
-    
+
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
     classDef networking fill:#3F8624,stroke:#232F3E,color:white
@@ -128,7 +128,7 @@ graph LR
     classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
     classDef iam fill:#0066CC,stroke:#232F3E,color:white
     classDef endpoints fill:#1E8449,stroke:#232F3E,color:white
-    
+
     class VPC,IGW primary
     class PubSub1,PubSub2,PubSub3,PrivSub1,PrivSub2,PrivSub3,PubRT,PrivRT networking
     class PubNACL,PrivNACL,DefSG security
@@ -296,7 +296,7 @@ module "vpc" {
   vpc_cidr_block                = "10.0.0.0/16"
   name_prefix                   = "my-project"
   environment                   = "dev"
-  
+
   # Public Subnet Configuration
   public_subnet_cidr_block_1    = "10.0.1.0/24"
   public_subnet_cidr_block_2    = "10.0.2.0/24"
@@ -304,7 +304,7 @@ module "vpc" {
   availability_zone_public_1    = "eu-west-1a"
   availability_zone_public_2    = "eu-west-1b"
   availability_zone_public_3    = "eu-west-1c"
-  
+
   # Private Subnet Configuration
   private_subnet_cidr_block_1   = "10.0.4.0/24"
   private_subnet_cidr_block_2   = "10.0.5.0/24"
@@ -312,14 +312,14 @@ module "vpc" {
   availability_zone_private_1   = "eu-west-1a"
   availability_zone_private_2   = "eu-west-1b"
   availability_zone_private_3   = "eu-west-1c"
-  
+
   # Security Configuration
   ssh_allowed_cidr              = ["10.10.0.0/16"]  # Restrict SSH access to corporate network
-  
+
   # Flow Logs Configuration
   kms_key_arn                   = "arn:aws:kms:eu-west-1:123456789012:key/abcd1234-ab12-cd34-ef56-abcdef123456"
   flow_logs_retention_in_days   = 30
-  
+
   # Monitoring Configuration
   sns_topic_arn                 = aws_sns_topic.cloudwatch_alarms.arn
 }
@@ -335,7 +335,7 @@ module "vpc" {
    - Private subnets:
      - Allow only necessary ports (MySQL, Redis, DNS)
      - Restricted to VPC CIDR for internal communication
-   
+
 2. **Flow Logs Security**:
    - KMS encryption for all log data
    - IAM roles follow principle of least privilege

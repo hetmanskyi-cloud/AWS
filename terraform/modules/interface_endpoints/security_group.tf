@@ -1,5 +1,5 @@
 # --- Endpoints Security Group Configuration --- #
-# This file defines the Security Group for multiple Interface VPC Endpoints 
+# This file defines the Security Group for multiple Interface VPC Endpoints
 # (SSM, SSM Messages, ASG Messages, CloudWatch Logs, KMS),
 # allowing controlled access within the VPC.
 

@@ -69,60 +69,60 @@ graph TB
     Replicas["Read Replicas<br>(Optional)"]
     DBSubnetGroup["DB Subnet Group"]
     DBParamGroup["RDS Parameter Group<br>(TLS Enforcement)"]
-    
+
     %% Security Components
     RDSSG["RDS Security Group<br>(Created by Module)"]
     ASGSG["ASG Security Group<br>(External)"]
-    
+
     %% Monitoring Components
     IAMRole["IAM Role<br>(Enhanced Monitoring)<br>(Conditional)"]
     CWLogs["CloudWatch Logs<br>(Error, Slowquery)"]
     CWAlarms["CloudWatch Alarms<br>(Conditional)"]
     SNSTopic["SNS Topic<br>(Notifications)<br>(External)"]
-    
+
     %% Infrastructure Components
     VPC["VPC"]
     PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
     ASG["Auto Scaling Group<br>(Application Servers)"]
-    
+
     %% Encryption Components
     KMS["KMS Key<br>(External)"]
-    
+
     %% Network Structure
     VPC -->|"Contains"| PrivateSubnets
     PrivateSubnets -->|"Host"| RDS
     PrivateSubnets -->|"Host"| Replicas
     PrivateSubnets -->|"Host"| ASG
-    
+
     %% RDS Configuration
     RDS -->|"Creates if<br>read_replicas_count > 0"| Replicas
     RDS -->|"Uses"| DBSubnetGroup
     RDS -->|"Uses"| DBParamGroup
     PrivateSubnets -->|"Referenced in"| DBSubnetGroup
-    
+
     %% Security Configuration
     RDS -->|"Protected by"| RDSSG
     ASG -->|"Protected by"| ASGSG
     ASGSG -->|"Allows DB Port"| RDSSG
-    
+
     %% Monitoring Configuration
     RDS -->|"Sends Metrics via<br>(if enable_rds_monitoring=true)"| IAMRole
     RDS -->|"Exports Logs to"| CWLogs
     IAMRole -->|"Enables Metrics for"| CWAlarms
     CWAlarms -->|"Notify"| SNSTopic
-    
+
     %% Encryption
     KMS -->|"Encrypts"| RDS
     KMS -->|"Encrypts"| Replicas
     KMS -->|"Encrypts"| CWLogs
-    
+
     %% Styling
     classDef primary fill:#FF9900,stroke:#232F3E,color:white
     classDef security fill:#DD3522,stroke:#232F3E,color:white
     classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
     classDef network fill:#1E8449,stroke:#232F3E,color:white
     classDef encryption fill:#3F8624,stroke:#232F3E,color:white
-    
+
     class RDS,Replicas,DBSubnetGroup,DBParamGroup primary
     class RDSSG,ASGSG security
     class IAMRole,CWLogs,CWAlarms,SNSTopic monitoring
@@ -152,7 +152,7 @@ graph TB
     - **High CPU utilization**
     - **Low free storage space**
     - **High database connections**
-  - Alarms are conditionally created based on `enable_high_cpu_alarm`, `enable_low_storage_alarm`, and `enable_high_connections_alarm` variables  
+  - Alarms are conditionally created based on `enable_high_cpu_alarm`, `enable_low_storage_alarm`, and `enable_high_connections_alarm` variables
 - **Security Group**:
   - Manages access control by allowing database connections only from ASG instances
   - Security Group rules:
@@ -292,12 +292,12 @@ module "rds" {
   multi_az                = true
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
-  
+
   # Performance and Protection
   performance_insights_enabled = true
   rds_deletion_protection      = true
   skip_final_snapshot          = false
-  
+
   # Networking
   vpc_id                    = module.vpc.vpc_id
   vpc_cidr_block            = module.vpc.vpc_cidr_block
@@ -305,10 +305,10 @@ module "rds" {
   private_subnet_cidr_blocks = module.vpc.private_subnet_cidr_blocks
   public_subnet_cidr_blocks = module.vpc.public_subnet_cidr_blocks
   asg_security_group_id     = module.asg.security_group_id
-  
+
   # Encryption
   kms_key_arn = module.kms.key_arn
-  
+
   # Monitoring
   enable_rds_monitoring       = true
   rds_cpu_threshold_high      = 80
@@ -317,10 +317,10 @@ module "rds" {
   # Required if monitoring or alarms are enabled
   sns_topic_arn               = aws_sns_topic.cloudwatch_alarms.arn
   rds_log_retention_days      = 30
-  
+
   # Read Replicas
   read_replicas_count = 1
-  
+
   # CloudWatch Alarms
   enable_low_storage_alarm      = true
   enable_high_cpu_alarm         = true
@@ -401,83 +401,83 @@ This RDS module integrates with the following modules and AWS services:
 ## 15. Troubleshooting and Common Issues
 
 ### 1. RDS Instance Not Accepting Connections
-**Cause:** Security Group missing correct inbound rules or wrong source.  
-**Solution:**  
-- Ensure the `rds_security_group` allows inbound traffic on the correct database port (default `3306` for MySQL).  
+**Cause:** Security Group missing correct inbound rules or wrong source.
+**Solution:**
+- Ensure the `rds_security_group` allows inbound traffic on the correct database port (default `3306` for MySQL).
 - Verify the source is restricted to the correct ASG Security Group.
 
 ---
 
 ### 2. Cannot Connect Without SSL/TLS
-**Cause:** SSL/TLS enforcement enabled but client not using SSL connection.  
-**Solution:**  
-- Ensure the database client uses SSL when connecting.  
+**Cause:** SSL/TLS enforcement enabled but client not using SSL connection.
+**Solution:**
+- Ensure the database client uses SSL when connecting.
 - Download the RDS CA bundle from AWS and specify it in the connection string.
 
 ---
 
 ### 3. CloudWatch Alarms Not Triggering
-**Cause:** Alarms misconfigured or metrics not available.  
-**Solution:**  
-- Verify `enable_<alarm>` variables are set to `true`.  
+**Cause:** Alarms misconfigured or metrics not available.
+**Solution:**
+- Verify `enable_<alarm>` variables are set to `true`.
 - Ensure the RDS instance is producing the required metrics in CloudWatch.
 
 ---
 
 ### 4. Enhanced Monitoring Metrics Missing
-**Cause:** IAM role for monitoring not properly created or attached.  
-**Solution:**  
-- Verify `enable_rds_monitoring = true`.  
-- Check that the IAM role `rds_monitoring_role` is created and the correct policy is attached.  
+**Cause:** IAM role for monitoring not properly created or attached.
+**Solution:**
+- Verify `enable_rds_monitoring = true`.
+- Check that the IAM role `rds_monitoring_role` is created and the correct policy is attached.
 - Confirm the role ARN is assigned to `monitoring_role_arn`.
 
 ---
 
 ### 5. Read Replicas Not Created
-**Cause:** `read_replicas_count` is set to `0` or replication prerequisites not met.  
-**Solution:**  
-- Increase `read_replicas_count` to desired number.  
+**Cause:** `read_replicas_count` is set to `0` or replication prerequisites not met.
+**Solution:**
+- Increase `read_replicas_count` to desired number.
 - Check engine version and ensure the primary instance allows read replicas.
 
 ---
 
 ### 6. CloudWatch Logs Missing or Empty
-**Cause:** Log exports not enabled or incorrect parameter group settings.  
-**Solution:**  
-- Ensure `enabled_cloudwatch_logs_exports` includes `"error"` and `"slowquery"`.  
+**Cause:** Log exports not enabled or incorrect parameter group settings.
+**Solution:**
+- Ensure `enabled_cloudwatch_logs_exports` includes `"error"` and `"slowquery"`.
 - Verify CloudWatch Log Group names are correct and retention is configured.
 
 ---
 
 ### 7. Final Snapshot Not Created on Deletion
-**Cause:** `skip_final_snapshot` set to `true`.  
-**Solution:**  
-- Set `skip_final_snapshot = false` to ensure a snapshot is created before RDS deletion.  
+**Cause:** `skip_final_snapshot` set to `true`.
+**Solution:**
+- Set `skip_final_snapshot = false` to ensure a snapshot is created before RDS deletion.
 - Provide `final_snapshot_identifier` if needed.
 
 ---
 
 ### 8. Deletion Protection Prevents Terraform Destroy
-**Cause:** `rds_deletion_protection = true` prevents deletion.  
-**Solution:**  
-- Set `rds_deletion_protection = false` in `terraform.tfvars`.  
+**Cause:** `rds_deletion_protection = true` prevents deletion.
+**Solution:**
+- Set `rds_deletion_protection = false` in `terraform.tfvars`.
 - Run `terraform apply`, then retry `terraform destroy`.
 
 ---
 
 ### 9. Performance Insights Failing Due to Missing KMS
-**Cause:** `performance_insights_enabled = true` but no valid `kms_key_arn`.  
-**Solution:**  
-- Ensure you provide a valid KMS Key ARN for Performance Insights encryption.  
+**Cause:** `performance_insights_enabled = true` but no valid `kms_key_arn`.
+**Solution:**
+- Ensure you provide a valid KMS Key ARN for Performance Insights encryption.
 - Validate the KMS key policy allows RDS to use it.
 
 ---
 
 ### 10. Monitoring Costs Unexpectedly High
-**Cause:** CloudWatch Logs and Enhanced Monitoring produce high data volumes.  
-**Solution:**  
-- Review log retention (`rds_log_retention_days`) and lower if necessary.  
-- Disable unneeded logs like general or audit logs in non-production environments.  
+**Cause:** CloudWatch Logs and Enhanced Monitoring produce high data volumes.
+**Solution:**
+- Review log retention (`rds_log_retention_days`) and lower if necessary.
+- Disable unneeded logs like general or audit logs in non-production environments.
 - Optimize Enhanced Monitoring granularity or disable if not required.
 
 ---

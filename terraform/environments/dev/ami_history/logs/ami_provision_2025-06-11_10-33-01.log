@@ -52,6 +52,6 @@ RUNNING HANDLER [Restart SSH] **************************************************
 changed: [golden-ami-instance]
 
 PLAY RECAP *********************************************************************
-golden-ami-instance        : ok=15   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+golden-ami-instance        : ok=15   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 
 [2025-06-11_10-33-01] Provisioning done. Now verify instance and run make create-ami ENV=dev

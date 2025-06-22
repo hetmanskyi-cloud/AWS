@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- ASG Auto Scaling Group Configuration --- #
 # Configures the Auto Scaling Group (ASG) to dynamically adjust instance capacity based on traffic and application load.
 

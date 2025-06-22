@@ -51,7 +51,7 @@ resource "aws_security_group_rule" "alb_https" {
 }
 
 # --- Egress Rule for ALB --- #
-# Allow all outbound traffic. 
+# Allow all outbound traffic.
 # Required for ALB to forward requests to registered targets (e.g., ASG instances) and communicate with external services.
 
 # checkov:skip=CKV_AWS_382 Justification: Allowing all outbound traffic is required for ALB to communicate with targets and AWS services
@@ -60,12 +60,12 @@ resource "aws_security_group_rule" "alb_egress_all" {
   type              = "egress"
   from_port         = 0
   to_port           = 0
-  protocol          = "-1" # "-1" allows all protocols.  
+  protocol          = "-1" # "-1" allows all protocols.
   #tfsec:ignore:aws-ec2-no-public-egress-sgr
   cidr_blocks = ["0.0.0.0/0"] # Allow outbound traffic to all IP addresses.
   description = "Allow all outbound traffic for ALB"
 
-  # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes. 
+  # Note: Allowing 0.0.0.0/0 is acceptable for testing purposes.
   # For production, replace with AWS service prefixes for improved security.
 }
 

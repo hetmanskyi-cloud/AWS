@@ -41,9 +41,10 @@ resource "aws_iam_role" "asg_role" {
 # - KMS permissions for encrypting/decrypting these buckets, if encrypted with SSE-KMS
 # Policy is created only when at least one of the required buckets is enabled.
 resource "aws_iam_policy" "s3_access_policy" {
+  # Use can() to safely check if the keys and the 'enabled' attribute exist.
   count = (
-    var.default_region_buckets["wordpress_media"].enabled ||
-    var.default_region_buckets["scripts"].enabled
+    can(var.default_region_buckets["wordpress_media"].enabled) ||
+    can(var.default_region_buckets["scripts"].enabled)
   ) ? 1 : 0
 
   name = "${var.name_prefix}-s3-access-policy-${var.environment}"
@@ -51,36 +52,43 @@ resource "aws_iam_policy" "s3_access_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat(
-      # Wordpress media bucket (read/write)
-      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "" ? [{
+      # Wordpress media bucket (read/write objects)
+      (can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "") ? [{
+        Sid      = "AllowWordpressMediaReadWrite"
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = ["${var.wordpress_media_bucket_arn}/*"]
       }] : [],
 
-      var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "" ? [{
-        Effect   = "Allow",
+      # Wordpress media bucket (list bucket)
+      (can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "") ? [{
+        Sid      = "AllowWordpressMediaList"
+        Effect   = "Allow"
         Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
         Resource = var.wordpress_media_bucket_arn
       }] : [],
 
-      # Scripts bucket (read-only)
-      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ? [{
-        Effect   = "Allow",
-        Action   = ["s3:GetObject"],
+      # Scripts bucket (read-only objects)
+      (can(var.default_region_buckets["scripts"].enabled) && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "") ? [{
+        Sid      = "AllowScriptsRead"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
         Resource = "${var.scripts_bucket_arn}/*"
       }] : [],
 
-      var.default_region_buckets["scripts"].enabled && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "" ? [{
-        Effect   = "Allow",
+      # Scripts bucket (list bucket)
+      (can(var.default_region_buckets["scripts"].enabled) && var.scripts_bucket_arn != null && var.scripts_bucket_arn != "") ? [{
+        Sid      = "AllowScriptsList"
+        Effect   = "Allow"
         Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
         Resource = var.scripts_bucket_arn
       }] : [],
 
       # KMS key permissions for bucket encryption
-      var.default_region_buckets["wordpress_media"].enabled && var.kms_key_arn != null && var.kms_key_arn != "" ? [{
-        Effect   = "Allow",
-        Action   = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey"],
+      (can(var.default_region_buckets["wordpress_media"].enabled) && var.kms_key_arn != null && var.kms_key_arn != "") ? [{
+        Sid      = "AllowKMSForS3"
+        Effect   = "Allow"
+        Action   = ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey"]
         Resource = var.kms_key_arn
       }] : []
     )
@@ -92,7 +100,7 @@ resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
   count = length(aws_iam_policy.s3_access_policy) > 0 ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.s3_access_policy[0].arn
+  policy_arn = length(aws_iam_policy.s3_access_policy) > 0 ? aws_iam_policy.s3_access_policy[0].arn : null
 }
 
 # --- CloudWatch Access Policy --- #
@@ -190,8 +198,8 @@ resource "aws_iam_role_policy_attachment" "secrets_manager_access_policy_attachm
 resource "aws_iam_policy" "kms_decrypt_policy" {
   count = (
     var.enable_ebs_encryption
-    || var.default_region_buckets["wordpress_media"].enabled
-    || var.default_region_buckets["scripts"].enabled
+    || can(var.default_region_buckets["wordpress_media"].enabled)
+    || can(var.default_region_buckets["scripts"].enabled)
   ) ? 1 : 0
 
   name        = "${var.name_prefix}-kms-decrypt-policy-${var.environment}"
@@ -255,12 +263,12 @@ resource "aws_iam_policy" "kms_decrypt_policy" {
 resource "aws_iam_role_policy_attachment" "kms_access" {
   count = (
     var.enable_ebs_encryption
-    || var.default_region_buckets["wordpress_media"].enabled
-    || var.default_region_buckets["scripts"].enabled
+    || can(var.default_region_buckets["wordpress_media"].enabled)
+    || can(var.default_region_buckets["scripts"].enabled)
   ) ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
-  policy_arn = aws_iam_policy.kms_decrypt_policy[0].arn
+  policy_arn = length(aws_iam_policy.kms_decrypt_policy) > 0 ? aws_iam_policy.kms_decrypt_policy[0].arn : null
 }
 
 # --- IAM Instance Profile --- #

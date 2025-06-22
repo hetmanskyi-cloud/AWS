@@ -1,8 +1,8 @@
 # --- AWS WAF Web ACL for CloudFront (us-east-1) --- #
-# This resource creates an AWS WAFv2 Web Access Control List (Web ACL)
-# specifically designed for integration with CloudFront distributions.
-# All WAF resources for CloudFront must be deployed in the us-east-1 region
-# and specify 'scope = "CLOUDFRONT"'.
+# This resource creates an AWS WAFv2 Web Access Control List (Web ACL) for CloudFront,
+# acting as the primary, edge security layer. It protects both the WordPress application
+# origin (forwarded to ALB) and the media origin (S3) from common web threats.
+# All WAF resources for CloudFront must be deployed in the us-east-1 region.
 
 resource "aws_wafv2_web_acl" "cloudfront_waf" {
   provider = aws.cloudfront
@@ -11,7 +11,7 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
   count = var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? 1 : 0
 
   name        = "${var.name_prefix}-cloudfront-waf-${var.environment}"
-  description = "Web ACL for CloudFront distribution protecting WordPress media"
+  description = "Primary Edge WAF protecting CloudFront origins: ALB and S3"
   scope       = "CLOUDFRONT" # Essential for associating with CloudFront distributions
   default_action {
     allow {} # Default action is to allow requests unless explicitly blocked by a rule
@@ -24,29 +24,23 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
   }
 
   # --- WAF Rules --- #
-  # Defines the rules for filtering web requests.
   # Rules are processed in order of their priority (lower number = higher precedence).
 
-  # Rule 1: AWS Managed Rule Group for Common Web Exploits (e.g., SQLi, XSS)
-  # Provides baseline protection against common vulnerabilities.
+  # Rule 1 & 2: AWS Managed Rules (Baseline Protection)
+  # These provide broad protection against common exploits like SQLi, XSS, and known bad inputs.
+  # Placing them at the edge (CloudFront) is most efficient as it blocks attacks before they reach the origin (ALB/EC2).
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
-    priority = 10 # Processed first
+    priority = 10
 
     override_action {
-      none {} # Allows individual rules within this group to define their action (block/count)
+      none {}
     }
 
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
-
-        # Optional: Exclude specific rules from this managed group if they cause false positives.
-        # For example, to exclude a rule that blocks certain valid requests:
-        # excluded_rule {
-        #   name = "SizeRestrictions_BODY"
-        # }
       }
     }
 
@@ -57,26 +51,18 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
     }
   }
 
-  # Rule 2: AWS Managed Rule Group for Known Bad Inputs (includes Log4j detection)
-  # Essential for protecting against CVE-2021-44228 (Log4Shell) and related exploits.
   rule {
     name     = "AWSManagedRulesKnownBadInputsRuleSet"
-    priority = 20 # Processed after CommonRuleSet, before RateLimit
+    priority = 20
 
     override_action {
-      none {} # Allows individual rules within this group to define their action
+      none {}
     }
 
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesKnownBadInputsRuleSet"
         vendor_name = "AWS"
-        # The Log4j rule is part of this rule set. You can exclude other rules from this group
-        # if they are not relevant or cause issues.
-        # Example to specifically target Log4j protection within this set:
-        # excluded_rule {
-        #   name = "Log4JRCE" # If you only want to exclude the Log4j rule
-        # }
       }
     }
 
@@ -87,34 +73,47 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
     }
   }
 
-  # Rule 3: Rate-based rule to mitigate brute-force attacks or excessive requests.
-  # Blocks requests from an IP address if it exceeds a defined threshold within a 5-minute period.
+  # Rule 3: AWS Managed Rules for WordPress
+  # This is the recommended approach for protecting WordPress. It contains rules that
+  # block request patterns associated with the exploitation of vulnerabilities specific to WordPress sites.
+  # This replaces the need for most custom WordPress rules.
   rule {
-    name     = "RateLimit"
-    priority = 30 # Processed after managed rule groups
-
-    action {
-      block {} # Block requests that exceed the rate limit
+    name     = "AWSManagedRulesWordPressRuleSet"
+    priority = 30
+    override_action {
+      none {}
     }
-
     statement {
-      rate_based_statement {
-        limit              = 2000 # Max requests per 5-minute period per IP (adjust as needed)
-        aggregate_key_type = "IP" # Aggregate requests based on source IP address
-
-        # Optional: You can aggregate on other keys like HTTP header, query argument, etc.
-        # Example for aggregating by a custom header:
-        # custom_key {
-        #   header {
-        #     name = "X-Forwarded-For" # Useful if a proxy changes client IP
-        #   }
-        # }
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesWordPressRuleSet"
+        vendor_name = "AWS"
       }
     }
-
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "RateLimitMetrics"
+      metric_name                = "AWSManagedRulesWordPressRuleSetMetrics"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Rule 4: Generic rate-based rule to mitigate DDoS and excessive requests.
+  # This acts as a general catch-all for other parts of the site. It has a higher limit
+  # than the ALB WAF, acting as the first layer of rate-based protection.
+  rule {
+    name     = "GenericRateLimit"
+    priority = 100 # Processed last, before default allow action
+    action {
+      block {}
+    }
+    statement {
+      rate_based_statement {
+        limit              = 2000 # Max requests per 5-minute period per IP
+        aggregate_key_type = "IP"
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "GenericRateLimitMetrics"
       sampled_requests_enabled   = true
     }
   }
@@ -134,35 +133,14 @@ resource "aws_wafv2_web_acl_logging_configuration" "cloudfront_waf_logging" {
 
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.firehose_cloudfront_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.cloudfront_waf[0].arn
-
-  # Optional: Configure Redacted Fields to prevent sensitive data from being logged.
-  # This is highly recommended for production environments.
-  # For example, to redact common sensitive headers:
-  # redacted_fields {
-  #   field_to_match {
-  #     single_header { name = "Authorization" }
-  #   }
-  #   field_to_match {
-  #     single_header { name = "Cookie" }
-  #   }
-  # }
 }
 
 # --- Notes --- #
 # 1. This file defines the AWS WAFv2 Web ACL that protects your CloudFront distribution.
-# 2. The scope must be set to "CLOUDFRONT" and the provider must be aws.cloudfront (us-east-1).
-# 3. A default allow action is set, meaning requests are allowed unless a rule explicitly blocks them.
-# 4. Two AWS Managed Rule Groups are included for robust protection:
-#    - AWSManagedRulesCommonRuleSet: Protects against common web exploits like SQL injection and XSS.
-#    - AWSManagedRulesKnownBadInputsRuleSet: Includes rules for known bad inputs, such as Log4j exploits.
-#    These are placed with lower priority numbers (10, 20) to ensure they are evaluated first.
-# 5. A RateLimit rule (priority 30) is implemented to mitigate brute-force attacks and denial-of-service attempts
-#    by blocking IPs that exceed a specified request threshold within a 5-minute window. Adjust limit as needed.
-#    Note: rate_limit_statement must be nested inside a statement block.
-# 6. WAF logging is configured to send detailed security logs to the Kinesis Firehose delivery stream
-#    defined in firehose.tf. This ensures comprehensive audit trails.
-#    Note: The aws_wafv2_web_acl_logging_configuration resource does not support tags directly,
-#    so they have been removed.
-# 7. CloudWatch metrics for WAF are enabled for real-time visibility into WAF performance,
-#    blocked requests, and rule-specific actions.
-# 8. Remember to set var.enable_cloudfront_waf = true in your variables to enable these WAF resources.
+# 2. This WAF acts as the **primary, edge security layer**, filtering traffic before it reaches any origin (ALB or S3).
+# 3. The WAF on the ALB (defined in the alb module) acts as a **second, application-level security layer**, providing defense-in-depth.
+#    There is no duplication, but rather a strategic layering of security controls.
+# 4. AWS Managed Rule Groups (priorities 10, 20) efficiently block common attacks (SQLi, XSS, etc.) at the edge.
+# 5. The AWSManagedRulesWordPressRuleSet (priority 30) provides specialized protection for WordPress-specific threats,
+#    eliminating the need for most custom WordPress rules.
+# 6. The generic RateLimit rule (priority 100) acts as a catch-all DDoS mitigation for all traffic.

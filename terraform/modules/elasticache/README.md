@@ -53,7 +53,7 @@ graph TB
     Redis["ElastiCache Redis<br>Replication Group"]
     KMS["KMS Key<br>(Encryption)"]
     SNS["SNS Topic<br>(Notifications)"]
-    
+
     %% ElastiCache Components
     subgraph "ElastiCache Configuration"
         SubnetGroup["Subnet Group"]
@@ -61,13 +61,13 @@ graph TB
         RedisNodes["Redis Nodes<br>(Primary + Replicas)"]
         FailoverMech["Automatic Failover<br>Mechanism"]
     end
-    
+
     subgraph "Security"
         RedisSG["Redis Security Group"]
         Encryption["Encryption<br>(At-Rest & In-Transit)"]
         IngressRule["Ingress Rule<br>(Redis Port)"]
     end
-    
+
     subgraph "Monitoring"
         CWAlarms["CloudWatch Alarms"]
         LowMemAlarm["Low Memory Alarm<br>(FreeableMemory)"]
@@ -75,22 +75,22 @@ graph TB
         ReplBytesAlarm["Replication Bytes Alarm<br>(ReplicationBytesUsed)"]
         CPUCreditsAlarm["CPU Credits Alarm<br>(CPUCreditBalance)"]
     end
-    
+
     subgraph "Backup"
         Snapshots["Automated Snapshots<br>(Daily Window)"]
         RetentionPolicy["Retention Policy"]
     end
-    
+
     %% Network Structure
     VPC -->|"Contains"| PrivateSubnets
     PrivateSubnets -->|"Used by"| SubnetGroup
-    
+
     %% Connections
     ASG -->|"Connects to"| Redis
     ASG_SG -->|"Allows Redis (6379)"| IngressRule
     IngressRule -->|"Controls access to"| RedisSG
     RedisSG -->|"Secures"| Redis
-    
+
     %% ElastiCache Configuration
     SubnetGroup -->|"Deploys in"| Redis
     ParamGroup -->|"Configures"| Redis
@@ -98,27 +98,27 @@ graph TB
     Redis -->|"Enables when<br>replicas > 0"| FailoverMech
     Redis -->|"Exposes"| ReaderEndpoint
     class ReaderEndpoint config;
-    
+
     %% Security
     KMS -->|"Provides keys for"| Encryption
     Encryption -->|"Secures data in"| Redis
-    
+
     %% Monitoring
     Redis -->|"Monitored by"| CWAlarms
     CWAlarms -->|"Includes"| LowMemAlarm
     CWAlarms -->|"Includes"| HighCPUAlarm
     CWAlarms -->|"Includes"| ReplBytesAlarm
     CWAlarms -->|"Includes"| CPUCreditsAlarm
-    
+
     LowMemAlarm -->|"Notifies"| SNS
     HighCPUAlarm -->|"Notifies"| SNS
     ReplBytesAlarm -->|"Notifies"| SNS
     CPUCreditsAlarm -->|"Notifies"| SNS
-    
+
     %% Backup
     Redis -->|"Creates"| Snapshots
     Snapshots -->|"Managed by"| RetentionPolicy
-    
+
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef security fill:#DD3522,stroke:#232F3E,color:white;
@@ -126,7 +126,7 @@ graph TB
     classDef backup fill:#1A73E8,stroke:#232F3E,color:white;
     classDef config fill:#7D3C98,stroke:#232F3E,color:white;
     classDef network fill:#1E8449,stroke:#232F3E,color:white;
-    
+
     class ASG,ASG_SG,Redis,KMS,SNS aws;
     class RedisSG,Encryption,IngressRule security;
     class CWAlarms,LowMemAlarm,HighCPUAlarm,ReplBytesAlarm,CPUCreditsAlarm monitoring;
@@ -338,7 +338,7 @@ This module integrates with the following components:
 
 ## 14. Future Improvements
 
-No additional improvements are required at this time.  
+No additional improvements are required at this time.
 The module already supports:
 
 - Integration with **AWS Secrets Manager** for Redis AUTH token retrieval.
@@ -352,40 +352,40 @@ This implementation is production-ready and covers all critical best practices.
 ### 15. Troubleshooting and Common Issues
 
 #### 1. Redis Cluster Not Accessible
-**Cause:** Security group misconfiguration or incorrect port settings.  
-**Solution:**  
-- Ensure `redis_port` is open in the Redis Security Group.  
+**Cause:** Security group misconfiguration or incorrect port settings.
+**Solution:**
+- Ensure `redis_port` is open in the Redis Security Group.
 - Verify `source_security_group_id` allows traffic from the ASG Security Group.
 
 ---
 
 #### 2. CloudWatch Alarms Not Triggering
-**Cause:** Alarms are not enabled or thresholds are set too high.  
-**Solution:**  
-- Verify `enable_redis_*_alarm` variables are set to `true`.  
+**Cause:** Alarms are not enabled or thresholds are set too high.
+**Solution:**
+- Verify `enable_redis_*_alarm` variables are set to `true`.
 - Re-check values for `redis_cpu_threshold` and `redis_memory_threshold`.
 
 ---
 
 #### 3. Data Not Encrypted At Rest
-**Cause:** Missing or incorrect KMS configuration.  
-**Solution:**  
-- Ensure `kms_key_arn` is valid and properly configured.  
+**Cause:** Missing or incorrect KMS configuration.
+**Solution:**
+- Ensure `kms_key_arn` is valid and properly configured.
 - Check KMS permissions for the ElastiCache service.
 
 ---
 
 #### 4. SSM or Redis Monitoring Fails
-**Cause:** Missing IAM permissions.  
-**Solution:**  
+**Cause:** Missing IAM permissions.
+**Solution:**
 - Attach required IAM policies to allow monitoring and access.
 
 ---
 
 #### 5. Replication Issues or Failover Not Working
-**Cause:** `replicas_per_node_group` is set to `0` or failover is disabled.  
-**Solution:**  
-- Set `replicas_per_node_group` to a value greater than `0`.  
+**Cause:** `replicas_per_node_group` is set to `0` or failover is disabled.
+**Solution:**
+- Set `replicas_per_node_group` to a value greater than `0`.
 - Ensure `enable_failover = true` is configured.
 
 ---

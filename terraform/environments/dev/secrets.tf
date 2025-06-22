@@ -105,6 +105,21 @@ resource "random_password" "db_password" {
   }
 }
 
+# --- Random String for CloudFront → ALB Custom Header --- #
+# Secret value for validating requests to ALB come only from CloudFront (custom header X-Custom-Origin-Verify).
+# Rotated together with other infrastructure secrets.
+resource "random_password" "cloudfront_to_alb_header" {
+  length           = 32
+  special          = true
+  min_upper        = 1
+  min_lower        = 1
+  min_numeric      = 1
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+  keepers = {
+    version = var.secrets_version
+  }
+}
+
 # --- Local Values --- #
 # Defines a unified structure for all secrets, splitting credentials into database and WordPress groups for modular use.
 locals {
@@ -248,35 +263,35 @@ resource "aws_secretsmanager_secret_version" "redis_auth_version" {
 #    - All values are securely generated and rotated on-demand through the IaC workflow.
 #
 # 3. Access Control:
-#    - Managed via IAM roles in the ASG module. Both the ARNs (for IAM policies) and names (for scripts) 
+#    - Managed via IAM roles in the ASG module. Both the ARNs (for IAM policies) and names (for scripts)
 #      of the secrets must be passed as variables to the module.
 #
 # 4. Lifecycle:
 #    - The recovery window and deletion protection settings are environment-tunable for safety in production.
 #
 # 5. State and CI/CD:
-#    - Secret values are stored in the Terraform state file. Ensure the state backend (e.g., S3) 
+#    - Secret values are stored in the Terraform state file. Ensure the state backend (e.g., S3)
 #      is secure with encryption, versioning, and strict access controls.
 #    - Avoid printing secret values in CI/CD logs.
 #
 # 6. Secrets Rotation Workflow:
-#    - Rotation is controlled via the `secrets_version` variable and consists of two phases: 
+#    - Rotation is controlled via the `secrets_version` variable and consists of two phases:
 #      1) updating the secret in AWS Secrets Manager, and 2) applying the new secret to the running instances.
 #    - There are two scenarios for applying the rotation:
 #
 #    Scenario A: Rotation with an AMI Update (Standard Deployment)
 #      1. Trigger: In the .tfvars file, change both `var.ami_id` and `var.secrets_version`.
 #      2. Action: Run `terraform apply`.
-#      3. Result: Terraform creates a new Launch Template version. The Auto Scaling Group detects this 
-#         change and **automatically** triggers a rolling update (`instance_refresh`). New instances 
+#      3. Result: Terraform creates a new Launch Template version. The Auto Scaling Group detects this
+#         change and **automatically** triggers a rolling update (`instance_refresh`). New instances
 #         are deployed with the new AMI and fetch the new secrets on startup.
 #
 #    Scenario B: Rotation Only (without an AMI Update)
-#      1. Phase 1 (Update Secret): In the .tfvars file, change **only** `var.secrets_version`. 
+#      1. Phase 1 (Update Secret): In the .tfvars file, change **only** `var.secrets_version`.
 #         Run `terraform apply`. This updates the values in Secrets Manager but does not affect running instances.
-#      2. Phase 2 (Apply to Instances): Manually trigger a rolling update of the instances using the AWS CLI. 
+#      2. Phase 2 (Apply to Instances): Manually trigger a rolling update of the instances using the AWS CLI.
 #         This forces them to restart and fetch the new secrets.
 #         Command: aws autoscaling start-instance-refresh --auto-scaling-group-name <your_asg_name>
 #
-#    Key Takeaway: The ASG's built-in rolling update only triggers on Launch Template changes. 
+#    Key Takeaway: The ASG's built-in rolling update only triggers on Launch Template changes.
 #    For a secrets-only rotation, manually starting an `instance-refresh` is a required second step.

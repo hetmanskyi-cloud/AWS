@@ -1,42 +1,78 @@
 # --- WAF (Web Application Firewall) Configuration for ALB --- #
 
 # --- Security Reminder --- #
-# - AWS WAF is optional but strongly recommended for production environments to protect against web attacks.
-# - This configuration uses a basic Rate Limit rule. For production, extend WAF rules with AWS Managed Rule Groups.
+# - This WAF acts as the SECONDARY, application-level security layer in a defense-in-depth strategy.
+# - Its primary role is to ensure traffic originates only from CloudFront and to apply stricter, targeted rules.
+# - The PRIMARY, edge-level WAF is configured on the CloudFront distribution.
 
 # --- Notes on ALB Protection --- #
-# By default, ALB is protected by AWS Shield Standard, which defends against DDoS attacks at the 
-# Network (L3) and Transport (L4) layers. AWS WAF adds Layer 7 protection against web application attacks.
+# By default, ALB is protected by AWS Shield Standard (L3/L4).
+# This WAF adds critical L7 protection, working in tandem with the CloudFront WAF to create a robust, multi-layered security posture.
 
-# For application-level (L7) attacks, AWS WAF provides additional protection through managed rules.
-# Combining WAF and Shield Standard ensures a comprehensive security strategy for ALB.
-
-# Web ACL (Access Control List) protects ALB from common web vulnerabilities.
-# This is a simplified configuration suitable for testing and development.
-# In production, extend it with AWS Managed Rule Groups for better protection.
+# Web ACL (Access Control List) protects the ALB from direct access and applies fine-grained rules.
+# This configuration is designed to be highly effective and demonstrate advanced security concepts.
 resource "aws_wafv2_web_acl" "alb_waf" {
   count = var.enable_alb_waf ? 1 : 0
 
   # Name of the WAF ACL
   name        = "${var.name_prefix}-alb-waf-${var.environment}" # Unique name for the WAF ACL
   scope       = "REGIONAL"                                      # Scope: Regional for ALB (Global is used for CloudFront)
-  description = "WAF for ALB to protect against basic attacks"
+  description = "Secondary WAF for ALB to enforce CloudFront-only access and apply app-level rules"
 
   # Default Action
   # Default action is to allow all requests if no rules match.
-  # - In case no rules match, allow all incoming requests.
-  # - Can be changed to `block {}` for stricter security if required.
+  # This is safe because our rules are designed to explicitly block unauthorized or malicious traffic.
   default_action {
     allow {}
   }
 
-  # Rate Limiting Rule
-  # Simple rate limiting rule to prevent abuse and brute force attacks.
-  # Limits requests from a single IP to 1000 requests per 5-minute period.
-  # For production, complement it with AWS Managed Rules covering OWASP Top 10 threats.
+  # Rule 1: Enforce Traffic Through CloudFront
+  # This is the most critical rule for this WAF. It blocks any request that does not
+  # contain the secret custom header added by our CloudFront distribution.
+  # This effectively prevents attackers from bypassing our primary CloudFront WAF.
   rule {
-    name     = "RateLimitRule"
-    priority = 1 # Priority of the rule
+    name     = "EnforceCloudFrontOnlyAccess"
+    priority = 1 # Highest priority to process this first
+
+    action {
+      block {} # Block requests that do not contain the secret header
+    }
+
+    statement {
+      not_statement {
+        statement {
+          byte_match_statement {
+            search_string         = var.cloudfront_to_alb_secret_header_value # A secret value passed from variables
+            positional_constraint = "EXACTLY"
+            field_to_match {
+              single_header {
+                name = "x-custom-origin-verify" # The custom header name
+              }
+            }
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+      }
+    }
+
+    # Visibility settings for monitoring
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "EnforceCloudFrontOnly"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Rule 2: Stricter Rate Limiting Rule
+  # This rule applies a tighter rate limit than the CloudFront WAF. It acts as a second
+  # filter for traffic that has already passed the edge, catching suspicious application-level
+  # activity that is not aggressive enough to be caught by the primary WAF.
+  rule {
+    name     = "StricterRateLimitRule"
+    priority = 10 # Lower priority, runs after the CloudFront verification rule
 
     action {
       block {} # Block requests exceeding the rate limit
@@ -44,16 +80,16 @@ resource "aws_wafv2_web_acl" "alb_waf" {
 
     statement {
       rate_based_statement {
-        limit              = 1000 # Maximum number of requests allowed in 5 minutes
+        limit              = 1000 # A stricter limit (e.g., 1000 requests per 5 minutes)
         aggregate_key_type = "IP" # Aggregate requests by IP address
       }
     }
 
     # Visibility settings for monitoring
     visibility_config {
-      cloudwatch_metrics_enabled = true            # Enable CloudWatch metrics
-      metric_name                = "RateLimitRule" # Metric name for CloudWatch
-      sampled_requests_enabled   = true            # Enable request sampling for detailed analysis
+      cloudwatch_metrics_enabled = true
+      metric_name                = "StricterRateLimitRule"
+      sampled_requests_enabled   = true
     }
   }
 
@@ -105,24 +141,15 @@ resource "aws_wafv2_web_acl_logging_configuration" "alb_waf_logs" {
 
 # --- Notes --- #
 # 1. WAF resources are controlled by `enable_alb_waf` variable.
-# 2. Current Configuration:
-#    - "RateLimitRule": Limits requests from a single IP to prevent abuse.
-#    - This is a simplified configuration for testing purposes.
+# 2. Current Configuration (Defense-in-Depth):
+#    - "EnforceCloudFrontOnlyAccess": Ensures the ALB only accepts traffic processed by CloudFront, preventing WAF bypass.
+#    - "StricterRateLimitRule": Applies a tighter rate limit than the edge WAF, acting as a more sensitive filter.
 # 3. Logging:
-#    - Enabled only if \enable_alb_waf_logging` variable and `enable_alb_firehose` variable are both set to `true`.
+#    - Enabled only if `enable_alb_waf_logging` and `enable_alb_firehose` variables are both set to `true`.
 #    - WAF logging also requires Firehose to be enabled and configured correctly.
 # 4. Recommendations for Production:
-#    - Start with this simplified configuration and test thoroughly
-#    - Extend this configuration by adding AWS Managed Rule Groups in the following priority order:
-#      a. AWSManagedRulesCommonRuleSet - Basic protection against common threats
-#      b. AWSManagedRulesSQLiRuleSet - SQL injection protection
-#      c. AWSManagedRulesCrossSiteScriptingRuleSet - Cross-Site Scripting (XSS) protection
-#      d. AWSManagedRulesKnownBadInputsRuleSet - Protection against known malicious inputs
-#      e. AWSManagedRulesBotControlRuleSet - Bot traffic protection
-#    - Add each rule group individually and test after each addition
-#    - Monitor WAF metrics in CloudWatch to evaluate effectiveness
-#    - Consider using AWS Firewall Manager for centralized WAF management across multiple accounts
+#    - This two-layer WAF architecture is a strong production pattern.
+#    - Most managed rules (OWASP, etc.) are best placed on the CloudFront WAF for efficiency.
+#    - This ALB WAF can be extended with highly specific application-level rules if needed in the future.
 # 5. IAM Permissions:
-#    - Ensure the Terraform execution role has the necessary WAF permissions
-#    - Required permissions include wafv2:CreateWebACL, wafv2:GetWebACL, wafv2:UpdateWebACL, etc.
-#    - For managed rule groups, additional permissions may be required
+#    - Ensure the Terraform execution role has the necessary WAF permissions (wafv2:*, etc.).

@@ -63,61 +63,61 @@ graph LR
     PrivateSubnets["Private Subnets<br>(Multiple AZs)"]
     EC2["EC2 Instances<br>(Private Subnets)"]
     AWSServices["AWS Services<br>(SSM, CloudWatch, KMS)"]
-    
+
     %% Security Components
     EndpointsSG["Endpoints Security Group"]
     IngressRule["Ingress Rule<br>(HTTPS/443 from VPC CIDR)"]
     EgressRule["Egress Rule<br>(HTTPS/443 to AWS Services)"]
-    
+
     %% VPC Endpoints
     SSM["Systems Manager<br>(SSM)"]
     SSMMessages["SSM Messages<br>Endpoint"]
     EC2Messages["EC2 Messages<br>(ASG Communication)"]
     CWLogs["CloudWatch Logs<br>Endpoint"]
     KMS["Key Management<br>Service (KMS)"]
-    
+
     %% Network Structure
     VPC -->|"Contains"| PrivateSubnets
     PrivateSubnets -->|"Host"| EC2
-    
+
     %% Security Connections
     EndpointsSG -->|"Contains"| IngressRule
     EndpointsSG -->|"Contains"| EgressRule
-    
+
     %% Endpoint Deployments
     PrivateSubnets -->|"Deploy ENIs in"| SSM
     PrivateSubnets -->|"Deploy ENIs in"| SSMMessages
     PrivateSubnets -->|"Deploy ENIs in"| EC2Messages
     PrivateSubnets -->|"Deploy ENIs in"| CWLogs
     PrivateSubnets -->|"Deploy ENIs in"| KMS
-    
+
     %% Security Group Application
     EndpointsSG -->|"Secures"| SSM
     EndpointsSG -->|"Secures"| SSMMessages
     EndpointsSG -->|"Secures"| EC2Messages
     EndpointsSG -->|"Secures"| CWLogs
     EndpointsSG -->|"Secures"| KMS
-    
+
     %% Service Connections
     EC2 -->|"Private Access"| SSM
     EC2 -->|"Private Access"| SSMMessages
     EC2 -->|"Private Access"| EC2Messages
     EC2 -->|"Private Access"| CWLogs
     EC2 -->|"Private Access"| KMS
-    
+
     SSM -->|"Private Connection"| AWSServices
     SSMMessages -->|"Private Connection"| AWSServices
     EC2Messages -->|"Private Connection"| AWSServices
     CWLogs -->|"Private Connection"| AWSServices
     KMS -->|"Private Connection"| AWSServices
-    
+
     %% Styling
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef security fill:#DD3522,stroke:#232F3E,color:white;
     classDef network fill:#1E8449,stroke:#232F3E,color:white;
     classDef endpoints fill:#3F8624,stroke:#232F3E,color:white;
     classDef awscloud fill:#7D3C98,stroke:#232F3E,color:white;
-    
+
     class EC2,AWSServices aws;
     class EndpointsSG,IngressRule,EgressRule security;
     class VPC,PrivateSubnets network;
@@ -269,21 +269,21 @@ Integrate seamlessly with other modules:
 ## 15. Troubleshooting and Common Issues
 
 ### 1. **Interface Endpoints are not created**
-**Cause:**  
+**Cause:**
 The variable `enable_interface_endpoints` is set to `false`.
 
-**Solution:**  
+**Solution:**
 Set `enable_interface_endpoints = true` in `terraform.tfvars` to enable the module and create the required resources.
 
 ---
 
 ### 2. **EC2 instances in private subnets cannot reach AWS services (SSM, CloudWatch Logs, KMS)**
-**Cause:**  
+**Cause:**
 - Interface Endpoints are not deployed.
 - Missing required IAM roles or policies for EC2 instances.
 - Incorrect Security Group rules blocking HTTPS (TCP 443).
 
-**Solution:**  
+**Solution:**
 - Ensure Interface Endpoints are created and deployed in the correct private subnets.
 - Attach the `AmazonSSMManagedInstanceCore` IAM policy to the EC2 instance role.
 - Verify Security Group allows outbound HTTPS (TCP 443) traffic.
@@ -291,11 +291,11 @@ Set `enable_interface_endpoints = true` in `terraform.tfvars` to enable the modu
 ---
 
 ### 3. **SSM Session Manager fails to connect**
-**Cause:**  
+**Cause:**
 - Private DNS for endpoints is not enabled.
 - EC2 instance cannot resolve the AWS service endpoint.
 
-**Solution:**  
+**Solution:**
 - Ensure `private_dns_enabled = true` is set in the module (enabled by default).
 - Check DNS resolution inside the VPC:
   ```bash
@@ -306,21 +306,21 @@ Set `enable_interface_endpoints = true` in `terraform.tfvars` to enable the modu
 ---
 
 ### 4. **Terraform plan shows changes or tries to recreate endpoints**
-**Cause:**  
+**Cause:**
 - Subnet list or Security Group was changed.
 - Endpoint resource is sensitive to order changes in `subnet_ids`.
 
-**Solution:**  
+**Solution:**
 - Ensure the order of `private_subnet_ids` is consistent.
 - Review changes carefully before applying.
 
 ---
 
 ### 5. **tfsec warning: aws-ec2-no-public-egress-sgr**
-**Cause:**  
+**Cause:**
 The module allows outbound HTTPS (TCP 443) to `0.0.0.0/0`, which is required for Interface Endpoints.
 
-**Solution:**  
+**Solution:**
 - This is expected behavior.
 - The module explicitly ignores this warning:
   ```hcl

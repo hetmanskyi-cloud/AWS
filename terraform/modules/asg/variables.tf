@@ -4,11 +4,6 @@
 # --- General Configuration --- #
 # Naming prefix and environment settings for better organization.
 
-variable "aws_account_id" {
-  description = "AWS Account ID"
-  type        = string
-}
-
 variable "aws_region" {
   description = "AWS region where resources will be created"
   type        = string
@@ -226,16 +221,7 @@ variable "db_host" {
   type        = string
 }
 
-variable "db_endpoint" {
-  description = "The RDS database endpoint for other configurations"
-  type        = string
-}
-
 # --- WordPress Database Configuration --- #
-variable "db_name" {
-  description = "Name of the WordPress database"
-  type        = string
-}
 
 variable "db_port" {
   description = "Database port"
@@ -255,11 +241,6 @@ variable "rds_secrets_arn" {
 # --- PHP configuration for WordPress setup --- #
 variable "php_version" {
   description = "PHP version used for WordPress installation"
-  type        = string
-}
-
-variable "php_fpm_service" {
-  description = "PHP-FPM service name for WordPress configuration"
   type        = string
 }
 
@@ -307,26 +288,8 @@ variable "default_region_buckets" {
   default     = {}
 }
 
-variable "replication_region_buckets" {
-  type = map(object({
-    enabled     = optional(bool, true)
-    versioning  = optional(bool, true)  # Versioning MUST be enabled for replication destinations
-    replication = optional(bool, false) # Replication is not applicable for replication buckets themselves
-    logging     = optional(bool, false)
-    region      = string # AWS region for the replication bucket (REQUIRED)
-  }))
-  description = "Configuration for S3 buckets specifically in the replication AWS region."
-  default     = {}
-}
-
 variable "wordpress_media_bucket_arn" {
   description = "The ARN of the S3 bucket for WordPress media"
-  type        = string
-  default     = ""
-}
-
-variable "wordpress_media_bucket_name" {
-  description = "The name of the S3 bucket for WordPress media"
   type        = string
   default     = ""
 }
@@ -371,20 +334,6 @@ variable "enable_https_listener" {
 # Variables related to AWS SNS for alarm notifications.
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
-  type        = string
-}
-
-# --- Security Groups --- #
-
-# RDS Security Group ID
-variable "rds_security_group_id" {
-  description = "Security Group ID for the RDS instance to allow traffic"
-  type        = string
-}
-
-# ElastiCache Security Group ID
-variable "redis_security_group_id" {
-  description = "Security Group ID for ElastiCache instance to allow traffic"
   type        = string
 }
 

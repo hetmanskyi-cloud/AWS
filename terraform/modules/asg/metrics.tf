@@ -90,7 +90,7 @@ resource "aws_cloudwatch_metric_alarm" "asg_status_check_failed" {
 }
 
 # --- High Incoming Network Traffic Alarm --- #
-# Monitors abnormal inbound traffic spikes. 
+# Monitors abnormal inbound traffic spikes.
 # Recommended: Enable in production to detect potential DDoS or scraping attacks early.
 resource "aws_cloudwatch_metric_alarm" "high_network_in" {
   count = var.enable_high_network_in_alarm ? 1 : 0 # Enabled only if high network-in alarm is allowed

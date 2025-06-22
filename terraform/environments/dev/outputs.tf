@@ -323,7 +323,7 @@ output "cloudwatch_wordpress_log_group_name" {
   description = "CloudWatch Log Group for WordPress debug/application logs"
 }
 
-# --- CloudFront Module Outputs --- #
+# --- CloudFront Outputs --- #
 
 # Output: CloudFront Standard Logging v2 S3 Log Path (from CloudFront Module)
 # This output exposes the S3 URI prefix for CloudFront Standard Logging v2 access logs
@@ -331,6 +331,13 @@ output "cloudwatch_wordpress_log_group_name" {
 output "cloudfront_standard_logging_v2_log_prefix" {
   description = "S3 URI prefix for CloudFront Standard Logging v2 Parquet logs."
   value       = module.cloudfront.cloudfront_standard_logging_v2_log_prefix
+}
+
+# Output: CloudFront → ALB Custom Header Secret
+output "cloudfront_to_alb_secret_header_value" {
+  description = "Secret value for the custom CloudFront → ALB header"
+  value       = random_password.cloudfront_to_alb_header.result
+  sensitive   = true
 }
 
 # --- Notes --- #

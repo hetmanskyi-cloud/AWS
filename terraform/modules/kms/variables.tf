@@ -12,18 +12,6 @@ variable "aws_account_id" {
   }
 }
 
-# AWS Region where the resources are created
-# Used to define the region-specific policy in the KMS key settings.
-variable "aws_region" {
-  description = "AWS Region where the resources are created"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
-    error_message = "The AWS Region must follow the format 'xx-xxxx-x', e.g., 'eu-west-1'."
-  }
-}
-
 # Replication region for S3
 variable "replication_region" {
   description = "AWS Region for S3 replication (if used)"

@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- Initial Configuration for KMS Key --- #
 # Root account access is controlled via the `kms_root_access` variable.
 # Set to true during initial setup, and to false afterward to automatically remove root permissions from the key policy.
@@ -89,16 +105,12 @@ locals {
       "cloudfront.amazonaws.com",     # CloudFront
     ],
     # Conditional services (enabled via variables):
-    var.default_region_buckets["cloudtrail"].enabled ? ["cloudtrail.amazonaws.com"] : [],          # CloudTrail Logging
-    var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],                                         # DynamoDB
-    (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [], # ALB & CloudFront Firehose
-    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],        # ALB & Cloudfront WAF    
-    var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],              # CloudFront Realtime S3 Logging
+    contains(keys(var.default_region_buckets), "cloudtrail") && try(var.default_region_buckets["cloudtrail"].enabled, false) ? ["cloudtrail.amazonaws.com"] : [], # CloudTrail Logging
+    var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],                                                                                                        # DynamoDB
+    (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [],                                                                # ALB & CloudFront Firehose
+    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],                                                                       # ALB & Cloudfront WAF
+    var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],                                                                             # CloudFront Realtime S3 Logging
   ))
-
-  # Extract S3 bucket names for conditional CloudTrail access in KMS policy.
-  # Includes replication buckets for future-proofing KMS access for S3 encryption, not tied to CloudTrail logging.
-  s3_bucket_names = keys(merge(var.default_region_buckets, var.replication_region_buckets))
 }
 
 # --- Policy for the Primary KMS Key --- #
@@ -261,7 +273,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
 resource "aws_kms_grant" "s3_replication_grant" {
   count = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? 1 : 0
 
-  key_id            = aws_kms_replica_key.replica_key[0].id
+  key_id            = length(aws_kms_replica_key.replica_key) > 0 ? aws_kms_replica_key.replica_key[0].id : null
   grantee_principal = "s3.amazonaws.com"
 
   operations = local.s3_replication_grant_operations

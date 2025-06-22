@@ -33,3 +33,6 @@ crash.log
 !terraform/environments/dev/ami_history/logs/
 !terraform/environments/dev/ami_history/logs/*.log
 !terraform/environments/dev/ami_history/ami_id.txt
+
+# Python virtual environment
+.venv/

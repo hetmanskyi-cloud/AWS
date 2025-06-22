@@ -61,7 +61,7 @@ log "Exporting environment variables..."
 {
   # Export DB, Redis, and WordPress related configuration values
   echo "DB_HOST=\"${wp_config.DB_HOST}\""
-  echo "DB_PORT=\"${wp_config.DB_PORT}\""  
+  echo "DB_PORT=\"${wp_config.DB_PORT}\""
   echo "WP_TITLE=\"${wp_config.WP_TITLE}\""
   echo "PHP_VERSION=\"${wp_config.PHP_VERSION}\""
   echo "PHP_FPM_SERVICE=\"php${wp_config.PHP_VERSION}-fpm\""
@@ -69,7 +69,7 @@ log "Exporting environment variables..."
   echo "REDIS_PORT=\"${wp_config.REDIS_PORT}\""
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
   echo "WP_VERSION=\"${wordpress_version}\""
-  
+
   # Export other necessary environment variables
   echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
   echo "RDS_SECRETS_NAME=\"${rds_secrets_name}\""
@@ -187,7 +187,7 @@ cat <<EOF | sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agen
             "file_path": "/var/log/wordpress.log",
             "log_group_name": "${cloudwatch_log_groups.wordpress}",
             "log_stream_name": "{instance_id}"
-          }          
+          }
         ]
       }
     },

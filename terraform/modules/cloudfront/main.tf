@@ -3,6 +3,7 @@
 # The 'aws.cloudfront' alias is explicitly configured for resources that must reside in us-east-1,
 # such as CloudFront distributions, WAF Web ACLs, and related IAM/Firehose/CloudWatch Log Delivery components.
 terraform {
+  required_version = ">= 1.11.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -11,6 +12,10 @@ terraform {
         aws,            # Default AWS provider alias
         aws.cloudfront, # Alias for AWS provider configured to us-east-1
       ]
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
     }
   }
 }
@@ -21,19 +26,15 @@ terraform {
 # the current AWS account in output variables and policy documents.
 data "aws_caller_identity" "current" {}
 
-# --- CloudFront Distribution for WordPress Media CDN --- #
-# This module creates a secure and performant CloudFront CDN to serve static media files
-# (images, videos, documents) from a private S3 bucket for WordPress.
-# All CloudFront-specific resources are deployed using the 'aws.cloudfront' provider (us-east-1),
-# as mandated by AWS for global CloudFront and WAF services.
+# --- CloudFront Distribution for WordPress Application and Media --- #
+# This module creates a secure and performant CloudFront CDN to serve both dynamic
+# application content from an ALB and static media files from a private S3 bucket.
+# All CloudFront-specific resources are deployed using the 'aws.cloudfront' provider (us-east-1).
 
 # --- Locals --- #
 # Centralized conditional logic for enabling CloudFront resources.
-# This variable controls whether CloudFront media distribution should be enabled 
-# based on the configuration in 'default_region_buckets' and 'wordpress_media_cloudfront_enabled'.
-# When both conditions are true, CloudFront media distribution will be created.
 locals {
-  enable_cloudfront_media_distribution = var.default_region_buckets["wordpress_media"].enabled && var.wordpress_media_cloudfront_enabled
+  enable_cloudfront_media_distribution = can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_cloudfront_enabled
 }
 
 # --- Origin Access Control (OAC) for S3 --- #
@@ -51,7 +52,17 @@ resource "aws_cloudfront_origin_access_control" "wordpress_media_oac" {
   signing_protocol                  = "sigv4"
 }
 
-# --- CloudFront Cache Policy for WordPress Media --- #
+# --- CloudFront Cache Policies --- #
+
+# Data Source for the AWS-Managed CachingDisabled Policy (for WordPress Application)
+# This policy forwards all headers, cookies, and query strings, effectively disabling the cache.
+# It's used for the dynamic application content to ensure real-time behavior.
+data "aws_cloudfront_cache_policy" "caching_disabled" {
+  provider = aws.cloudfront
+  name     = "Managed-CachingDisabled"
+}
+
+# --- CloudFront Cache Policy for WordPress Media (S3 Origin) --- #
 # Defines optimal caching behavior for static media, enhancing performance and reducing origin load.
 # It disables cookies and query strings, while enabling Brotli and GZIP compression.
 resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
@@ -60,8 +71,8 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 
   name        = "${var.name_prefix}-wordpress-media-cache-policy-${var.environment}"
   comment     = "Optimized cache policy for WordPress media static files"
-  default_ttl = 86400 # 24 hours (default for development/staging; adjust for production)
-  max_ttl     = 86400
+  default_ttl = 86400    # 24 hours (default for development/staging; adjust for production)
+  max_ttl     = 31536000 # 1 year (recommended for production)
   min_ttl     = 0
 
   parameters_in_cache_key_and_forwarded_to_origin {
@@ -83,12 +94,11 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
 }
 
 # --- CloudFront Distribution --- #
-# Creates the CloudFront distribution for serving static media files from the private S3 origin.
-# The distribution uses the custom cache policy defined earlier to ensure optimal performance.
+# Creates a single CloudFront distribution with two origins:
+# 1. ALB for the WordPress application (dynamic content).
+# 2. S3 for WordPress media (static content).
 # Logging is handled separately through CloudWatch Log Delivery in `cloudfront/logging.tf`, ensuring efficient and cost-effective log storage.
 
-# CloudFront Standard Logging v2 (CloudWatch Log Delivery to S3 in Parquet format) is enabled instead of the legacy logging_config block.
-# See the output 'cloudfront_standard_logging_v2_log_prefix' for the S3 path to logs.
 # tfsec:ignore:aws-cloudfront-enable-logging
 resource "aws_cloudfront_distribution" "wordpress_media" {
   provider = aws.cloudfront
@@ -96,38 +106,124 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
   enabled         = true
   is_ipv6_enabled = true
-  comment         = "CloudFront distribution for WordPress media (dev/stage environment)"
+  comment         = "CloudFront distribution for WordPress App (ALB) and Media (S3)"
   price_class     = var.cloudfront_price_class # Configurable price class (e.g., PriceClass_100 for lower cost, PriceClass_All for global coverage)
 
-  # --- S3 Origin (Private) --- #
-  # Defines the private S3 bucket as the content source, accessible only via OAC.
+  # --- Origin 1: ALB for WordPress Application --- #
+  # This origin points to the Application Load Balancer.
+  # It includes the custom header to verify that traffic comes only from CloudFront.
+  origin {
+    domain_name = var.alb_dns_name # DNS name of your ALB
+    origin_id   = "wordpress-app-origin-alb"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+
+    # Secret header for the ALB WAF to check
+    custom_header {
+      name  = "x-custom-origin-verify"
+      value = var.cloudfront_to_alb_secret_header_value
+    }
+  }
+
+  # --- Origin 2: S3 for WordPress Media (Private) --- #
+  # This origin points to the private S3 bucket, accessible only via OAC.
   origin {
     domain_name              = var.s3_module_outputs.wordpress_media_bucket_regional_domain_name
-    origin_id                = "wordpress-media-origin"
-    origin_access_control_id = aws_cloudfront_origin_access_control.wordpress_media_oac[0].id
+    origin_id                = "wordpress-media-origin-s3"
+    origin_access_control_id = local.enable_cloudfront_media_distribution ? aws_cloudfront_origin_access_control.wordpress_media_oac[0].id : null
   }
 
-  # --- Default Cache Behavior --- #
-  # Specifies how CloudFront handles requests by default, linking to the optimized cache policy.
+  # --- Default Cache Behavior (for WordPress Application via ALB) --- #
+  # This is the primary behavior. All requests that do NOT match a more specific
+  # ordered_cache_behavior will be routed to the WordPress application running behind the ALB.
+  # This ensures the homepage, posts, pages, and all other standard routes use the dynamic origin.
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = "wordpress-media-origin"
-    viewer_protocol_policy = "redirect-to-https" # All HTTP requests are redirected to HTTPS for security
+    target_origin_id       = "wordpress-app-origin-alb" # Points to ALB (WordPress App)
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    viewer_protocol_policy = "redirect-to-https" # Always use HTTPS
     compress               = true
 
-    cache_policy_id = aws_cloudfront_cache_policy.wordpress_media_cache_policy[0].id
+    # Use the AWS-managed policy to disable caching, forwarding all headers, cookies,
+    # and query strings to the application. This is critical for dynamic content.
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_disabled.id
 
-    # Utilizes an AWS-managed response headers policy to automatically add essential security headers and handle CORS.
-    response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63"
-
-    # CloudFront Function for advanced/custom security headers (optional, mutually exclusive with response_headers_policy_id).
-    # Uncomment the block below and comment out the line above if you need custom headers (e.g., CSP).
-    # function_association {
-    #   event_type   = "viewer-response"
-    #   function_arn = aws_cloudfront_function.security_headers_function[0].arn
-    # }
+    # Use the AWS-managed policy for security headers, suitable for web applications.
+    response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
+
+  # --- Ordered Cache Behavior (for WordPress Login Page) --- #
+  # This rule has the highest precedence to ensure /wp-login.php is always routed
+  # directly to the ALB and is never cached.
+  ordered_cache_behavior {
+    path_pattern           = "/wp-login.php"
+    target_origin_id       = "wordpress-app-origin-alb"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    # Use the same no-cache policy as the default behavior for consistency.
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
+  }
+
+  # --- Ordered Cache Behavior (for WordPress Admin Panel) --- #
+  # This rule explicitly routes all /wp-admin/* traffic to the ALB, ensuring the
+  # WordPress dashboard functions correctly without being cached.
+  ordered_cache_behavior {
+    path_pattern           = "/wp-admin/*"
+    target_origin_id       = "wordpress-app-origin-alb"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    # Use the same no-cache policy as the default behavior.
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
+  }
+
+  # --- Ordered Cache Behavior (for WordPress Media Files) --- #
+  # This behavior applies to all uploaded media files, routing them to the S3 origin.
+  # Static files are efficiently cached at the edge for optimal performance.
+  ordered_cache_behavior {
+    path_pattern           = "/wp-content/uploads/*"     # Standard path for WordPress media
+    target_origin_id       = "wordpress-media-origin-s3" # Points to S3 bucket
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    # Use the custom-defined cache policy optimized for static media.
+    cache_policy_id = local.enable_cloudfront_media_distribution ? aws_cloudfront_cache_policy.wordpress_media_cache_policy[0].id : null
+
+    # Use the AWS-managed policy for CORS and security headers, suitable for S3 origins.
+    response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03" # Managed-CORS-S3Origin
+  }
+
+  # --- Viewer Certificate for Custom Domain (Production ACM Integration) --- #
+  # To enable a custom domain (e.g., cdn.example.com) with a validated SSL certificate:
+  # 1. **Issue ACM certificate** in us-east-1 (N. Virginia). Example: module.acm.acm_certificate_arn
+  # 2. **Specify your domain name(s)** in aliases below.
+  # 3. **Uncomment this block** and comment out the default 'cloudfront_default_certificate' block.
+  # 4. **Set up Route53 alias record** pointing to the CloudFront domain for your distribution.
+  #
+  # viewer_certificate {
+  #   acm_certificate_arn            = var.acm_certificate_arn        # ACM cert ARN (us-east-1 only!)
+  #   ssl_support_method             = "sni-only"                     # SNI is recommended
+  #   minimum_protocol_version       = "TLSv1.2_2021"                 # Or higher
+  # }
+  #
+  # aliases = [
+  #   "cdn.example.com",         # Your custom CDN domain
+  #   "media.example.com",       # (Optional) Additional domains
+  # ]
 
   # --- Viewer Certificate (Default CloudFront SSL) --- #
   # Configures SSL using the default CloudFront certificate for simplicity in non-production environments.
@@ -168,20 +264,25 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   })
 }
 
-# --- CloudFront Module Notes --- #
-# 1. All CloudFront-related resources (distributions, OACs, cache policies, and associated WAF/Firehose/CloudWatch Log Delivery
+# --- Notes --- #
+# 1. This CloudFront distribution is multi-origin: it serves both dynamic application content from an Application Load Balancer (ALB)
+#    and static media files from a private S3 bucket.
+#    - The ALB origin delivers WordPress application traffic and is protected by a custom header (enforced by ALB WAF) to prevent direct access.
+#    - The S3 origin is locked down and accessible only through CloudFront via Origin Access Control (OAC).
+# 2. All CloudFront-related resources (distributions, OACs, cache policies, and associated WAF/Firehose/CloudWatch Log Delivery
 #    components) must be provisioned in the us-east-1 region using the 'aws.cloudfront' provider alias.
 #    This is a global AWS service requirement, irrespective of your primary AWS region.
-# 2. This module configures a CDN for static WordPress media, ensuring secure delivery from a private S3 bucket.
-#    Access to the S3 origin is strictly controlled via Origin Access Control (OAC); direct public S3 bucket access is forbidden.
-#    The S3 bucket policy (managed externally in the S3 module) must grant necessary permissions to the CloudFront OAC principal.
 # 3. For development and staging environments, the default AWS-managed SSL certificate and CloudFront domain are utilized.
 #    For production deployments, it is strongly advised to provision a custom domain name and an AWS Certificate Manager (ACM)
 #    certificate in us-east-1, integrated with Route53 alias records for a custom endpoint.
-# 4. The applied cache policy is finely tuned for static content, excluding cookies and query strings from the cache key,
-#    and enabling Brotli/GZIP compression to optimize delivery speed and minimize bandwidth consumption.
-# 5. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for content requests, and all HTTP traffic is automatically
+# 4. Cache policy strategy:
+#    - **Application origin (ALB)**: Uses the AWS-managed "CachingDisabled" policy, which forwards all headers, cookies, and query strings,
+#      and disables caching to ensure real-time application behavior (best practice for dynamic content).
+#    - **Media origin (S3)**: Uses a custom optimized policy that excludes cookies and query strings, enables Brotli/GZIP compression,
+#      and sets long TTLs for maximum performance.
+# 5. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for static content, and all HTTP traffic is automatically
 #    redirected to HTTPS, enforcing secure communication channels.
+#    For dynamic/application content, all necessary HTTP methods are allowed (GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE).
 # 6. CloudFront **Access Logging v2** is implemented through AWS CloudWatch Log Delivery services, configured within the
 #    'cloudfront/logging.tf' file. This approach offers enhanced flexibility for log destinations (e.g., S3, CloudWatch Logs)
 #    and various output formats (e.g., JSON, Parquet), providing robust analytics capabilities.

@@ -56,12 +56,6 @@ variable "asg_security_group_id" {
   type        = string
 }
 
-variable "redis_security_group_id" {
-  description = "Security Group ID for ElastiCache Redis. Used for cross-module integration."
-  type        = string
-  default     = null
-}
-
 variable "redis_auth_token" {
   description = "The AUTH token for Redis. Should be passed from the root module."
   type        = string

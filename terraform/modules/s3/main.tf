@@ -4,6 +4,7 @@
 # --- Terraform Configuration --- #
 # Defines Terraform provider and version, and configuration aliases for providers.
 terraform {
+  required_version = ">= 1.11.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -12,6 +13,10 @@ terraform {
         aws,             # Alias for the default AWS provider
         aws.replication, # Alias for the AWS provider in the replication region
       ]
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
     }
   }
 }
@@ -39,9 +44,9 @@ resource "aws_s3_bucket" "default_region_buckets" {
   # --- Lifecycle Configuration --- #
   # WARNING: The following lifecycle block, if enabled, will apply to ALL S3 buckets created by this module.
   # Use this only in production environments to prevent accidental deletion of important buckets.
-  # 
+  #
   # - force_destroy = false    → blocks deletion of buckets containing objects
-  # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal  
+  # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal
   #
   # To enable strict protection, manually uncomment the block below.
   # If you need to apply protection **only to specific buckets** (e.g., 'terraform_state'), implement per-resource logic manually.
@@ -60,7 +65,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
   # Dynamic buckets in replication region
   for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 
-  provider = aws.replication # Replication AWS provider  
+  provider = aws.replication # Replication AWS provider
 
   bucket = "${lower(var.name_prefix)}-${replace(each.key, "_", "-")}-rep-${random_string.suffix.result}" # Bucket name format: <prefix>-<key>-rep-<suffix>
 
@@ -76,7 +81,7 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 # Scripts are loaded from the local project directory and stored in S3 for use during EC2 provisioning.
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # Conditional script deployment
-  for_each = var.default_region_buckets["scripts"].enabled ? var.s3_scripts : {}
+  for_each = can(var.default_region_buckets["scripts"].enabled) ? var.s3_scripts : {}
 
   bucket = aws_s3_bucket.default_region_buckets["scripts"].id # Target 'scripts' bucket
   key    = each.key                                           # S3 object key
@@ -322,7 +327,7 @@ resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_a
 # --- Set ACL for Logging Bucket --- #
 # Grants S3 log delivery permissions for server access logging.
 resource "aws_s3_bucket_acl" "logging_bucket_acl" {
-  count  = var.default_region_buckets["logging"].enabled ? 1 : 0
+  count  = can(var.default_region_buckets["logging"].enabled) ? 1 : 0
   bucket = aws_s3_bucket.default_region_buckets["logging"].id
 
   acl = "log-delivery-write"
@@ -346,7 +351,7 @@ resource "aws_s3_bucket_logging" "default_region_bucket_server_access_logging" {
     key => value
     if value.enabled
     && lookup(value, "server_access_logging", false)
-    && var.default_region_buckets["logging"].enabled
+    && can(var.default_region_buckets["logging"].enabled)
     && key != "logging"
   })
 

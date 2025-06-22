@@ -1,5 +1,5 @@
 # --- ASG Security Group Configuration --- #
-# This file defines the Security Group for ASG instances with dynamically adjusted rules. 
+# This file defines the Security Group for ASG instances with dynamically adjusted rules.
 
 # --- Security Group Resource --- #
 resource "aws_security_group" "asg_security_group" {

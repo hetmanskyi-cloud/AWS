@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- ElastiCache Subnet Group --- #
 # Creates a subnet group for ElastiCache Redis, enabling deployment in specified private subnets.
 resource "aws_elasticache_subnet_group" "redis_subnet_group" {

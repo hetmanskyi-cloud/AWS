@@ -101,7 +101,7 @@ resource "aws_cloudtrail" "cloudtrail" {
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch[0].arn
 
-  # Sends CloudTrail events to the CloudTrail-specific SNS topic for notifications. 
+  # Sends CloudTrail events to the CloudTrail-specific SNS topic for notifications.
   sns_topic_name = aws_sns_topic.cloudtrail_events[0].name
 
   tags = merge(local.common_tags, local.tags_cloudtrail, {
@@ -165,7 +165,7 @@ resource "aws_iam_role_policy" "cloudtrail_cloudwatch_policy" {
   name = "${var.name_prefix}-cloudtrail-cloudwatch-policy-${var.environment}"
   role = aws_iam_role.cloudtrail_cloudwatch[0].id
 
-  # Policy definition  
+  # Policy definition
   # The wildcard is necessary because CloudTrail dynamically creates log streams.
   policy = jsonencode({
     Version = "2012-10-17"

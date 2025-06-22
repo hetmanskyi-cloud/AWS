@@ -1,17 +1,5 @@
 # --- ALB Module Variables --- #
 
-# --- Default AWS Region --- #
-variable "aws_region" {
-  description = "AWS region where resources will be created"
-  type        = string
-}
-
-# --- AWS Account ID --- #
-variable "aws_account_id" {
-  description = "AWS Account ID for bucket policies (security)."
-  type        = string
-}
-
 # Prefix for naming resources, used for easy identification.
 variable "name_prefix" {
   description = "Prefix for naming resources for easier organization"
@@ -60,7 +48,7 @@ variable "target_group_port" {
 }
 
 # ARN of the SSL certificate for HTTPS listener (optional).
-# Required when `enable_https_listener` is set to true. 
+# Required when `enable_https_listener` is set to true.
 # Best practice: Use a valid ACM certificate in production for HTTPS traffic.
 variable "certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener"
@@ -212,9 +200,17 @@ variable "enable_alb_firehose_cloudwatch_logs" {
   default     = false
 }
 
+# --- Custom Header for CloudFront to ALB Communication --- #
+
+variable "cloudfront_to_alb_secret_header_value" {
+  description = "Secret value for the custom CloudFront → ALB header."
+  type        = string
+  sensitive   = true
+}
+
 # --- Notes --- #
 # - In production, enable HTTPS listener, WAF, and logging for improved security and observability.
-# - Features controlled by `enable_*` variables (e.g., enable_waf, enable_firehose, enable_high_request_alarm) 
+# - Features controlled by `enable_*` variables (e.g., enable_waf, enable_firehose, enable_high_request_alarm)
 #   are optional but highly recommended for production environments:
 #     - enable_waf: Protects against common web attacks.
 #     - enable_firehose: Enables detailed WAF logging to S3 for auditing.

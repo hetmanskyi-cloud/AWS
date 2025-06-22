@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- Main Configuration for RDS --- #
 # Configures a primary RDS instance with encryption and monitoring,
 # CloudWatch Log Groups for error and slowquery logs,
@@ -26,7 +42,7 @@ resource "aws_db_instance" "db" {
   storage_encrypted = true            # Enable encryption at rest.
   kms_key_id        = var.kms_key_arn # KMS Key ARN for storage encryption (from KMS module).
 
-  # Parameter Group for Enforcing TLS/SSL  
+  # Parameter Group for Enforcing TLS/SSL
   parameter_group_name = aws_db_parameter_group.rds_params.name
 
   # Backup Configuration

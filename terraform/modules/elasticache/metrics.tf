@@ -111,7 +111,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_low_cpu_credits" {
 # 1. Monitoring strategy:
 #    - Critical alarms are controlled via enable variables:
 #       - `enable_redis_low_memory_alarm`: Monitors memory usage to prevent bottlenecks.
-#       - `enable_redis_high_cpu_alarm`: Tracks CPU utilization for performance issues.#       
+#       - `enable_redis_high_cpu_alarm`: Tracks CPU utilization for performance issues.#
 #       - `enable_redis_replication_bytes_alarm`: Tracks replication memory usage to detect potential issues with replication memory overhead.
 #       - `enable_redis_low_cpu_credits_alarm`: Ensures sufficient CPU credits for burstable instance types.
 # 2. Alarms help detect and resolve resource bottlenecks early, improving reliability and availability.

@@ -32,7 +32,7 @@ function handler(event) {
     // Content-Security-Policy (CSP): A powerful tool to control which resources a user agent is allowed to load.
     // This is a very strict example policy; it should be carefully tailored for a real application.
     headers['content-security-policy'] = { value: "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none';" };
-    
+
     // Return the modified response to CloudFront to be sent to the viewer.
     return response;
 }

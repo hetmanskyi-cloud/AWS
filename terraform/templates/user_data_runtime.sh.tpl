@@ -29,7 +29,7 @@ log "Exporting environment variables..."
   echo "REDIS_HOST=\"${wp_config.REDIS_HOST}\""
   echo "REDIS_PORT=\"${wp_config.REDIS_PORT}\""
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
-  
+
   # Export other necessary environment variables
   echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
   echo "RDS_SECRETS_NAME=\"${rds_secrets_name}\""
@@ -136,7 +136,7 @@ export NONCE_SALT=$(echo "$WP_SECRETS" | jq -r '.NONCE_SALT')
 export DB_NAME=$(echo "$RDS_SECRETS" | jq -r '.DB_NAME')
 export DB_USER=$(echo "$RDS_SECRETS" | jq -r '.DB_USER')
 export DB_PASSWORD=$(echo "$RDS_SECRETS" | jq -r '.DB_PASSWORD')
-  
+
 # Export Redis AUTH token for WordPress configuration
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
 

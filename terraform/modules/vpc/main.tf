@@ -1,3 +1,19 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- VPC Configuration --- #
 # Main VPC configuration with CIDR block and DNS support enabled
 
@@ -119,7 +135,7 @@ resource "aws_default_security_group" "default" {
 # --- Notes --- #
 # 1. The VPC is configured with both public and private subnets to support various workloads.
 # 2. Public subnets allow internet access through the Internet Gateway (IGW).
-# 3. Private subnets are isolated and do not have direct internet access or public IPs by default, 
+# 3. Private subnets are isolated and do not have direct internet access or public IPs by default,
 #    providing a secure environment for sensitive resources (e.g., databases).
 # 4. All subnets and resources are tagged with a consistent naming convention for easy management.
 # 5. Ensure `map_public_ip_on_launch` is enabled only for public subnets.

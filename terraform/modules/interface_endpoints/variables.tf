@@ -79,8 +79,8 @@ variable "private_subnet_ids" {
 }
 
 # --- Enable or Disable Interface VPC Endpoints --- #
-# This variable controls whether Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.) 
-# are created within the VPC. When set to `false`, no Interface Endpoints or 
+# This variable controls whether Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)
+# are created within the VPC. When set to `false`, no Interface Endpoints or
 # associated resources (such as Security Groups) will be created.
 variable "enable_interface_endpoints" {
   description = "Enable or disable Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)"

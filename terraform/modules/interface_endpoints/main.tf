@@ -1,9 +1,25 @@
+# Terraform version and provider requirements
+terraform {
+  required_version = ">= 1.11.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 # --- VPC Interface Endpoints (Future Use) --- #
 # This module is currently disabled but remains as a future-proofing measure.
 # It allows private communication with AWS services (SSM, CloudWatch, KMS, etc.)
 # if EC2 instances are later moved to private subnets without internet access.
-# 
-# For now, instances are in public subnets with direct internet access, so 
+#
+# For now, instances are in public subnets with direct internet access, so
 # enabling this module is unnecessary. To enable, set `enable_interface_endpoints = true`.
 
 resource "aws_vpc_endpoint" "ssm" {
