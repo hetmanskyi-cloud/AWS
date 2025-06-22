@@ -54,7 +54,7 @@ resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
 # - Use `aws sns list-subscriptions-by-topic` to check status.
 # - Unconfirmed subscriptions will cause delivery errors.
 # SNS Subscriptions for all protocols
-resource "aws_sns_topic_subscription" "subscriptions" {
+resource "aws_sns_topic_subscription" "cloudwatch_subscriptions" {
   for_each  = { for idx, sub in var.sns_subscriptions : idx => sub }
   topic_arn = aws_sns_topic.cloudwatch_alarms.arn
   protocol  = each.value.protocol

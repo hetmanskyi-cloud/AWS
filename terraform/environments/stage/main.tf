@@ -437,6 +437,7 @@ module "cloudfront" {
   }
 
   # Global Naming and Tagging
+  aws_region  = var.aws_region
   name_prefix = var.name_prefix
   environment = var.environment
   tags        = merge(local.common_tags, local.tags_cloudfront)
@@ -478,6 +479,9 @@ module "cloudfront" {
 
   # ALB DNS Name (from ALB module)
   alb_dns_name = module.alb.alb_dns_name
+
+  # Origin Shield Settings
+  enable_origin_shield = var.enable_origin_shield
 
   depends_on = [
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS

@@ -132,3 +132,17 @@ variable "alb_dns_name" {
   description = "DNS name of the Application Load Balancer to use as CloudFront origin"
   type        = string
 }
+
+# --- CloudFront Origin Shield Settings (Optional) --- #
+
+variable "enable_origin_shield" {
+  description = "Set to true to enable CloudFront Origin Shield for the primary ALB origin. This adds a caching layer to reduce origin load."
+  type        = bool
+  default     = false
+}
+
+variable "aws_region" {
+  description = "The primary AWS region where the main infrastructure (like ALB and EC2) is deployed. Used for Origin Shield."
+  type        = string
+  # No default, as this should be explicitly passed from the root module.
+}

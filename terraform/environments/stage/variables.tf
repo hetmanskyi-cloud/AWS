@@ -799,6 +799,12 @@ variable "enable_cloudfront_standard_logging_v2" {
   default     = true
 }
 
+variable "enable_origin_shield" {
+  description = "Set to true to enable CloudFront Origin Shield for the primary ALB origin. This adds a caching layer to reduce origin load."
+  type        = bool
+  default     = false
+}
+
 # --- CloudTrail Variables --- #
 
 variable "cloudtrail_logs_retention_in_days" {

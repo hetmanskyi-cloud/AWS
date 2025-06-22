@@ -103,12 +103,23 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   comment         = "CloudFront distribution for WordPress App (ALB) and Media (S3)"
   price_class     = var.cloudfront_price_class # Configurable price class (e.g., PriceClass_100 for lower cost, PriceClass_All for global coverage)
 
+  # --- Recommended: Enable HTTP/3 and HTTP/2 for best performance and compatibility --- #
+  http_version = "http2and3"
+
   # --- Origin 1: ALB for WordPress Application --- #
   # This origin points to the Application Load Balancer.
   # It includes the custom header to verify that traffic comes only from CloudFront.
   origin {
     domain_name = var.alb_dns_name # DNS name of your ALB
     origin_id   = "wordpress-app-origin-alb"
+
+    # --- Origin Shield Configuration --- #
+    # This block enables an additional caching layer to protect the origin.
+    # It is disabled by default and can be enabled by setting 'enable_origin_shield = true'.
+    origin_shield {
+      enabled              = var.enable_origin_shield
+      origin_shield_region = var.aws_region # Must be a region where your origin (ALB) is located.
+    }
 
     custom_origin_config {
       http_port              = 80
@@ -269,23 +280,31 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 # 3. For development and staging environments, the default AWS-managed SSL certificate and CloudFront domain are utilized.
 #    For production deployments, it is strongly advised to provision a custom domain name and an AWS Certificate Manager (ACM)
 #    certificate in us-east-1, integrated with Route53 alias records for a custom endpoint.
-# 4. Cache and Headers Strategy:
+# 4. Modern Protocol Support: The distribution is configured with 'http_version = "http2and3"', enabling the latest HTTP/3 protocol
+#    for clients that support it, while maintaining backward compatibility with HTTP/2 for optimal performance and reduced latency.
+# 5. Cache and Headers Strategy:
 #    - Application origin (ALB): Uses the AWS-managed "CachingDisabled" policy, which forwards all headers, cookies, and query strings,
-#      and disables caching to ensure real-time application behavior (best practice for dynamic content).
+#      and disables caching to ensure real-time application behavior. Caching for dynamic content is delegated to the origin application.
 #    - Media origin (S3): Uses a custom optimized policy that excludes cookies and query strings, enables Brotli/GZIP compression,
 #      and sets long TTLs for maximum performance.
 #    - Security Headers: This distribution uses AWS-managed Response Headers Policies (e.g., "Managed-SecurityHeadersPolicy") attached
 #      directly to the cache behaviors. This is a best practice for providing strong, maintenance-free security headers.
-# 5. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for static content, and all HTTP traffic is automatically
+# 6. Content-Security-Policy (CSP) Enhancement:
+#    - For maximum security against Cross-Site Scripting (XSS) attacks, a real-world production site should implement a strict
+#      Content-Security-Policy (CSP). The AWS-managed policy used here does NOT include CSP, as it must be custom-tailored
+#      to the specific application, its themes, and plugins.
+#    - Implementing a CSP would require creating a CloudFront Function and replacing the 'response_headers_policy_id' with a
+#      'function_association' block in the cache behaviors, after careful testing in a staging environment.
+# 7. Origin Protocol Security: The ALB origin uses 'origin_protocol_policy = "http-only"'. This is a deliberate and secure architectural
+#    choice. CloudFront terminates the viewer's HTTPS connection, and communication to the origin occurs within the secure AWS backbone.
+#    The authenticity of requests is guaranteed by the 'x-custom-origin-verify' secret header, which is validated by a WAF rule
+#    on the ALB. An alternative 'https-only' policy can be used for end-to-end encryption if required by specific compliance standards.
+# 8. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for static content, and all HTTP traffic is automatically
 #    redirected to HTTPS, enforcing secure communication channels.
 #    For dynamic/application content, all necessary HTTP methods are allowed (GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE).
-# 6. CloudFront **Access Logging v2** is implemented through AWS CloudWatch Log Delivery services, configured within the
-#    'cloudfront/logging.tf' file. This approach offers enhanced flexibility for log destinations (e.g., S3, CloudWatch Logs)
-#    and various output formats (e.g., JSON, Parquet), providing robust analytics capabilities.
-# 7. Integration with AWS WAF for Layer 7 protection is optional and managed within the 'waf.tf' file.
-#    Remember that all CloudFront WAF resources must specify 'scope = "CLOUDFRONT"' and be provisioned via
-#    the 'aws.cloudfront' provider.
-# 8. Essential S3 bucket details (IDs, ARNs, domain names) required by this module must be exposed as outputs
-#    from your S3 module and passed in as input variables.
-# 9. Resource tagging adheres to centralized project standards, facilitating efficient resource identification
-#    and cost allocation. Note that AWS currently only supports tagging on 'aws_cloudfront_distribution' resources.
+# 9. CloudFront **Access Logging v2** is implemented through AWS CloudWatch Log Delivery services, configured within the
+#    'cloudfront/logging.tf' file. This approach offers enhanced flexibility and robust analytics capabilities.
+# 10. Integration with AWS WAF for Layer 7 protection is optional and managed within the 'waf.tf' file.
+#     All CloudFront WAF resources must specify 'scope = "CLOUDFRONT"' and be provisioned via the 'aws.cloudfront' provider.
+# 11. Optional Origin Shield: The module includes a configurable option to enable Origin Shield ('var.enable_origin_shield').
+#     This feature adds an extra caching layer to further reduce origin load and is recommended for high-traffic, global applications.
