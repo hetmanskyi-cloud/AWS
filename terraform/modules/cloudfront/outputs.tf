@@ -105,7 +105,8 @@ output "cloudfront_access_logs_delivery_arn" {
 # This output variable provides the full S3 URI prefix for CloudFront Standard Logging v2 access logs,
 # generated in Parquet format by CloudWatch Log Delivery. Use this for analytics, Athena, or integrations.
 # Example: s3://wordpress-logging-gvbsn/AWSLogs/123456789012/CloudFront/cloudfront-access-logs/E2QFTKZ57D5PGR/
+
 output "cloudfront_standard_logging_v2_log_prefix" {
-  description = "S3 URI prefix for CloudFront Standard Logging v2 Parquet logs (via CloudWatch Log Delivery)."
-  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? "s3://${var.logging_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/CloudFront/cloudfront-access-logs/${aws_cloudfront_distribution.wordpress_media[0].id}/" : null
+  description = "The base S3 URI prefix where CloudFront Standard Logging v2 Parquet logs are delivered by CloudWatch Log Delivery."
+  value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? "s3://${var.logging_bucket_name}/cloudfront-access-logs/${aws_cloudfront_distribution.wordpress_media[0].id}/" : null
 }

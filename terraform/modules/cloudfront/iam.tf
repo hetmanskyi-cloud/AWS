@@ -28,43 +28,49 @@ resource "aws_iam_policy" "cloudfront_firehose_policy" {
   count    = var.enable_cloudfront_firehose ? 1 : 0
 
   name = "${var.name_prefix}-cloudfront-firehose-policy-${var.environment}"
-
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "s3:PutObject",         # Grants Firehose the ability to put logs into the S3 bucket
-          "s3:GetBucketLocation", # Allows Firehose to get the location of the bucket
-          "s3:ListBucket"         # Allows Firehose to list the bucket contents for logging
-        ],
-        Resource = [
-          "${var.logging_bucket_arn}/*", # Permission to write to all objects inside the bucket
-          var.logging_bucket_arn         # Permission to access the bucket itself
-        ]
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          "kms:Encrypt",          # Allow encryption with KMS
-          "kms:Decrypt",          # Allow decryption of objects with KMS
-          "kms:ReEncrypt*",       # Allows re-encryption of data
-          "kms:GenerateDataKey*", # Allows generating encryption keys for Firehose
-          "kms:DescribeKey"       # Allows Firehose to describe the KMS key
-        ],
-        Resource = var.kms_key_arn # Specifies the KMS key for encryption and decryption
-      },
-      {
-        # This permission allows Firehose to write error logs to CloudWatch if data delivery to S3 fails.
-        # It requires the corresponding log group to exist.
-        Effect = "Allow",
-        Action = [
-          "logs:PutLogEvents" # Allows Firehose to send logs to CloudWatch for error tracking
-        ],
-        Resource = "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/*:log-stream:*" # Logs for Firehose error events
-      }
-    ]
+    # We use concat() to conditionally add the KMS statement.
+    # It will only be added if a KMS key ARN is provided.
+    Statement = concat(
+      [
+        {
+          Effect = "Allow",
+          Action = [
+            "s3:PutObject",         # Grants Firehose the ability to put logs into the S3 bucket
+            "s3:GetBucketLocation", # Allows Firehose to get the location of the bucket
+            "s3:ListBucket"         # Allows Firehose to list the bucket contents for logging
+          ],
+          Resource = [
+            "${var.logging_bucket_arn}/*", # Permission to write to all objects inside the bucket
+            var.logging_bucket_arn         # Permission to access the bucket itself
+          ]
+        },
+        {
+          # This permission allows Firehose to write error logs to CloudWatch if data delivery to S3 fails.
+          # It requires the corresponding log group to exist.
+          Effect = "Allow",
+          Action = [
+            "logs:PutLogEvents" # Allows Firehose to send logs to CloudWatch for error tracking
+          ],
+          Resource = "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/*:log-stream:*" # Logs for Firehose error events
+        }
+      ],
+      # This entire statement block is added ONLY if var.kms_key_arn is not null or empty.
+      var.kms_key_arn != null && var.kms_key_arn != "" ? [
+        {
+          Effect = "Allow",
+          Action = [
+            "kms:Encrypt",          # Allow encryption with KMS
+            "kms:Decrypt",          # Allow decryption of objects with KMS
+            "kms:ReEncrypt*",       # Allows re-encryption of data
+            "kms:GenerateDataKey*", # Allows generating encryption keys for Firehose
+            "kms:DescribeKey"       # Allows Firehose to describe the KMS key
+          ],
+          Resource = var.kms_key_arn # Specifies the KMS key for encryption and decryption
+        }
+      ] : []
+    )
   })
 
   tags = merge(var.tags, {

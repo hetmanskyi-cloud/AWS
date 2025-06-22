@@ -20,12 +20,6 @@ terraform {
   }
 }
 
-# --- AWS Account Identity Data Source --- #
-# This data source retrieves the AWS account ID for use in resource ARNs,
-# S3 path constructions, and tagging. It is required for dynamically referencing
-# the current AWS account in output variables and policy documents.
-data "aws_caller_identity" "current" {}
-
 # --- CloudFront Distribution for WordPress Application and Media --- #
 # This module creates a secure and performant CloudFront CDN to serve both dynamic
 # application content from an ALB and static media files from a private S3 bucket.
@@ -275,11 +269,13 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 # 3. For development and staging environments, the default AWS-managed SSL certificate and CloudFront domain are utilized.
 #    For production deployments, it is strongly advised to provision a custom domain name and an AWS Certificate Manager (ACM)
 #    certificate in us-east-1, integrated with Route53 alias records for a custom endpoint.
-# 4. Cache policy strategy:
-#    - **Application origin (ALB)**: Uses the AWS-managed "CachingDisabled" policy, which forwards all headers, cookies, and query strings,
+# 4. Cache and Headers Strategy:
+#    - Application origin (ALB): Uses the AWS-managed "CachingDisabled" policy, which forwards all headers, cookies, and query strings,
 #      and disables caching to ensure real-time application behavior (best practice for dynamic content).
-#    - **Media origin (S3)**: Uses a custom optimized policy that excludes cookies and query strings, enables Brotli/GZIP compression,
+#    - Media origin (S3): Uses a custom optimized policy that excludes cookies and query strings, enables Brotli/GZIP compression,
 #      and sets long TTLs for maximum performance.
+#    - Security Headers: This distribution uses AWS-managed Response Headers Policies (e.g., "Managed-SecurityHeadersPolicy") attached
+#      directly to the cache behaviors. This is a best practice for providing strong, maintenance-free security headers.
 # 5. Only safe HTTP methods (GET, HEAD, OPTIONS) are permitted for static content, and all HTTP traffic is automatically
 #    redirected to HTTPS, enforcing secure communication channels.
 #    For dynamic/application content, all necessary HTTP methods are allowed (GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE).
