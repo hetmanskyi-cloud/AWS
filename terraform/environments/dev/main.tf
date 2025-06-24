@@ -185,6 +185,7 @@ module "asg" {
   db_port           = var.db_port
   wp_title          = var.wp_title
   alb_dns_name      = module.alb.alb_dns_name
+  cloudfront_domain = module.cloudfront.cloudfront_distribution_domain_name
   php_version       = var.php_version
   redis_endpoint    = module.elasticache.redis_endpoint
   redis_port        = var.redis_port
@@ -402,8 +403,12 @@ module "alb" {
   enable_alb_firehose                 = var.enable_alb_firehose
   enable_alb_firehose_cloudwatch_logs = var.enable_alb_firehose_cloudwatch_logs
 
+  # ASG Security Group
+  asg_security_group_id = module.asg.asg_security_group_id
+
   # CloudFront to ALB integration
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
+  alb_access_cloudfront_mode            = var.alb_access_cloudfront_mode
 
   depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms]
 }
@@ -444,6 +449,7 @@ module "cloudfront" {
 
   # CloudFront Distribution Settings
   wordpress_media_cloudfront_enabled = var.wordpress_media_cloudfront_enabled
+  logging_bucket_enabled             = try(var.default_region_buckets["logging"].enabled, false)
   cloudfront_price_class             = var.cloudfront_price_class
 
   # Pass the entire map of bucket configurations. This allows the module to know

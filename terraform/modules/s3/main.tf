@@ -326,8 +326,9 @@ resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_a
 
 # --- Set ACL for Logging Bucket --- #
 # Grants S3 log delivery permissions for server access logging.
+# This resource is created only if the 'logging' bucket itself is enabled.
 resource "aws_s3_bucket_acl" "logging_bucket_acl" {
-  count  = can(var.default_region_buckets["logging"].enabled) ? 1 : 0
+  count  = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
   bucket = aws_s3_bucket.default_region_buckets["logging"].id
 
   acl = "log-delivery-write"

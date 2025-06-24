@@ -42,6 +42,12 @@ variable "wordpress_media_cloudfront_enabled" {
   default     = true
 }
 
+variable "logging_bucket_enabled" {
+  description = "Flag to indicate if the central S3 logging bucket is enabled in the configuration."
+  type        = bool
+  default     = false
+}
+
 variable "cloudfront_price_class" {
   description = "The price class for the CloudFront distribution. 'PriceClass_100', 'PriceClass_200', or 'PriceClass_All'."
   type        = string

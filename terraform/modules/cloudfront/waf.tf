@@ -129,7 +129,7 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
 resource "aws_wafv2_web_acl_logging_configuration" "cloudfront_waf_logging" {
   provider = aws.cloudfront
   # Create logging configuration only if WAF and the CloudFront distribution are enabled.
-  count = var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_waf && var.enable_cloudfront_firehose && local.enable_cloudfront_media_distribution && var.logging_bucket_enabled ? 1 : 0
 
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.firehose_cloudfront_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.cloudfront_waf[0].arn

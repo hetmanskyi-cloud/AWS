@@ -208,6 +208,21 @@ variable "cloudfront_to_alb_secret_header_value" {
   sensitive   = true
 }
 
+# --- Access Restriction Settings --- #
+
+# Controls if the ALB ingress traffic is restricted to CloudFront IPs.
+variable "alb_access_cloudfront_mode" {
+  description = "If true, restricts ALB ingress traffic to only the AWS Managed Prefix List for CloudFront. If false, allows traffic from 0.0.0.0/0."
+  type        = bool
+  default     = false # A safe default, leaving the ALB open for testing/dev.
+}
+
+
+variable "asg_security_group_id" {
+  description = "The ID of the security group attached to the ASG instances. Used to create a specific egress rule."
+  type        = string
+}
+
 # --- Notes --- #
 # - In production, enable HTTPS listener, WAF, and logging for improved security and observability.
 # - Features controlled by `enable_*` variables (e.g., enable_waf, enable_firehose, enable_high_request_alarm)

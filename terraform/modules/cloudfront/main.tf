@@ -28,7 +28,7 @@ terraform {
 # --- Locals --- #
 # Centralized conditional logic for enabling CloudFront resources.
 locals {
-  enable_cloudfront_media_distribution = can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_cloudfront_enabled
+  enable_cloudfront_media_distribution = try(var.default_region_buckets["wordpress_media"].enabled, false) && var.wordpress_media_cloudfront_enabled
 }
 
 # --- Origin Access Control (OAC) for S3 --- #
@@ -44,16 +44,6 @@ resource "aws_cloudfront_origin_access_control" "wordpress_media_oac" {
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
-}
-
-# --- CloudFront Cache Policies --- #
-
-# Data Source for the AWS-Managed CachingDisabled Policy (for WordPress Application)
-# This policy forwards all headers, cookies, and query strings, effectively disabling the cache.
-# It's used for the dynamic application content to ensure real-time behavior.
-data "aws_cloudfront_cache_policy" "caching_disabled" {
-  provider = aws.cloudfront
-  name     = "Managed-CachingDisabled"
 }
 
 # --- CloudFront Cache Policy for WordPress Media (S3 Origin) --- #
@@ -156,7 +146,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
     # Use the AWS-managed policy to disable caching, forwarding all headers, cookies,
     # and query strings to the application. This is critical for dynamic content.
-    cache_policy_id = data.aws_cloudfront_cache_policy.caching_disabled.id
+    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
 
     # Use the AWS-managed policy for security headers, suitable for web applications.
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
@@ -174,7 +164,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
     compress               = true
 
     # Use the same no-cache policy as the default behavior for consistency.
-    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
 
@@ -190,7 +180,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
     compress               = true
 
     # Use the same no-cache policy as the default behavior.
-    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
 

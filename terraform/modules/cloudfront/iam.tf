@@ -25,7 +25,7 @@ resource "aws_iam_role" "cloudfront_firehose_role" {
 # Grants CloudFront Firehose permissions to write logs to the S3 logging bucket and use the KMS key for encryption.
 resource "aws_iam_policy" "cloudfront_firehose_policy" {
   provider = aws.cloudfront
-  count    = var.enable_cloudfront_firehose ? 1 : 0
+  count    = var.enable_cloudfront_firehose && var.logging_bucket_enabled ? 1 : 0
 
   name = "${var.name_prefix}-cloudfront-firehose-policy-${var.environment}"
   policy = jsonencode({
@@ -82,7 +82,7 @@ resource "aws_iam_policy" "cloudfront_firehose_policy" {
 # Attaches the CloudFront Firehose policy to the Firehose role in us-east-1.
 resource "aws_iam_role_policy_attachment" "cloudfront_firehose_policy_attachment" {
   provider   = aws.cloudfront
-  count      = var.enable_cloudfront_firehose ? 1 : 0
+  count      = var.enable_cloudfront_firehose && var.logging_bucket_enabled ? 1 : 0
   role       = aws_iam_role.cloudfront_firehose_role[0].name
   policy_arn = aws_iam_policy.cloudfront_firehose_policy[0].arn
 }

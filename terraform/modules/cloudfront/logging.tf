@@ -15,7 +15,7 @@ resource "aws_cloudwatch_log_delivery_source" "cloudfront_access_logs_source" {
 
   # Create the log delivery source only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution && var.logging_bucket_enabled ? 1 : 0
 
   name         = "${var.name_prefix}-cloudfront-access-logs-source-${var.environment}"
   log_type     = "ACCESS_LOGS"                                      # Specifies that this source collects CloudFront access logs
@@ -34,7 +34,7 @@ resource "aws_cloudwatch_log_delivery_destination" "cloudfront_access_logs_s3_de
 
   # Create the log delivery destination only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution && var.logging_bucket_enabled ? 1 : 0
 
   name          = "${var.name_prefix}-cloudfront-access-logs-s3-destination-${var.environment}"
   output_format = "parquet" # Recommended format for analytics and cost reduction
@@ -58,7 +58,7 @@ resource "aws_cloudwatch_log_delivery" "cloudfront_access_logs_delivery" {
 
   # Create the log delivery only if CloudFront access logging is enabled
   # and the main CloudFront distribution is also enabled.
-  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution && var.logging_bucket_enabled ? 1 : 0
 
   delivery_source_name     = aws_cloudwatch_log_delivery_source.cloudfront_access_logs_source[0].name
   delivery_destination_arn = aws_cloudwatch_log_delivery_destination.cloudfront_access_logs_s3_destination[0].arn

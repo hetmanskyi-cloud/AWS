@@ -5,6 +5,7 @@
 # 3. Code linting with TFLint for best practices and common errors.
 #
 # To update hooks to their latest versions, run: pre-commit autoupdate
+# To run the full scan, run: pre-commit run --all-files
 
 repos:
 

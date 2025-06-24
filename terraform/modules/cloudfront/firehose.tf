@@ -9,7 +9,7 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose_cloudfront_waf_logs" {
 
   # Create Firehose only if CloudFront WAF is enabled and the main CloudFront distribution is enabled.
   # This ensures the logging infrastructure is spun up only when needed.
-  count = var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? 1 : 0
+  count = var.enable_cloudfront_waf && var.enable_cloudfront_firehose && local.enable_cloudfront_media_distribution && var.logging_bucket_enabled ? 1 : 0
 
   name        = "aws-waf-logs-${var.name_prefix}-cloudfront-firehose-${var.environment}"
   destination = "extended_s3" # The destination type for the logs will be extended_s3

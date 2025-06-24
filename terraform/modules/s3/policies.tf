@@ -6,7 +6,7 @@
 # - Used for WordPress media file downloads (read-only).
 # - Uploads are performed via WordPress backend using signed requests (not public uploads).
 resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
-  count = can(var.default_region_buckets["wordpress_media"].enabled) && var.enable_cors ? 1 : 0 # Conditional CORS config
+  count = try(var.default_region_buckets["wordpress_media"].enabled, false) && var.enable_cors ? 1 : 0 # Conditional CORS config
 
   bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket
 
@@ -66,7 +66,7 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
 # that a single resource manages the bucket policy.
 data "aws_iam_policy_document" "unified_logging_bucket_policy" {
   # This policy is constructed only if the logging bucket itself is enabled.
-  count = can(var.default_region_buckets["logging"].enabled) ? 1 : 0
+  count = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
 
   # Statement 1: Allow S3 Server Access Logs to write to this bucket.
   # This is required for other S3 buckets to deliver their own access logs here.
@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
     }
 
     resources = [
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
+      try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
     ]
 
     # This condition ensures the bucket owner gets full control over the delivered log objects.
@@ -108,10 +108,10 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
         identifiers = ["delivery.logs.amazonaws.com"]
       }
 
-      resources = [
-        aws_s3_bucket.default_region_buckets["logging"].arn,
-        "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-      ]
+      resources = compact([
+        try(aws_s3_bucket.default_region_buckets["logging"].arn, null),
+        try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
+      ])
 
       # This security condition restricts access to delivery services originating from your AWS account.
       condition {
@@ -134,10 +134,10 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
       identifiers = ["*"]
     }
 
-    resources = [
-      aws_s3_bucket.default_region_buckets["logging"].arn,
-      "${aws_s3_bucket.default_region_buckets["logging"].arn}/*"
-    ]
+    resources = compact([
+      try(aws_s3_bucket.default_region_buckets["logging"].arn, null),
+      try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
+    ])
 
     condition {
       test     = "Bool"
@@ -151,7 +151,7 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
 # This single resource applies the comprehensive policy constructed above,
 # acting as the sole source of truth for the logging bucket's policy.
 resource "aws_s3_bucket_policy" "unified_logging_bucket_policy" {
-  count = can(var.default_region_buckets["logging"].enabled) ? 1 : 0
+  count = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
 
   bucket = aws_s3_bucket.default_region_buckets["logging"].id
   policy = data.aws_iam_policy_document.unified_logging_bucket_policy[0].json
@@ -225,7 +225,8 @@ data "aws_elb_service_account" "main" {
 
 # --- IAM Policy Document for ALB Logs Bucket Permissions --- #
 data "aws_iam_policy_document" "alb_logs_bucket_policy" {
-  count = can(var.default_region_buckets["alb_logs"].enabled) ? 1 : 0 # Conditional data source
+  # Create this data source only if the alb_logs bucket is enabled in the variables.
+  count = try(var.default_region_buckets["alb_logs"].enabled, false) ? 1 : 0 # Conditional data source
 
   # Statement 1: AWSLogDeliveryWrite - Service principal
   # Grants the ALB service "delivery.logs.amazonaws.com" permission to PutObject
@@ -240,7 +241,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*"
+      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*", null)
     ]
 
     condition {
@@ -263,7 +264,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*"
+      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*", null)
     ]
 
     condition {
@@ -286,7 +287,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      aws_s3_bucket.default_region_buckets["alb_logs"].arn
+      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null)
     ]
   }
 
@@ -302,7 +303,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      aws_s3_bucket.default_region_buckets["alb_logs"].arn
+      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null)
     ]
   }
 
@@ -317,10 +318,10 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
       identifiers = ["*"]
     }
 
-    resources = [
-      aws_s3_bucket.default_region_buckets["alb_logs"].arn,
-      "${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/*"
-    ]
+    resources = compact([
+      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null),
+      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/*", null)
+    ])
 
     condition {
       test     = "Bool"
@@ -332,7 +333,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
 
 # --- Apply ALB Logs Bucket Policy --- #
 resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
-  count = can(var.default_region_buckets["alb_logs"].enabled) ? 1 : 0
+  count = try(var.default_region_buckets["alb_logs"].enabled, false) ? 1 : 0
 
   bucket = aws_s3_bucket.default_region_buckets["alb_logs"].id
   policy = data.aws_iam_policy_document.alb_logs_bucket_policy[0].json
@@ -352,7 +353,7 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
 resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
   # This policy is applied only if the 'wordpress_media' bucket is enabled
   # AND the CloudFront distribution for it is also enabled.
-  count = can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_cloudfront_enabled ? 1 : 0
+  count = try(var.default_region_buckets["wordpress_media"].enabled, false) && var.wordpress_media_cloudfront_enabled ? 1 : 0
 
   bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket for the policy
 

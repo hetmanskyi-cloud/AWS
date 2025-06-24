@@ -376,10 +376,47 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# 8.5. Set site URLs from ALB DNS
-log "Set site URLs from ALB DNS..."
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "http://$AWS_LB_DNS" --path="$WP_PATH"
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "http://$AWS_LB_DNS" --path="$WP_PATH"
+# --- 8.5. Set site URLs based on environment (CloudFront or ALB) --- #
+log "Setting WordPress public URLs..."
+
+# Prepare the canonical site URL in a variable.
+# This is defined in the primary shell's context to ensure correct expansion of environment
+# variables before being used in commands that may run in a different user context (e.g., via sudo).
+SITE_URL_TO_SET=""
+if [ -n "${CLOUDFRONT_DOMAIN}" ]; then
+  # Use the public-facing CloudFront domain for production-like environments.
+  SITE_URL_TO_SET="https://${CLOUDFRONT_DOMAIN}"
+else
+  # Use the internal ALB domain for direct access or testing.
+  SITE_URL_TO_SET="http://${AWS_LB_DNS}"
+fi
+log "Final site URL will be set to: ${SITE_URL_TO_SET}"
+
+# Apply the canonical URL to the WordPress configuration.
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "$SITE_URL_TO_SET" --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "$SITE_URL_TO_SET" --path="$WP_PATH"
+
+# Apply additional HTTPS-related settings only if the CloudFront domain is being used.
+if [ -n "${CLOUDFRONT_DOMAIN}" ]; then
+  # Enforce SSL for the admin area and ensure WordPress recognizes the HTTPS proxy.
+  # This prevents redirect loops and mixed-content issues when behind a load balancer terminating SSL.
+  log "Enforcing SSL and configuring reverse proxy settings..."
+  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
+
+  # Add reverse proxy snippet to wp-config.php if it's not already there.
+  if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
+      log "Adding reverse proxy settings to wp-config.php..."
+      # This snippet is crucial for WordPress to correctly identify the protocol (https)
+      # when traffic is proxied through the ALB and CloudFront.
+      echo "" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+      echo "// Tell WordPress it is behind a reverse proxy." | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+      echo "if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+      echo "    \$_SERVER['HTTPS'] = 'on';" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+      echo "}" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+  else
+      log "Reverse proxy settings already exist in wp-config.php."
+  fi
+fi
 
 # 8.6. Final verifications and permissions
 log "Final verifications and permissions for wp-config.php..."
