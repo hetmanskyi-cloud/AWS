@@ -30,8 +30,8 @@ log "Exporting environment variables..."
   echo "REDIS_PORT=\"${wp_config.REDIS_PORT}\""
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
 
-  # Export CloudFront related configuration value
-  echo "CLOUDFRONT_DOMAIN=\"${cloudfront_domain}\""
+  # Export Public site URL
+  echo "PUBLIC_SITE_URL=\"${public_site_url}\""
 
   # Export other necessary environment variables
   echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
@@ -200,9 +200,9 @@ sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_REDIS_PASSWORD "$REDI
 sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_REDIS_CLIENT "predis" --path="$WP_PATH"
 sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 
-# Set URLs for current environment (ALB)
-sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_SITEURL "http://$AWS_LB_DNS" --path="$WP_PATH"
-sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_HOME "http://$AWS_LB_DNS" --path="$WP_PATH"
+# Set URLs for current environment
+sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_SITEURL "$PUBLIC_SITE_URL" --path="$WP_PATH"
+sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_HOME "$PUBLIC_SITE_URL" --path="$WP_PATH"
 
 # Optional: Debug logging
 sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_DEBUG true --raw --path="$WP_PATH"

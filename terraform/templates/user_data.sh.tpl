@@ -70,8 +70,8 @@ log "Exporting environment variables..."
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
   echo "WP_VERSION=\"${wordpress_version}\""
 
-  # Export CloudFront related configuration value
-  echo "CLOUDFRONT_DOMAIN=\"${cloudfront_domain}\""
+  # Export Public site URL
+  echo "PUBLIC_SITE_URL=\"${public_site_url}\""
 
   # Export other necessary environment variables
   echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""

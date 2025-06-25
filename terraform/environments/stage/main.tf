@@ -185,7 +185,7 @@ module "asg" {
   db_port           = var.db_port
   wp_title          = var.wp_title
   alb_dns_name      = module.alb.alb_dns_name
-  cloudfront_domain = module.cloudfront.cloudfront_distribution_domain_name
+  public_site_url   = var.create_dns_and_ssl ? "https://${var.custom_domain_name}" : "https://${module.cloudfront.cloudfront_distribution_domain_name}"
   php_version       = var.php_version
   redis_endpoint    = module.elasticache.redis_endpoint
   redis_port        = var.redis_port
@@ -488,9 +488,66 @@ module "cloudfront" {
   # Origin Shield Settings
   enable_origin_shield = var.enable_origin_shield
 
+  # Custom Domain and ACM Integration
+  # This conditionally passes the certificate ARN and domain names to the CloudFront module.
+  acm_certificate_arn   = var.create_dns_and_ssl ? module.acm[0].acm_arn : null
+  custom_domain_aliases = var.create_dns_and_ssl ? concat([var.custom_domain_name], var.subject_alternative_names) : []
+
   depends_on = [
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS
   ]
+}
+
+# --- ACM Certificate Module --- #
+
+# Requests an SSL certificate for the custom domain.
+# This module is created only if a custom domain setup is enabled.
+module "acm" {
+  source = "../../modules/acm"
+  count  = var.create_dns_and_ssl ? 1 : 0 # The master switch for this module
+
+  # Providers block to specify which provider configuration to use for this module.
+  providers = {
+    aws            = aws.default    # Pass our root default provider to the child's default 'aws'
+    aws.cloudfront = aws.cloudfront # Pass our root 'aws.cloudfront' provider (us-east-1) to the child's 'aws.cloudfront'
+  }
+
+  # Pass variables for naming and tagging
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_acm)
+
+  # Certificate details
+  custom_domain_name        = var.custom_domain_name
+  subject_alternative_names = var.subject_alternative_names
+}
+
+# --- Route53 DNS Module --- #
+
+# Manages the DNS Hosted Zone, validates the ACM certificate, and points the domain to CloudFront.
+# This module is also created only if a custom domain setup is enabled.
+module "route53" {
+  source = "../../modules/route53"
+  count  = var.create_dns_and_ssl ? 1 : 0 # The master switch for this module
+
+  # Pass variables for naming and tagging
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_route53)
+
+  # Domain details
+  custom_domain_name        = var.custom_domain_name
+  subject_alternative_names = var.subject_alternative_names
+
+  # --- WIRING: Connect outputs from other modules as inputs here --- #
+
+  # from acm module
+  acm_certificate_arn                       = module.acm[0].acm_arn
+  acm_certificate_domain_validation_options = module.acm[0].domain_validation_options
+
+  # from cloudfront module
+  cloudfront_distribution_domain_name    = module.cloudfront.cloudfront_distribution_domain_name
+  cloudfront_distribution_hosted_zone_id = module.cloudfront.cloudfront_distribution_hosted_zone_id
 }
 
 # --- Notes and Recommendations --- #

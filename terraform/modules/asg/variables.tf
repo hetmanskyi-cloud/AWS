@@ -257,10 +257,10 @@ variable "alb_dns_name" {
   type        = string
 }
 
-variable "cloudfront_domain" {
-  description = "The domain name of the CloudFront distribution. Used to configure WordPress WP_HOME and WP_SITEURL."
+variable "public_site_url" {
+  description = "The final, full public URL for the WordPress site (e.g., https://www.example.com or https://d123.cloudfront.net)."
   type        = string
-  default     = ""
+  default     = null
 }
 
 variable "wordpress_secrets_name" {

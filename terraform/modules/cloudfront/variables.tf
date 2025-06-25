@@ -152,3 +152,17 @@ variable "aws_region" {
   type        = string
   # No default, as this should be explicitly passed from the root module.
 }
+
+# --- Custom Domain and ACM Certificate Integration (Optional) --- #
+
+variable "acm_certificate_arn" {
+  description = "The ARN of the ACM certificate (must be in us-east-1) to attach to the distribution. Set to null to use the default CloudFront certificate."
+  type        = string
+  default     = null # Default to null, indicating no custom certificate is used.
+}
+
+variable "custom_domain_aliases" {
+  description = "A list of custom domain names (CNAMEs/aliases) to associate with the distribution (e.g., [\"my-site.com\", \"www.my-site.com\"])."
+  type        = list(string)
+  default     = [] # Default to an empty list, indicating no custom domains.
+}

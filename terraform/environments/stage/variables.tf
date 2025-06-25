@@ -869,11 +869,30 @@ variable "redis_auth_secret_name" {
   type        = string
 }
 
-# variables.tf
 variable "rds_secret_name" {
   description = "The name of the AWS Secrets Manager secret for RDS credentials."
   type        = string
   default     = "rds-secrets"
+}
+
+# --- Custom Domain, SSL and DNS Configuration --- #
+
+variable "create_dns_and_ssl" {
+  description = "Master switch. Set to true to create ACM, Route53, and all related resources for a custom domain."
+  type        = bool
+  default     = false
+}
+
+variable "custom_domain_name" {
+  description = "The root domain name to configure, e.g., 'example.com'."
+  type        = string
+  default     = ""
+}
+
+variable "subject_alternative_names" {
+  description = "A list of subject alternative names (SANs) for the certificate, e.g., [\"www.example.com\"]"
+  type        = list(string)
+  default     = []
 }
 
 # --- Notes --- #

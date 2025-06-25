@@ -202,36 +202,38 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
     response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03" # Managed-CORS-S3Origin
   }
 
-  # --- Viewer Certificate for Custom Domain (Production ACM Integration) --- #
-  # To enable a custom domain (e.g., cdn.example.com) with a validated SSL certificate:
-  # 1. **Issue ACM certificate** in us-east-1 (N. Virginia). Example: module.acm.acm_certificate_arn
-  # 2. **Specify your domain name(s)** in aliases below.
-  # 3. **Uncomment this block** and comment out the default 'cloudfront_default_certificate' block.
-  # 4. **Set up Route53 alias record** pointing to the CloudFront domain for your distribution.
-  #
-  # viewer_certificate {
-  #   acm_certificate_arn            = var.acm_certificate_arn        # ACM cert ARN (us-east-1 only!)
-  #   ssl_support_method             = "sni-only"                     # SNI is recommended
-  #   minimum_protocol_version       = "TLSv1.2_2021"                 # Or higher
-  # }
-  #
-  # aliases = [
-  #   "cdn.example.com",         # Your custom CDN domain
-  #   "media.example.com",       # (Optional) Additional domains
-  # ]
+  # --- Dynamic Viewer Certificate --- #
+  # This section conditionally configures the viewer certificate.
+  # If a custom ACM certificate ARN is provided, it uses it. Otherwise, it defaults to the CloudFront certificate.
 
-  # --- Viewer Certificate (Default CloudFront SSL) --- #
-  # Configures SSL using the default CloudFront certificate for simplicity in non-production environments.
-  # For production, a custom domain and an ACM certificate (in us-east-1) are recommended.
-  viewer_certificate {
-    cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1.2_2021"
+  # This block is created ONLY if a custom ACM certificate is provided.
+  dynamic "viewer_certificate" {
+    for_each = var.acm_certificate_arn != null ? [1] : []
+    content {
+      acm_certificate_arn      = var.acm_certificate_arn
+      ssl_support_method       = "sni-only"
+      minimum_protocol_version = "TLSv1.2_2021"
+    }
   }
+
+  # This block is created ONLY if NO custom ACM certificate is provided.
+  dynamic "viewer_certificate" {
+    for_each = var.acm_certificate_arn == null ? [1] : []
+    content {
+      cloudfront_default_certificate = true
+      # minimum_protocol_version is managed by CloudFront for the default certificate.
+      # The lifecycle block handles ignoring changes to this.
+    }
+  }
+
+  # The 'aliases' argument is directly populated from the variable.
+  # If the list is empty, no aliases are set.
+  aliases = var.custom_domain_aliases
 
   # --- Lifecycle Configuration --- #
   # This lifecycle block ensures that changes to the minimum_protocol_version are ignored
   # when the default CloudFront domain is used (since CloudFront automatically sets TLSv1).
-  # If using a custom domain with an ACM certificate, you can set minimum_protocol_version to TLSv1.2 or TLSv1.3,
+  # If using a custom domain with an ACM certificate, you can set minimum_protocol_version to TLSv1.2,
   # but with the default domain, it will remain TLSv1.
   lifecycle {
     ignore_changes = [

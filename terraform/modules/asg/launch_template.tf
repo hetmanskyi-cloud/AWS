@@ -51,7 +51,7 @@ locals {
       redis_auth_secret_name = var.redis_auth_secret_name
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
-      cloudfront_domain      = var.cloudfront_domain != null ? var.cloudfront_domain : ""
+      public_site_url        = var.public_site_url
 
       # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"
@@ -75,7 +75,7 @@ locals {
       redis_auth_secret_name = var.redis_auth_secret_name
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
-      cloudfront_domain      = var.cloudfront_domain != null ? var.cloudfront_domain : ""
+      public_site_url        = var.public_site_url
       wordpress_version      = var.wordpress_version
     }
   )
