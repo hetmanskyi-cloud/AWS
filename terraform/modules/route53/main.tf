@@ -19,6 +19,7 @@ locals {
 # This resource creates the DNS zone for your custom domain in Route 53.
 resource "aws_route53_zone" "custom_zone" {
   name = var.custom_domain_name
+
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-custom-zone-for-${var.custom_domain_name}-${var.environment}"
   })

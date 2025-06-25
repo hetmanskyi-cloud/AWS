@@ -66,11 +66,13 @@ resource "aws_security_group_rule" "ingress_alb_https_open" {
   # If SSL certificate is missing, var.enable_https_listener variable should be set to false
 }
 
-# --- Rules for "cloudfront" mode (if variable is true) --- #
+# --- Rules for "CloudFront-Only" Mode (alb_access_cloudfront_mode = true) --- #
+# This set of rules creates the most secure configuration by locking down the ALB
+# to only accept traffic from CloudFront IPs and internal health checks from within the VPC.
 
-# Allow access from CloudFront only if alb_access_cloudfront_mode is true.
+# --- Rule 1.1: Allow HTTP Traffic from CloudFront --- #
+# Allows end-user traffic proxied through CloudFront to reach the ALB on port 80.
 resource "aws_security_group_rule" "ingress_http_cloudfront" {
-  # Create this rule only if the variable is true.
   count = var.alb_access_cloudfront_mode ? 1 : 0
 
   type              = "ingress"
@@ -79,11 +81,27 @@ resource "aws_security_group_rule" "ingress_http_cloudfront" {
   protocol          = "tcp"
   security_group_id = aws_security_group.alb_sg.id
   prefix_list_ids   = [data.aws_ec2_managed_prefix_list.cloudfront.id]
-  description       = "Allow HTTP only from CloudFront IPs"
+  description       = "Allow HTTP traffic from the AWS CloudFront managed prefix list"
 }
 
+# --- Rule 1.2: Allow HTTP Health Checks from within the VPC --- #
+# CRITICAL: This rule allows the ALB's own health checker nodes (which are inside the VPC
+# and NOT part of the CloudFront prefix list) to reach the targets.
+resource "aws_security_group_rule" "ingress_http_healthcheck_internal" {
+  count = var.alb_access_cloudfront_mode ? 1 : 0
+
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.alb_sg.id
+  cidr_blocks       = [var.vpc_cidr_block]
+  description       = "Allow HTTP from within the VPC for ALB health checks"
+}
+
+# --- Rule 1.3: Allow HTTPS Traffic from CloudFront --- #
+# Allows end-user HTTPS traffic from CloudFront if the HTTPS listener is enabled.
 resource "aws_security_group_rule" "ingress_https_cloudfront" {
-  # Create this rule only if the variable is true AND https is enabled.
   count = var.alb_access_cloudfront_mode && var.enable_https_listener ? 1 : 0
 
   type              = "ingress"
@@ -92,7 +110,22 @@ resource "aws_security_group_rule" "ingress_https_cloudfront" {
   protocol          = "tcp"
   security_group_id = aws_security_group.alb_sg.id
   prefix_list_ids   = [data.aws_ec2_managed_prefix_list.cloudfront.id]
-  description       = "Allow HTTPS only from CloudFront IPs"
+  description       = "Allow HTTPS traffic from the AWS CloudFront managed prefix list"
+}
+
+# --- Rule 1.4: Allow HTTPS Health Checks from within the VPC --- #
+# Mirrors the HTTP health check rule for the HTTPS port. This is required if the ALB
+# is configured to perform health checks over HTTPS.
+resource "aws_security_group_rule" "ingress_https_healthcheck_internal_https" {
+  count = var.alb_access_cloudfront_mode && var.enable_https_listener ? 1 : 0
+
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.alb_sg.id
+  cidr_blocks       = [var.vpc_cidr_block]
+  description       = "Allow HTTPS from within the VPC for ALB health checks"
 }
 
 # --- Egress Rule for ALB --- #

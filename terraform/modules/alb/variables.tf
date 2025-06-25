@@ -40,6 +40,12 @@ variable "vpc_id" {
   type        = string
 }
 
+# CIDR block for the VPC, used for internal health checks.
+variable "vpc_cidr_block" {
+  description = "The CIDR block of the VPC, used for internal health checks."
+  type        = string
+}
+
 # Port for the target group (default: 80).
 variable "target_group_port" {
   description = "Port for the target group"

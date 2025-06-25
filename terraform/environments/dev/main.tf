@@ -185,12 +185,17 @@ module "asg" {
   db_port           = var.db_port
   wp_title          = var.wp_title
   alb_dns_name      = module.alb.alb_dns_name
-  public_site_url   = var.create_dns_and_ssl ? "https://${var.custom_domain_name}" : "https://${module.cloudfront.cloudfront_distribution_domain_name}"
   php_version       = var.php_version
   redis_endpoint    = module.elasticache.redis_endpoint
   redis_port        = var.redis_port
   wordpress_version = var.wordpress_version
 
+  # Determine the canonical public URL for WordPress in a specific priority order:
+  # 1. Custom Domain: If a custom domain and SSL are enabled.
+  # 2. CloudFront Domain: If accessed via CloudFront (default mode).
+  # 3. ALB Domain: As a fallback for direct ALB access (dev/test mode).
+  public_site_url = var.create_dns_and_ssl ? "https://${var.custom_domain_name}" : (
+  var.alb_access_cloudfront_mode ? "https://${module.cloudfront.cloudfront_distribution_domain_name}" : "http://${module.alb.alb_dns_name}")
 
   # Script path for deployment
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
@@ -390,6 +395,7 @@ module "alb" {
   alb_logs_bucket_name                = module.s3.alb_logs_bucket_name
   logging_bucket_arn                  = module.s3.logging_bucket_arn
   vpc_id                              = module.vpc.vpc_id
+  vpc_cidr_block                      = module.vpc.vpc_cidr_block
   kms_key_arn                         = module.kms.kms_key_arn
   sns_topic_arn                       = aws_sns_topic.cloudwatch_alarms.arn
   alb_enable_deletion_protection      = var.alb_enable_deletion_protection
