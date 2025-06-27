@@ -157,13 +157,6 @@ variable "enable_dynamodb" {
   }
 }
 
-# --- ASG Instance Role ARN --- #
-variable "asg_instance_role_arn" {
-  description = "The ARN of the ASG instance role, used to grant S3 bucket access."
-  type        = string
-  default     = null
-}
-
 # --- CloudFront Logging Configuration --- #
 variable "enable_cloudfront_standard_logging_v2" {
   description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"

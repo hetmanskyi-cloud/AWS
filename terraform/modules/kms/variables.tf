@@ -199,3 +199,10 @@ variable "enable_cloudfront_standard_logging_v2" {
   type        = bool
   default     = true
 }
+
+# Feature-specific flags for SQS service permissions
+variable "enable_image_processor" {
+  description = "If true, grants SQS service permissions to use the KMS key for DLQ encryption."
+  type        = bool
+  default     = false # Default to false to not grant permissions unless explicitly enabled
+}

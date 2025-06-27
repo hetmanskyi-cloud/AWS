@@ -1,6 +1,6 @@
 # Terraform version and provider requirements
 terraform {
-  required_version = ">= 1.11.0"
+  required_version = "~> 1.12"
 
   required_providers {
     aws = {
@@ -110,6 +110,8 @@ locals {
     (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [],                                                                # ALB & CloudFront Firehose
     (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],                                                                       # ALB & Cloudfront WAF
     var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],                                                                             # CloudFront Realtime S3 Logging
+    # Grant SQS service permissions to use the key if the image processor feature is enabled
+    var.enable_image_processor ? ["sqs.amazonaws.com"] : [],
   ))
 }
 

@@ -360,6 +360,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = concat(
+
       # Statement 1: Enforce HTTPS Only
       # Denies any requests to the bucket that do not use HTTPS.
       [
@@ -379,6 +380,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           }
         }
       ],
+
       # Statement 2: Allow CloudFront OAC Read-Only Access
       # This statement is included only if CloudFront integration is enabled
       # AND the CloudFront Distribution ARN is known (not null).
@@ -401,46 +403,6 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
           }
         }
       ] : [], # If CloudFront is not enabled OR ARN is null, this statement list will be empty
-
-      # Statement 3: Allow WordPress (via ASG EC2 Instance Role) to UPLOAD and SET ACLs for media files.
-      # This is conditional on the EC2 role ARN being provided.
-      # The condition prevents uploads from being made public at the S3 level.
-      (var.asg_instance_role_arn != null) ? [
-        {
-          Sid    = "AllowWordPressEC2RoleUploads",
-          Effect = "Allow",
-          Principal = {
-            AWS = var.asg_instance_role_arn # ARN of the IAM role from the ASG module
-          },
-          Action = [
-            "s3:PutObject",
-            "s3:PutObjectAcl" # Allow setting ACLs for uploaded objects
-          ],
-          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
-          Condition = {
-            StringNotEquals = {
-              "s3:x-amz-acl" = "public-read" # Prevent public read access
-            }
-          }
-        }
-      ] : [], # If the EC2 role ARN is null, this statement list will be empty
-
-      # Statement 4: Allow WordPress (via ASG EC2 Instance Role) to READ and DELETE media files.
-      # These actions do not support the s3:x-amz-acl condition key, so they are in a separate statement.
-      (var.asg_instance_role_arn != null) ? [
-        {
-          Sid    = "AllowWordPressEC2RoleReadDelete",
-          Effect = "Allow",
-          Principal = {
-            AWS = var.asg_instance_role_arn # ARN of the IAM role from the ASG module
-          },
-          Action = [
-            "s3:GetObject",
-            "s3:DeleteObject" # Allow deleting media files
-          ],
-          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"
-        }
-      ] : [] # If the EC2 role ARN is null, this statement list will be empty
     )
   })
 

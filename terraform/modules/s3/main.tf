@@ -4,7 +4,8 @@
 # --- Terraform Configuration --- #
 # Defines Terraform provider and version, and configuration aliases for providers.
 terraform {
-  required_version = ">= 1.11.0"
+  required_version = "~> 1.12"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

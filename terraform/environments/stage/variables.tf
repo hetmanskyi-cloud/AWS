@@ -895,6 +895,90 @@ variable "subject_alternative_names" {
   default     = []
 }
 
+# --- Feature Lambda Flags --- #
+
+variable "enable_image_processor" {
+  description = "A master switch to enable or disable all resources related to the image processing Lambda feature (Lambda, Layer, SQS DLQ)."
+  type        = bool
+  default     = true
+}
+
+# --- Lambda Layer Module Variables --- #
+
+variable "pillow_layer_name" {
+  description = "The name for the Pillow dependency layer."
+  type        = string
+}
+
+variable "pillow_layer_runtime" {
+  description = "The runtime for the layer, must match the Lambda function's runtime."
+  type        = string
+}
+
+variable "pillow_layer_architecture" {
+  description = "The instruction set architecture for the layer."
+  type        = string
+}
+
+variable "pillow_version" {
+  description = "The specific version of the Pillow library to be packaged in the layer."
+  type        = string
+}
+
+# --- SQS Module Variables --- #
+
+variable "sqs_dlq_queue_name" {
+  description = "The base name for the SQS Dead Letter Queue."
+  type        = string
+}
+
+# --- Lambda Image (Processor) Module Configuration --- #
+
+variable "lambda_function_name" {
+  description = "Name for the image processing Lambda function."
+  type        = string
+}
+
+variable "lambda_runtime" {
+  description = "The runtime for the Lambda function. Must match the layer's runtime."
+  type        = string
+}
+
+variable "lambda_memory_size" {
+  description = "The amount of memory in MB for the Lambda function."
+  type        = number
+}
+
+variable "lambda_timeout" {
+  description = "The timeout in seconds for the Lambda function."
+  type        = number
+}
+
+variable "lambda_filter_prefix" {
+  description = "The source prefix (folder) in the S3 bucket that will trigger the Lambda function."
+  type        = string
+}
+
+variable "lambda_destination_prefix" {
+  description = "The destination prefix (folder) in the S3 bucket for processed images."
+  type        = string
+}
+
+variable "lambda_environment_variables" {
+  description = "A map of environment variables to be passed to the Lambda function's runtime."
+  type        = map(string)
+}
+
+variable "enable_lambda_alarms" {
+  description = "Enable or disable the creation of CloudWatch alarms for the Lambda function."
+  type        = bool
+}
+
+variable "lambda_iam_policy_attachments" {
+  description = "A list of additional, pre-existing IAM policy ARNs to attach to the Lambda's role."
+  type        = list(string)
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.

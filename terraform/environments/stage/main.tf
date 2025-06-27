@@ -90,6 +90,9 @@ module "kms" {
   # CloudFront Logging Settings
   enable_cloudfront_standard_logging_v2 = var.enable_cloudfront_standard_logging_v2 # Enable CloudFront standard logging v2
 
+  # Pass the master switch to the KMS module to conditionally add SQS permissions
+  enable_image_processor = var.enable_image_processor
+
   # S3 buckets for KMS permissions
   default_region_buckets     = var.default_region_buckets
   replication_region_buckets = var.replication_region_buckets
@@ -322,9 +325,6 @@ module "s3" {
   wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
   enable_cloudfront_standard_logging_v2       = var.enable_cloudfront_standard_logging_v2
 
-  # ASG EC2 Instance Role ARNs for WordPress media
-  asg_instance_role_arn = module.asg.instance_role_arn
-
   depends_on = [
     aws_sns_topic.cloudwatch_alarms
   ]
@@ -554,6 +554,99 @@ module "route53" {
   # from cloudfront module
   cloudfront_distribution_domain_name    = module.cloudfront.cloudfront_distribution_domain_name
   cloudfront_distribution_hosted_zone_id = module.cloudfront.cloudfront_distribution_hosted_zone_id
+}
+
+# --- Lambda Layer Module for Pillow --- #
+
+# This module call instructs Terraform to build and deploy the Pillow dependency layer.
+# It is created only if the image processing feature is enabled in terraform.tfvars.
+module "lambda_layer" {
+
+  count = var.enable_image_processor ? 1 : 0
+
+  source = "../../modules/lambda_layer"
+
+  # Pass variables for naming
+  name_prefix = var.name_prefix
+  environment = var.environment
+
+  # Pass configuration from the variables file (`terraform.tfvars`)
+  layer_name      = var.pillow_layer_name
+  runtime         = var.pillow_layer_runtime
+  architecture    = var.pillow_layer_architecture
+  library_version = var.pillow_version
+
+  # The source path is part of the project's structure
+  source_path = "../../modules/lambda_images/src"
+}
+
+# --- SQS Module for Dead Letter Queues --- #
+# This module creates the SQS queue to be used as a DLQ for the image processor.
+module "sqs" {
+  count = var.enable_image_processor ? 1 : 0
+
+  source = "../../modules/sqs"
+
+  queue_name  = var.sqs_dlq_queue_name
+  name_prefix = var.name_prefix
+  environment = var.environment
+  kms_key_arn = module.kms.kms_key_arn
+  tags        = merge(local.common_tags, local.tags_sqs)
+}
+
+# --- Lambda Image (Processor) Module Configuration --- #
+
+# This module call creates the image processing function and all its related resources.
+# Its creation is controlled by the 'enable_image_processor' feature flag.
+module "lambda_images" {
+  count = var.enable_image_processor ? 1 : 0
+
+  source = "../../modules/lambda_images"
+
+  # General Naming and Tagging
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_lambda_images)
+
+  # Lambda Function Configuration (from tfvars)
+  lambda_function_name  = var.lambda_function_name
+  lambda_runtime        = var.lambda_runtime
+  lambda_memory_size    = var.lambda_memory_size
+  lambda_timeout        = var.lambda_timeout
+  environment_variables = var.lambda_environment_variables
+  ephemeral_storage_mb  = 512 # Default value, can be moved to tfvars if needed
+
+  # Source Code and Dependencies (Wiring)
+  lambda_source_code_path = "../../modules/lambda_images/src"
+  # Takes the ARN from the output of the pillow_layer module.
+  lambda_layers = [module.lambda_layer[0].layer_version_arn]
+
+  # IAM and Permissions
+  # Provides additional IAM policies. Currently empty.
+  lambda_iam_policy_attachments = var.lambda_iam_policy_attachments
+
+  # S3 Trigger Configuration (Wiring)
+  # Takes the bucket name from the output of the S3 module.
+  triggering_bucket_id = module.s3.wordpress_media_bucket_name
+  # Takes the source folder prefix from tfvars.
+  filter_prefix = var.lambda_filter_prefix
+  # Pass the destination prefix for S3 and IAM policy configuration
+  lambda_destination_prefix = var.lambda_destination_prefix
+
+  # Monitoring and Error Handling (Wiring)
+  alarms_enabled = var.enable_lambda_alarms
+  # Connects alarms to the central SNS topic defined in the root module.
+  alarm_sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  # Connects the function's DLQ to the SQS queue created by the SQS module.
+  dead_letter_queue_arn = module.sqs[0].dlq_queue_arn
+
+  # Dependencies
+  # Ensures that dependent resources are created before this module.
+  depends_on = [
+    module.s3,
+    module.sqs,
+    module.lambda_layer
+  ]
 }
 
 # --- Notes and Recommendations --- #

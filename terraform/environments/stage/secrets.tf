@@ -107,7 +107,10 @@ resource "random_password" "db_password" {
 
 # --- Random String for CloudFront → ALB Custom Header --- #
 # Secret value for validating requests to ALB come only from CloudFront (custom header X-Custom-Origin-Verify).
-# Rotated together with other infrastructure secrets.
+
+# NOTE ON ROTATION: This specific secret is INTENTIONALLY EXCLUDED from the automatic
+# rotation mechanism (no `keepers` block) to ensure deployment stability, preventing
+# issues related to CloudFront's global propagation delay.
 resource "random_password" "cloudfront_to_alb_header" {
   length           = 32
   special          = true
@@ -115,9 +118,6 @@ resource "random_password" "cloudfront_to_alb_header" {
   min_lower        = 1
   min_numeric      = 1
   override_special = "!#$%&*()-_=+[]{}<>:?"
-  keepers = {
-    version = var.secrets_version
-  }
 }
 
 # --- Local Values --- #
@@ -275,23 +275,21 @@ resource "aws_secretsmanager_secret_version" "redis_auth_version" {
 #    - Avoid printing secret values in CI/CD logs.
 #
 # 6. Secrets Rotation Workflow:
-#    - Rotation is controlled via the `secrets_version` variable and consists of two phases:
-#      1) updating the secret in AWS Secrets Manager, and 2) applying the new secret to the running instances.
-#    - There are two scenarios for applying the rotation:
+#    - Rotation is controlled by changing the `secrets_version` variable. This regenerates all secrets that have a `keepers` block.
+#    - The workflow is a two-phase process:
+#      1) **Phase 1 (Update Secret):** Running `terraform apply` after changing `secrets_version` updates the values in AWS Secrets Manager.
+#      2) **Phase 2 (Apply to Instances):** A manual rolling update of the Auto Scaling Group (e.g., via `aws autoscaling start-instance-refresh`) is required
+#         to force running instances to restart and fetch the new secrets from Secrets Manager.
+#    - NOTE: An instance refresh is triggered automatically by the ASG only if the Launch Template changes (e.g., a new AMI).
+#      For a secrets-only rotation, the manual refresh in Phase 2 is a required step.
 #
-#    Scenario A: Rotation with an AMI Update (Standard Deployment)
-#      1. Trigger: In the .tfvars file, change both `var.ami_id` and `var.secrets_version`.
-#      2. Action: Run `terraform apply`.
-#      3. Result: Terraform creates a new Launch Template version. The Auto Scaling Group detects this
-#         change and **automatically** triggers a rolling update (`instance_refresh`). New instances
-#         are deployed with the new AMI and fetch the new secrets on startup.
-#
-#    Scenario B: Rotation Only (without an AMI Update)
-#      1. Phase 1 (Update Secret): In the .tfvars file, change **only** `var.secrets_version`.
-#         Run `terraform apply`. This updates the values in Secrets Manager but does not affect running instances.
-#      2. Phase 2 (Apply to Instances): Manually trigger a rolling update of the instances using the AWS CLI.
-#         This forces them to restart and fetch the new secrets.
-#         Command: aws autoscaling start-instance-refresh --auto-scaling-group-name <your_asg_name>
-#
-#    Key Takeaway: The ASG's built-in rolling update only triggers on Launch Template changes.
-#    For a secrets-only rotation, manually starting an `instance-refresh` is a required second step.
+# 7. Special Note on `cloudfront_to_alb_header` Rotation Strategy:
+#    - The `cloudfront_to_alb_header` secret is intentionally static and excluded from the `secrets_version` rotation trigger.
+#    - RATIONALE: Simultaneously updating this shared secret in both the global CloudFront distribution and the regional
+#      WAF creates a race condition. The WAF updates almost instantly, while CloudFront's configuration changes can take
+#      many minutes to propagate globally. This timing mismatch leads to legitimate traffic being blocked with `403 Forbidden` errors.
+#    - SECURITY POSTURE: Disabling automatic rotation for this internal, service-to-service secret is an
+#      accepted architectural trade-off for ensuring deployment stability. The primary defense against direct
+#      ALB access remains the ALB's Security Group, which should be restricted to the CloudFront prefix list.
+#    - PROCEDURE: A manual, zero-downtime rotation can be performed following a specific multi-phase `apply` procedure
+#      that temporarily places the WAF rule in 'count' mode.

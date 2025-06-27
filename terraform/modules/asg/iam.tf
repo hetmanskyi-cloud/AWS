@@ -54,9 +54,9 @@ resource "aws_iam_policy" "s3_access_policy" {
     Statement = concat(
       # Wordpress media bucket (read/write objects)
       (can(var.default_region_buckets["wordpress_media"].enabled) && var.wordpress_media_bucket_arn != null && var.wordpress_media_bucket_arn != "") ? [{
-        Sid      = "AllowWordpressMediaReadWrite"
+        Sid      = "AllowWordpressMediaReadWriteDelete"
         Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject"]
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = ["${var.wordpress_media_bucket_arn}/*"]
       }] : [],
 

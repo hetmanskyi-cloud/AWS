@@ -32,6 +32,8 @@ locals {
   tags_cloudfront          = { Component = "cloudfront" }
   tags_acm                 = { Component = "acm" }
   tags_route53             = { Component = "route53" }
+  tags_lambda_images       = { Component = "lambda_images" }
+  tags_sqs                 = { Component = "sqs" }
 }
 
 # --- Notes --- #

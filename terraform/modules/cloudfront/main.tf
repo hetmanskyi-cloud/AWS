@@ -3,7 +3,8 @@
 # The 'aws.cloudfront' alias is explicitly configured for resources that must reside in us-east-1,
 # such as CloudFront distributions, WAF Web ACLs, and related IAM/Firehose/CloudWatch Log Delivery components.
 terraform {
-  required_version = ">= 1.11.0"
+  required_version = "~> 1.12"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -231,13 +232,20 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
   aliases = var.custom_domain_aliases
 
   # --- Lifecycle Configuration --- #
-  # This lifecycle block ensures that changes to the minimum_protocol_version are ignored
-  # when the default CloudFront domain is used (since CloudFront automatically sets TLSv1).
-  # If using a custom domain with an ACM certificate, you can set minimum_protocol_version to TLSv1.2,
-  # but with the default domain, it will remain TLSv1.
+  # This block provides meta-arguments to customize Terraform's behavior for this resource,
+  # preventing unwanted "diffs" in the plan for specific, known reasons.
   lifecycle {
     ignore_changes = [
-      viewer_certificate[0].minimum_protocol_version
+      # Ignore perpetual diffs on the 'origin' block. This is a workaround for a
+      # Terraform quirk where a sensitive value inside a complex block (like the secret
+      # header for the ALB origin) causes a persistent "change" to be detected on every
+      # plan, even when no real change has occurred.
+      origin,
+
+      # Ignore changes to the minimum TLS protocol version for the default certificate.
+      # When using the default *.cloudfront.net certificate, AWS manages the TLS policy.
+      # Attempting to manage it via Terraform can cause unnecessary plan diffs.
+      viewer_certificate[0].minimum_protocol_version,
     ]
   }
 

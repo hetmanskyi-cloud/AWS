@@ -3,7 +3,8 @@
 # The 'aws.cloudfront' alias is explicitly configured for resources that must reside in us-east-1,
 # which is a requirement for ACM certificates used with global services like CloudFront.
 terraform {
-  required_version = ">= 1.11.0"
+  required_version = "~> 1.12"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

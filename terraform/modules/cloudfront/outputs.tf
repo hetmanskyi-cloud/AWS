@@ -110,3 +110,9 @@ output "cloudfront_standard_logging_v2_log_prefix" {
   description = "The base S3 URI prefix where CloudFront Standard Logging v2 Parquet logs are delivered by CloudWatch Log Delivery."
   value       = var.enable_cloudfront_standard_logging_v2 && local.enable_cloudfront_media_distribution && var.logging_bucket_name != null ? "s3://${var.logging_bucket_name}/cloudfront-access-logs/${aws_cloudfront_distribution.wordpress_media[0].id}/" : null
 }
+
+# --- Output: CloudFront Distribution ETag --- #
+output "cloudfront_distribution_etag" {
+  description = "The current ETag of the CloudFront distribution, used for triggering updates in other resources."
+  value       = local.enable_cloudfront_media_distribution ? aws_cloudfront_distribution.wordpress_media[0].etag : null
+}
