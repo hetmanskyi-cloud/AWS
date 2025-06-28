@@ -85,9 +85,11 @@ resource "aws_db_instance" "db" {
 # --- RDS Parameter Group for Enforcing TLS --- #
 # Enforces SSL/TLS connections to the RDS instance by setting 'require_secure_transport = 1'.
 resource "aws_db_parameter_group" "rds_params" {
-  name        = "${var.name_prefix}-rds-params-${var.environment}"
-  family      = "mysql8.0" # Required family for MySQL 8.0
-  description = "RDS parameter group enforcing TLS for MySQL 8.0"
+  name = "${var.name_prefix}-rds-params-${var.environment}"
+  # Dynamically determine the parameter group family from the engine version.
+  # E.g., "8.4.5" becomes "mysql8.4". This makes the module version-agnostic.
+  family      = "mysql${join(".", slice(split(".", var.engine_version), 0, 2))}"
+  description = "RDS parameter group enforcing TLS for MySQL ${join(".", slice(split(".", var.engine_version), 0, 2))}"
 
   parameter {
     name  = "require_secure_transport"

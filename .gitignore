@@ -36,3 +36,9 @@ crash.log
 
 # Python virtual environment
 .venv/
+
+# Lambda build artifacts and deployment packages
+/terraform/modules/lambda_layer/build/
+/terraform/modules/lambda_layer/layer.zip
+/terraform/modules/lambda_layer/.terraform/
+/terraform/modules/lambda_images/lambda_deployment_package.zip
