@@ -1,6 +1,16 @@
 # --- General Module Settings --- #
 # These variables define the basic context for all resources created by this module.
 
+variable "aws_region" {
+  description = "The AWS region where resources are deployed."
+  type        = string
+}
+
+variable "aws_account_id" {
+  description = "The AWS account ID."
+  type        = string
+}
+
 variable "name_prefix" {
   description = "A prefix used for naming all created resources to ensure uniqueness and consistency."
   type        = string
@@ -201,6 +211,13 @@ variable "kms_key_arn" {
     condition     = length(var.kms_key_arn) > 0
     error_message = "kms_key_arn cannot be empty."
   }
+}
+
+# --- Tracing Configuration --- #
+variable "enable_lambda_tracing" {
+  description = "If true, enables AWS X-Ray active tracing for the Lambda function."
+  type        = bool
+  default     = true
 }
 
 # --- Notes --- #

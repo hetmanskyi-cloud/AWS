@@ -41,12 +41,24 @@ resource "aws_iam_policy" "lambda_core_permissions" {
 # This data source defines the JSON for the core permissions policy, granting
 # access to all necessary services for the SQS -> Lambda -> DynamoDB workflow.
 data "aws_iam_policy_document" "lambda_core_permissions" {
-  # Allow writing logs to CloudWatch for monitoring and debugging.
+  # Allow the function to create and write to its own CloudWatch log group.
   statement {
-    sid       = "AllowCloudWatchLogging"
-    effect    = "Allow"
-    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["arn:aws:logs:*:*:*"]
+    sid    = "AllowCreateOwnLogGroup"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${var.aws_account_id}:*"]
+  }
+
+  statement {
+    sid    = "AllowWriteToOwnLogStream"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/${var.name_prefix}-${var.lambda_function_name}-${var.environment}:*"]
   }
 
   # Allow sending failed invocation records to the SQS Dead Letter Queue.

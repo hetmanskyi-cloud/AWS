@@ -655,6 +655,8 @@ module "lambda_images" {
   source = "../../modules/lambda_images"
 
   # Naming, Tagging, and Core Config
+  aws_region           = var.aws_region
+  aws_account_id       = var.aws_account_id
   name_prefix          = var.name_prefix
   environment          = var.environment
   tags                 = merge(local.common_tags, local.tags_lambda_images)
@@ -689,6 +691,7 @@ module "lambda_images" {
   sns_topic_arn                 = aws_sns_topic.cloudwatch_alarms_topic.arn
   lambda_iam_policy_attachments = var.lambda_iam_policy_attachments
   lambda_environment_variables  = var.lambda_environment_variables
+  enable_lambda_tracing         = var.enable_lambda_tracing
 
   # Explicitly provide the path to the function's source code directory.
   lambda_source_code_path = "${path.module}/../../modules/lambda_images/src"

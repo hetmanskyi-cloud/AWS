@@ -1095,6 +1095,12 @@ variable "lambda_iam_policy_attachments" {
   default     = []
 }
 
+variable "enable_lambda_tracing" {
+  description = "If true, enables AWS X-Ray active tracing for the Lambda function."
+  type        = bool
+  default     = true
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.

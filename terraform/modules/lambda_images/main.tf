@@ -62,6 +62,14 @@ resource "aws_lambda_function" "image_processor" {
     target_arn = var.dead_letter_queue_arn
   }
 
+  # Enable active tracing with AWS X-Ray if requested.
+  dynamic "tracing_config" {
+    for_each = var.enable_lambda_tracing ? [1] : []
+    content {
+      mode = "Active"
+    }
+  }
+
   # Environment variables for the function's runtime.
   environment {
     variables = merge(
