@@ -2,19 +2,19 @@
 
 # - CloudWatch automatically publishes ALARM and OK state changes.
 # - Ensure this topic is referenced in all critical alarms.
-resource "aws_sns_topic" "cloudwatch_alarms" {
+resource "aws_sns_topic" "cloudwatch_alarms_topic" {
   # Creates an SNS topic in the default region (no 'provider = aws.replication')
-  name              = "${var.name_prefix}-cloudwatch-alarms-${var.environment}"
+  name              = "${var.name_prefix}-cloudwatch-alarms-topic-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
   tags = merge(local.common_tags, local.tags_sns, {
-    Name = "${var.name_prefix}-cloudwatch-alarms-${var.environment}"
+    Name = "${var.name_prefix}-cloudwatch-alarms-topic-${var.environment}"
   })
 }
 
 # Policy allowing CloudWatch + S3 to publish to cloudwatch_alarms
-resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
-  arn = aws_sns_topic.cloudwatch_alarms.arn
+resource "aws_sns_topic_policy" "cloudwatch_alarms_topic_policy" {
+  arn = aws_sns_topic.cloudwatch_alarms_topic.arn
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -23,7 +23,7 @@ resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
         Effect    = "Allow",
         Principal = { Service = "cloudwatch.amazonaws.com" },
         Action    = "SNS:Publish",
-        Resource  = aws_sns_topic.cloudwatch_alarms.arn,
+        Resource  = aws_sns_topic.cloudwatch_alarms_topic.arn,
         # Restrict publishing to only CloudWatch Alarms from this account
         Condition = {
           ArnLike = {
@@ -36,7 +36,7 @@ resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
         Effect    = "Allow",
         Principal = { Service = "s3.amazonaws.com" },
         Action    = "SNS:Publish",
-        Resource  = aws_sns_topic.cloudwatch_alarms.arn,
+        Resource  = aws_sns_topic.cloudwatch_alarms_topic.arn,
         Condition = {
           # Restrict to your AWS account
           StringEquals = {
@@ -54,13 +54,13 @@ resource "aws_sns_topic_policy" "cloudwatch_publish_policy" {
 # - Use `aws sns list-subscriptions-by-topic` to check status.
 # - Unconfirmed subscriptions will cause delivery errors.
 # SNS Subscriptions for all protocols
-resource "aws_sns_topic_subscription" "cloudwatch_subscriptions" {
+resource "aws_sns_topic_subscription" "cloudwatch_alarms_topic_subscriptions" {
   for_each  = { for idx, sub in var.sns_subscriptions : idx => sub }
-  topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
   protocol  = each.value.protocol
   endpoint  = each.value.endpoint
 
-  depends_on = [aws_sns_topic.cloudwatch_alarms]
+  depends_on = [aws_sns_topic.cloudwatch_alarms_topic]
 }
 
 # --- SNS Configuration for CloudFront Alarms --- #
@@ -74,17 +74,17 @@ resource "aws_sns_topic" "cloudfront_alarms_topic" {
 
   # Creates the topic in the us-east-1 region.
   provider          = aws.cloudfront
-  name              = "${var.name_prefix}-cloudfront-alarms-${var.environment}"
+  name              = "${var.name_prefix}-cloudfront-alarms-topic-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Encrypt with the same KMS key for consistency.
 
   tags = merge(local.common_tags, local.tags_sns, {
-    Name = "${var.name_prefix}-cloudfront-alarms-${var.environment}"
+    Name = "${var.name_prefix}-cloudfront-alarms-topic-${var.environment}"
   })
 }
 
 # SNS Topic Policy for CloudFront Alarms
 # Allows CloudWatch alarms from the us-east-1 region to publish to this topic.
-resource "aws_sns_topic_policy" "cloudfront_alarms_policy" {
+resource "aws_sns_topic_policy" "cloudfront_alarms_topic_policy" {
   count = var.enable_cloudfront_waf ? 1 : 0
 
   provider = aws.cloudfront
@@ -111,7 +111,7 @@ resource "aws_sns_topic_policy" "cloudfront_alarms_policy" {
 }
 
 # SNS Subscriptions for CloudFront Alarms Topic
-resource "aws_sns_topic_subscription" "cloudfront_subscriptions" {
+resource "aws_sns_topic_subscription" "cloudfront_alarms_topic_subscriptions" {
   for_each = var.enable_cloudfront_waf ? { for idx, sub in var.sns_subscriptions : idx => sub } : {}
 
   provider  = aws.cloudfront
@@ -123,26 +123,26 @@ resource "aws_sns_topic_subscription" "cloudfront_subscriptions" {
 # --- SNS Configuration for S3 Cross-Region Replication --- #
 
 # SNS Topic for Replication Region
-resource "aws_sns_topic" "replication_region_topic" {
+resource "aws_sns_topic" "replication_region_notifications_topic" {
   # Only create if replication is enabled for wordpress_media bucket
   count = var.replication_region_buckets["wordpress_media"].enabled ? 1 : 0
 
   # Creates an SNS topic in the replication region (provider alias = aws.replication)
   provider          = aws.replication
-  name              = "${var.name_prefix}-replication-region-notifications-${var.environment}"
+  name              = "${var.name_prefix}-replication-region-notifications-topic-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use the KMS key passed from the KMS module
 
   tags = merge(local.common_tags, local.tags_sns, {
-    Name = "${var.name_prefix}-rep-cloudwatch-alarms-${var.environment}"
+    Name = "${var.name_prefix}-replication-region-notifications-topic-${var.environment}"
   })
 }
 
 # Policy allowing S3 to publish to replication_region_topic
-resource "aws_sns_topic_policy" "replication_region_publish_policy" {
+resource "aws_sns_topic_policy" "replication_region_notifications_topic_policy" {
   count = var.replication_region_buckets["wordpress_media"].enabled ? 1 : 0
 
   provider = aws.replication
-  arn      = aws_sns_topic.replication_region_topic[0].arn
+  arn      = aws_sns_topic.replication_region_notifications_topic[0].arn
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -151,7 +151,7 @@ resource "aws_sns_topic_policy" "replication_region_publish_policy" {
         Effect    = "Allow",
         Principal = { Service = "s3.amazonaws.com" },
         Action    = "SNS:Publish",
-        Resource  = aws_sns_topic.replication_region_topic[0].arn,
+        Resource  = aws_sns_topic.replication_region_notifications_topic[0].arn,
         Condition = {
           # Restrict to your AWS account in replication region
           StringEquals = {
@@ -164,15 +164,15 @@ resource "aws_sns_topic_policy" "replication_region_publish_policy" {
 }
 
 # SNS Subscriptions for replication region
-resource "aws_sns_topic_subscription" "replication_region_subscriptions" {
+resource "aws_sns_topic_subscription" "replication_region_notifications_topic_subscriptions" {
   for_each = var.replication_region_buckets["wordpress_media"].enabled ? { for idx, sub in var.sns_subscriptions : idx => sub } : {}
 
   provider  = aws.replication
-  topic_arn = aws_sns_topic.replication_region_topic[0].arn
+  topic_arn = aws_sns_topic.replication_region_notifications_topic[0].arn
   protocol  = each.value.protocol
   endpoint  = each.value.endpoint
 
-  depends_on = [aws_sns_topic.replication_region_topic]
+  depends_on = [aws_sns_topic.replication_region_notifications_topic]
 }
 
 # --- SNS Configuration for CloudTrail Events --- #
@@ -182,23 +182,23 @@ resource "aws_sns_topic_subscription" "replication_region_subscriptions" {
 # - Used by AWS CloudTrail to publish events related to API activity.
 # - Enables real-time security alerts (e.g., role creation, unauthorized access attempts).
 # - Same subscribers as for CloudWatch alarms (via var.sns_subscriptions).
-resource "aws_sns_topic" "cloudtrail_events" {
+resource "aws_sns_topic" "cloudtrail_events_topic" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0 # Only create if cloudtrail is enabled
 
-  name              = "${var.name_prefix}-cloudtrail-events-${var.environment}"
+  name              = "${var.name_prefix}-cloudtrail-events-topic-${var.environment}"
   kms_master_key_id = module.kms.kms_key_arn # Use CMK for encryption at rest
 
   tags = merge(local.common_tags, local.tags_sns, {
-    Name = "${var.name_prefix}-cloudtrail-events-${var.environment}"
+    Name = "${var.name_prefix}-cloudtrail-events-topic-${var.environment}"
   })
 }
 
 # SNS Topic Policy for CloudTrail Events
 # Allows CloudTrail service to publish messages to the SNS topic.
-resource "aws_sns_topic_policy" "cloudtrail_events_policy" {
+resource "aws_sns_topic_policy" "cloudtrail_events_topic_policy" {
   count = var.default_region_buckets["cloudtrail"].enabled ? 1 : 0 # Only create if cloudtrail is enabled
 
-  arn = aws_sns_topic.cloudtrail_events[0].arn
+  arn = aws_sns_topic.cloudtrail_events_topic[0].arn
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -210,7 +210,7 @@ resource "aws_sns_topic_policy" "cloudtrail_events_policy" {
           Service = "cloudtrail.amazonaws.com"
         }
         Action   = "SNS:Publish"
-        Resource = aws_sns_topic.cloudtrail_events[0].arn
+        Resource = aws_sns_topic.cloudtrail_events_topic[0].arn
         Condition = {
           StringEquals = {
             "aws:SourceAccount" = var.aws_account_id
@@ -221,17 +221,17 @@ resource "aws_sns_topic_policy" "cloudtrail_events_policy" {
   })
 }
 
-# SNS Subscriptions for CloudTrail Events
+# SNS Subscriptions for CloudTrail Events Topic
 # Subscribes same endpoints as used for CloudWatch alarms.
 # Manual email confirmation is still required for email protocols.
-resource "aws_sns_topic_subscription" "cloudtrail_subscriptions" {
+resource "aws_sns_topic_subscription" "cloudtrail_events_topic_subscriptions" {
   for_each = var.default_region_buckets["cloudtrail"].enabled ? { for idx, sub in var.sns_subscriptions : idx => sub } : {}
 
-  topic_arn = aws_sns_topic.cloudtrail_events[0].arn
+  topic_arn = aws_sns_topic.cloudtrail_events_topic[0].arn
   protocol  = each.value.protocol
   endpoint  = each.value.endpoint
 
-  depends_on = [aws_sns_topic.cloudtrail_events]
+  depends_on = [aws_sns_topic.cloudtrail_events_topic]
 }
 
 # --- Notes --- #

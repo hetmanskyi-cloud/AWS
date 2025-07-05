@@ -47,7 +47,7 @@ module "vpc" {
   flow_logs_retention_in_days = var.flow_logs_retention_in_days
 
   # SNS Topic for VPC Flow Logs Alarm Notifications
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   # Environment, tags and naming conventions
   environment = var.environment                          # Environment (e.g., dev, stage, prod)
@@ -78,7 +78,7 @@ module "kms" {
   key_decrypt_threshold          = var.key_decrypt_threshold          # Custom threshold for Decrypt operations (default: 100)
 
   # SNS Topic for CloudWatch Alarms
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn # ARN of the SNS topic to send alarm notifications
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn # ARN of the SNS topic to send alarm notifications
 
   # Feature-specific flags for permissions
   enable_dynamodb            = var.enable_dynamodb            # Enable KMS permissions for DynamoDB
@@ -156,7 +156,7 @@ module "asg" {
   }
 
   # SNS Topic for CloudWatch Alarms
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   # EBS volume configuration
   volume_size           = var.volume_size
@@ -198,7 +198,7 @@ module "asg" {
   # 2. CloudFront Domain: If accessed via CloudFront (default mode).
   # 3. ALB Domain: As a fallback for direct ALB access (dev/test mode).
   public_site_url = var.create_dns_and_ssl ? "https://${var.custom_domain_name}" : (
-  var.alb_access_cloudfront_mode ? "https://${module.cloudfront.cloudfront_distribution_domain_name}" : "http://${module.alb.alb_dns_name}")
+  var.alb_access_cloudfront_mode && length(module.cloudfront) > 0 ? "https://${module.cloudfront[0].cloudfront_distribution_domain_name}" : "http://${module.alb.alb_dns_name}")
 
   # Script path for deployment
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
@@ -279,7 +279,7 @@ module "rds" {
   kms_key_arn = module.kms.kms_key_arn
 
   # SNS Topic for CloudWatch Alarms notifications
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   depends_on = [module.vpc]
 }
@@ -309,8 +309,8 @@ module "s3" {
   tags                              = merge(local.common_tags, local.tags_s3)
 
   # SNS Topic for CloudWatch Alarms notifications
-  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms.arn
-  replication_region_sns_topic_arn = try(aws_sns_topic.replication_region_topic[0].arn, null)
+  sns_topic_arn                    = aws_sns_topic.cloudwatch_alarms_topic.arn
+  replication_region_sns_topic_arn = try(aws_sns_topic.replication_region_notifications_topic[0].arn, null)
 
   # KMS role for S3 module
   kms_key_arn         = module.kms.kms_key_arn
@@ -321,12 +321,12 @@ module "s3" {
   replication_region_buckets = var.replication_region_buckets
 
   # CloudFront Integration
-  wordpress_media_cloudfront_distribution_arn = module.cloudfront.cloudfront_distribution_arn
+  wordpress_media_cloudfront_distribution_arn = length(module.cloudfront) > 0 ? module.cloudfront[0].cloudfront_distribution_arn : null
   wordpress_media_cloudfront_enabled          = var.wordpress_media_cloudfront_enabled
   enable_cloudfront_standard_logging_v2       = var.enable_cloudfront_standard_logging_v2
 
   depends_on = [
-    aws_sns_topic.cloudwatch_alarms
+    aws_sns_topic.cloudwatch_alarms_topic
   ]
 }
 
@@ -374,7 +374,7 @@ module "elasticache" {
   redis_auth_token = random_password.redis_auth_token.result
 
   # SNS Topic for CloudWatch Alarms notifications
-  sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   depends_on = [
     module.vpc,
@@ -397,7 +397,7 @@ module "alb" {
   vpc_id                              = module.vpc.vpc_id
   vpc_cidr_block                      = module.vpc.vpc_cidr_block
   kms_key_arn                         = module.kms.kms_key_arn
-  sns_topic_arn                       = aws_sns_topic.cloudwatch_alarms.arn
+  sns_topic_arn                       = aws_sns_topic.cloudwatch_alarms_topic.arn
   alb_enable_deletion_protection      = var.alb_enable_deletion_protection
   enable_https_listener               = var.enable_https_listener
   enable_alb_access_logs              = var.enable_alb_access_logs
@@ -416,7 +416,7 @@ module "alb" {
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
   alb_access_cloudfront_mode            = var.alb_access_cloudfront_mode
 
-  depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms]
+  depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms_topic]
 }
 
 # --- Interface Endpoints Module Configuration (Now disabled) --- #
@@ -439,6 +439,8 @@ module "interface_endpoints" {
 # Configures the CloudFront CDN for WordPress media, including WAF and logging.
 # This module must operate in us-east-1, hence specific variable requirements.
 module "cloudfront" {
+  count = var.wordpress_media_cloudfront_enabled && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
+
   source = "../../modules/cloudfront" # Path to your CloudFront module
 
   # Providers block to specify which provider configuration to use for this module.
@@ -548,22 +550,21 @@ module "route53" {
 
   # --- WIRING: Connect outputs from other modules as inputs here --- #
 
-  # from acm module
+  # From ACM module
   acm_certificate_arn                       = module.acm[0].acm_arn
   acm_certificate_domain_validation_options = module.acm[0].domain_validation_options
 
-  # from cloudfront module
-  cloudfront_distribution_domain_name    = module.cloudfront.cloudfront_distribution_domain_name
-  cloudfront_distribution_hosted_zone_id = module.cloudfront.cloudfront_distribution_hosted_zone_id
+  # From CloudFront module
+  cloudfront_distribution_domain_name    = length(module.cloudfront) > 0 ? module.cloudfront[0].cloudfront_distribution_domain_name : null
+  cloudfront_distribution_hosted_zone_id = length(module.cloudfront) > 0 ? module.cloudfront[0].cloudfront_distribution_hosted_zone_id : null
 }
 
 # --- Lambda Layer Module for Pillow --- #
 
-# This module call instructs Terraform to build and deploy the Pillow dependency layer.
-# It is created only if the image processing feature is enabled in terraform.tfvars.
+# This module call instructs Terraform to build and deploy the Pillow dependency layer
+# It is created only if the image processing feature is enabled in terraform.tfvars
 module "lambda_layer" {
-
-  count = var.enable_image_processor ? 1 : 0
+  count = var.enable_image_processor && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
 
   source = "../../modules/lambda_layer"
 
@@ -572,81 +573,133 @@ module "lambda_layer" {
   environment = var.environment
 
   # Pass configuration from the variables file (`terraform.tfvars`)
-  layer_name      = var.pillow_layer_name
-  runtime         = var.pillow_layer_runtime
-  architecture    = var.pillow_layer_architecture
-  library_version = var.pillow_version
+  layer_name         = var.layer_name
+  layer_runtime      = var.layer_runtime
+  layer_architecture = var.layer_architecture
+  library_version    = var.library_version
 
   # The source path is part of the project's structure
   source_path = "../../modules/lambda_images/src"
 }
 
-# --- SQS Module for Dead Letter Queues --- #
-# This module creates the SQS queue to be used as a DLQ for the image processor.
+# --- SQS Queues for Image Processing --- #
+
+# This module call creates the main queue and its Dead Letter Queue (DLQ).
+# Its creation is controlled by the 'enable_image_processor' feature flag,
+# ensuring it is only provisioned when the image processing feature is active.
 module "sqs" {
-  count = var.enable_image_processor ? 1 : 0
+  count = var.enable_image_processor && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
 
   source = "../../modules/sqs"
 
-  queue_name  = var.sqs_dlq_queue_name
+  # --- Naming and Tagging --- #
   name_prefix = var.name_prefix
   environment = var.environment
-  kms_key_arn = module.kms.kms_key_arn
   tags        = merge(local.common_tags, local.tags_sqs)
+
+  # --- Configuration --- #
+  # Pass the entire map of queue definitions from the root variables.
+  sqs_queues = var.sqs_queues
+
+  # --- Dependencies --- #
+  # Pass the KMS key ARN from the KMS module for queue encryption.
+  kms_key_arn = module.kms.kms_key_arn
+
+  # Explicitly state that this module depends on the KMS key being created first.
+  depends_on = [module.kms]
 }
 
-# --- Lambda Image (Processor) Module Configuration --- #
+# --- DynamoDB (Image Metadata) Module Configuration --- #
 
-# This module call creates the image processing function and all its related resources.
+# This module call creates the DynamoDB table for storing image processing metadata.
 # Its creation is controlled by the 'enable_image_processor' feature flag.
+module "dynamodb" {
+  count = var.enable_image_processor && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
+
+  source = "../../modules/dynamodb"
+
+  # Pass configuration from root variables
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_dynamodb)
+
+  dynamodb_table_name                    = var.dynamodb_table_name
+  dynamodb_billing_mode                  = var.dynamodb_billing_mode
+  dynamodb_table_class                   = var.dynamodb_table_class
+  dynamodb_hash_key_name                 = var.dynamodb_hash_key_name
+  dynamodb_hash_key_type                 = var.dynamodb_hash_key_type
+  dynamodb_range_key_name                = var.dynamodb_range_key_name
+  dynamodb_range_key_type                = var.dynamodb_range_key_type
+  dynamodb_gsi                           = var.dynamodb_gsi
+  enable_dynamodb_point_in_time_recovery = var.enable_dynamodb_point_in_time_recovery
+  dynamodb_deletion_protection_enabled   = var.dynamodb_deletion_protection_enabled
+  enable_dynamodb_ttl                    = var.enable_dynamodb_ttl
+  dynamodb_ttl_attribute_name            = var.dynamodb_ttl_attribute_name
+
+  # Wire dependencies from other modules
+  # Pass the KMS key ARN from the KMS module for encryption.
+  kms_key_arn = module.kms.kms_key_arn
+
+  # Explicit Dependencies
+  depends_on = [module.kms]
+}
+
+# --- Lambda Images (Processor) Module Configuration --- #
+# This is the central module of the image processing pipeline.
+# It creates the Lambda function, its IAM role, and the SQS trigger.
+# Its creation is controlled by the main 'enable_image_processor' feature flag.
+
 module "lambda_images" {
-  count = var.enable_image_processor ? 1 : 0
+  count = var.enable_image_processor && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
 
   source = "../../modules/lambda_images"
 
-  # General Naming and Tagging
-  name_prefix = var.name_prefix
-  environment = var.environment
-  tags        = merge(local.common_tags, local.tags_lambda_images)
+  # Naming, Tagging, and Core Config
+  name_prefix          = var.name_prefix
+  environment          = var.environment
+  tags                 = merge(local.common_tags, local.tags_lambda_images)
+  lambda_function_name = var.lambda_function_name
+  lambda_runtime       = var.lambda_runtime
+  lambda_architecture  = [var.lambda_architecture] # Use a list as expected by the module
+  lambda_memory_size   = var.lambda_memory_size
+  lambda_timeout       = var.lambda_timeout
+  sqs_batch_size       = var.sqs_batch_size
 
-  # Lambda Function Configuration (from tfvars)
-  lambda_function_name  = var.lambda_function_name
-  lambda_runtime        = var.lambda_runtime
-  lambda_memory_size    = var.lambda_memory_size
-  lambda_timeout        = var.lambda_timeout
-  environment_variables = var.lambda_environment_variables
-  ephemeral_storage_mb  = 512 # Default value, can be moved to tfvars if needed
+  # S3 Bucket Configuration
+  source_s3_bucket_name = module.s3.wordpress_media_bucket_name
+  source_s3_prefix      = var.wordpress_media_uploads_prefix
+  destination_s3_prefix = var.lambda_destination_prefix
 
-  # Source Code and Dependencies (Wiring)
-  lambda_source_code_path = "../../modules/lambda_images/src"
-  # Takes the ARN from the output of the pillow_layer module.
+  # SQS Queues
+  sqs_trigger_queue_arn = module.sqs[0].queue_arns["image-processing"]
+  dead_letter_queue_arn = module.sqs[0].queue_arns["image-processing-dlq"]
+
+  # DynamoDB Table
+  dynamodb_table_arn  = module.dynamodb[0].dynamodb_table_arn
+  dynamodb_table_name = module.dynamodb[0].dynamodb_table_name
+
+  # Lambda Layer
   lambda_layers = [module.lambda_layer[0].layer_version_arn]
 
-  # IAM and Permissions
-  # Provides additional IAM policies. Currently empty.
+  # KMS Key for permissions
+  kms_key_arn = module.kms.kms_key_arn
+
+  # Monitoring and Permissions
+  alarms_enabled                = var.enable_lambda_alarms
+  sns_topic_arn                 = aws_sns_topic.cloudwatch_alarms_topic.arn
   lambda_iam_policy_attachments = var.lambda_iam_policy_attachments
+  lambda_environment_variables  = var.lambda_environment_variables
 
-  # S3 Trigger Configuration (Wiring)
-  # Takes the bucket name from the output of the S3 module.
-  triggering_bucket_id = module.s3.wordpress_media_bucket_name
-  # Takes the source folder prefix from tfvars.
-  filter_prefix = var.lambda_filter_prefix
-  # Pass the destination prefix for S3 and IAM policy configuration
-  lambda_destination_prefix = var.lambda_destination_prefix
+  # Explicitly provide the path to the function's source code directory.
+  lambda_source_code_path = "${path.module}/../../modules/lambda_images/src"
 
-  # Monitoring and Error Handling (Wiring)
-  alarms_enabled = var.enable_lambda_alarms
-  # Connects alarms to the central SNS topic defined in the root module.
-  alarm_sns_topic_arn = aws_sns_topic.cloudwatch_alarms.arn
-  # Connects the function's DLQ to the SQS queue created by the SQS module.
-  dead_letter_queue_arn = module.sqs[0].dlq_queue_arn
-
-  # Dependencies
-  # Ensures that dependent resources are created before this module.
+  # Explicitly define all dependencies for clarity and correct execution order.
   depends_on = [
     module.s3,
     module.sqs,
-    module.lambda_layer
+    module.dynamodb,
+    module.lambda_layer,
+    module.kms
   ]
 }
 

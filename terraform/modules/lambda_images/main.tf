@@ -1,26 +1,28 @@
-# Terraform version and provider requirements
+# --- Terraform and Provider Requirements --- #
+# This block declares the minimum required versions of Terraform and the providers
+# used within this module to ensure compatibility and stability.
 terraform {
   required_version = "~> 1.12"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
+      version = "~> 5.0"
     }
     archive = {
       source  = "hashicorp/archive"
-      version = ">= 2.0"
+      version = "~> 2.0"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
     }
   }
 }
 
 # --- Main Lambda Module Configuration --- #
 # This file defines the core resources: the Lambda function itself,
-# its source code packaging, and the S3 trigger configuration.
+# its source code packaging, and its SQS trigger configuration.
 
 # --- Lambda Deployment Package --- #
 # This data source archives the Lambda source code from the specified local path into a ZIP file.
@@ -56,57 +58,58 @@ resource "aws_lambda_function" "image_processor" {
   }
 
   # Configuration for the Dead Letter Queue (DLQ).
-  # This is a mandatory feature for the module, so the block is unconditional.
   dead_letter_config {
     target_arn = var.dead_letter_queue_arn
   }
 
   # Environment variables for the function's runtime.
   environment {
-    variables = var.environment_variables
+    variables = merge(
+      var.lambda_environment_variables, # Static variables (e.g., TARGET_WIDTH)
+      {
+        # Dynamic variables passed into the module separately
+        DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+        DESTINATION_PREFIX  = var.destination_s3_prefix
+      }
+    )
   }
 
   tags = merge(var.tags, {
-    Name = var.lambda_function_name
+    Name = "${var.name_prefix}-${var.lambda_function_name}-${var.environment}"
   })
 }
 
-# --- S3 Trigger Configuration --- #
-# The following two resources set up the S3 trigger for the Lambda function.
-# They are created only if `s3_trigger_enabled` is true.
-
-# 1. Lambda Permission
-# Grants the S3 service permission to invoke this Lambda function.
-resource "aws_lambda_permission" "s3_invoke" {
-  count = var.s3_trigger_enabled ? 1 : 0
-
-  statement_id  = "AllowExecutionFromS3Bucket"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.image_processor.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = "arn:aws:s3:::${var.triggering_bucket_id}"
+# --- SQS Trigger Configuration --- #
+# This resource creates the mapping between the SQS queue and the Lambda function.
+# It allows the Lambda service to poll the queue and invoke the function with messages.
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  # We can use a variable here to enable/disable the trigger if needed,
+  # but for now, we assume it's always on if the module is used.
+  event_source_arn = var.sqs_trigger_queue_arn
+  function_name    = aws_lambda_function.image_processor.arn
+  batch_size       = var.sqs_batch_size
 }
 
-# 2. S3 Bucket Notification
-# Configures the S3 bucket to send event notifications to the Lambda function.
-resource "aws_s3_bucket_notification" "s3_notification" {
-  count = var.s3_trigger_enabled ? 1 : 0
-
-  bucket = var.triggering_bucket_id
-
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.image_processor.arn
-    events              = var.s3_events
-    filter_prefix       = var.filter_prefix
-    filter_suffix       = var.filter_suffix
+# --- Cleanup on Destroy --- #
+# This resource runs ONLY during 'terraform destroy' to remove the ZIP package
+# created by the 'archive_file' data source.
+resource "null_resource" "package_cleanup" {
+  # This trigger ensures the resource is part of the dependency graph.
+  triggers = {
+    function_arn = aws_lambda_function.image_processor.arn
   }
 
-  depends_on = [aws_lambda_permission.s3_invoke]
+  provisioner "local-exec" {
+    when    = destroy
+    command = "rm -f ${path.module}/lambda_deployment_package.zip"
+  }
 }
 
 # --- Notes --- #
-# 1. Atomic Module: This module creates a Lambda function with its core dependencies (IAM Role, DLQ config) as a single unit.
-# 2. Source Code Packaging: The `archive_file` data source handles zipping the source code.
-# 3. S3 Trigger: The trigger is configured conditionally via `var.s3_trigger_enabled`, allowing the function to be created without an S3 event source if needed.
+# 1. Architecture: This module implements an SQS-triggered function.
+#    The connection is managed by the `aws_lambda_event_source_mapping` resource.
+# 2. SQS Polling: The Lambda service will poll the specified SQS queue. The IAM policy in `iam.tf` grants
+#    the necessary permissions (`ReceiveMessage`, `DeleteMessage`, etc.) for this to work.
+# 3. Batch Size: The `batch_size` variable controls how many messages the function receives at once,
+#    allowing for performance tuning.
 # 4. Mandatory Features: The function is always configured with a Dead Letter Queue (`dead_letter_config`) for robust error handling.
-# 5. Optional Features: The function's capabilities can be extended with Lambda Layers (`layers`) and increased temporary storage (`ephemeral_storage`).

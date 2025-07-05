@@ -107,9 +107,9 @@ resource "aws_cloudwatch_metric_alarm" "nginx_5xx_alarm" {
   period              = 300
   statistic           = "Sum"
   actions_enabled     = true
-  alarm_actions       = [aws_sns_topic.cloudwatch_alarms.arn]
+  alarm_actions       = [aws_sns_topic.cloudwatch_alarms_topic.arn]
 
-  depends_on = [aws_sns_topic.cloudwatch_alarms]
+  depends_on = [aws_sns_topic.cloudwatch_alarms_topic]
 
   tags = merge(local.common_tags, local.tags_cloudwatch, {
     Name = "${var.name_prefix}-nginx-5xx-error-alarm-${var.environment}"
@@ -146,9 +146,9 @@ resource "aws_cloudwatch_metric_alarm" "php_fatal_alarm" {
   period              = 300
   statistic           = "Sum"
   actions_enabled     = true
-  alarm_actions       = [aws_sns_topic.cloudwatch_alarms.arn]
+  alarm_actions       = [aws_sns_topic.cloudwatch_alarms_topic.arn]
 
-  depends_on = [aws_sns_topic.cloudwatch_alarms]
+  depends_on = [aws_sns_topic.cloudwatch_alarms_topic]
 
   tags = merge(local.common_tags, local.tags_cloudwatch, {
     Name = "${var.name_prefix}-php-fatal-error-alarm-${var.environment}"

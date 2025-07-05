@@ -555,6 +555,13 @@ variable "enable_dynamodb" {
   }
 }
 
+# The folder prefix inside the wordpress_media bucket that will trigger the image processing Lambda function.
+variable "wordpress_media_uploads_prefix" {
+  description = "The prefix within the wordpress_media bucket where original uploads occur (e.g., 'uploads/')."
+  type        = string
+  default     = "uploads/"
+}
+
 # --- SNS Topic Variables --- #
 
 # List of additional SNS subscriptions (e.g., SMS, Slack)
@@ -905,78 +912,187 @@ variable "enable_image_processor" {
 
 # --- Lambda Layer Module Variables --- #
 
-variable "pillow_layer_name" {
+variable "layer_name" {
   description = "The name for the Pillow dependency layer."
   type        = string
 }
 
-variable "pillow_layer_runtime" {
+variable "layer_runtime" {
   description = "The runtime for the layer, must match the Lambda function's runtime."
-  type        = string
+  type        = list(string)
+  default     = ["python3.12"]
 }
 
-variable "pillow_layer_architecture" {
+variable "layer_architecture" {
   description = "The instruction set architecture for the layer."
-  type        = string
+  type        = list(string)
+  default     = ["x86_64"]
 }
 
-variable "pillow_version" {
+variable "library_version" {
   description = "The specific version of the Pillow library to be packaged in the layer."
   type        = string
 }
 
 # --- SQS Module Variables --- #
 
-variable "sqs_dlq_queue_name" {
-  description = "The base name for the SQS Dead Letter Queue."
+variable "sqs_queues" {
+  description = <<-EOT
+  A map of SQS queues to create. The key of the map is a logical name (e.g., "image-processing")
+  used for references between resources and in outputs.
+
+  Each object in the map defines a single queue and its properties:
+  - name: (String) The base name of the queue.
+  - is_dlq: (Bool) Set to 'true' if this queue's primary purpose is to be a Dead Letter Queue.
+  - dlq_key: (Optional String) The key of another queue within this map to use as the DLQ.
+  - max_receive_count: (Optional Number) The number of times a message is received before being sent to the DLQ.
+  - visibility_timeout_seconds: (Optional Number) The duration that a message is hidden from a consumer.
+  - message_retention_seconds: (Optional Number) The duration for which SQS retains a message.
+  - kms_data_key_reuse_period_seconds: (Optional Number) The duration SQS can reuse a data key.
+  EOT
+  type = map(object({
+    name                              = string
+    is_dlq                            = bool
+    dlq_key                           = optional(string)
+    max_receive_count                 = optional(number, 10)
+    visibility_timeout_seconds        = optional(number, 30)
+    message_retention_seconds         = optional(number, 345600)
+    kms_data_key_reuse_period_seconds = optional(number, 300)
+  }))
+  default = {}
+}
+
+# --- DynamoDB Module Variables --- #
+
+variable "dynamodb_table_name" {
+  description = "The base name for the DynamoDB table (e.g., 'image-metadata')."
   type        = string
 }
 
-# --- Lambda Image (Processor) Module Configuration --- #
+variable "dynamodb_billing_mode" {
+  description = "Billing mode for the DynamoDB table (PROVISIONED or PAY_PER_REQUEST)."
+  type        = string
+}
+
+variable "dynamodb_table_class" {
+  description = "The storage class for the DynamoDB table (STANDARD or STANDARD_INFREQUENT_ACCESS)."
+  type        = string
+}
+
+variable "dynamodb_hash_key_name" {
+  description = "The name of the partition key (hash key) for the table."
+  type        = string
+}
+
+variable "dynamodb_hash_key_type" {
+  description = "The type of the primary partition key (S, N, or B)."
+  type        = string
+}
+
+variable "dynamodb_range_key_name" {
+  description = "Optional: The name of the sort key for the metadata table."
+  type        = string
+}
+
+variable "dynamodb_range_key_type" {
+  description = "Optional: The type of the sort key for the metadata table."
+  type        = string
+}
+
+variable "dynamodb_gsi" {
+  description = "A list of global secondary indexes..."
+  type = list(object({
+    name               = string
+    hash_key           = string
+    hash_key_type      = string
+    range_key          = optional(string)
+    range_key_type     = optional(string)
+    projection_type    = string
+    non_key_attributes = optional(list(string))
+  }))
+  default = []
+}
+
+variable "enable_dynamodb_point_in_time_recovery" {
+  description = "Enables Point-in-Time Recovery (PITR) for the metadata table."
+  type        = bool
+}
+
+variable "dynamodb_deletion_protection_enabled" {
+  description = "Enables deletion protection for the metadata table."
+  type        = bool
+}
+
+variable "enable_dynamodb_ttl" {
+  description = "Enables Time-to-Live (TTL) feature for the metadata table."
+  type        = bool
+}
+
+variable "dynamodb_ttl_attribute_name" {
+  description = "The attribute name for TTL records in the metadata table."
+  type        = string
+}
+
+# --- Lambda Images (Processor) Module Variables --- #
 
 variable "lambda_function_name" {
-  description = "Name for the image processing Lambda function."
+  description = "The base name for the image processing Lambda function."
   type        = string
+  default     = "image-processor"
 }
 
 variable "lambda_runtime" {
   description = "The runtime for the Lambda function. Must match the layer's runtime."
   type        = string
+  default     = "python3.12"
+}
+
+variable "lambda_architecture" {
+  description = "The instruction set architecture for the Lambda function. Must match the layer's architecture."
+  type        = string
+  default     = "x86_64"
 }
 
 variable "lambda_memory_size" {
   description = "The amount of memory in MB for the Lambda function."
   type        = number
+  default     = 256
 }
 
 variable "lambda_timeout" {
   description = "The timeout in seconds for the Lambda function."
   type        = number
+  default     = 60
 }
 
-variable "lambda_filter_prefix" {
-  description = "The source prefix (folder) in the S3 bucket that will trigger the Lambda function."
-  type        = string
+variable "sqs_batch_size" {
+  description = "The maximum number of SQS messages to process in a single batch."
+  type        = number
+  default     = 5
 }
 
 variable "lambda_destination_prefix" {
   description = "The destination prefix (folder) in the S3 bucket for processed images."
   type        = string
+  default     = "processed/"
 }
 
 variable "lambda_environment_variables" {
-  description = "A map of environment variables to be passed to the Lambda function's runtime."
+  description = "A map of static environment variables to be passed to the Lambda function's runtime."
   type        = map(string)
+  default     = {}
 }
 
 variable "enable_lambda_alarms" {
   description = "Enable or disable the creation of CloudWatch alarms for the Lambda function."
   type        = bool
+  default     = true
 }
 
 variable "lambda_iam_policy_attachments" {
   description = "A list of additional, pre-existing IAM policy ARNs to attach to the Lambda's role."
   type        = list(string)
+  default     = []
 }
 
 # --- Notes --- #

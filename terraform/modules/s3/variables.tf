@@ -120,6 +120,18 @@ variable "wordpress_media_cloudfront_enabled" {
   default     = false
 }
 
+variable "lambda_iam_role_arn" {
+  description = "The ARN of the IAM role for the image processor Lambda function. Used to grant S3 read/write permissions."
+  type        = string
+  default     = null
+}
+
+variable "asg_instance_role_arn" {
+  description = "The ARN of the IAM role for the WordPress EC2 instances. Used to grant S3 upload permissions."
+  type        = string
+  default     = null
+}
+
 # --- S3 Scripts Map --- #
 variable "s3_scripts" {
   description = <<-EOT

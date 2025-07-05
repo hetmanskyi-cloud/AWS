@@ -205,14 +205,45 @@ output "all_enabled_buckets_names" {
 
 # --- SNS Topic Outputs --- #
 
-output "sns_cloudwatch_topic_arn" {
-  description = "ARN of the SNS topic"
-  value       = aws_sns_topic.cloudwatch_alarms.arn
+output "cloudwatch_alarms_topic_arn" {
+  description = "ARN of the SNS topic for CloudWatch alarms"
+  value       = aws_sns_topic.cloudwatch_alarms_topic.arn
 }
 
-output "sns_cloudtrail_topic_name" {
-  description = "SNS topic name used by CloudTrail"
-  value       = length(aws_sns_topic.cloudtrail_events) > 0 ? aws_sns_topic.cloudtrail_events[0].name : null
+output "cloudfront_alarms_topic_arn" {
+  description = "ARN of the SNS topic for CloudFront alarms (created in us-east-1)"
+  value = (
+    var.enable_cloudfront_waf && length(aws_sns_topic.cloudfront_alarms_topic) > 0
+    ? aws_sns_topic.cloudfront_alarms_topic[0].arn
+    : null
+  )
+}
+
+output "replication_region_notifications_topic_arn" {
+  description = "ARN of the SNS topic for S3 replication region notifications"
+  value = (
+    var.replication_region_buckets["wordpress_media"].enabled && length(aws_sns_topic.replication_region_notifications_topic) > 0
+    ? aws_sns_topic.replication_region_notifications_topic[0].arn
+    : null
+  )
+}
+
+output "cloudtrail_events_topic_arn" {
+  description = "ARN of the SNS topic for CloudTrail events"
+  value = (
+    var.default_region_buckets["cloudtrail"].enabled && length(aws_sns_topic.cloudtrail_events_topic) > 0
+    ? aws_sns_topic.cloudtrail_events_topic[0].arn
+    : null
+  )
+}
+
+output "cloudtrail_events_topic_name" {
+  description = "Name of the SNS topic for CloudTrail events (required for aws_cloudtrail resource)"
+  value = (
+    var.default_region_buckets["cloudtrail"].enabled && length(aws_sns_topic.cloudtrail_events_topic) > 0
+    ? aws_sns_topic.cloudtrail_events_topic[0].name
+    : null
+  )
 }
 
 # --- Elasticache Module Outputs --- #
@@ -330,7 +361,7 @@ output "cloudwatch_wordpress_log_group_name" {
 # from the child 'cloudfront' module to the root level.
 output "cloudfront_standard_logging_v2_log_prefix" {
   description = "S3 URI prefix for CloudFront Standard Logging v2 Parquet logs."
-  value       = module.cloudfront.cloudfront_standard_logging_v2_log_prefix
+  value       = length(module.cloudfront) > 0 ? module.cloudfront[0].cloudfront_standard_logging_v2_log_prefix : null
 }
 
 # Output: CloudFront → ALB Custom Header Secret

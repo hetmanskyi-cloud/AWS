@@ -5,77 +5,88 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 5.0"
     }
     null = {
       source  = "hashicorp/null"
-      version = ">= 3.0"
+      version = "~> 3.0"
     }
   }
 }
 
 # --- Lambda Layer Automated Build and Deployment --- #
-# This file contains the logic to automatically build a Python dependency layer
-# and deploy it to AWS Lambda.
+# This file defines the logic to automatically build and deploy a Python Lambda Layer.
+# It uses a decoupled shell script for the build process, which is triggered by this module.
 
-# Render the requirements.txt content from the template file
 locals {
+  # Render the requirements.txt content from the template file.
   requirements_content = templatefile("${var.source_path}/requirements.txt.tftpl", {
     pillow_version = var.library_version
   })
+
+  # Automatically extract the Python version number (e.g., "3.12") for the Docker image tag.
+  layer_runtime_version_only = replace(var.layer_runtime[0], "python", "")
 }
 
-# --- Build Trigger Resource --- #
-# This 'null_resource' acts as a trigger to rebuild the layer package.
-resource "null_resource" "layer_build_trigger" {
-  # The trigger is a hash of the RENDERED content. This ensures a rebuild
-  # when the template or the library_version variable changes.
+# --- Build Trigger --- #
+# This null_resource triggers the central build script if dependencies or the script itself change.
+resource "null_resource" "layer_builder" {
   triggers = {
+    # This hash is based on the rendered requirements. It's the primary trigger for rebuilding
+    # and is used as the source_code_hash for the layer version resource.
     requirements_hash = sha256(local.requirements_content)
+
+    # This trigger ensures a rebuild if the build script itself is modified.
+    # It correctly points to the script's central location using 'path.root'.
+    build_script_hash = filebase64sha256("${path.module}/../../scripts/build_layer.sh")
   }
 
-  # This provisioner runs a shell command to create the layer package.
+  # The provisioner executes our central, robust shell script.
   provisioner "local-exec" {
-    command = <<-EOT
-      # 1. Create a build directory
-      mkdir -p "${path.module}/build/python"
+    interpreter = ["/bin/bash", "-c"]
 
-      # 2. Write the rendered content into a standard 'requirements.txt' file
-      cat <<EOF > "${path.module}/build/requirements.txt"
-      ${local.requirements_content}
-      EOF
-
-      # 3. Install the packages using the newly created requirements.txt file
-      python -m pip install -r "${path.module}/build/requirements.txt" -t "${path.module}/build/python"
-
-      # 4. Change into the 'build' directory and create a 'layer.zip' file
-      cd "${path.module}/build" && zip -r ../layer.zip . -x "requirements.txt"
-    EOT
+    # It calls the script from the central '/scripts' directory, passing the required
+    # versions and the path to this module so the script knows where to work.
+    command = "${path.module}/../../scripts/build_layer.sh ${local.layer_runtime_version_only} ${var.library_version} ${path.module}"
   }
 }
 
-# --- AWS Lambda Layer Version Resource --- #
-# This resource uploads the generated zip file to AWS and creates a new layer version.
-resource "aws_lambda_layer_version" "lambda_layer" { # <-- ИМЯ ИЗМЕНЕНО ЗДЕСЬ
+# --- AWS Lambda Layer Version --- #
+# This resource uploads the ZIP file created by the build script to AWS.
+resource "aws_lambda_layer_version" "lambda_layer" {
   layer_name = "${var.name_prefix}-${var.layer_name}-${var.environment}"
+  filename   = "${path.module}/layer.zip"
 
-  # The filename points to the zip file created by the 'local-exec' provisioner.
-  filename = "${path.module}/layer.zip"
+  # The source_code_hash is tied to the requirements content. This is the most reliable
+  # way to signal to AWS that the layer's content has changed and a new version is needed.
+  source_code_hash = null_resource.layer_builder.triggers.requirements_hash
 
-  # We use the hash of the requirements content as the trigger for changes.
-  # This avoids the plan-time error of trying to read a file that doesn't exist yet.
-  # The value is taken directly from the 'triggers' block of our null_resource.
-  source_code_hash = null_resource.layer_build_trigger.triggers.requirements_hash
+  compatible_runtimes      = var.layer_runtime
+  compatible_architectures = var.layer_architecture
 
-  # Define compatibility for the layer using our generic variables.
-  compatible_runtimes      = [var.runtime]
-  compatible_architectures = [var.architecture]
+  # This explicit dependency ensures the build script finishes before Terraform attempts to upload the file.
+  depends_on = [null_resource.layer_builder]
+}
 
-  # This dependency ensures the build script finishes before this resource is created.
-  depends_on = [null_resource.layer_build_trigger]
+# --- Cleanup on Destroy --- #
+# This resource runs ONLY during 'terraform destroy' to remove the locally created ZIP file.
+resource "null_resource" "layer_destroy_cleanup" {
+  # The trigger just ensures this resource is part of the dependency graph.
+  triggers = {
+    layer_arn = aws_lambda_layer_version.lambda_layer.arn
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "rm -f ${path.module}/layer.zip"
+  }
 }
 
 # --- Notes --- #
-# 1. Automation: This setup fully automates the layer creation process within the 'terraform apply' workflow.
-# 2. Triggering: The layer is only rebuilt if the 'library_version' variable or the template file itself changes.
-# 3. Prerequisites: The machine running Terraform must have Python, pip, and the 'zip' command-line utility installed.
+# 1. Decoupled Build: The complex build logic is encapsulated in a central shell script
+#    ('scripts/build_layer.sh'), and this module is only responsible for triggering it.
+# 2. Automated Triggering: The 'null_resource.layer_builder' automatically re-runs the
+#    build script if the Python dependencies (via requirements_hash) or the build script
+#    itself (via build_script_hash) change.
+# 3. Reliable Deployment: The 'aws_lambda_layer_version' resource depends on the 'null_resource'
+#    to ensure the 'layer.zip' file exists before it attempts to upload it.

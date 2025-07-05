@@ -71,28 +71,22 @@ output "asg_security_group_id" {
 
 # The ID of the IAM role attached to ASG instances.
 # Useful for auditing and reviewing the exact permissions granted to the ASG.
-output "instance_role_id" {
+output "asg_instance_role_id" {
   description = "The ID of the IAM role attached to ASG instances"
   value       = aws_iam_role.asg_role.id
 }
 
 # ARN of the IAM role used by ASG instances.
-output "instance_role_arn" {
+output "asg_instance_role_arn" {
   description = "The ARN of the IAM role for EC2 instances in the ASG."
   value       = aws_iam_role.asg_role.arn
 }
 
 # ARN of the IAM instance profile used by ASG instances.
 # Useful for auditing and reviewing the exact permissions granted to the ASG.
-output "instance_profile_arn" {
+output "asg_instance_profile_arn" {
   description = "The ARN of the instance profile for ASG instances"
   value       = aws_iam_instance_profile.asg_instance_profile.arn
-}
-
-# ARN of the IAM role used by ASG instances
-output "asg_role_arn" {
-  description = "ARN of the IAM role used by ASG instances for accessing AWS services and resources"
-  value       = aws_iam_role.asg_role.arn
 }
 
 # --- Scaling Policy Outputs --- #

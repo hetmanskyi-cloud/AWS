@@ -346,69 +346,118 @@ resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
   ]
 }
 
-# --- WordPress Media Bucket Policy for CloudFront OAC and EC2 Role Uploads --- #
-# Grants CloudFront distribution (via Origin Access Control) read-only access
-# and the WordPress EC2 Role write access for media uploads.
-# This policy is the single source of truth for all permissions on this bucket.
-resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
-  # This policy is applied only if the 'wordpress_media' bucket is enabled
-  # AND the CloudFront distribution for it is also enabled.
-  count = try(var.default_region_buckets["wordpress_media"].enabled, false) && var.wordpress_media_cloudfront_enabled ? 1 : 0
+# --- Unified Policy Document for the WordPress Media Bucket --- #
+# This data source constructs a single, comprehensive policy for the wordpress_media bucket.
+# It aggregates all necessary permissions into one document to avoid conflicts and ensure
+# that a single resource manages the bucket policy.
+data "aws_iam_policy_document" "wordpress_media_policy" {
+  # This policy is constructed only if the wordpress_media bucket itself is enabled.
+  count = try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
 
-  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id # Target bucket for the policy
+  # Statement 1: Enforce HTTPS-only access. This is a security best practice.
+  statement {
+    sid     = "DenyInsecureTransport"
+    effect  = "Deny"
+    actions = ["s3:*"]
+    resources = [
+      aws_s3_bucket.default_region_buckets["wordpress_media"].arn,
+      "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
+    ]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
 
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = concat(
+  # Statement 2: Allow CloudFront OAC Read-Only Access.
+  # This block is added dynamically only if CloudFront integration is enabled.
+  dynamic "statement" {
+    for_each = var.wordpress_media_cloudfront_enabled && var.wordpress_media_cloudfront_distribution_arn != null ? [1] : []
+    content {
+      sid       = "AllowCloudFrontOACReadOnly"
+      effect    = "Allow"
+      actions   = ["s3:GetObject"]
+      resources = ["${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*"]
+      principals {
+        type        = "Service"
+        identifiers = ["cloudfront.amazonaws.com"]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "AWS:SourceArn"
+        values   = [var.wordpress_media_cloudfront_distribution_arn]
+      }
+    }
+  }
 
-      # Statement 1: Enforce HTTPS Only
-      # Denies any requests to the bucket that do not use HTTPS.
-      [
-        {
-          Sid       = "DenyInsecureTransport",
-          Effect    = "Deny",
-          Principal = { "AWS" : "*" },
-          Action    = "s3:*",
-          Resource = [
-            aws_s3_bucket.default_region_buckets["wordpress_media"].arn,
-            "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
-          ],
-          Condition = {
-            Bool = {
-              "aws:SecureTransport" = "false"
-            }
-          }
-        }
-      ],
+  # Statement 3: Allow WordPress EC2 Role to manage media uploads.
+  # This block is added dynamically only if the ASG role ARN is provided.
+  dynamic "statement" {
+    for_each = var.asg_instance_role_arn != null ? [1] : []
+    content {
+      sid    = "AllowWordPressEC2RoleAccess"
+      effect = "Allow"
+      actions = [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ]
+      # Permissions are scoped to the 'uploads' folder for security.
+      resources = ["${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/uploads/*"]
+      principals {
+        type        = "AWS"
+        identifiers = [var.asg_instance_role_arn]
+      }
+    }
+  }
 
-      # Statement 2: Allow CloudFront OAC Read-Only Access
-      # This statement is included only if CloudFront integration is enabled
-      # AND the CloudFront Distribution ARN is known (not null).
-      # It grants CloudFront permission to retrieve objects from the bucket.
-      (var.wordpress_media_cloudfront_enabled && var.wordpress_media_cloudfront_distribution_arn != null) ? [
-        {
-          Sid    = "AllowCloudFrontOACReadOnly",
-          Effect = "Allow",
-          Principal = {
-            Service = "cloudfront.amazonaws.com"
-          },
-          Action = [
-            "s3:GetObject",
-          ],
-          Resource = "${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/*",
-          Condition = {
-            StringEquals = {
-              "AWS:SourceArn" = var.wordpress_media_cloudfront_distribution_arn
-            }
-          }
-        }
-      ] : [], # If CloudFront is not enabled OR ARN is null, this statement list will be empty
-    )
-  })
+  # Statement 4a: Allow Image Processor Lambda to READ original images.
+  dynamic "statement" {
+    for_each = var.lambda_iam_role_arn != null ? [1] : []
+    content {
+      sid       = "AllowImageProcessorLambdaRead"
+      effect    = "Allow"
+      actions   = ["s3:GetObject"]
+      resources = ["${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/uploads/*"]
+      principals {
+        type        = "AWS"
+        identifiers = [var.lambda_iam_role_arn]
+      }
+    }
+  }
 
-  # Explicitly depends on the S3 bucket creation to ensure the bucket exists before policy application.
+  # Statement 4b: Allow Image Processor Lambda to WRITE processed images.
+  dynamic "statement" {
+    for_each = var.lambda_iam_role_arn != null ? [1] : []
+    content {
+      sid       = "AllowImageProcessorLambdaWrite"
+      effect    = "Allow"
+      actions   = ["s3:PutObject"]
+      resources = ["${aws_s3_bucket.default_region_buckets["wordpress_media"].arn}/processed/*"]
+      principals {
+        type        = "AWS"
+        identifiers = [var.lambda_iam_role_arn]
+      }
+    }
+  }
+}
+
+# --- Apply the Unified Policy to the WordPress Media Bucket --- #
+# This single resource applies the comprehensive policy constructed above.
+resource "aws_s3_bucket_policy" "wordpress_media_policy" {
+  count = try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
+
+  bucket = aws_s3_bucket.default_region_buckets["wordpress_media"].id
+  policy = data.aws_iam_policy_document.wordpress_media_policy[0].json
+
   depends_on = [
-    aws_s3_bucket.default_region_buckets,
+    # Ensure the policy document is fully rendered before attempting to apply it.
+    data.aws_iam_policy_document.wordpress_media_policy
   ]
 }
 
@@ -419,7 +468,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
 #    - **Restrict 'allowed_origins' in production (CRITICAL security).**
 #
 # 2. Enforce HTTPS Policy (Default Region Buckets):
-#    - HTTPS enforcement for default region buckets, **excluding 'logging', 'alb_logs', 'cloudtrail'.**
+#    - HTTPS enforcement for default region buckets, **excluding 'wordpress_media', 'logging', 'alb_logs', 'cloudtrail', which have dedicated policies.**
 #    - Denies HTTP access to bucket and objects.
 #
 # 3. Unified Replication Destination Bucket Policy:
@@ -431,13 +480,13 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
 #    - Permits **'delivery.logs.amazonaws.com' service principal and regional ELB account** (via data source) for GetBucketAcl/PutObject.
 #    - Condition: s3:x-amz-acl = "bucket-owner-full-control".
 #    - Enforces HTTPS-only access.
-#    - **Note: No separate statement for S3 Server Access Logs (not relevant for ALB logs bucket).***
 #
 # 5. Bucket Policy Application Summary:
-#    - Default HTTPS policy: applied to default region buckets **except 'alb_logs', 'logging', 'cloudtrail'.**
-#    - Dedicated Logging policy: applied exclusively to 'logging' bucket (allows S3 log delivery & enforces HTTPS).
-#    - Dedicated ALB logs policy: applied exclusively to 'alb_logs' bucket.
-#    - Replication Destination policy: applied to replication region buckets.
+#    - **Unified 'wordpress_media' policy:** Applied exclusively to the 'wordpress_media' bucket, granting granular access to CloudFront, the EC2 Role, and the image processor Lambda.
+#    - **Dedicated Logging policy:** Applied exclusively to the 'logging' bucket (allows S3 log delivery & enforces HTTPS).
+#    - **Dedicated ALB logs policy:** Applied exclusively to the 'alb_logs' bucket.
+#    - **Generic HTTPS-Only policy:** Applied to remaining general-purpose buckets.
+#    - **Replication Destination policy:** Applied to replication region buckets.
 #
 # 6. Security Best Practices:
 #    - Encryption for logging buckets: 'logging' uses SSE-KMS, 'alb_logs' uses SSE-S3 (AES256).
@@ -448,7 +497,6 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
 # 7. CloudTrail Bucket Policy:
 #    - **Policy for CloudTrail bucket is *not defined in this `s3/policies.tf` file*.**
 #    - **It is defined in `cloudtrail.tf` of the *main module*.**
-#    - **Refer to the `cloudtrail.tf` file in the main module for CloudTrail bucket policy details.**
 #
 # 8. WordPress Media Bucket CORS Configuration Details:
 #    - Enables controlled cross-origin access to 'wordpress_media' bucket.
@@ -458,11 +506,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_cloudfront_policy" {
 # 9. Scripts Bucket:
 #    - No dedicated bucket policy defined in this file.
 #    - Access is managed via IAM roles attached to EC2 instances.
-#    - Scripts are downloaded by EC2 using instance profile permissions.
 #
 # 10. CloudFront Logging Policy:
-#     - A dedicated bucket policy 'cloudfront_logging_policy' is added to the 'logging' S3 bucket.
-#     - This policy explicitly grants 'cloudfront.amazonaws.com' service principal
-#       permissions to write objects (`s3:PutObject`) with `bucket-owner-full-control` ACL
-#       and optionally read the bucket ACL (`s3:GetBucketAcl`) for validation purposes.
-#     - The resource path is restricted to the 'cloudfront-media-logs/*' prefix within the logging bucket.
+#    - The **unified logging bucket policy** includes a statement that grants the 'delivery.logs.amazonaws.com'
+#      service principal permissions to write CloudFront v2 real-time logs.

@@ -112,6 +112,8 @@ locals {
     var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],                                                                             # CloudFront Realtime S3 Logging
     # Grant SQS service permissions to use the key if the image processor feature is enabled
     var.enable_image_processor ? ["sqs.amazonaws.com"] : [],
+    # Grant DynamoDB service permissions to use the key if the DynamoDB feature is enabled
+    var.enable_image_processor ? ["dynamodb.amazonaws.com"] : [],
   ))
 }
 

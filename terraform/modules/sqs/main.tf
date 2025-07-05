@@ -1,7 +1,6 @@
 # Terraform version and provider requirements
 terraform {
   required_version = "~> 1.12"
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -10,36 +9,64 @@ terraform {
   }
 }
 
-# --- SQS Queue Resource --- #
-# This file defines the SQS queue used as a Dead Letter Queue (DLQ)
-# for other services like AWS Lambda.
+# --- SQS Queue Resources --- #
+# To break the dependency cycle between a main queue and its DLQ, we create them in two steps.
 
-# --- Dead Letter Queue (DLQ) --- #
-# This resource creates a standard SQS queue with server-side encryption.
-# It is intended to receive and store failed invocation events for later analysis.
-resource "aws_sqs_queue" "lambda_dlq" {
-  # Dynamic queue name for clear identification.
-  name = "${var.name_prefix}-${var.queue_name}-${var.environment}"
+# Step 1: Create all Dead Letter Queues (DLQs) first
+# We iterate only over the queues marked with 'is_dlq = true'.
+# This block creates all the DLQs so they can be referenced by main queues later.
+resource "aws_sqs_queue" "dlq" {
+  for_each = { for k, q in var.sqs_queues : k => q if q.is_dlq }
 
-  # Enables server-side encryption (SSE) using the provided KMS key.
+  # Naming and Configuration
+  name                      = "${var.name_prefix}-${each.value.name}-${var.environment}"
+  message_retention_seconds = each.value.message_retention_seconds
+
+  # Security and Encryption
   kms_master_key_id = var.kms_key_arn
-  # The number of seconds to wait before attempting to re-process a message from the DLQ.
-  kms_data_key_reuse_period_seconds = 300
-
-  # The amount of time in seconds that a message is hidden from subsequent retrieve
-  # requests after being retrieved. Should be greater than the consumer's (e.g., Lambda) timeout.
-  visibility_timeout_seconds = 300 # 5 minutes
-
-  # The length of time, in seconds, for which Amazon SQS retains a message.
-  message_retention_seconds = 1209600 # 14 days, the maximum value.
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-${var.queue_name}-${var.environment}"
+    Name = "${var.name_prefix}-${each.value.name}-${var.environment}"
   })
 }
 
+# Step 2: Create all Main Queues
+# We iterate over the queues that are NOT DLQs.
+# This breaks the dependency cycle, as the DLQs they reference already exist from Step 1.
+resource "aws_sqs_queue" "main" {
+  for_each = { for k, q in var.sqs_queues : k => q if !q.is_dlq }
+
+  # Naming and Core Configuration
+  name = "${var.name_prefix}-${each.value.name}-${var.environment}"
+
+  # Timeouts and Retention
+  visibility_timeout_seconds        = each.value.visibility_timeout_seconds
+  message_retention_seconds         = each.value.message_retention_seconds
+  kms_data_key_reuse_period_seconds = each.value.kms_data_key_reuse_period_seconds
+
+  # Security and Encryption
+  kms_master_key_id = var.kms_key_arn
+
+  # DLQ and Redrive Policy
+  # The Redrive Policy now safely references a queue created in the 'dlq' resource block above.
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq[each.value.dlq_key].arn
+    maxReceiveCount     = each.value.max_receive_count
+  })
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-${each.value.name}-${var.environment}"
+  })
+
+  # Ensure the DLQ exists before creating the main queue that uses it
+  depends_on = [aws_sqs_queue.dlq]
+}
+
 # --- Notes --- #
-# 1. Purpose: This module is designed to create a single, secure SQS queue, primarily for use as a DLQ.
-# 2. Encryption: Server-side encryption using a customer-managed KMS key is enforced via the 'kms_master_key_id' argument.
-# 3. Message Retention: Messages are stored for the maximum duration of 14 days to ensure ample time for debugging failed events.
-# 4. Visibility Timeout: Set to 5 minutes by default, which should be sufficient for most manual or automated inspection processes.
+# 1. Two-Step Creation: To prevent a dependency cycle where a main queue needs its DLQ's ARN
+#    before the DLQ is created, this module creates queues in two distinct steps. First, all
+#    queues marked as DLQs are created. Second, all main queues are created, which can then
+#    safely reference the ARNs of the now-existing DLQs.
+# 2. Automated Redrive Policy: The Redrive Policy is configured via a standard 'jsonencode'
+#    function, which is the syntax expected by the SQS resource. This is applied only to
+#    the main queues.

@@ -17,7 +17,7 @@ variable "environment" {
   }
 }
 
-# --- Required Settings ---
+# --- Required Settings --- #
 
 variable "layer_name" {
   description = "The unique name for the Lambda Layer (e.g., 'Pillow-Dependencies')."
@@ -29,9 +29,10 @@ variable "source_path" {
   type        = string
 }
 
-variable "runtime" {
-  description = "The compatible runtime for the layer (e.g., 'python3.9'). This must match the Lambda function's runtime."
-  type        = string
+variable "layer_runtime" {
+  description = "A list of compatible runtimes for the layer (e.g., ['python3.12']). This must match the Lambda function's runtime."
+  type        = list(string)
+  default     = ["python3.12"]
 }
 
 variable "library_version" {
@@ -39,12 +40,12 @@ variable "library_version" {
   type        = string
 }
 
-# --- Optional Settings ---
+# --- Optional Settings --- #
 
-variable "architecture" {
-  description = "The compatible instruction set architecture for the layer (e.g., 'x86_64' or 'arm64')."
-  type        = string
-  default     = "x86_64"
+variable "layer_architecture" {
+  description = "The compatible instruction set architecture for the layer (e.g., 'x86_64' or 'arm64'). Must match the Lambda function's architecture."
+  type        = list(string)
+  default     = ["x86_64"]
 }
 
 # --- Notes --- #

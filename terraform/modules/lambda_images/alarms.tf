@@ -7,7 +7,7 @@
 # It ensures that alarms are only sent to an SNS topic if its ARN is provided.
 locals {
   # Use the provided SNS topic ARN if it's not null, otherwise use an empty list.
-  alarm_actions = var.alarm_sns_topic_arn != null ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = var.sns_topic_arn != null ? [var.sns_topic_arn] : []
 }
 
 # --- Lambda Errors Alarm --- #

@@ -34,6 +34,7 @@ locals {
   tags_route53             = { Component = "route53" }
   tags_lambda_images       = { Component = "lambda_images" }
   tags_sqs                 = { Component = "sqs" }
+  tags_dynamodb            = { Component = "dynamodb" }
 }
 
 # --- Notes --- #

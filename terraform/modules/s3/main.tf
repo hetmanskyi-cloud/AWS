@@ -40,6 +40,10 @@ resource "aws_s3_bucket" "default_region_buckets" {
   })
 
   # WARNING: Enable ONLY for testing environments!
+  # CRITICAL WARNING: FOR DEVELOPMENT/SANDBOX ONLY!
+  # Setting 'force_destroy' to 'true' allows 'terraform destroy' to delete buckets even if they contain objects.
+  # This WILL lead to irreversible data loss in production.
+  # This must be set to 'false' or removed for any staging or production environment.
   force_destroy = true # Allows deletion with non-empty contents.
 
   # --- Lifecycle Configuration --- #
@@ -110,21 +114,28 @@ resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # - The 'scripts' bucket MUST be enabled in terraform.tfvars for this process to succeed.
 }
 
-# --- All Buckets Notifications (Default Region) --- #
-resource "aws_s3_bucket_notification" "default_region_bucket_notifications" {
-  # Unified notifications for all enabled default region buckets
-  for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
+# --- Generic SNS Notifications for Default Region Buckets --- #
+resource "aws_s3_bucket_notification" "default_region_bucket_sns_notifications" {
+  # This resource configures a generic SNS notification for most default region buckets.
+  # It explicitly excludes buckets like 'wordpress_media', which are expected to have
+  # their own dedicated and more complex notification configuration.
+  for_each = tomap({
+    for key, value in var.default_region_buckets : key => value
+    if value.enabled && key != "wordpress_media"
+  })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket ID
 
   topic {
     topic_arn = var.sns_topic_arn      # SNS topic ARN
-    events    = ["s3:ObjectRemoved:*"] # Object events: remove
+    events    = ["s3:ObjectRemoved:*"] # Example: notify on object deletion
   }
 }
 
+
+
 # --- Replication Region Buckets Notifications --- #
-resource "aws_s3_bucket_notification" "replication_region_bucket_notifications" {
+resource "aws_s3_bucket_notification" "replication_region_bucket_sns_notifications" {
   # Unified notifications for all enabled replication region buckets
   for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 

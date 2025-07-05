@@ -59,10 +59,12 @@ variable "lambda_architecture" {
   default     = ["x86_64"]
 }
 
-variable "environment_variables" {
+variable "lambda_environment_variables" {
   description = "A map of environment variables to pass to the function's runtime environment."
   type        = map(string)
-  default     = {}
+  default = {
+    TARGET_WIDTH = "1024"
+  }
 }
 
 variable "lambda_layers" {
@@ -101,40 +103,46 @@ variable "lambda_iam_policy_attachments" {
   default     = []
 }
 
-# --- S3 Trigger Configuration --- #
-# Variables to configure the S3 bucket event that triggers this Lambda function.
+# --- SQS Trigger Configuration --- #
 
-variable "s3_trigger_enabled" {
-  description = "If true, creates an S3 trigger for the Lambda function."
-  type        = bool
-  default     = true
-}
-
-variable "triggering_bucket_id" {
-  description = "The ID (name) of the S3 bucket that will trigger the Lambda function."
+variable "sqs_trigger_queue_arn" {
+  description = "The ARN of the SQS queue that triggers the Lambda function."
   type        = string
 }
 
-variable "s3_events" {
-  description = "A list of S3 event types that will trigger the function. E.g., ['s3:ObjectCreated:*']."
-  type        = list(string)
-  default     = ["s3:ObjectCreated:*"]
+variable "sqs_batch_size" {
+  description = "The maximum number of records to retrieve from the SQS queue in each batch."
+  type        = number
+  default     = 5
 }
 
-variable "filter_prefix" {
-  description = "An optional prefix for the S3 object key to filter trigger events. E.g., 'uploads/'."
+# --- DynamoDB Integration Variables --- #
+
+variable "dynamodb_table_arn" {
+  description = "The ARN of the DynamoDB table, used for IAM policy permissions."
   type        = string
-  default     = null
 }
 
-variable "filter_suffix" {
-  description = "An optional suffix for the S3 object key to filter trigger events. E.g., '.jpg'."
+variable "dynamodb_table_name" {
+  description = "The name of the DynamoDB table. Used to construct environment variables inside the module."
   type        = string
-  default     = null
 }
 
-variable "lambda_destination_prefix" {
-  description = "The destination prefix (folder) within the S3 bucket for processed images."
+# --- S3 Permissions Configuration --- #
+
+variable "source_s3_bucket_name" {
+  description = "The name of the S3 bucket where source images are stored. Required for IAM permissions."
+  type        = string
+}
+
+variable "source_s3_prefix" {
+  description = "The prefix (folder) within the source S3 bucket where original images are."
+  type        = string
+  default     = "uploads/"
+}
+
+variable "destination_s3_prefix" {
+  description = "The prefix (folder) where processed images will be stored."
   type        = string
   default     = "processed/"
 }
@@ -148,8 +156,8 @@ variable "alarms_enabled" {
   default     = true
 }
 
-variable "alarm_sns_topic_arn" {
-  description = "The ARN of the SNS topic to which alarm notifications will be sent."
+variable "sns_topic_arn" {
+  description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string
   default     = null
 }
@@ -184,9 +192,25 @@ variable "alarm_period_seconds" {
   default     = 300 # 5 minutes
 }
 
+# --- KMS Key ARN --- #
+variable "kms_key_arn" {
+  description = "ARN of KMS key for S3 bucket encryption (security)."
+  type        = string
+
+  validation {
+    condition     = length(var.kms_key_arn) > 0
+    error_message = "kms_key_arn cannot be empty."
+  }
+}
+
 # --- Notes --- #
-# 1. IAM: The module creates a dedicated IAM role. See `iam.tf` for details.
-# 2. Error Handling: A Dead Letter Queue (DLQ) is a mandatory feature for this module to ensure failed events are not lost.
-#    The `dead_letter_queue_arn` variable must be provided.
-# 3. Features: Supports Lambda Layers, increased Ephemeral Storage, and S3 triggers with fine-grained filtering.
-# 4. Monitoring: Includes essential alarms for errors, throttles, and duration, which can be toggled with `alarms_enabled`.
+# 1. Architecture: This module creates an SQS-triggered Lambda function. It's designed to be part of a larger
+#    S3 -> SQS -> Lambda -> DynamoDB event-driven pipeline.
+# 2. IAM: A dedicated IAM role is created in `iam.tf`. It requires permissions to read from the SQS trigger queue,
+#    write to the SQS DLQ, get/put objects in S3, and write items to DynamoDB.
+# 3. Dependencies: This module is not standalone. It requires ARNs and names for several external resources:
+#    - The main SQS queue that acts as the trigger.
+#    - The SQS Dead Letter Queue (DLQ) for error handling.
+#    - The DynamoDB table for storing metadata.
+#    - The S3 bucket for reading/writing images.
+# 4. Features: Supports Lambda Layers for dependencies and increased Ephemeral Storage for processing large files.
