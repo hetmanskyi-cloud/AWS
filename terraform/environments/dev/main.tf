@@ -601,6 +601,9 @@ module "sqs" {
   # Pass the entire map of queue definitions from the root variables.
   sqs_queues = var.sqs_queues
 
+  # --- Monitoring --- #
+  cloudwatch_alarms_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
+
   # --- Dependencies --- #
   # Pass the KMS key ARN from the KMS module for queue encryption.
   kms_key_arn = module.kms.kms_key_arn
@@ -639,6 +642,9 @@ module "dynamodb" {
   # Wire dependencies from other modules
   # Pass the KMS key ARN from the KMS module for encryption.
   kms_key_arn = module.kms.kms_key_arn
+
+  # --- Monitoring --- #
+  cloudwatch_alarms_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   # Explicit Dependencies
   depends_on = [module.kms]

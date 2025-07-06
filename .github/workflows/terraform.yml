@@ -1,3 +1,4 @@
+---
 name: 'Terraform GitHub Actions'
 
 on:
@@ -30,7 +31,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/provider_versions.tf', '.terraform-version') }}
+          key: >-
+            ${{ runner.os }}-terraform-${{ hashFiles('**/provider_versions.tf', '.terraform-version') }}
           restore-keys: |
             ${{ runner.os }}-terraform-
 
@@ -78,5 +80,5 @@ jobs:
       - name: Run Checkov (console output, soft-fail)
         run: |
           checkov --directory ./terraform \
-                  --skip-check CKV_AWS_192 \
-                  || true
+            --skip-check CKV_AWS_192 \
+            || true

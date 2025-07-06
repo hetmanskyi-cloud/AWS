@@ -1,3 +1,4 @@
+---
 # Minimal pre-commit configuration for a Terraform project.
 # This setup focuses on the most critical and fastest checks:
 # 1. Basic code hygiene (whitespace, file endings).
@@ -12,30 +13,33 @@ repos:
   # --- Basic Code Hygiene (Essential for any repository) --- #
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0 # Pinning versions is critical for reproducibility
+    rev: v5.0.0  # Pinning versions is critical for reproducibility
     hooks:
-      - id: trailing-whitespace      # Fixes trailing whitespace
-      - id: end-of-file-fixer        # Ensures files end in a newline
-      - id: check-merge-conflict     # Prevents committing merge conflict markers
+      - id: trailing-whitespace  # Fixes trailing whitespace
+      - id: end-of-file-fixer  # Ensures files end in a newline
+      - id: check-merge-conflict  # Prevents committing merge conflict markers
 
   # --- Fundamental Terraform Hooks (Format and Lint) --- #
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.99.4 # Use the latest stable version
+    rev: v1.99.4  # Use the latest stable version
     hooks:
       # Formatting
       - id: terraform_fmt
         name: "Terraform: Format code"
-        description: "Rewrites all Terraform files to the canonical format."
+        description: >
+          Rewrites all Terraform files to the canonical format.
         args:
           - --args=-recursive
 
       # Linting
       - id: terraform_tflint
         name: "Terraform: Lint code with TFLint"
-        description: "Checks Terraform code for best practices and potential errors."
+        description: >
+          Checks Terraform code for best practices and potential errors.
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
           - --args=--recursive
-        # Note: You will need a .tflint.hcl configuration file in your
-        # repository's root directory for TFLint to work effectively.
+
+# Note: You will need a .tflint.hcl configuration file in your
+# repository's root directory for TFLint to work effectively.

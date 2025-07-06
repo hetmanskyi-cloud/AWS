@@ -80,6 +80,14 @@ variable "sqs_queues" {
   }
 }
 
+# --- CloudWatch Alarms --- #
+
+variable "cloudwatch_alarms_topic_arn" {
+  description = "Optional: The ARN of the SNS topic to which CloudWatch alarms for the queues are sent."
+  type        = string
+  default     = null
+}
+
 # --- Notes --- #
 # 1. Flexible Creation: The 'sqs_queues' map allows for the declarative creation of any number
 #    of SQS queues and their Dead Letter Queue (DLQ) pairings from a single variable.

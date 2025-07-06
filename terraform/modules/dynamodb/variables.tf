@@ -139,6 +139,14 @@ variable "kms_key_arn" {
   default     = null
 }
 
+# --- CloudWatch Alarms --- #
+
+variable "cloudwatch_alarms_topic_arn" {
+  description = "Optional: The ARN of the SNS topic for CloudWatch alarm notifications."
+  type        = string
+  default     = null
+}
+
 # --- Notes --- #
 # 1. Reusability: This module is designed to be generic, supporting simple or composite primary keys,
 #    optional TTL, and dynamic creation of Global Secondary Indexes.

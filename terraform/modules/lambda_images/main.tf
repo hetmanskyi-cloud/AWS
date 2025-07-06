@@ -91,8 +91,6 @@ resource "aws_lambda_function" "image_processor" {
 # This resource creates the mapping between the SQS queue and the Lambda function.
 # It allows the Lambda service to poll the queue and invoke the function with messages.
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-  # We can use a variable here to enable/disable the trigger if needed,
-  # but for now, we assume it's always on if the module is used.
   event_source_arn = var.sqs_trigger_queue_arn
   function_name    = aws_lambda_function.image_processor.arn
   batch_size       = var.sqs_batch_size

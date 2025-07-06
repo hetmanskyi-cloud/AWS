@@ -62,6 +62,21 @@ resource "aws_sqs_queue" "main" {
   depends_on = [aws_sqs_queue.dlq]
 }
 
+# Grant permission to the main queues to send messages to their designated DLQs.
+resource "aws_sqs_queue_redrive_allow_policy" "dlq_permission" {
+  # Iterate over only the main queues that have a DLQ configured.
+  for_each = { for k, q in var.sqs_queues : k => q if !q.is_dlq && q.dlq_key != null }
+
+  # The URL of the Dead Letter Queue that needs the policy attached.
+  queue_url = aws_sqs_queue.dlq[each.value.dlq_key].id
+
+  # The policy document itself.
+  redrive_allow_policy = jsonencode({
+    redrivePermission = "byQueue",
+    sourceQueueArns   = [aws_sqs_queue.main[each.key].arn]
+  })
+}
+
 # --- Notes --- #
 # 1. Two-Step Creation: To prevent a dependency cycle where a main queue needs its DLQ's ARN
 #    before the DLQ is created, this module creates queues in two distinct steps. First, all
