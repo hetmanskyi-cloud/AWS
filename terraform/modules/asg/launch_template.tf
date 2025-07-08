@@ -52,6 +52,8 @@ locals {
       enable_cloudwatch_logs = var.enable_cloudwatch_logs
       cloudwatch_log_groups  = var.cloudwatch_log_groups
       public_site_url        = var.public_site_url
+      efs_file_system_id     = var.efs_file_system_id
+      efs_access_point_id    = var.efs_access_point_id
 
       # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"
@@ -77,6 +79,9 @@ locals {
       cloudwatch_log_groups  = var.cloudwatch_log_groups
       public_site_url        = var.public_site_url
       wordpress_version      = var.wordpress_version
+      WP_PATH                = "/var/www/html"
+      efs_file_system_id     = var.efs_file_system_id
+      efs_access_point_id    = var.efs_access_point_id
     }
   )
 }

@@ -15,6 +15,11 @@ log() {
 exec 1> >(tee -a /var/log/user-data.log | tee /dev/tty) 2>&1
 log "Starting user-data script..."
 
+# Define WordPress installation path from Terraform variable
+log "Defining WordPress installation path..."
+export WP_PATH="${WP_PATH}"
+echo "export WP_PATH='${WP_PATH}'" | sudo tee -a /etc/environment > /dev/null
+
 # --- 1. Export WordPress-related environment variables --- #
 
 # This section exports environment variables for WordPress to be used in runtime config.
@@ -170,11 +175,53 @@ else
   log "RDS SSL certificate downloaded successfully."
 fi
 
-# --- 5. Regenerate wp-config.php for current environment --- #
+# --- 5. Mount EFS File System via Access Point --- #
+
+log "Starting EFS setup..."
+# We check for both IDs. The access point is useless without the file system.
+if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
+  log "EFS File System ID found: ${efs_file_system_id}"
+  log "EFS Access Point ID found: ${efs_access_point_id}"
+
+  # Install EFS utilities if not already present (required for the 'accesspoint' mount option)
+  if ! command -v amazon-efs-utils >/dev/null 2>&1; then
+    log "Installing amazon-efs-utils..."
+    sudo apt-get install -y amazon-efs-utils
+  fi
+
+  # The mount point is already created in the initial part of the user_data script.
+  log "Ensuring mount point ${WP_PATH} is ready."
+
+  # Add EFS to fstab for automatic mounting on boot, if not already present
+  EFS_FSTAB_ENTRY="${efs_file_system_id}:/ ${WP_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
+  if ! grep -qF -- "$EFS_FSTAB_ENTRY" /etc/fstab; then
+    log "Adding EFS mount to /etc/fstab..."
+    echo "$EFS_FSTAB_ENTRY" | sudo tee -a /etc/fstab
+  else
+    log "EFS mount already present in /etc/fstab."
+  fi
+
+  # Mount all EFS filesystems defined in fstab
+  log "Mounting all EFS filesystems..."
+  sudo mount -a -t efs
+
+  # Verify that EFS is mounted correctly and set permissions on the mount point
+  if mount | grep -q "${WP_PATH}"; then
+    log "EFS successfully mounted to ${WP_PATH} via Access Point."
+    sudo chown www-data:www-data "${WP_PATH}"
+    sudo chmod 775 "${WP_PATH}"
+  else
+    log "ERROR: Failed to mount EFS to ${WP_PATH}."
+    exit 1
+  fi
+else
+  log "EFS IDs not provided, skipping EFS mount."
+fi
+
+# --- 6. Regenerate wp-config.php for current environment --- #
 
 log "Updating wp-config.php for new environment using WP-CLI..."
 
-WP_PATH="/var/www/html"
 WP_CLI_BIN="/usr/local/bin/wp"
 PHP_FPM_SERVICE="php${wp_config.PHP_VERSION}-fpm"
 
@@ -211,7 +258,7 @@ sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" config set WP_DEBUG_DISPLAY false -
 
 log "wp-config.php successfully updated for stage environment."
 
-# --- 6. WordPress Automated Install (if DB is empty) --- #
+# --- 7. WordPress Automated Install (if DB is empty) --- #
 if ! sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" core is-installed --path="$WP_PATH"; then
   log "Running WordPress auto-install for new environment..."
   sudo -u www-data HOME=/tmp php "$WP_CLI_BIN" core install \
@@ -227,13 +274,13 @@ else
   log "WordPress already installed in DB, skipping wp core install."
 fi
 
-# --- 7. Restart services for config reload --- #
+# --- 8. Restart services for config reload --- #
 
 log "Restarting services for new configuration..."
 systemctl restart nginx || log "WARNING: nginx restart failed"
 systemctl restart "$PHP_FPM_SERVICE" || log "WARNING: PHP-FPM restart failed"
 
-# --- 8. Reload CloudWatch Agent config if enabled --- #
+# --- 9. Reload CloudWatch Agent config if enabled --- #
 
 if [ "${enable_cloudwatch_logs}" = "true" ]; then
   log "Reloading CloudWatch Agent configuration..."
@@ -242,7 +289,7 @@ if [ "${enable_cloudwatch_logs}" = "true" ]; then
     -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 fi
 
-# --- 9. Healthcheck Endpoint (log presence) --- #
+# --- 10. Healthcheck Endpoint (log presence) --- #
 
 if [ -f "/var/www/html/healthcheck.php" ]; then
   log "healthcheck.php present."
@@ -250,13 +297,13 @@ else
   log "WARNING: healthcheck.php not found!"
 fi
 
-# --- 10. Check and Fix Permissions --- #
+# --- 11. Check and Fix Permissions --- #
 
 log "Checking/fixing permissions for WordPress directory..."
 chown -R www-data:www-data /var/www/html
 chmod -R 755 /var/www/html
 
-# --- 11. Debug Environment & Secure Cleanup --- #
+# --- 12. Debug Environment & Secure Cleanup --- #
 
 log "Printing environment variables for debugging:"
 env | sort >> /var/log/user-data.log
@@ -266,8 +313,6 @@ log "Clearing sensitive secrets from /etc/environment..."
 sudo sed -i '/^DB_PASSWORD=/d' /etc/environment
 sudo sed -i '/^REDIS_AUTH_TOKEN=/d' /etc/environment
 log "Sensitive secrets removed from /etc/environment."
-
-# --- 12. Success --- #
 
 log "User-data script for WordPress completed successfully."
 

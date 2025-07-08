@@ -35,6 +35,7 @@ locals {
   tags_lambda_images       = { Component = "lambda_images" }
   tags_sqs                 = { Component = "sqs" }
   tags_dynamodb            = { Component = "dynamodb" }
+  tags_efs                 = { Component = "efs" }
 }
 
 # --- Notes --- #

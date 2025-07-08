@@ -1101,6 +1101,52 @@ variable "enable_lambda_tracing" {
   default     = true
 }
 
+# --- EFS Module Configuration --- #
+
+variable "enable_efs_lifecycle_policy" {
+  description = "Enable or disable the EFS lifecycle policy for cost savings."
+  type        = bool
+  default     = false
+}
+
+variable "efs_transition_to_ia" {
+  description = "Specifies when to transition files to the Infrequent Access (IA) storage class. E.g., 'AFTER_30_DAYS'."
+  type        = string
+  default     = "AFTER_30_DAYS"
+}
+
+variable "enable_efs_burst_credit_alarm" {
+  description = "Enable an alarm for low EFS burst credits."
+  type        = bool
+  default     = false
+}
+
+variable "efs_burst_credit_threshold" {
+  description = "The threshold (in bytes) for the low burst credit balance alarm."
+  type        = number
+  default     = 1099511627776 # ~1 TiB
+}
+
+# EFS Access Point Configuration
+
+variable "efs_access_point_path" {
+  description = "The path on the EFS file system for the Access Point."
+  type        = string
+  default     = "/wordpress"
+}
+
+variable "efs_access_point_posix_uid" {
+  description = "The POSIX user ID for the EFS Access Point (e.g., '33' for www-data)."
+  type        = string
+  default     = "33"
+}
+
+variable "efs_access_point_posix_gid" {
+  description = "The POSIX group ID for the EFS Access Point (e.g., '33' for www-data)."
+  type        = string
+  default     = "33"
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.

@@ -163,6 +163,10 @@ module "asg" {
   volume_type           = var.volume_type
   enable_ebs_encryption = var.enable_ebs_encryption
 
+  # EFS configuration
+  efs_file_system_id  = module.efs.efs_id
+  efs_access_point_id = module.efs.efs_access_point_id
+
   # Networking and security configurations
   public_subnet_ids              = module.vpc.public_subnets
   alb_security_group_id          = module.alb.alb_security_group_id
@@ -547,7 +551,7 @@ module "route53" {
   custom_domain_name        = var.custom_domain_name
   subject_alternative_names = var.subject_alternative_names
 
-  # --- WIRING: Connect outputs from other modules as inputs here --- #
+  # WIRING:
 
   # From ACM module
   acm_certificate_arn                       = module.acm[0].acm_arn
@@ -591,19 +595,19 @@ module "sqs" {
 
   source = "../../modules/sqs"
 
-  # --- Naming and Tagging --- #
+  # Naming and Tagging
   name_prefix = var.name_prefix
   environment = var.environment
   tags        = merge(local.common_tags, local.tags_sqs)
 
-  # --- Configuration --- #
+  # Configuration
   # Pass the entire map of queue definitions from the root variables.
   sqs_queues = var.sqs_queues
 
-  # --- Monitoring --- #
+  # Monitoring
   cloudwatch_alarms_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
-  # --- Dependencies --- #
+  # Dependencies
   # Pass the KMS key ARN from the KMS module for queue encryption.
   kms_key_arn = module.kms.kms_key_arn
 
@@ -642,7 +646,7 @@ module "dynamodb" {
   # Pass the KMS key ARN from the KMS module for encryption.
   kms_key_arn = module.kms.kms_key_arn
 
-  # --- Monitoring --- #
+  # Monitoring
   cloudwatch_alarms_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn
 
   # Explicit Dependencies
@@ -650,6 +654,7 @@ module "dynamodb" {
 }
 
 # --- Lambda Images (Processor) Module Configuration --- #
+
 # This is the central module of the image processing pipeline.
 # It creates the Lambda function, its IAM role, and the SQS trigger.
 # Its creation is controlled by the main 'enable_image_processor' feature flag.
@@ -707,6 +712,49 @@ module "lambda_images" {
     module.sqs,
     module.dynamodb,
     module.lambda_layer,
+    module.kms
+  ]
+}
+
+# --- EFS Module Configuration --- #
+
+# Configures the Elastic File System (EFS) for shared storage across ASG instances.
+module "efs" {
+  source = "../../modules/efs" # Path to the EFS module
+
+  # General naming, tags and environment configuration
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_efs) # Assuming you add local.tags_efs in metadata.tf
+
+  # Network configuration
+  vpc_id = module.vpc.vpc_id
+  subnet_ids_map = {
+    public_subnet_1 = module.vpc.public_subnet_1_id
+    public_subnet_2 = module.vpc.public_subnet_2_id
+    public_subnet_3 = module.vpc.public_subnet_3_id
+  }
+  asg_security_group_id = module.asg.asg_security_group_id
+
+  # Security and Encryption
+  kms_key_arn = module.kms.kms_key_arn
+
+  # Lifecycle Policy
+  enable_efs_lifecycle_policy = var.enable_efs_lifecycle_policy
+  transition_to_ia            = var.efs_transition_to_ia
+
+  # Monitoring and Alarms
+  sns_topic_arn             = aws_sns_topic.cloudwatch_alarms_topic.arn
+  enable_burst_credit_alarm = var.enable_efs_burst_credit_alarm
+  burst_credit_threshold    = var.efs_burst_credit_threshold
+
+  # Access Point Configuration
+  efs_access_point_path      = var.efs_access_point_path
+  efs_access_point_posix_uid = var.efs_access_point_posix_uid
+  efs_access_point_posix_gid = var.efs_access_point_posix_gid
+
+  depends_on = [
+    module.vpc,
     module.kms
   ]
 }

@@ -426,6 +426,20 @@ variable "deploy_script_path" {
   description = "Path to the WordPress deployment script"
 }
 
+# --- EFS Configuration --- #
+
+variable "efs_file_system_id" {
+  description = "The ID of the EFS file system to be mounted by the instances."
+  type        = string
+  default     = ""
+}
+
+variable "efs_access_point_id" {
+  description = "The ID of the EFS Access Point to be used for mounting."
+  type        = string
+  default     = ""
+}
+
 # --- Notes --- #
 # 1. **Variable Grouping:**
 #    - Variables are organized by functionality (e.g., ASG, ALB, Redis, S3, scaling, monitoring).

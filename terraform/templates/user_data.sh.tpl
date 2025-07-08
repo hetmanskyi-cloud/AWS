@@ -225,7 +225,50 @@ else
 fi
 fi
 
-# --- 5. Retrieve the WordPress deployment script --- #
+# --- 5. Mount EFS File System via Access Point --- #
+
+log "Starting EFS setup..."
+# We check for both IDs. The access point is useless without the file system.
+if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
+  log "EFS File System ID found: ${efs_file_system_id}"
+  log "EFS Access Point ID found: ${efs_access_point_id}"
+
+  # Install EFS utilities if not already present (required for the 'accesspoint' mount option)
+  if ! command -v amazon-efs-utils >/dev/null 2>&1; then
+    log "Installing amazon-efs-utils..."
+    sudo apt-get install -y amazon-efs-utils
+  fi
+
+  # The mount point is already created in the initial part of the user_data script.
+  log "Ensuring mount point ${WP_PATH} is ready."
+
+  # Add EFS to fstab for automatic mounting on boot, if not already present
+  EFS_FSTAB_ENTRY="${efs_file_system_id}:/ ${WP_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
+  if ! grep -qF -- "$EFS_FSTAB_ENTRY" /etc/fstab; then
+    log "Adding EFS mount to /etc/fstab..."
+    echo "$EFS_FSTAB_ENTRY" | sudo tee -a /etc/fstab
+  else
+    log "EFS mount already present in /etc/fstab."
+  fi
+
+  # Mount all EFS filesystems defined in fstab
+  log "Mounting all EFS filesystems..."
+  sudo mount -a -t efs
+
+  # Verify that EFS is mounted correctly and set permissions on the mount point
+  if mount | grep -q "${WP_PATH}"; then
+    log "EFS successfully mounted to ${WP_PATH} via Access Point."
+    sudo chown www-data:www-data "${WP_PATH}"
+    sudo chmod 775 "${WP_PATH}"
+  else
+    log "ERROR: Failed to mount EFS to ${WP_PATH}."
+    exit 1
+  fi
+else
+  log "EFS IDs not provided, skipping EFS mount."
+fi
+
+# --- 6. Retrieve the WordPress deployment script --- #
 
 # Download deployment script file from S3
 log "Downloading deployment script from S3: ${wordpress_script_path}"
@@ -237,7 +280,7 @@ else
   log "deploy_wordpress.sh downloaded successfully."
 fi
 
-# --- 6. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+# --- 7. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 log "Creating temporary healthcheck file in $WP_PATH..."
 echo "<?php http_response_code(200); ?>" | sudo tee "$WP_PATH/healthcheck.php" > /dev/null
@@ -251,7 +294,7 @@ else
   exit 1
 fi
 
-# --- 7. Execute the deployment script --- #
+# --- 8. Execute the deployment script --- #
 
 chmod +x "$WP_TMP_DIR/deploy_wordpress.sh"
 log "Running $WP_TMP_DIR/deploy_wordpress.sh..."
