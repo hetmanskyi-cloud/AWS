@@ -46,6 +46,12 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
+variable "admin_access_cidrs" {
+  description = "A list of CIDR blocks (e.g., ['1.2.3.4/32']) to allow temporary admin access to the ALB on ports 80 and 443."
+  type        = list(string)
+  default     = []
+}
+
 # Port for the target group (default: 80).
 variable "target_group_port" {
   description = "Port for the target group"

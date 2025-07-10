@@ -46,8 +46,8 @@ resource "aws_autoscaling_group" "asg" {
   # Health check configuration
   # "ELB" type ensures the ASG uses the ALB's health check status.
   # This provides application-level monitoring (not just EC2 instance health).
-  health_check_type         = "ELB" # Use ALB health checks for instance replacement decisions
-  health_check_grace_period = 1800  # Wait 30 minutes for instance warm-up before considering health status
+  health_check_type         = "ELB"                         # Use ALB health checks for instance replacement decisions
+  health_check_grace_period = var.health_check_grace_period # Time in seconds for instance warm-up before considering health status
 
   # Attach the ALB Target Group only if provided
   target_group_arns = length(var.wordpress_tg_arn) > 0 ? [var.wordpress_tg_arn] : [] # List of Target Group ARNs to route traffic from ALB to ASG instances

@@ -231,6 +231,12 @@ variable "desired_capacity" {
   default     = null
 }
 
+variable "health_check_grace_period" {
+  description = "The time, in seconds, that Auto Scaling waits before checking the health status of an instance. Should be increased for dev environments with long bootstrap times."
+  type        = number
+  default     = 300
+}
+
 variable "enable_scaling_policies" {
   description = "Enable or disable scaling policies for the ASG"
   type        = bool
@@ -774,6 +780,12 @@ variable "enable_alb_firehose_cloudwatch_logs" {
   description = "Enable CloudWatch logging for Firehose delivery stream. Useful for debugging failures."
   type        = bool
   default     = false
+}
+
+variable "admin_access_cidrs" {
+  description = "A list of CIDR blocks (e.g., ['1.2.3.4/32']) to allow temporary admin access to the ALB on ports 80 and 443."
+  type        = list(string)
+  default     = []
 }
 
 # --- CloudFront Module Variables --- #

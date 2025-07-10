@@ -228,46 +228,49 @@ fi
 # --- 5. Mount EFS File System via Access Point --- #
 
 log "Starting EFS setup..."
+# We check for both IDs, as the access point is useless without the file system.
 if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
   log "EFS File System ID found: ${efs_file_system_id}"
   log "EFS Access Point ID found: ${efs_access_point_id}"
 
-  # Install EFS dependencies (including stunnel and nfs-common)
-  sudo apt-get update -y
-  sudo apt-get install -y git binutils make automake autoconf libtool pkg-config \
-    libssl-dev cargo ca-certificates nfs-common stunnel4 python3-pip
-
-  # Install/upgrade botocore (required for some EFS features and logging)
-  sudo pip3 install --upgrade botocore
-
-  # Build and install amazon-efs-utils from source if not already present
+  # Check if the EFS mount helper is already installed to make this script idempotent.
   if ! command -v mount.efs >/dev/null 2>&1; then
     log "Installing amazon-efs-utils from source..."
+
+    # Install all dependencies required to build from source, including Rust and botocore.
+    sudo apt-get update -y
+    sudo apt-get install -y git binutils make automake autoconf libtool pkg-config libssl-dev cargo ca-certificates python3-pip python3-botocore
+
+    # Clone the official aws/efs-utils repository from GitHub.
     git clone https://github.com/aws/efs-utils /tmp/efs-utils
     cd /tmp/efs-utils
-    ./build-deb.sh || { log "ERROR: Failed to build amazon-efs-utils!"; exit 1; }
-    sudo apt-get -y install ./build/amazon-efs-utils*deb || { log "ERROR: Failed to install amazon-efs-utils!"; exit 1; }
+
+    # CRITICAL: Set this environment variable to bypass the PEP 668 check in Ubuntu 24.04.
+    export PIP_BREAK_SYSTEM_PACKAGES=1
+
+    # Run the build script to compile the source code into a .deb package.
+    ./build-deb.sh
+
+    # Install the locally built .deb package. 'apt' is used to handle other dependencies like stunnel.
+    sudo apt-get -y install ./build/amazon-efs-utils*deb
+
+    # Return to a known directory and clean up the temporary source files.
     cd /
     rm -rf /tmp/efs-utils
+
     log "amazon-efs-utils installed successfully from source."
   else
     log "amazon-efs-utils already installed."
   fi
 
-  # Проверить версию stunnel (>= 4.56 желательно, ниже может не работать!)
-  STUNNEL_VERSION=$(stunnel4 -version 2>&1 | grep -i stunnel | head -n1 | awk '{print $2}' | cut -d. -f1,2)
-  if awk 'BEGIN{exit ARGV[1]<4.56}' "$STUNNEL_VERSION"; then
-    log "stunnel version $STUNNEL_VERSION is supported."
-  else
-    log "WARNING: stunnel version $STUNNEL_VERSION may not be compatible with EFS TLS!"
-  fi
-
   # The mount point is already created in the initial part of the user_data script.
   log "Ensuring mount point ${WP_PATH} is ready."
-  sudo mkdir -p "${WP_PATH}"
 
-  # Add EFS to fstab for automatic mounting on boot, if not already present
-  EFS_FSTAB_ENTRY="${efs_file_system_id}:/ ${WP_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
+  # Define the entry for /etc/fstab. NOTE: The ':/' is REMOVED from the source
+  # as it's not used when mounting with an access point.
+  EFS_FSTAB_ENTRY="${efs_file_system_id} ${WP_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
+
+  # Add the mount entry to fstab only if it doesn't already exist.
   if ! grep -qF -- "$EFS_FSTAB_ENTRY" /etc/fstab; then
     log "Adding EFS mount to /etc/fstab..."
     echo "$EFS_FSTAB_ENTRY" | sudo tee -a /etc/fstab
@@ -275,11 +278,11 @@ if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
     log "EFS mount already present in /etc/fstab."
   fi
 
-  # Mount all EFS filesystems defined in fstab
+  # Mount all filesystems of type 'efs' defined in fstab.
   log "Mounting all EFS filesystems..."
   sudo mount -a -t efs
 
-  # Verify that EFS is mounted correctly and set permissions on the mount point
+  # Verify that EFS is mounted correctly and set permissions on the mount point directory.
   if mount | grep -q "${WP_PATH}"; then
     log "EFS successfully mounted to ${WP_PATH} via Access Point."
     sudo chown www-data:www-data "${WP_PATH}"

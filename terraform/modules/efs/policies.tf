@@ -2,24 +2,46 @@
 # This file defines the resource-based policy for the EFS file system to enforce security controls.
 
 resource "aws_efs_file_system_policy" "efs_policy" {
-  count = var.enable_efs_policy ? 1 : 0
 
   file_system_id = aws_efs_file_system.efs.id
 
-  # This policy enforces that all clients connecting to the EFS must use TLS encryption.
-  # It denies any mount attempts where the connection is not secure.
+  # This policy enforces two rules:
+  # 1. (Allow) Permits read/write/mount operations ONLY through the specified Access Point.
+  # 2. (Deny) Explicitly denies any connection that does not use TLS encryption.
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
+      # Statement 1 (Allow): Permits client mount and write operations, but only if the
+      # connection is made through the specific Access Point created for our application.
+      # This effectively locks down the file system to a single, controlled entry point.
+      {
+        "Sid" : "AllowAppAccessViaAccessPoint",
+        "Effect" : "Allow",
+        "Principal" : {
+          "AWS" : "*"
+        },
+        "Action" : [
+          "elasticfilesystem:ClientMount",
+          "elasticfilesystem:ClientWrite"
+        ],
+        "Resource" : aws_efs_file_system.efs.arn,
+        "Condition" : {
+          "StringEquals" : {
+            "elasticfilesystem:AccessPointArn" : aws_efs_access_point.default.arn
+          }
+        }
+      },
+      # Statement 2 (Deny): A global security rule that explicitly denies any action
+      # on the file system if the connection is not using TLS. This prevents all
+      # unencrypted data transmission, protecting data in transit.
       {
         "Sid" : "EnforceInTransitEncryption",
         "Effect" : "Deny",
         "Principal" : {
           "AWS" : "*"
         },
-        "Action" : [
-          "elasticfilesystem:ClientMount"
-        ],
+        "Action" : "*",
+        "Resource" : aws_efs_file_system.efs.arn,
         "Condition" : {
           "Bool" : {
             "aws:SecureTransport" : "false"
@@ -29,7 +51,10 @@ resource "aws_efs_file_system_policy" "efs_policy" {
     ]
   })
 
-  depends_on = [aws_efs_file_system.efs]
+  depends_on = [
+    aws_efs_file_system.efs,
+    aws_efs_access_point.default
+  ]
 }
 
 # --- Notes --- #
@@ -37,13 +62,14 @@ resource "aws_efs_file_system_policy" "efs_policy" {
 #    - The `aws_efs_file_system_policy` resource attaches a policy directly to the EFS file system,
 #      similar to an S3 bucket policy.
 #
-# 2. **Security**:
-#    - The default policy provided here is a security best practice. It explicitly denies any client
-#      from mounting the file system if they are not using TLS (in-transit encryption).
-#    - This protects your data from being intercepted as it travels over the network between your
-#      EC2 instances and the EFS mount targets.
-#      AWS recommendation: https://docs.aws.amazon.com/efs/latest/ug/encryption-in-transit.html
+# 2. **Dual-Layer Security**:
+#    - This policy implements a robust, two-layer security model:
+#    - a) **Access Control (Allow)**: The first statement permits mount and write operations, but only
+#         if the connection is made through the specific Access Point created for our application. This
+#         acts as the primary authorization mechanism.
+#    - b) **Encryption Enforcement (Deny)**: The second statement is a blanket rule that denies any
+#         action if the connection is not encrypted with TLS. This protects all data in transit.
 #
-# 3. **Control**:
-#    - The creation of this policy is controlled by the `var.enable_efs_policy` variable, which
-#      is set to `true` by default to encourage a secure-by-default configuration.
+# 3. **Mandatory Policy**:
+#    - The creation of this policy is a mandatory and integral part of this module. It is not
+#      optional, ensuring a secure-by-default architecture for all deployments.

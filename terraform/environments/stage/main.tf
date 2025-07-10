@@ -118,18 +118,19 @@ module "asg" {
   ssh_allowed_cidr      = var.ssh_allowed_cidr
 
   # ASG instance configuration
-  ami_id                  = var.ami_id
-  instance_type           = var.instance_type
-  autoscaling_min         = var.autoscaling_min
-  autoscaling_max         = var.autoscaling_max
-  desired_capacity        = var.desired_capacity
-  enable_scaling_policies = var.enable_scaling_policies
-  enable_target_tracking  = var.enable_target_tracking
-  enable_data_source      = var.enable_data_source
-  scale_out_cpu_threshold = var.scale_out_cpu_threshold
-  scale_in_cpu_threshold  = var.scale_in_cpu_threshold
-  network_in_threshold    = var.network_in_threshold
-  network_out_threshold   = var.network_out_threshold
+  ami_id                    = var.ami_id
+  instance_type             = var.instance_type
+  autoscaling_min           = var.autoscaling_min
+  autoscaling_max           = var.autoscaling_max
+  desired_capacity          = var.desired_capacity
+  health_check_grace_period = var.health_check_grace_period
+  enable_scaling_policies   = var.enable_scaling_policies
+  enable_target_tracking    = var.enable_target_tracking
+  enable_data_source        = var.enable_data_source
+  scale_out_cpu_threshold   = var.scale_out_cpu_threshold
+  scale_in_cpu_threshold    = var.scale_in_cpu_threshold
+  network_in_threshold      = var.network_in_threshold
+  network_out_threshold     = var.network_out_threshold
 
   # CloudWatch Alarms for Auto Scaling and instance health monitoring
   # Includes CPU utilization, network traffic, and EC2 status checks
@@ -419,6 +420,9 @@ module "alb" {
   # CloudFront to ALB integration
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
   alb_access_cloudfront_mode            = var.alb_access_cloudfront_mode
+
+  # CIDRs allowed to access the WordPress Admin Interface
+  admin_access_cidrs = var.admin_access_cidrs
 
   depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms_topic]
 }

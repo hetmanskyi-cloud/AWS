@@ -103,6 +103,12 @@ variable "desired_capacity" {
   }
 }
 
+variable "health_check_grace_period" {
+  description = "The time, in seconds, that Auto Scaling waits before checking the health status of an instance."
+  type        = number
+  default     = 300
+}
+
 variable "enable_scaling_policies" {
   description = "Enable or disable scaling policies for the ASG"
   type        = bool

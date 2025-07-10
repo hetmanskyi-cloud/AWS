@@ -111,14 +111,6 @@ variable "transition_to_ia" {
   }
 }
 
-# --- EFS File System Policy Configuration --- #
-
-variable "enable_efs_policy" {
-  description = "If true, a default restrictive EFS file system policy will be created to enforce in-transit encryption."
-  type        = bool
-  default     = true
-}
-
 # --- Monitoring & Alarms Configuration --- #
 
 variable "sns_topic_arn" {

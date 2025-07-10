@@ -91,7 +91,7 @@ resource "aws_network_acl_rule" "public_inbound_nfs" {
 # Optional: Allow ICMP (ping) for diagnostics
 # resource "aws_network_acl_rule" "public_inbound_icmp" {
 #   network_acl_id = aws_network_acl.public_nacl.id
-#   rule_number    = 140
+#   rule_number    = 150
 #   egress         = false
 #   protocol       = "icmp"
 #   from_port      = -1
