@@ -144,37 +144,6 @@ resource "aws_security_group_rule" "alb_egress_all" {
   description              = "Allow outbound traffic from ALB to ASG instances"
 }
 
-# --- TEMPORARY ADMIN ACCESS TO WORDPRESS VIA ALB --- #
-# These resources create rules to allow access to the ALB from specific admin IPs.
-# This is useful for accessing /wp-admin directly via the ALB's DNS name.
-# This should be used for temporary debugging. For permanent secure access, use AWS Client VPN.
-
-resource "aws_security_group_rule" "allow_temp_admin_http_from_ip" {
-  # Create this rule only if at least one admin CIDR is provided.
-  count = length(var.admin_access_cidrs) > 0 ? 1 : 0
-
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  security_group_id = aws_security_group.alb_sg.id
-  cidr_blocks       = var.admin_access_cidrs
-  description       = "TEMP: Allow HTTP to ALB from an admin IP"
-}
-
-resource "aws_security_group_rule" "allow_temp_admin_https_from_ip" {
-  # Create this rule only if at least one admin CIDR is provided.
-  count = length(var.admin_access_cidrs) > 0 ? 1 : 0
-
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  security_group_id = aws_security_group.alb_sg.id
-  cidr_blocks       = var.admin_access_cidrs
-  description       = "TEMP: Allow HTTPS to ALB from an admin IP"
-}
-
 # --- Notes --- #
 # 1. Conditional Ingress Logic:
 #    - This security group implements dynamic ingress rules controlled by the 'alb_access_cloudfront_mode' variable.

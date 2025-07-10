@@ -421,9 +421,6 @@ module "alb" {
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
   alb_access_cloudfront_mode            = var.alb_access_cloudfront_mode
 
-  # CIDRs allowed to access the WordPress Admin Interface
-  admin_access_cidrs = var.admin_access_cidrs
-
   depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms_topic]
 }
 

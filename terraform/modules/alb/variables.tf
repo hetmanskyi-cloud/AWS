@@ -46,12 +46,6 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
-variable "admin_access_cidrs" {
-  description = "A list of CIDR blocks (e.g., ['1.2.3.4/32']) to allow temporary admin access to the ALB on ports 80 and 443."
-  type        = list(string)
-  default     = []
-}
-
 # Port for the target group (default: 80).
 variable "target_group_port" {
   description = "Port for the target group"
@@ -60,17 +54,10 @@ variable "target_group_port" {
 }
 
 # ARN of the SSL certificate for HTTPS listener (optional).
-# Required when `enable_https_listener` is set to true.
-# Best practice: Use a valid ACM certificate in production for HTTPS traffic.
 variable "certificate_arn" {
-  description = "ARN of the SSL certificate for HTTPS listener"
+  description = "ARN of the SSL certificate for HTTPS listener. If null, a self-signed certificate will be generated for testing."
   type        = string
   default     = null
-
-  validation {
-    condition     = var.enable_https_listener ? can(length(var.certificate_arn)) : true
-    error_message = "Certificate ARN must be provided if HTTPS listener is enabled."
-  }
 }
 
 # --- Deletion Protection Variable for ALB --- #

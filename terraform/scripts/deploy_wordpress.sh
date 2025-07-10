@@ -145,6 +145,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   php${PHP_VERSION}-mbstring \
   php${PHP_VERSION}-curl \
   php${PHP_VERSION}-zip \
+  php${PHP_VERSION}-gd \
   mysql-client \
   redis-tools \
   composer

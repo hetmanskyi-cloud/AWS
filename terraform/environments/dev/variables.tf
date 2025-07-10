@@ -782,12 +782,6 @@ variable "enable_alb_firehose_cloudwatch_logs" {
   default     = false
 }
 
-variable "admin_access_cidrs" {
-  description = "A list of CIDR blocks (e.g., ['1.2.3.4/32']) to allow temporary admin access to the ALB on ports 80 and 443."
-  type        = list(string)
-  default     = []
-}
-
 # --- CloudFront Module Variables --- #
 # These variables are passed to the CloudFront module to control its behavior.
 
