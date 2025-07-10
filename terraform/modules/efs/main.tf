@@ -49,7 +49,7 @@ resource "aws_efs_mount_target" "efs_mount_target" {
   for_each = var.subnet_ids_map
 
   file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = each.key
+  subnet_id       = each.value
   security_groups = [aws_security_group.efs_sg.id]
 
   depends_on = [

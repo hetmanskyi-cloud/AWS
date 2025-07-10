@@ -178,15 +178,34 @@ fi
 # --- 5. Mount EFS File System via Access Point --- #
 
 log "Starting EFS setup..."
-# We check for both IDs. The access point is useless without the file system.
+# We check for both IDs, as the access point is useless without the file system.
 if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
   log "EFS File System ID found: ${efs_file_system_id}"
   log "EFS Access Point ID found: ${efs_access_point_id}"
 
-  # Install EFS utilities if not already present (required for the 'accesspoint' mount option)
-  if ! command -v amazon-efs-utils >/dev/null 2>&1; then
-    log "Installing amazon-efs-utils..."
-    sudo apt-get install -y amazon-efs-utils
+  # Check if the EFS mount helper is already installed to make this script idempotent.
+  if ! command -v mount.efs >/dev/null 2>&1; then
+    log "Installing amazon-efs-utils from source..."
+
+    # Update package lists and install all dependencies required to build from source, including Rust's package manager 'cargo'.
+    sudo apt-get update -y
+    sudo apt-get install -y git binutils make automake autoconf libtool pkg-config libssl-dev cargo ca-certificates
+
+    # Clone the official aws/efs-utils repository from GitHub into a temporary directory.
+    git clone https://github.com/aws/efs-utils /tmp/efs-utils
+    cd /tmp/efs-utils
+
+    # Run the build script to compile the source code into a .deb package.
+    ./build-deb.sh
+
+    # Install the locally built .deb package.
+    sudo apt-get -y install ./build/amazon-efs-utils*deb
+
+    # Return to a known directory and clean up the temporary source files.
+    cd /
+    rm -rf /tmp/efs-utils
+
+    log "amazon-efs-utils installed successfully from source."
   fi
 
   # The mount point is already created in the initial part of the user_data script.

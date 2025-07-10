@@ -371,6 +371,13 @@ output "cloudfront_to_alb_secret_header_value" {
   sensitive   = true
 }
 
+# --- EFS Module Outputs --- #
+
+output "efs_security_group_id" {
+  description = "The ID of the security group for the EFS mount targets."
+  value       = module.efs.efs_security_group_id
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.

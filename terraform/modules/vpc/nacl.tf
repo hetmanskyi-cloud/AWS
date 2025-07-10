@@ -76,6 +76,18 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   rule_action    = "allow"
 }
 
+# Rule for inbound NFS traffic on port 2049 for EFS
+resource "aws_network_acl_rule" "public_inbound_nfs" {
+  network_acl_id = aws_network_acl.public_nacl.id
+  rule_number    = 140
+  egress         = false
+  protocol       = "tcp"
+  from_port      = 2049
+  to_port        = 2049
+  cidr_block     = var.vpc_cidr_block # Allow traffic only from within VPC
+  rule_action    = "allow"
+}
+
 # Optional: Allow ICMP (ping) for diagnostics
 # resource "aws_network_acl_rule" "public_inbound_icmp" {
 #   network_acl_id = aws_network_acl.public_nacl.id
