@@ -203,7 +203,10 @@ module "asg" {
   # 2. CloudFront Domain: If accessed via CloudFront (default mode).
   # 3. ALB Domain: As a fallback for direct ALB access (dev/test mode).
   public_site_url = var.create_dns_and_ssl ? "https://${var.custom_domain_name}" : (
-  var.alb_access_cloudfront_mode && length(module.cloudfront) > 0 ? "https://${module.cloudfront[0].cloudfront_distribution_domain_name}" : "http://${module.alb.alb_dns_name}")
+    var.wordpress_media_cloudfront_enabled && length(module.cloudfront) > 0 ?
+    "https://${module.cloudfront[0].cloudfront_distribution_domain_name}" :
+    "http://${module.alb.alb_dns_name}"
+  )
 
   # Script path for deployment
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
@@ -419,7 +422,7 @@ module "alb" {
 
   # CloudFront to ALB integration
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
-  alb_access_cloudfront_mode            = var.alb_access_cloudfront_mode
+  alb_access_cloudfront_mode            = var.wordpress_media_cloudfront_enabled
 
   depends_on = [module.vpc, aws_sns_topic.cloudwatch_alarms_topic]
 }

@@ -704,13 +704,6 @@ variable "alb_enable_deletion_protection" {
   default     = false
 }
 
-#
-variable "alb_access_cloudfront_mode" {
-  description = "If true, the ALB will only accept traffic from CloudFront IPs."
-  type        = bool
-  default     = false
-}
-
 # Enable or disable HTTPS Listener
 variable "enable_https_listener" {
   description = "Enable or disable the creation of the HTTPS Listener"
