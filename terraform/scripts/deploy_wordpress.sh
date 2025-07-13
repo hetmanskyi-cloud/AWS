@@ -317,20 +317,31 @@ fi
 
 log "Downloading and installing WordPress from GitHub..."
 
-# Remove any previous WordPress installation (if files exist)
+# Remove any previous WordPress installation, preserving the EFS mount point.
 log "Ensuring WordPress installation path $WP_PATH is empty..."
-# Use find to robustly delete all contents of the directory, EXCLUDING the EFS mount point for uploads
-find "$WP_PATH" -mindepth 1 ! -path "$WP_PATH/wp-content/uploads*" -delete
+find "$WP_PATH" -mindepth 1 -maxdepth 1 -not -name "wp-content" -exec rm -rf {} +
+find "$WP_PATH/wp-content" -mindepth 1 -not -path "$WP_PATH/wp-content/uploads" -exec rm -rf {} +
 
-# Define the branch or tag to clone (default: master if WP_VERSION is not set)
+# Define the branch or tag to clone and a temporary path for the operation.
 CLONE_TARGET="${WP_VERSION:-master}"
-log "Cloning WordPress repository (branch or tag): $CLONE_TARGET"
+TMP_CLONE_PATH="/tmp/wp-clone-$$" # $$ adds a unique process ID
 
-# Clone the WordPress repository into the target directory
-git clone --depth=1 --branch "$CLONE_TARGET" https://github.com/hetmanskyi-cloud/wordpress.git "$WP_PATH" || {
+log "Cloning WordPress repository (branch: $CLONE_TARGET) into temporary directory..."
+
+# Clone the repository into a temporary, empty directory.
+git clone --depth=1 --branch "$CLONE_TARGET" https://github.com/hetmanskyi-cloud/wordpress.git "$TMP_CLONE_PATH" || {
   log "ERROR: Failed to clone WordPress repository: $CLONE_TARGET"
   exit 1
 }
+
+log "Moving WordPress files from temporary directory to $WP_PATH"
+# Use rsync to move the files. It correctly merges the new code with the
+# existing wp-content directory without overwriting our 'uploads' mount.
+rsync -av "$TMP_CLONE_PATH/" "$WP_PATH/"
+
+# Clean up the temporary clone directory.
+log "Cleaning up temporary clone directory..."
+rm -rf "$TMP_CLONE_PATH"
 
 # Verify the clone was successful
 if [ ! -f "$WP_PATH/wp-config-sample.php" ] && [ ! -f "$WP_PATH/wp-load.php" ]; then
@@ -454,35 +465,31 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "${
 log "Setting cookie domain for reverse proxy..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set COOKIE_DOMAIN "" --path="$WP_PATH"
 
-# --- Conditionally Apply All HTTPS-Related Settings ---
-# This block is now controlled by the explicit ENABLE_HTTPS flag.
+# Always make WordPress proxy-aware
+log "Adding reverse proxy PHP snippet to wp-config.php..."
 
-# First, ensure the variable is loaded
-source /etc/environment
-
-if [ "${ENABLE_HTTPS}" = "true" ]; then
-  log "HTTPS is enabled: Applying FORCE_SSL_ADMIN and reverse proxy settings..."
-
-  # 1. Force SSL for the admin area
-  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
-
-  # 2. Add PHP snippet to wp-config.php to handle the X-Forwarded-Proto header
-  if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
-    log "Adding reverse proxy PHP snippet to wp-config.php..."
-
-    cat << 'EOF' | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+# This snippet is now added unconditionally to make WordPress always aware
+# of the X-Forwarded-Proto header from the ALB. This fixes redirect loops.
+# We also fix the typo from 'httpss' to 'https'.
+if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
+  cat << 'EOF' | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
 
 // Tell WordPress it is behind a reverse proxy for HTTPS
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     $_SERVER['HTTPS'] = 'on';
 }
 EOF
-
-  else
-    log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
-  fi
 else
-  log "HTTPS is disabled: Skipping all HTTPS-related settings."
+    log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
+fi
+
+# Conditionally force SSL for the admin area
+source /etc/environment
+if [ "${ENABLE_HTTPS}" = "true" ]; then
+  log "HTTPS is enabled: Forcing SSL for admin area..."
+  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
+else
+  log "HTTPS is disabled: Skipping FORCE_SSL_ADMIN."
 fi
 
 # 9.6. Final verifications and permissions
