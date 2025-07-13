@@ -3,12 +3,12 @@
 # Automates infrastructure management tasks for all environments (dev, stage, prod), as well as AMI preparation, testing, and deployment.
 #
 # Usage examples:
+#   make all                                     # Full pre-apply cycle: init -> format -> validate -> plan
 #   make init                                    # Initialize Terraform
 #   make plan ENV=prod                           # Preview changes for 'prod' environment
 #   make apply ENV=stage                         # Apply changes for 'stage' environment
 #   make debug                                   # Monitor WordPress installation via SSM
 #   make check                                   # Check for undeleted resources
-#   make all                                     # Full pre-apply cycle: init -> format -> validate -> plan
 #   make provision-ami ENV=dev                   # Provision and harden an instance for Golden AMI creation
 #   make test-ami ENV=dev                        # Run automated smoke tests against the provisioned instance
 #   make create-ami ENV=dev                      # Create a Golden AMI from the hardened, tested instance
@@ -35,7 +35,7 @@ $(error Please run make from the terraform/ directory)
 endif
 
 # --- Targets --- #
-.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools ami use-ami
+.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools provision-ami test-ami create-ami use-ami
 
 # Run full preparation cycle
 all: check-tools init format validate plan

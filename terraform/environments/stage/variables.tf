@@ -1102,6 +1102,12 @@ variable "enable_lambda_tracing" {
 
 # --- EFS Module Configuration --- #
 
+variable "enable_efs" {
+  description = "Controls whether the EFS module and its related resources are created. Set to 'false' to use EBS storage only."
+  type        = bool
+  default     = true
+}
+
 variable "enable_efs_lifecycle_policy" {
   description = "Enable or disable the EFS lifecycle policy for cost savings."
   type        = bool

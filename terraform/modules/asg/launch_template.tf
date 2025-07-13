@@ -54,10 +54,14 @@ locals {
       public_site_url        = var.public_site_url
       efs_file_system_id     = var.efs_file_system_id
       efs_access_point_id    = var.efs_access_point_id
+      enable_https           = var.enable_https_listener
 
       # Default deployment paths used in deploy_wordpress.sh
       WP_TMP_DIR = "/tmp/wordpress-setup"
       WP_PATH    = "/var/www/html"
+
+      # EFS paths used in deploy_wordpress.sh
+      EFS_UPLOADS_PATH = "/var/www/html/wp-content/uploads"
 
       # WordPress version tag used for the deployment
       # This is used to download the correct version of WordPress from GitHub
@@ -82,6 +86,8 @@ locals {
       WP_PATH                = "/var/www/html"
       efs_file_system_id     = var.efs_file_system_id
       efs_access_point_id    = var.efs_access_point_id
+      enable_https           = var.enable_https_listener
+      EFS_UPLOADS_PATH       = "/var/www/html/wp-content/uploads"
     }
   )
 }

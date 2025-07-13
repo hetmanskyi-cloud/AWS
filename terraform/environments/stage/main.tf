@@ -165,8 +165,8 @@ module "asg" {
   enable_ebs_encryption = var.enable_ebs_encryption
 
   # EFS configuration
-  efs_file_system_id  = module.efs.efs_id
-  efs_access_point_id = module.efs.efs_access_point_id
+  efs_file_system_id  = var.enable_efs ? module.efs[0].efs_id : ""
+  efs_access_point_id = var.enable_efs ? module.efs[0].efs_access_point_id : ""
 
   # Networking and security configurations
   public_subnet_ids              = module.vpc.public_subnets
@@ -724,6 +724,8 @@ module "lambda_images" {
 
 # Configures the Elastic File System (EFS) for shared storage across ASG instances.
 module "efs" {
+  count = var.enable_efs ? 1 : 0
+
   source = "../../modules/efs" # Path to the EFS module
 
   # General naming, tags and environment configuration

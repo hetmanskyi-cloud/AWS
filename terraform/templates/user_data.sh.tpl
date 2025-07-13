@@ -70,8 +70,9 @@ log "Exporting environment variables..."
   echo "AWS_LB_DNS=\"${wp_config.AWS_LB_DNS}\""
   echo "WP_VERSION=\"${wordpress_version}\""
 
-  # Export Public site URL
+  # Export Public site URL and enable HTTPS
   echo "PUBLIC_SITE_URL=\"${public_site_url}\""
+  echo "ENABLE_HTTPS=\"${enable_https}\""
 
   # Export other necessary environment variables
   echo "WP_SECRETS_NAME=\"${wordpress_secrets_name}\""
@@ -237,9 +238,22 @@ if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
   if ! command -v mount.efs >/dev/null 2>&1; then
     log "Installing amazon-efs-utils from source..."
 
-    # Install all dependencies required to build from source, including Rust and botocore.
+    # Update package lists and install all dependencies required to build from source.
     sudo apt-get update -y
-    sudo apt-get install -y git binutils make automake autoconf libtool pkg-config libssl-dev cargo ca-certificates python3-pip python3-botocore
+    sudo apt-get install -y \
+      git \
+      binutils \
+      make \
+      automake \
+      autoconf \
+      libtool \
+      pkg-config \
+      libssl-dev \
+      cargo \
+      ca-certificates \
+      python3-pip \
+      python3-botocore \
+      gettext
 
     # Clone the official aws/efs-utils repository from GitHub.
     git clone https://github.com/aws/efs-utils /tmp/efs-utils
@@ -263,12 +277,16 @@ if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
     log "amazon-efs-utils already installed."
   fi
 
-  # The mount point is already created in the initial part of the user_data script.
-  log "Ensuring mount point ${WP_PATH} is ready."
+  # NEW LOGIC: Define and create the specific mount point for uploads.
+  # The base WP_PATH /var/www/html is on the local EBS disk.
+  export EFS_UPLOADS_PATH="$WP_PATH/wp-content/uploads"
+  log "Ensuring EFS mount point ${EFS_UPLOADS_PATH} exists..."
+  sudo mkdir -p "$EFS_UPLOADS_PATH"
+  log "Mount point created."
 
-  # Define the entry for /etc/fstab. NOTE: The ':/' is REMOVED from the source
-  # as it's not used when mounting with an access point.
-  EFS_FSTAB_ENTRY="${efs_file_system_id} ${WP_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
+  # Define the entry for /etc/fstab.
+  # We now mount to the specific uploads directory.
+  EFS_FSTAB_ENTRY="${efs_file_system_id} ${EFS_UPLOADS_PATH} efs _netdev,tls,accesspoint=${efs_access_point_id} 0 0"
 
   # Add the mount entry to fstab only if it doesn't already exist.
   if ! grep -qF -- "$EFS_FSTAB_ENTRY" /etc/fstab; then
@@ -283,12 +301,13 @@ if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
   sudo mount -a -t efs
 
   # Verify that EFS is mounted correctly and set permissions on the mount point directory.
-  if mount | grep -q "${WP_PATH}"; then
-    log "EFS successfully mounted to ${WP_PATH} via Access Point."
-    sudo chown www-data:www-data "${WP_PATH}"
-    sudo chmod 775 "${WP_PATH}"
+  if mount | grep -q "${EFS_UPLOADS_PATH}"; then
+    log "EFS successfully mounted to ${EFS_UPLOADS_PATH} via Access Point."
+    # Set permissions on the mount point AFTER it's mounted.
+    sudo chown www-data:www-data "${EFS_UPLOADS_PATH}"
+    sudo chmod 775 "${EFS_UPLOADS_PATH}"
   else
-    log "ERROR: Failed to mount EFS to ${WP_PATH}."
+    log "ERROR: Failed to mount EFS to ${EFS_UPLOADS_PATH}."
     exit 1
   fi
 else

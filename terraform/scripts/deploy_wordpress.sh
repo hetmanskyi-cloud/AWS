@@ -13,13 +13,25 @@ log() {
 }
 
 # --- 1. Determine Site URL --- #
-# Set the WordPress site URL based on whether CloudFront is enabled.
-# If PUBLIC_SITE_URL (from CloudFront) is set, use it. Otherwise, fall back to the ALB's DNS name.
+
+# --- PRODUCTION Configuration (Domain + HTTPS) --- #
+# Uncomment this block and comment out the test block below when switching to HTTPS.
+# if [ -n "${PUBLIC_SITE_URL}" ]; then
+#   # PUBLIC_SITE_URL (CloudFront) should already include https://
+#   SITE_URL="${PUBLIC_SITE_URL}"
+#   log "CloudFront is enabled. Setting site URL to: ${SITE_URL}"
+# else
+#   # The user always connects to the ALB via https
+#   SITE_URL="https://{$AWS_LB_DNS}"
+#   log "CloudFront is disabled. Setting site URL to ALB: ${SITE_URL}"
+# fi
+
+# --- TESTING Configuration (current, via HTTP) --- #
+# This block is currently active. Comment it out and uncomment the production block above when switching to HTTPS.
 if [ -n "${PUBLIC_SITE_URL}" ]; then
   SITE_URL="${PUBLIC_SITE_URL}"
   log "CloudFront is enabled. Setting site URL to: ${SITE_URL}"
 else
-  # Use http for direct ALB access, as HTTPS is not guaranteed.
   SITE_URL="http://${AWS_LB_DNS}"
   log "CloudFront is disabled. Setting site URL to ALB: ${SITE_URL}"
 fi
@@ -145,9 +157,10 @@ echo "REDIS_AUTH_TOKEN=\"$REDIS_AUTH_TOKEN\"" | sudo tee -a /etc/environment
 
 log "All secrets successfully retrieved and exported."
 
-# --- 5. Install WordPress dependencies (Nginx, PHP, MySQL client, etc.) --- #
+# --- 5. Install Dependencies and Configure PHP Environment --- #
 
-log "Installing WordPress dependencies..."
+# 5.1. Install all required system packages
+log "Installing WordPress and system dependencies..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   nginx \
   php${PHP_VERSION}-fpm \
@@ -160,9 +173,55 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   php${PHP_VERSION}-gd \
   mysql-client \
   redis-tools \
-  composer
+  composer \
+  ca-certificates \
+  gettext \
+  python3-botocore
 
 log "WordPress dependencies installed successfully."
+
+# 5.2. Force update of CA certificates
+log "Forcibly updating CA certificates for SSL/TLS connections..."
+sudo update-ca-certificates --fresh
+log "CA certificates updated."
+
+# 5.3. Configure PHP to find system CA certificates for both FPM and CLI
+log "Configuring PHP to use system CA bundle for SSL..."
+
+# Find and patch the FPM php.ini
+PHP_FPM_INI_FILE=$(php-fpm${PHP_VERSION} -i 2>/dev/null | grep "Loaded Configuration File" | awk '{print $NF}')
+if [ -n "$PHP_FPM_INI_FILE" ]; then
+  sudo sed -i 's,^;openssl.cafile=,openssl.cafile=/etc/ssl/certs/ca-certificates.crt,' "$PHP_FPM_INI_FILE"
+  log "Set openssl.cafile in FPM config: $PHP_FPM_INI_FILE"
+else
+  log "WARNING: Could not find loaded php.ini file for FPM!"
+fi
+
+# Find and patch the CLI php.ini
+PHP_CLI_INI_FILE=$(php${PHP_VERSION} -i 2>/dev/null | grep "Loaded Configuration File" | awk '{print $NF}')
+if [ -n "$PHP_CLI_INI_FILE" ]; then
+  sudo sed -i 's,^;openssl.cafile=,openssl.cafile=/etc/ssl/certs/ca-certificates.crt,' "$PHP_CLI_INI_FILE"
+  log "Set openssl.cafile in CLI config: $PHP_CLI_INI_FILE"
+else
+  log "WARNING: Could not find loaded php.ini file for CLI!"
+fi
+
+# 5.4. Configure PHP to use Redis for session handling
+log "Configuring PHP to use Redis for sessions over TLS and enhance security..."
+PHP_INI_PATH="/etc/php/${PHP_VERSION}/fpm/conf.d/99-redis-session.ini"
+cat << EOF | sudo tee $PHP_INI_PATH
+session.save_handler = redis
+session.save_path = "tls://${REDIS_HOST}:${REDIS_PORT}?auth=${REDIS_AUTH_TOKEN}"
+session.cookie_httponly = 1
+# session.cookie_secure = 1 # Uncomment for production with HTTPS
+EOF
+log "PHP session config created at $PHP_INI_PATH."
+
+# 5.5. Set secure permissions for PHP session directory
+log "Securing PHP session directory..."
+sudo chown root:www-data /var/lib/php/sessions
+sudo chmod 1733 /var/lib/php/sessions
+log "PHP session directory permissions set."
 
 # --- 6. Configure Nginx --- #
 
@@ -208,7 +267,7 @@ server {
 
     # Main location block to serve WordPress
     location / {
-        try_files \$uri \$uri/ /index.php?\$args;
+        try_files \$uri /index.php?\$args;
     }
 
     # PHP processing block
@@ -259,14 +318,9 @@ fi
 log "Downloading and installing WordPress from GitHub..."
 
 # Remove any previous WordPress installation (if files exist)
-log "Removing old WordPress installation in $WP_PATH..."
-if [ "$(ls -A $WP_PATH)" ]; then
-  log "Removing old WordPress files from $WP_PATH..."
-  rm -rf "$WP_PATH"/* # Remove all files if they exist
-else
-  log "$WP_PATH is empty or does not exist. Creating directory..."
-  mkdir -p "$WP_PATH"
-fi
+log "Ensuring WordPress installation path $WP_PATH is empty..."
+# Use find to robustly delete all contents of the directory, including hidden files, without deleting the directory itself
+find "$WP_PATH" -mindepth 1 -delete
 
 # Define the branch or tag to clone (default: master if WP_VERSION is not set)
 CLONE_TARGET="${WP_VERSION:-master}"
@@ -298,7 +352,7 @@ log "WordPress installation completed successfully!"
 # Install Predis library for Redis TLS support
 log "Installing Predis library for TLS support with Redis..."
 COMPOSER_WORKING_DIR="$WP_PATH"
-sudo -u www-data composer require --working-dir="$COMPOSER_WORKING_DIR" predis/predis
+sudo -u www-data HOME="$WP_TMP_DIR" composer require --working-dir="$COMPOSER_WORKING_DIR" predis/predis
 if [ $? -ne 0 ]; then
   log "ERROR: Failed to install Predis library."
   exit 1
@@ -389,29 +443,46 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# --- 9.5. Set site URLs and Reverse Proxy settings --- #
-log "Setting WordPress public URL to: ${PUBLIC_SITE_URL}"
+# --- 9.5. Set site URLs and Apply HTTPS Settings --- #
+log "Setting WordPress public URL to: ${SITE_URL}"
 
-# Apply the canonical URL to the WordPress configuration.
+# Set the site URL and home URL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "${SITE_URL}" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "${SITE_URL}" --path="$WP_PATH"
 
-# Apply additional HTTPS-related settings.
-log "Enforcing SSL and configuring reverse proxy settings..."
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
+# Help WordPress handle cookies correctly behind a reverse proxy
+log "Setting cookie domain for reverse proxy..."
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set COOKIE_DOMAIN "" --path="$WP_PATH"
 
-# Add reverse proxy snippet to wp-config.php if it's not already there.
-if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
-    log "Adding reverse proxy settings to wp-config.php..."
-    # This snippet is crucial for WordPress to correctly identify the protocol (https)
-    # when traffic is proxied through the ALB and CloudFront.
-    echo "" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
-    echo "// Tell WordPress it is behind a reverse proxy." | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
-    echo "if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
-    echo "    \$_SERVER['HTTPS'] = 'on';" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
-    echo "}" | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+# --- Conditionally Apply All HTTPS-Related Settings ---
+# This block is now controlled by the explicit ENABLE_HTTPS flag.
+
+# First, ensure the variable is loaded
+source /etc/environment
+
+if [ "${ENABLE_HTTPS}" = "true" ]; then
+  log "HTTPS is enabled: Applying FORCE_SSL_ADMIN and reverse proxy settings..."
+
+  # 1. Force SSL for the admin area
+  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
+
+  # 2. Add PHP snippet to wp-config.php to handle the X-Forwarded-Proto header
+  if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
+    log "Adding reverse proxy PHP snippet to wp-config.php..."
+
+    cat << 'EOF' | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+
+// Tell WordPress it is behind a reverse proxy for HTTPS
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+}
+EOF
+
+  else
+    log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
+  fi
 else
-    log "Reverse proxy settings already exist in wp-config.php."
+  log "HTTPS is disabled: Skipping all HTTPS-related settings."
 fi
 
 # 9.6. Final verifications and permissions
@@ -470,14 +541,6 @@ if ! sudo -u www-data test -w "$WP_PATH/wp-content"; then
   chown -R www-data:www-data "$WP_PATH/wp-content"
   chmod -R 755 "$WP_PATH/wp-content"
   log "Permissions updated."
-fi
-
-# Ensure uploads directory exists with proper permissions
-if [ ! -d "$WP_PATH/wp-content/uploads" ]; then
-  log "Creating uploads directory..."
-  mkdir -p "$WP_PATH/wp-content/uploads"
-  chown www-data:www-data "$WP_PATH/wp-content/uploads"
-  chmod 755 "$WP_PATH/wp-content/uploads"
 fi
 
 # Test database SSL connection using PHP (mysqli)
@@ -559,19 +622,15 @@ else
   fi
 fi
 
-# --- 11. Configure and enable Redis Object Cache --- #
+# --- 11. Activate Pre-installed Plugins --- #
 
-log "Setting up Redis Object Cache..."
+log "Activating plugins included in the Git repository..."
 
-# Basic connectivity check (optional but useful)
-if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
-  log "WARNING: Redis server is not reachable at ${REDIS_HOST}:${REDIS_PORT}"
-fi
+# Activate each plugin that is now present from the git clone
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin activate redis-cache --path="$WP_PATH"
+sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin activate wordfence --path="$WP_PATH"
 
-# Install and activate Redis Object Cache plugin
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" plugin install redis-cache --activate --path="$WP_PATH"
-
-# Enable Redis caching
+# The Redis Object Cache plugin requires a special command to be enabled after activation.
 if sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" redis enable --path="$WP_PATH"; then
   log "Redis Object Cache enabled successfully."
 else

@@ -375,7 +375,7 @@ output "cloudfront_to_alb_secret_header_value" {
 
 output "efs_security_group_id" {
   description = "The ID of the security group for the EFS mount targets."
-  value       = module.efs.efs_security_group_id
+  value       = var.enable_efs ? module.efs[0].efs_security_group_id : ""
 }
 
 # --- Notes --- #
