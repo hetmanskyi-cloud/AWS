@@ -454,7 +454,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# --- 9.5. Set site URLs and Apply HTTPS Settings --- #
+# 9.5. Set site URLs and Apply HTTPS Settings
 log "Setting WordPress public URL to: ${SITE_URL}"
 
 # Set the site URL and home URL
@@ -468,28 +468,34 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set COOKIE_DOMA
 # Always make WordPress proxy-aware
 log "Adding reverse proxy PHP snippet to wp-config.php..."
 
-# This snippet is now added unconditionally to make WordPress always aware
-# of the X-Forwarded-Proto header from the ALB. This fixes redirect loops.
-# We also fix the typo from 'httpss' to 'https'.
+# Check if the snippet already exists to ensure idempotency.
 if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
-  cat << 'EOF' | sudo -u www-data tee -a "$WP_PATH/wp-config.php" > /dev/null
+    # Define the PHP snippet to handle X-Forwarded-Proto.
+    PROXY_SNIPPET=$(cat << 'EOF'
 
-// Tell WordPress it is behind a reverse proxy for HTTPS
+// Tell WordPress it is behind a reverse proxy for HTTPS (Inserted by deploy script)
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     $_SERVER['HTTPS'] = 'on';
 }
+
 EOF
+)
+    # Use sed to insert the snippet BEFORE the "stop editing" line.
+    # This ensures it runs before wp-settings.php is loaded.
+    sudo sed -i "/\/\* That's all, stop editing! Happy publishing. \*\//i $PROXY_SNIPPET" "$WP_PATH/wp-config.php"
+    log "Reverse proxy snippet inserted correctly."
 else
     log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
 fi
 
 # Conditionally force SSL for the admin area
+# This setting only works correctly if the proxy-aware snippet above is in place.
 source /etc/environment
 if [ "${ENABLE_HTTPS}" = "true" ]; then
-  log "HTTPS is enabled: Forcing SSL for admin area..."
-  sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
+    log "HTTPS is enabled: Forcing SSL for admin area..."
+    sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set FORCE_SSL_ADMIN "true" --raw --path="$WP_PATH"
 else
-  log "HTTPS is disabled: Skipping FORCE_SSL_ADMIN."
+    log "HTTPS is disabled: Skipping FORCE_SSL_ADMIN."
 fi
 
 # 9.6. Final verifications and permissions
