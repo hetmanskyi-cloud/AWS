@@ -319,8 +319,8 @@ log "Downloading and installing WordPress from GitHub..."
 
 # Remove any previous WordPress installation (if files exist)
 log "Ensuring WordPress installation path $WP_PATH is empty..."
-# Use find to robustly delete all contents of the directory, including hidden files, without deleting the directory itself
-find "$WP_PATH" -mindepth 1 -delete
+# Use find to robustly delete all contents of the directory, EXCLUDING the EFS mount point for uploads
+find "$WP_PATH" -mindepth 1 ! -path "$WP_PATH/wp-content/uploads*" -delete
 
 # Define the branch or tag to clone (default: master if WP_VERSION is not set)
 CLONE_TARGET="${WP_VERSION:-master}"
