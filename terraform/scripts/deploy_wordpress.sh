@@ -211,7 +211,7 @@ log "Configuring PHP to use Redis for sessions over TLS and enhance security..."
 PHP_INI_PATH="/etc/php/${PHP_VERSION}/fpm/conf.d/99-redis-session.ini"
 cat << EOF | sudo tee $PHP_INI_PATH
 session.save_handler = redis
-session.save_path = "tls://${REDIS_HOST}:${REDIS_PORT}?auth=${REDIS_AUTH_TOKEN}"
+session.save_path = "tls://${REDIS_HOST}:${REDIS_PORT}?auth=${REDIS_AUTH_TOKEN}&ssl[verify_peer]=0"
 session.cookie_httponly = 1
 # session.cookie_secure = 1 # Uncomment for production with HTTPS
 EOF
@@ -454,7 +454,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# 9.5. Set site URLs and Apply HTTPS Settings
+# --- 9.5. Set site URLs and Apply HTTPS Settings --- #
 log "Setting WordPress public URL to: ${SITE_URL}"
 
 # Set the site URL and home URL
@@ -470,8 +470,12 @@ log "Adding reverse proxy PHP snippet to wp-config.php..."
 
 # Check if the snippet already exists to ensure idempotency.
 if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
-    # Define the PHP snippet to handle X-Forwarded-Proto.
-    PROXY_SNIPPET=$(cat << 'EOF'
+    # Define the line pattern we want to insert our snippet BEFORE
+    TARGET_LINE_PATTERN="^\/\* That's all, stop editing! Happy publishing. \*\/"
+
+    # Create a temporary file with the snippet
+    SNIPPET_FILE="/tmp/proxy-snippet.txt"
+    cat << 'EOF' | sudo tee "$SNIPPET_FILE" > /dev/null
 
 // Tell WordPress it is behind a reverse proxy for HTTPS (Inserted by deploy script)
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
@@ -479,10 +483,24 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 }
 
 EOF
-)
-    # Use sed to insert the snippet BEFORE the "stop editing" line.
-    # This ensures it runs before wp-settings.php is loaded.
-    sudo sed -i "/\/\* That's all, stop editing! Happy publishing. \*\//i $PROXY_SNIPPET" "$WP_PATH/wp-config.php"
+
+    # Create a new temporary config file
+    TMP_CONFIG="/tmp/wp-config.tmp"
+
+    # Use a robust combination of sed and cat to insert the snippet
+    # 1. Get all lines BEFORE the target line and write to a new temp config
+    sudo sed "/${TARGET_LINE_PATTERN}/Q" "$WP_PATH/wp-config.php" > "$TMP_CONFIG"
+    # 2. Append our snippet from its file to the new temp config
+    sudo cat "$SNIPPET_FILE" >> "$TMP_CONFIG"
+    # 3. Append the target line and everything AFTER it to the new temp config
+    sudo sed -n "/${TARGET_LINE_PATTERN}/,\$p" "$WP_PATH/wp-config.php" >> "$TMP_CONFIG"
+
+    # 4. Replace the original config with the new, correct one
+    sudo mv "$TMP_CONFIG" "$WP_PATH/wp-config.php"
+
+    # 5. Clean up temporary file
+    sudo rm "$SNIPPET_FILE"
+
     log "Reverse proxy snippet inserted correctly."
 else
     log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
