@@ -227,7 +227,7 @@ if [ -n "${efs_file_system_id}" ] && [ -n "${efs_access_point_id}" ]; then
     log "amazon-efs-utils already installed."
   fi
 
-  # NEW LOGIC: Define and create the specific mount point for uploads.
+  # Define and create the specific mount point for uploads.
   # The base WP_PATH /var/www/html is on the local EBS disk.
   export EFS_UPLOADS_PATH="$WP_PATH/wp-content/uploads"
   log "Ensuring EFS mount point ${EFS_UPLOADS_PATH} exists..."

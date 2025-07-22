@@ -1,0 +1,39 @@
+# This file is managed by Ansible. Do not edit manually.
+server {
+    listen 80;
+    listen [::]:80;
+
+    # The root directory for the WordPress installation.
+    root {{ wp_path }};
+    index index.php index.html index.htm;
+
+    server_name _;
+
+    # Pass the real client IP from the ALB to the logs.
+    set_real_ip_from 0.0.0.0/0;
+    real_ip_header X-Forwarded-For;
+
+    # Detect if the connection from the ALB is HTTPS.
+    set $forwarded_https off;
+    if ($http_x_forwarded_proto = "https") {
+        set $forwarded_https on;
+    }
+
+    # Main location block to handle permalinks.
+    location / {
+        try_files $uri /index.php?$args;
+    }
+
+    # Pass PHP scripts to FastCGI server (PHP-FPM).
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:{{ php_fpm_socket }};
+        fastcgi_param HTTPS $forwarded_https;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+
+    # Deny access to hidden files like .htaccess.
+    location ~ /\.ht {
+        deny all;
+    }
+}
