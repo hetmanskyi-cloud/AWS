@@ -211,6 +211,9 @@ module "asg" {
   # Script path for deployment
   deploy_script_path = "${path.root}/../../scripts/deploy_wordpress.sh"
 
+  # Pass the deployment toggle to the ASG module
+  use_ansible_deployment = var.use_ansible_deployment
+
   # Secrets Configuration
   wordpress_secrets_name = aws_secretsmanager_secret.wp_secrets.name
   wordpress_secrets_arn  = aws_secretsmanager_secret.wp_secrets.arn

@@ -33,62 +33,88 @@ locals {
   # Local deployment script content used for uploading to S3
   script_content = var.environment == "dev" ? file(var.deploy_script_path) : ""
 
-  # Render user_data: select template by environment.
-  # - In 'dev', installs WordPress and all dependencies from scratch.
-  # If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
-  rendered_user_data = var.environment == "dev" ? templatefile(
-    "${path.module}/../../templates/user_data.sh.tpl",
-    {
-      wp_config              = local.wp_config
-      aws_region             = var.aws_region
-      wordpress_script_path  = local.wordpress_script_path
-      script_content         = local.script_content
-      retry_max_retries      = local.retry_config.MAX_RETRIES
-      retry_retry_interval   = local.retry_config.RETRY_INTERVAL
-      healthcheck_s3_path    = local.healthcheck_s3_path
-      wordpress_secrets_name = var.wordpress_secrets_name
-      rds_secrets_name       = var.rds_secrets_name
-      redis_auth_secret_name = var.redis_auth_secret_name
-      enable_cloudwatch_logs = var.enable_cloudwatch_logs
-      cloudwatch_log_groups  = var.cloudwatch_log_groups
-      public_site_url        = var.public_site_url
-      efs_file_system_id     = var.efs_file_system_id
-      efs_access_point_id    = var.efs_access_point_id
-      enable_https           = var.enable_https_listener
+  # User Data Rendering Logic
+  # This block selects the correct user_data template based on the environment and deployment method.
+  rendered_user_data = (
+    # 1. First, check if the environment is 'dev'.
+    var.environment == "dev" ? (
+      # 2. If it IS 'dev', check the 'use_ansible_deployment' flag to decide which method to use.
+      var.use_ansible_deployment ? templatefile(
+        # Use the bootstrapper for Ansible.
+        "${path.module}/../../templates/user_data_ansible.sh.tpl",
+        {
+          # Variables required by the Ansible bootstrapper
+          aws_region             = var.aws_region
+          wp_config              = jsonencode(local.wp_config)
+          wordpress_version      = var.wordpress_version
+          public_site_url        = var.public_site_url
+          enable_https           = var.enable_https_listener
+          scripts_bucket_name    = var.scripts_bucket_name
+          efs_file_system_id     = var.efs_file_system_id
+          efs_access_point_id    = var.efs_access_point_id
+          wordpress_secrets_name = var.wordpress_secrets_name
+          rds_secrets_name       = var.rds_secrets_name
+          redis_auth_secret_name = var.redis_auth_secret_name
+          enable_cloudwatch_logs = var.enable_cloudwatch_logs
+          cloudwatch_log_groups  = jsonencode(var.cloudwatch_log_groups)
+        }
+        ) : templatefile(
+        # Use the original user_data script that calls deploy_wordpress.sh.
+        "${path.module}/../../templates/user_data.sh.tpl",
+        {
+          wp_config              = local.wp_config
+          aws_region             = var.aws_region
+          wordpress_script_path  = local.wordpress_script_path
+          script_content         = local.script_content
+          retry_max_retries      = local.retry_config.MAX_RETRIES
+          retry_retry_interval   = local.retry_config.RETRY_INTERVAL
+          healthcheck_s3_path    = local.healthcheck_s3_path
+          wordpress_secrets_name = var.wordpress_secrets_name
+          rds_secrets_name       = var.rds_secrets_name
+          redis_auth_secret_name = var.redis_auth_secret_name
+          enable_cloudwatch_logs = var.enable_cloudwatch_logs
+          cloudwatch_log_groups  = var.cloudwatch_log_groups
+          public_site_url        = var.public_site_url
+          efs_file_system_id     = var.efs_file_system_id
+          efs_access_point_id    = var.efs_access_point_id
+          enable_https           = var.enable_https_listener
 
-      # Default deployment paths used in deploy_wordpress.sh
-      WP_TMP_DIR = "/tmp/wordpress-setup"
-      WP_PATH    = "/var/www/html"
+          # Default deployment paths used in deploy_wordpress.sh
+          WP_TMP_DIR = "/tmp/wordpress-setup"
+          WP_PATH    = "/var/www/html"
 
-      # EFS paths used in deploy_wordpress.sh
-      EFS_UPLOADS_PATH = "/var/www/html/wp-content/uploads"
+          # EFS paths used in deploy_wordpress.sh
+          EFS_UPLOADS_PATH = "/var/www/html/wp-content/uploads"
 
-      # WordPress version tag used for the deployment
-      # This is used to download the correct version of WordPress from GitHub
-      wordpress_version = var.wordpress_version
-    }
-    # If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
-    ) : templatefile(
-    "${path.module}/../../templates/user_data_runtime.sh.tpl",
-    {
-      # Runtime config for stage/prod; installation is not performed.
-      wp_config              = local.wp_config
-      aws_region             = var.aws_region
-      retry_max_retries      = local.retry_config.MAX_RETRIES
-      retry_retry_interval   = local.retry_config.RETRY_INTERVAL
-      wordpress_secrets_name = var.wordpress_secrets_name
-      rds_secrets_name       = var.rds_secrets_name
-      redis_auth_secret_name = var.redis_auth_secret_name
-      enable_cloudwatch_logs = var.enable_cloudwatch_logs
-      cloudwatch_log_groups  = var.cloudwatch_log_groups
-      public_site_url        = var.public_site_url
-      wordpress_version      = var.wordpress_version
-      WP_PATH                = "/var/www/html"
-      efs_file_system_id     = var.efs_file_system_id
-      efs_access_point_id    = var.efs_access_point_id
-      enable_https           = var.enable_https_listener
-      EFS_UPLOADS_PATH       = "/var/www/html/wp-content/uploads"
-    }
+          # WordPress version tag used for the deployment
+          wordpress_version = var.wordpress_version
+        }
+      )
+      ) : (
+      # 3. If the environment is not 'dev', use a `user_data_runtime.sh.tpl` script
+      templatefile(
+        "${path.module}/../../templates/user_data_runtime.sh.tpl",
+        {
+          # Runtime config for stage/prod; installation is not performed.
+          wp_config              = local.wp_config
+          aws_region             = var.aws_region
+          retry_max_retries      = local.retry_config.MAX_RETRIES
+          retry_retry_interval   = local.retry_config.RETRY_INTERVAL
+          wordpress_secrets_name = var.wordpress_secrets_name
+          rds_secrets_name       = var.rds_secrets_name
+          redis_auth_secret_name = var.redis_auth_secret_name
+          enable_cloudwatch_logs = var.enable_cloudwatch_logs
+          cloudwatch_log_groups  = var.cloudwatch_log_groups
+          public_site_url        = var.public_site_url
+          wordpress_version      = var.wordpress_version
+          WP_PATH                = "/var/www/html"
+          efs_file_system_id     = var.efs_file_system_id
+          efs_access_point_id    = var.efs_access_point_id
+          enable_https           = var.enable_https_listener
+          EFS_UPLOADS_PATH       = "/var/www/html/wp-content/uploads"
+        }
+      )
+    )
   )
 }
 

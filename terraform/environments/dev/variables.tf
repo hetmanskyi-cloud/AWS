@@ -370,6 +370,13 @@ variable "wordpress_version" {
   type        = string
 }
 
+# Ansible Deployment Method
+variable "use_ansible_deployment" {
+  description = "Controls the deployment method for the 'dev' environment."
+  type        = bool
+  default     = true
+}
+
 # --- RDS Module Configuration --- #
 
 # Storage size in GB for the RDS instance

@@ -432,6 +432,13 @@ variable "deploy_script_path" {
   description = "Path to the WordPress deployment script"
 }
 
+# Ansible Deployment Method
+variable "use_ansible_deployment" {
+  description = "Controls the deployment method for the 'dev' environment."
+  type        = bool
+  default     = true
+}
+
 # --- EFS Configuration --- #
 
 variable "efs_file_system_id" {

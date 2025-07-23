@@ -30,9 +30,10 @@
         state: started
       tags: [redis-wait]
 
-    - name: Install system packages
+    - name: Install all system and build packages
       apt:
         name:
+          # Web stack
           - nginx
           - "php{{ php_version }}-fpm"
           - "php{{ php_version }}-mysql"
@@ -42,20 +43,148 @@
           - "php{{ php_version }}-curl"
           - "php{{ php_version }}-zip"
           - "php{{ php_version }}-gd"
+          - composer
+          # Client tools
           - mysql-client
           - redis-tools
-          - composer
+          - netcat-openbsd
+          # Build dependencies for efs-utils
+          - git
+          - binutils
+          - make
+          - automake
+          - autoconf
+          - libtool
+          - pkg-config
+          - libssl-dev
+          - cargo
+          # Helper utilities
           - ca-certificates
           - gettext
           - python3-botocore
           - python3-boto3
           - jq
-          - netcat-openbsd
         state: present
         update_cache: yes
       tags: [packages]
 
-    # --- 2. PHP AND REDIS CONFIGURATION --- #
+    # --- 2. EFS CLIENT INSTALLATION AND CONFIGURATION --- #
+
+    - name: Clone efs-utils repository from GitHub
+      git:
+        repo: https://github.com/aws/efs-utils
+        dest: /tmp/efs-utils
+        version: v1.34.1 # Pin to a specific version for stability
+      tags: [efs, install]
+
+    - name: Build efs-utils .deb package
+      command: ./build-deb.sh
+      args:
+        chdir: /tmp/efs-utils
+      environment:
+        PIP_BREAK_SYSTEM_PACKAGES: "1"
+      tags: [efs, install]
+
+    - name: Install amazon-efs-utils from built package
+      apt:
+        deb: /tmp/efs-utils/build/amazon-efs-utils*deb
+      tags: [efs, install]
+
+    - name: Clean up efs-utils build directory
+      file:
+        path: /tmp/efs-utils
+        state: absent
+      tags: [efs, cleanup]
+
+    - name: Ensure EFS mount point exists
+      file:
+        path: "{{ wp_path }}/wp-content/uploads"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0775'
+      tags: [efs, config]
+
+    - name: Configure EFS mount in /etc/fstab
+      mount:
+        path: "{{ wp_path }}/wp-content/uploads"
+        src: "{{ efs_file_system_id }}:/"
+        fstype: efs
+        opts: "_netdev,tls,accesspoint={{ efs_access_point_id }}"
+        state: present
+      tags: [efs, config]
+
+    # --- 3. CLOUDWATCH AGENT CONFIGURATION --- #
+
+    - name: Install CloudWatch Agent
+      apt:
+        deb: https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+      when: enable_cloudwatch_logs | bool
+      tags: [monitoring, cloudwatch]
+
+    - name: Create CloudWatch Agent configuration file
+      copy:
+        dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+        content: |
+          {
+            "logs": {
+              "logs_collected": {
+                "files": {
+                  "collect_list": [
+                    {
+                      "file_path": "/var/log/user-data.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.user_data }}",
+                      "log_stream_name": "{instance_id}"
+                    },
+                    {
+                      "file_path": "/var/log/ansible_playbook.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.user_data }}",
+                      "log_stream_name": "{instance_id}-ansible"
+                    },
+                    {
+                      "file_path": "/var/log/syslog",
+                      "log_group_name": "{{ cloudwatch_log_groups.system }}",
+                      "log_stream_name": "{instance_id}"
+                    },
+                    {
+                      "file_path": "/var/log/nginx/access.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.nginx }}",
+                      "log_stream_name": "{instance_id}-access"
+                    },
+                    {
+                      "file_path": "/var/log/nginx/error.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.nginx }}",
+                      "log_stream_name": "{instance_id}-error"
+                    },
+                    {
+                      "file_path": "/var/log/php{{ php_version }}-fpm.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.php_fpm }}",
+                      "log_stream_name": "{instance_id}"
+                    },
+                    {
+                      "file_path": "/var/log/wordpress.log",
+                      "log_group_name": "{{ cloudwatch_log_groups.wordpress }}",
+                      "log_stream_name": "{instance_id}"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        mode: '0644'
+      when: enable_cloudwatch_logs | bool
+      notify: Restart CloudWatch Agent
+      tags: [monitoring, cloudwatch]
+
+    - name: Start and enable the CloudWatch Agent service
+      service:
+        name: amazon-cloudwatch-agent
+        state: started
+        enabled: yes
+      when: enable_cloudwatch_logs | bool
+      tags: [monitoring, cloudwatch]
+
+    # --- 4. PHP AND REDIS CONFIGURATION --- #
 
     - name: Download Amazon RDS global SSL certificate bundle
       get_url:
@@ -100,7 +229,7 @@
       notify: Restart PHP-FPM
       tags: [php, config, redis]
 
-    # --- 3. NGINX CONFIGURATION --- #
+    # --- 5. NGINX CONFIGURATION --- #
 
     - name: Create Nginx virtual host configuration from template
       template:
@@ -113,7 +242,7 @@
       notify: Restart Nginx
       tags: [nginx, config]
 
-    - name: Enable WordPress site and disable default
+    - name: Enable WordPress site
       file:
         src: /etc/nginx/sites-available/wordpress
         dest: /etc/nginx/sites-enabled/wordpress
@@ -139,7 +268,7 @@
       notify: Restart Nginx
       tags: [nginx, config, optimization]
 
-    # --- 4. WORDPRESS CORE AND WP-CLI INSTALLATION --- #
+    # --- 6. WORDPRESS CORE AND WP-CLI INSTALLATION --- #
 
     - name: Clone WordPress from Git repository
       git:
@@ -207,7 +336,7 @@
         mode: '0755'
       tags: [wordpress, wp-cli]
 
-    # --- 5. WORDPRESS CONFIGURATION AND INSTALLATION --- #
+    # --- 7. WORDPRESS CONFIGURATION AND INSTALLATION --- #
 
     - name: Verify DB connection with SSL via mysql client
       command: >-
@@ -215,7 +344,7 @@
         --ssl-ca="/etc/ssl/certs/rds-combined-ca-bundle.pem"
         -e "USE {{ db_name }};"
       changed_when: false
-      no_log: true # Prevents secrets from being logged
+      no_log: true
       tags: [wordpress, db-check]
 
     - name: Verify DB connection with SSL via PHP mysqli
@@ -264,7 +393,7 @@
         - { key: 'WP_DEBUG_LOG', value: '/var/log/wordpress.log' }
         - { key: 'WP_DEBUG_DISPLAY', value: 'false', raw: '--raw' }
       become_user: www-data
-      no_log: true # Hides secrets in loop from logs
+      no_log: true
       tags: [wordpress, config, wp-cli]
 
     - name: Conditionally force SSL for admin area
@@ -327,7 +456,7 @@
       no_log: true
       tags: [wordpress, config]
 
-    # --- 6. POST-INSTALL HEALTHCHECK AND LOGS --- #
+    # --- 8. POST-INSTALL HEALTHCHECK AND LOGS --- #
 
     - name: Create WordPress debug log file
       file:
@@ -361,7 +490,7 @@
         mode: '0644'
       tags: [wordpress, healthcheck]
 
-    # --- 7. SYSTEM CLEANUP --- #
+    # --- 9. SYSTEM CLEANUP --- #
 
     - name: Clean up APT package cache
       apt:
@@ -369,7 +498,18 @@
         autoremove: yes
       tags: [cleanup]
 
-  # --- HANDLERS --- #
+    - name: Remove sensitive secrets from /etc/environment after setup
+      lineinfile:
+        path: /etc/environment
+        regexp: '^{{ item }}='
+        state: absent
+      loop:
+        - DB_PASSWORD
+        - REDIS_AUTH_TOKEN
+      tags: [cleanup, security]
+
+  # --- 10. SERVICE HANDLERS --- #
+
   handlers:
     - name: Restart PHP-FPM
       listen: Restart PHP-FPM
@@ -381,4 +521,10 @@
       listen: Restart Nginx
       service:
         name: nginx
+        state: restarted
+
+    - name: Restart CloudWatch Agent
+      listen: Restart CloudWatch Agent
+      service:
+        name: amazon-cloudwatch-agent
         state: restarted
