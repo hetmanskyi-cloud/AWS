@@ -11,19 +11,39 @@ log() {
 exec 1> >(tee -a /var/log/user-data.log) 2>&1
 log "Starting Ansible-based WordPress setup..."
 
-# --- 1. Install Prerequisites: Ansible and Git --- #
-log "Updating apt cache and installing Ansible & Git..."
-apt-get update -y
+# --- 1. Install AWS CLI v2 (Prerequisite for fetching secrets) --- #
+# This is required before anything else, as we need it to pull secrets.
+if ! command -v aws >/dev/null 2>&1; then
+  log "Installing AWS CLI v2..."
+  # Create a temporary directory for the download
+  TMP_DIR="/tmp/awscli-setup"
+  mkdir -p "$TMP_DIR"
+
+  # Install dependencies for the installer
+  apt-get update -y
+  apt-get install -y unzip curl
+
+  # Download and install AWS CLI
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$TMP_DIR/awscliv2.zip"
+  unzip -q "$TMP_DIR/awscliv2.zip" -d "$TMP_DIR"
+  sudo "$TMP_DIR/aws/install" --update
+  rm -rf "$TMP_DIR" # Clean up
+else
+  log "AWS CLI is already installed."
+fi
+
+# --- 2. Install Ansible and Git --- #
+log "Installing Ansible & Git..."
 apt-get install -y ansible git
 
-# --- 2. Clone Ansible Playbooks Repository --- #
+# --- 3. Clone Ansible Playbooks Repository --- #
 log "Cloning Ansible playbooks repository..."
 # Using the correct URL for cloning the entire repository
 git clone https://github.com/hetmanskyi-cloud/AWS.git /opt/ansible
 # Change directory to the root of the cloned repo
 cd /opt/ansible
 
-# --- 3. Retrieve Secrets from AWS Secrets Manager --- #
+# --- 4. Retrieve Secrets from AWS Secrets Manager --- #
 log "Retrieving all secrets from AWS Secrets Manager to pass to Ansible..."
 
 # Fetch WordPress Secrets (Admin, Salts, etc.)
@@ -52,11 +72,14 @@ export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN'
 
 log "Secrets retrieved successfully."
 
-# --- 4. Execute Ansible Playbook --- #
+# --- 5. Execute Ansible Playbook --- #
 log "Executing install-wordpress.yml playbook..."
 
+# Temporarily disable command printing (-x) to prevent secrets from being logged.
+set +x
+
 # Run the playbook locally, passing all variables from Terraform and Secrets Manager.
-ansible-playbook -i localhost, -c local playbooks/install-wordpress.yml --extra-vars '
+ansible-playbook -i localhost, -c local terraform/ansible/playbooks/install-wordpress.yml --extra-vars '
   # Complex variables passed from Terraform as JSON strings
   wp_config=${wp_config}
   cloudwatch_log_groups=${cloudwatch_log_groups}
@@ -88,9 +111,12 @@ ansible-playbook -i localhost, -c local playbooks/install-wordpress.yml --extra-
   nonce_salt='"$${NONCE_SALT}"'
 '
 
+# Re-enable command printing.
+set -x
+
 log "Ansible playbook execution finished."
 
-# --- 5. Final Cleanup --- #
+# --- 6. Final Cleanup --- #
 log "Cleaning up sensitive environment variables from /etc/environment..."
 # This is the final step to ensure secrets don't persist on the instance after setup.
 sudo sed -i -e '/^DB_PASSWORD=/d' -e '/^REDIS_AUTH_TOKEN=/d' /etc/environment

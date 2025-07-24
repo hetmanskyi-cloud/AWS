@@ -5,7 +5,7 @@
   gather_facts: yes
 
   vars:
-    php_version: "8.3"
+    # Default path, can be overridden if needed
     wp_path: "/var/www/html"
 
   tasks:
@@ -14,8 +14,8 @@
 
     - name: Wait for RDS MySQL to become available
       wait_for:
-        host: "{{ db_host }}"
-        port: "{{ db_port }}"
+        host: "{{ wp_config.DB_HOST }}"
+        port: "{{ wp_config.DB_PORT }}"
         timeout: 60
         delay: 5
         state: started
@@ -23,8 +23,8 @@
 
     - name: Wait for Redis to become available
       wait_for:
-        host: "{{ redis_host }}"
-        port: "{{ redis_port }}"
+        host: "{{ wp_config.REDIS_HOST }}"
+        port: "{{ wp_config.REDIS_PORT }}"
         timeout: 60
         delay: 5
         state: started
@@ -35,14 +35,14 @@
         name:
           # Web stack
           - nginx
-          - "php{{ php_version }}-fpm"
-          - "php{{ php_version }}-mysql"
-          - "php{{ php_version }}-redis"
-          - "php{{ php_version }}-xml"
-          - "php{{ php_version }}-mbstring"
-          - "php{{ php_version }}-curl"
-          - "php{{ php_version }}-zip"
-          - "php{{ php_version }}-gd"
+          - "php{{ wp_config.PHP_VERSION }}-fpm"
+          - "php{{ wp_config.PHP_VERSION }}-mysql"
+          - "php{{ wp_config.PHP_VERSION }}-redis"
+          - "php{{ wp_config.PHP_VERSION }}-xml"
+          - "php{{ wp_config.PHP_VERSION }}-mbstring"
+          - "php{{ wp_config.PHP_VERSION }}-curl"
+          - "php{{ wp_config.PHP_VERSION }}-zip"
+          - "php{{ wp_config.PHP_VERSION }}-gd"
           - composer
           # Client tools
           - mysql-client
@@ -157,7 +157,7 @@
                       "log_stream_name": "{instance_id}-error"
                     },
                     {
-                      "file_path": "/var/log/php{{ php_version }}-fpm.log",
+                      "file_path": "/var/log/php{{ wp_config.PHP_VERSION }}-fpm.log",
                       "log_group_name": "{{ cloudwatch_log_groups.php_fpm }}",
                       "log_stream_name": "{instance_id}"
                     },
@@ -204,8 +204,8 @@
         regexp: '^;openssl.cafile='
         line: 'openssl.cafile=/etc/ssl/certs/ca-certificates.crt'
       loop:
-        - "/etc/php/{{ php_version }}/fpm/php.ini"
-        - "/etc/php/{{ php_version }}/cli/php.ini"
+        - "/etc/php/{{ wp_config.PHP_VERSION }}/fpm/php.ini"
+        - "/etc/php/{{ wp_config.PHP_VERSION }}/cli/php.ini"
       notify: Restart PHP-FPM
       tags: [php, config, ssl]
 
@@ -219,7 +219,7 @@
 
     - name: Configure PHP to use Redis for session handling over TLS
       copy:
-        dest: "/etc/php/{{ php_version }}/fpm/conf.d/99-redis-session.ini"
+        dest: "/etc/php/{{ wp_config.PHP_VERSION }}/fpm/conf.d/99-redis-session.ini"
         content: |
           session.save_handler = redis
           session.save_path = "tls://{{ redis_host }}:{{ redis_port }}?auth={{ redis_auth_token }}&ssl[verify_peer]=0"
@@ -238,7 +238,7 @@
         mode: '0644'
       vars:
         wp_path: "{{ wp_path }}"
-        php_fpm_socket: "/run/php/php{{ php_version }}-fpm.sock"
+        php_fpm_socket: "/run/php/php{{ wp_config.PHP_VERSION }}-fpm.sock"
       notify: Restart Nginx
       tags: [nginx, config]
 
@@ -340,7 +340,7 @@
 
     - name: Verify DB connection with SSL via mysql client
       command: >-
-        mysql -h "{{ db_host }}" -u "{{ db_user }}" -p"{{ db_password }}"
+        mysql -h "{{ wp_config.DB_HOST }}" -u "{{ db_user }}" -p"{{ db_password }}"
         --ssl-ca="/etc/ssl/certs/rds-combined-ca-bundle.pem"
         -e "USE {{ db_name }};"
       changed_when: false
@@ -352,7 +352,7 @@
         php -r "
         \$mysqli = mysqli_init();
         \$mysqli->ssl_set(null, null, '/etc/ssl/certs/rds-combined-ca-bundle.pem', null, null);
-        \$mysqli->real_connect('{{ db_host }}', '{{ db_user }}', '{{ db_password }}', '{{ db_name }}', {{ db_port }}, null, MYSQLI_CLIENT_SSL);
+        \$mysqli->real_connect('{{ wp_config.DB_HOST }}', '{{ db_user }}', '{{ db_password }}', '{{ db_name }}', {{ wp_config.DB_PORT }}, null, MYSQLI_CLIENT_SSL);
         if (\$mysqli->connect_errno) { exit(1); }"
       changed_when: false
       no_log: true
@@ -361,7 +361,7 @@
     - name: Create wp-config.php
       command: >-
         wp config create --path="{{ wp_path }}" --dbname="{{ db_name }}" --dbuser="{{ db_user }}"
-        --dbpass="{{ db_password }}" --dbhost="{{ db_host }}" --dbprefix="wp_" --skip-check --force
+        --dbpass="{{ db_password }}" --dbhost="{{ wp_config.DB_HOST }}" --dbprefix="wp_" --skip-check --force
       become_user: www-data
       args:
         creates: "{{ wp_path }}/wp-config.php"
@@ -379,8 +379,8 @@
         - { key: 'SECURE_AUTH_SALT', value: "{{ secure_auth_salt }}" }
         - { key: 'LOGGED_IN_SALT', value: "{{ logged_in_salt }}" }
         - { key: 'NONCE_SALT', value: "{{ nonce_salt }}" }
-        - { key: 'WP_REDIS_HOST', value: "{{ redis_host }}" }
-        - { key: 'WP_REDIS_PORT', value: "{{ redis_port }}" }
+        - { key: 'WP_REDIS_HOST', value: "{{ wp_config.REDIS_HOST }}" }
+        - { key: 'WP_REDIS_PORT', value: "{{ wp_config.REDIS_PORT }}" }
         - { key: 'WP_REDIS_PASSWORD', value: "{{ redis_auth_token }}" }
         - { key: 'WP_REDIS_CLIENT', value: 'predis' }
         - { key: 'WP_REDIS_SCHEME', value: 'tls' }
@@ -424,7 +424,7 @@
 
     - name: Install WordPress core
       command: >-
-        wp core install --path="{{ wp_path }}" --url="{{ site_url }}" --title="{{ wp_title }}"
+        wp core install --path="{{ wp_path }}" --url="{{ site_url }}" --title="{{ wp_config.WP_TITLE }}"
         --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_password }}"
         --admin_email="{{ wp_admin_email }}" --skip-email
       when: wordpress_install_status.rc != 0
@@ -514,7 +514,7 @@
     - name: Restart PHP-FPM
       listen: Restart PHP-FPM
       service:
-        name: "php{{ php_version }}-fpm"
+        name: "php{{ wp_config.PHP_VERSION }}-fpm"
         state: restarted
 
     - name: Restart Nginx
