@@ -382,8 +382,14 @@
         php -r "
         \$mysqli = mysqli_init();
         \$mysqli->ssl_set(null, null, '/etc/ssl/certs/rds-combined-ca-bundle.pem', null, null);
-        \$mysqli->real_connect('{{ wp_config.DB_HOST }}', '{{ db_user }}', '{{ db_password }}', '{{ db_name }}', {{ wp_config.DB_PORT }}, null, MYSQLI_CLIENT_SSL);
+        \$mysqli->real_connect(getenv('DB_HOST'), getenv('DB_USER'), getenv('DB_PASSWORD'), getenv('DB_NAME'), (int)getenv('DB_PORT'), null, MYSQLI_CLIENT_SSL);
         if (\$mysqli->connect_errno) { exit(1); }"
+      environment:
+        DB_HOST: "{{ wp_config.DB_HOST }}"
+        DB_USER: "{{ db_user }}"
+        DB_PASSWORD: "{{ db_password }}"
+        DB_NAME: "{{ db_name }}"
+        DB_PORT: "{{ wp_config.DB_PORT }}"
       changed_when: false
       no_log: true
       tags: [wordpress, db-check, ssl]
