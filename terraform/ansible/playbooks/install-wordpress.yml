@@ -81,13 +81,13 @@
         creates: "/root/.cargo/bin/rustc" # Skip if rust is already installed
       tags: [packages, rust]
 
-    # Add the cargo bin directory to the system PATH for the current execution.
-    - name: Add Cargo to PATH for current session
-      lineinfile:
-        path: /etc/profile.d/cargo.sh
-        line: 'export PATH="$PATH:/root/.cargo/bin"'
-        create: yes
-        mode: '0755'
+    # Create a symbolic link for the cargo binary to a directory in the system's PATH.
+    # This makes the 'cargo' command immediately available to all subsequent tasks in the playbook.
+    - name: Create symlink for cargo to make it available in PATH
+      file:
+        src: /root/.cargo/bin/cargo
+        dest: /usr/local/bin/cargo
+        state: link
       tags: [packages, rust]
 
     # --- 3. EFS CLIENT INSTALLATION AND CONFIGURATION --- #
