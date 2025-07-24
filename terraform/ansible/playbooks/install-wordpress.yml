@@ -268,7 +268,6 @@
         dest: /etc/nginx/sites-available/wordpress
         mode: '0644'
       vars:
-        wp_path: "{{ wp_path }}"
         php_fpm_socket: "/run/php/php{{ wp_config.PHP_VERSION }}-fpm.sock"
       notify: Restart Nginx
       tags: [nginx, config]
