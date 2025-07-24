@@ -264,7 +264,7 @@
 
     - name: Create Nginx virtual host configuration from template
       template:
-        src: templates/wordpress.conf.j2
+        src: ../templates/wordpress.conf.j2
         dest: /etc/nginx/sites-available/wordpress
         mode: '0644'
       vars:
