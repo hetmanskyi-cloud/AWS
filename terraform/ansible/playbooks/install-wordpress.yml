@@ -134,7 +134,7 @@
                     {
                       "file_path": "/var/log/user-data.log",
                       "log_group_name": "{{ cloudwatch_log_groups.user_data }}",
-                      "log_stream_name": "{instance_id}"
+                      "log_stream_name": "{instance_id}-userdata"
                     },
                     {
                       "file_path": "/var/log/ansible_playbook.log",
