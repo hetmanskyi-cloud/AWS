@@ -253,7 +253,7 @@
         dest: "/etc/php/{{ wp_config.PHP_VERSION }}/fpm/conf.d/99-redis-session.ini"
         content: |
           session.save_handler = redis
-          session.save_path = "tls://{{ redis_host }}:{{ redis_port }}?auth={{ redis_auth_token }}&ssl[verify_peer]=0"
+          session.save_path = "tls://{{ wp_config.REDIS_HOST }}:{{ wp_config.REDIS_PORT }}?auth={{ redis_auth_token }}&ssl[verify_peer]=0"
           session.cookie_httponly = 1
           session.cookie_secure = 1
         mode: '0644'
