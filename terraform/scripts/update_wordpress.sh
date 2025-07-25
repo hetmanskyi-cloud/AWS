@@ -10,7 +10,7 @@ log() {
 # --- Version Configuration --- #
 DEFAULT_WP_VERSION="6.8.2"
 WP_VERSION="$DEFAULT_WP_VERSION"
-REDIS_CACHE_VERSION="2.5.4"
+REDIS_CACHE_VERSION="2.6.2"
 WORDFENCE_VERSION="8.0.5"
 
 # --- Parse optional --version=X.Y.Z --- #
