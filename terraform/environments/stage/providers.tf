@@ -29,6 +29,16 @@ terraform {
       source  = "hashicorp/archive" # Source for the Archive provider
       version = ">= 2.0"            # Required version for Archive provider
     }
+    # For managing TLS certificates
+    tls = {
+      source  = "hashicorp/tls"
+      version = ">= 4.0"
+    }
+    # The template provider exposes data sources to use templates to generate strings for other Terraform resources or outputs
+    template = {
+      source  = "hashicorp/template"
+      version = ">= 2.2.0"
+    }
   }
 }
 
@@ -98,6 +108,15 @@ provider "null" {
 provider "archive" {
   # No configuration is required for this provider.
 }
+
+# --- TLS Provider --- #
+# This provider is used for managing TLS certificates.
+provider "tls" {
+  # No configuration is required for this provider.
+}
+
+# --- Template Provider --- #
+provider "template" {}
 
 # --- Notes --- #
 # 1. Provider Aliases:

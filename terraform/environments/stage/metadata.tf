@@ -36,6 +36,7 @@ locals {
   tags_sqs                 = { Component = "sqs" }
   tags_dynamodb            = { Component = "dynamodb" }
   tags_efs                 = { Component = "efs" }
+  tags_client_vpn          = { Component = "client_vpn" }
 }
 
 # --- Notes --- #

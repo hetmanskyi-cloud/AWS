@@ -768,6 +768,27 @@ module "efs" {
   ]
 }
 
+# --- Client VPN Module Configuration --- #
+# Deploys a self-contained Client VPN endpoint with certificate-based authentication.
+# Creation is controlled by the 'enable_client_vpn' variable.
+
+module "client_vpn" {
+  count  = var.enable_client_vpn ? 1 : 0
+  source = "../../modules/client_vpn"
+
+  # General naming and tags from root
+  name_prefix = var.name_prefix
+  environment = var.environment
+  tags        = merge(local.common_tags, local.tags_client_vpn)
+
+  # VPN Endpoint Configuration
+  client_vpn_split_tunnel      = var.client_vpn_split_tunnel
+  client_vpn_client_cidr_block = var.client_vpn_client_cidr_block
+
+  # Logging Configuration
+  client_vpn_log_retention_days = var.client_vpn_log_retention_days
+}
+
 # --- Notes and Recommendations --- #
 # 1. All modules are interconnected and rely on shared variables and outputs.
 # 2. Ensure that any changes in variables or outputs are reviewed across all dependent modules.

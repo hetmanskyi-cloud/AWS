@@ -378,6 +378,14 @@ output "efs_security_group_id" {
   value       = var.enable_efs ? module.efs[0].efs_security_group_id : ""
 }
 
+# --- Client VPN Module Outputs --- #
+
+output "client_vpn_config_file" {
+  description = "The rendered OpenVPN configuration (.ovpn) file for the client. Available only if the module is enabled."
+  value       = var.enable_client_vpn ? module.client_vpn[0].client_vpn_config : "Client VPN module is disabled."
+  sensitive   = true
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.

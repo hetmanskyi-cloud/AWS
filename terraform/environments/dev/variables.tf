@@ -1159,6 +1159,32 @@ variable "efs_access_point_posix_gid" {
   default     = "33"
 }
 
+# --- Client VPN Module Configuration --- #
+
+variable "enable_client_vpn" {
+  description = "Controls whether the Client VPN module is enabled. Set to 'true' to create the VPN endpoint."
+  type        = bool
+  default     = false
+}
+
+variable "client_vpn_split_tunnel" {
+  description = "Indicates whether split-tunnel is enabled. If true, only traffic destined for the VPC's CIDR and other specified routes goes through the VPN."
+  type        = bool
+  default     = true
+}
+
+variable "client_vpn_client_cidr_block" {
+  description = "The IPv4 address range for Client VPN clients (e.g., '10.100.0.0/22')."
+  type        = string
+  default     = ""
+}
+
+variable "client_vpn_log_retention_days" {
+  description = "The number of days to retain Client VPN connection logs."
+  type        = number
+  default     = 30
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.
