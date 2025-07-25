@@ -444,8 +444,12 @@
         marker: "# BEGIN ANSIBLE MANAGED BLOCK: Reverse Proxy Support"
         insertbefore: "/* That's all, stop editing! Happy publishing. */"
         block: |
+          // Tell WordPress it is behind a reverse proxy
           if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
               $_SERVER['HTTPS'] = 'on';
+          }
+          if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+              $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
           }
       become_user: www-data
       tags: [wordpress, config, ssl]
