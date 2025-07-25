@@ -21,7 +21,7 @@ server {
 
     # Main location block to handle permalinks.
     location / {
-        try_files $uri /index.php?$args;
+        try_files $uri $uri/ /index.php?$args;
     }
 
     # Pass PHP scripts to FastCGI server (PHP-FPM).
