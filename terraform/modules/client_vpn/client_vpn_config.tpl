@@ -8,8 +8,6 @@ resolv-retry infinite
 nobind
 remote-cert-tls server
 cipher AES-256-GCM
-auth SHA256
-tls-version-min 1.2
 verb 3
 
 <ca>

@@ -223,6 +223,9 @@ module "asg" {
   redis_auth_secret_arn  = aws_secretsmanager_secret.redis_auth.arn
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
+  # Client VPN Configuration
+  client_vpn_client_cidr_block = var.client_vpn_client_cidr_block
+
   depends_on = [module.vpc, module.kms,
     aws_secretsmanager_secret_version.wp_secrets_version,
     aws_cloudwatch_log_group.user_data_logs,
@@ -798,6 +801,7 @@ module "client_vpn" {
   client_vpn_log_retention_days = var.client_vpn_log_retention_days
 
   # VPC Integration
+  vpc_id   = module.vpc.vpc_id
   vpc_cidr = module.vpc.vpc_cidr_block
   # Pointing to public subnets
   vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]

@@ -51,6 +51,11 @@ variable "client_vpn_log_retention_days" {
 
 # --- VPC Integration --- #
 
+variable "vpc_id" {
+  description = "The ID of the VPC where the Client VPN and its Security Group will be created."
+  type        = string
+}
+
 variable "vpc_subnet_ids" {
   description = "A list of subnet IDs to associate with the Client VPN endpoint for high availability."
   type        = list(string)

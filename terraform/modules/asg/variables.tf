@@ -453,6 +453,14 @@ variable "efs_access_point_id" {
   default     = ""
 }
 
+# --- Client VPN Configuration --- #
+# Variables related to AWS Client VPN for secure access to the ASG instances.
+variable "client_vpn_client_cidr_block" {
+  description = "The IPv4 address range, in CIDR notation, from which to assign client IP addresses. Must be a /22 block or greater (e.g., '10.100.0.0/22')."
+  type        = string
+  # No default value, as this is a critical network design choice.
+}
+
 # --- Notes --- #
 # 1. **Variable Grouping:**
 #    - Variables are organized by functionality (e.g., ASG, ALB, Redis, S3, scaling, monitoring).

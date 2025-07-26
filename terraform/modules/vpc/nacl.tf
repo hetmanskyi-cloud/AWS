@@ -46,6 +46,18 @@ resource "aws_network_acl_rule" "public_inbound_https" {
   rule_action    = "allow"
 }
 
+# Rule for inbound Client VPN traffic on UDP port 443
+resource "aws_network_acl_rule" "public_inbound_vpn_udp" {
+  network_acl_id = aws_network_acl.public_nacl.id
+  rule_number    = 115
+  egress         = false
+  protocol       = "udp"
+  from_port      = 443
+  to_port        = 443
+  cidr_block     = "0.0.0.0/0"
+  rule_action    = "allow"
+}
+
 # Rule for inbound SSH traffic on port 22
 # SSH access is required for testing. In production, restrict this to a specific range.
 
@@ -73,6 +85,18 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   from_port      = 1024
   to_port        = 65535
   cidr_block     = "0.0.0.0/0" #tfsec:ignore:aws-ec2-no-public-ingress-acl
+  rule_action    = "allow"
+}
+
+# Rule for inbound return traffic for Client VPN on ephemeral UDP ports
+resource "aws_network_acl_rule" "public_inbound_vpn_ephemeral_udp" {
+  network_acl_id = aws_network_acl.public_nacl.id
+  rule_number    = 135
+  egress         = false
+  protocol       = "udp"
+  from_port      = 1024
+  to_port        = 65535
+  cidr_block     = "0.0.0.0/0"
   rule_action    = "allow"
 }
 

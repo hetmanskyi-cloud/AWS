@@ -60,6 +60,18 @@ resource "aws_security_group_rule" "alb_https" {
   description              = "Allow HTTPS traffic from ALB to ASG"
 }
 
+# --- Allow Ingress from Client VPN --- #
+# This rule allows traffic from clients connected to the VPN.
+resource "aws_security_group_rule" "allow_vpn_ingress" {
+  type              = "ingress"
+  from_port         = 0                                  # All ports
+  to_port           = 0                                  # All ports
+  protocol          = "-1"                               # All protocols
+  cidr_blocks       = [var.client_vpn_client_cidr_block] # The IP range of your VPN clients
+  security_group_id = aws_security_group.asg_security_group.id
+  description       = "Allow all traffic from Client VPN"
+}
+
 # --- Egress Rules (Outbound Traffic) --- #
 
 # Allow all outbound traffic — Required for internet access, package updates, SSM, CloudWatch, Secrets Manager, etc.

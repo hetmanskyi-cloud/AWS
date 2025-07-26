@@ -57,6 +57,9 @@ resource "aws_cloudwatch_log_stream" "client_vpn_logs_stream" {
 resource "aws_ec2_client_vpn_endpoint" "endpoint" {
   description = "Client VPN endpoint for ${var.name_prefix}-${var.environment}"
 
+  # Security group to control access to the Client VPN endpoint
+  security_group_ids = [aws_security_group.client_vpn.id]
+
   # Network and IP configuration
   client_cidr_block = var.client_vpn_client_cidr_block # The address space for connecting clients
 
@@ -131,22 +134,23 @@ data "template_file" "config" {
 }
 
 # --- Notes --- #
-# General Logic:
-# - This module is responsible for creating a fully functional Client VPN endpoint using certificate-based authentication.
-# - The required certificates (Root CA, Server, Client) are generated dynamically on-the-fly by the `tls` provider.
+# 1. General Logic:
+#    - This module is responsible for creating a fully functional Client VPN endpoint using certificate-based authentication.
+#    - The required certificates (Root CA, Server, Client) are generated dynamically on-the-fly by the `tls` provider.
 #
-# Key Features:
-# - Certificate Management: The server and CA certificates are uploaded to ACM for use by the endpoint resource.
-#   The client certificate is intentionally NOT uploaded; it's passed as an output to be used in the `.ovpn` configuration file.
-# - Connection Logging: All connection attempts are logged to a dedicated CloudWatch Log Group, which is critical for security and diagnostics.
-# - Tagging Strategy: Each resource merges the incoming `var.tags` (containing common and component tags) with its own unique `Name` tag.
+# 2. Authentication Method:
+#    - The current configuration uses mutual certificate-based authentication. This method is straightforward
+#      and suitable for development, testing, or small teams.
+#    - For production environments or larger teams, it is highly recommended to switch to a more scalable
+#      authentication method like SAML/SSO (federated-authentication) with an Identity Provider (e.g., Okta, Azure AD)
+#      or Active Directory (directory-service-authentication). This can be done by modifying the `authentication_options` block.
 #
-# Next Steps:
-# - This file creates the endpoint, but it is not yet functional. We still need to create the following resources in this module:
-#   a) `aws_ec2_client_vpn_network_association` to link the endpoint to a VPC subnet.
-#   b) `aws_ec2_client_vpn_authorization_rule` to grant clients access to network resources.
-#   c) `aws_ec2_client_vpn_route` to direct client traffic.
+# 3. Key Features:
+#    - Certificate Management: The server and CA certificates are uploaded to ACM for use by the endpoint resource.
+#      The client certificate is intentionally NOT uploaded; it's passed as an output to be used in the `.ovpn` configuration file.
+#    - Connection Logging: All connection attempts are logged to a dedicated CloudWatch Log Group for diagnostics.
+#    - Tagging Strategy: Each resource merges the incoming `var.tags` with its own unique `Name` tag.
 #
-# Recommendations:
-# - Secure the Terraform state file, as it contains the generated private keys. Use an encrypted S3 backend.
-# - Adjust `client_vpn_log_retention_days` according to your organization's compliance and auditing policies.
+# 4. Recommendations:
+#    - Secure the Terraform state file, as it contains the generated private keys. Use an encrypted S3 backend.
+#    - Adjust `client_vpn_log_retention_days` according to your organization's compliance and auditing policies.
