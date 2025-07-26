@@ -12,6 +12,12 @@ variable "aws_account_id" {
   }
 }
 
+# AWS Region for the primary infrastructure
+variable "aws_region" {
+  description = "The primary AWS region where the main infrastructure is deployed."
+  type        = string
+}
+
 # Replication region for S3
 variable "replication_region" {
   description = "AWS Region for S3 replication (if used)"

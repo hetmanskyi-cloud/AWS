@@ -61,6 +61,7 @@ module "kms" {
   source = "../../modules/kms" # Path to the KMS module
 
   # AWS region and account-specific details
+  aws_region         = var.aws_region         # Region for KMS operations
   replication_region = var.replication_region # Region for replication
   aws_account_id     = var.aws_account_id     # Account ID for KMS key permissions
 

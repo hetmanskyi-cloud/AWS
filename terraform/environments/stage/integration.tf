@@ -66,7 +66,7 @@ data "external" "vpn_egress_ips" {
   # Run only if both Client VPN and CloudFront WAF are enabled.
   count = var.enable_client_vpn && var.enable_cloudfront_waf ? 1 : 0
 
-  program = ["bash", "${path.root}/../scripts/get_vpn_ips.sh"]
+  program = ["bash", "${path.root}/../../scripts/get_vpn_ips.sh"]
 
   # Pass input to the script as a JSON object.
   query = {

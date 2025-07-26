@@ -93,17 +93,17 @@ locals {
   kms_services = distinct(concat(
     [
       # Regionless service principals:
-      "logs.amazonaws.com",              # CloudWatch Logs
-      "rds.amazonaws.com",               # RDS encryption
-      "elasticache.amazonaws.com",       # ElastiCache encryption
-      "s3.amazonaws.com",                # S3 encryption
-      "ssm.amazonaws.com",               # Systems Manager
-      "ec2.amazonaws.com",               # EBS encryption
-      "wafv2.amazonaws.com",             # WAFv2
-      "vpc-flow-logs.amazonaws.com",     # VPC Flow Logs
-      "secretsmanager.amazonaws.com",    # Secrets Manager for Secrets encryption
-      "cloudfront.amazonaws.com",        # CloudFront
-      "elasticfilesystem.amazonaws.com", # EFS encryption
+      format("logs.%s.amazonaws.com", var.aws_region), # CloudWatch Logs
+      "rds.amazonaws.com",                             # RDS encryption
+      "elasticache.amazonaws.com",                     # ElastiCache encryption
+      "s3.amazonaws.com",                              # S3 encryption
+      "ssm.amazonaws.com",                             # Systems Manager
+      "ec2.amazonaws.com",                             # EBS encryption
+      "wafv2.amazonaws.com",                           # WAFv2
+      "vpc-flow-logs.amazonaws.com",                   # VPC Flow Logs
+      "secretsmanager.amazonaws.com",                  # Secrets Manager for Secrets encryption
+      "cloudfront.amazonaws.com",                      # CloudFront
+      "elasticfilesystem.amazonaws.com",               # EFS encryption
     ],
     # Conditional services (enabled via variables):
     contains(keys(var.default_region_buckets), "cloudtrail") && try(var.default_region_buckets["cloudtrail"].enabled, false) ? ["cloudtrail.amazonaws.com"] : [], # CloudTrail Logging

@@ -116,17 +116,6 @@ resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
   description            = "Allow all clients to access the VPC"
 }
 
-# --- Network Route --- #
-# Creates a route to direct traffic from clients to the target network (VPC).
-resource "aws_ec2_client_vpn_route" "vpc" {
-  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
-  destination_cidr_block = var.vpc_cidr
-  target_vpc_subnet_id   = var.vpc_subnet_ids[0] # Route traffic through the first specified subnet
-
-  # Ensure the network association is complete before creating the route
-  depends_on = [aws_ec2_client_vpn_network_association.vpc]
-}
-
 # --- Client Config Renderer --- #
 # This data source uses the template file to generate a ready-to-use .ovpn configuration file
 # by embedding the endpoint DNS name and the necessary client certificates and keys.
