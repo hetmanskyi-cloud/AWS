@@ -118,6 +118,59 @@ resource "aws_wafv2_web_acl" "cloudfront_waf" {
     }
   }
 
+  # --- Rule 5: Block Admin Panel Access (VPN Whitelist) --- #
+  # This dynamic rule is created only if both CloudFront WAF and Client VPN are enabled.
+  # It blocks all access to the /wp-admin/ path, except for traffic originating from
+  # the IP addresses specified in the VPN IP Set.
+  dynamic "rule" {
+    for_each = var.enable_cloudfront_waf && var.enable_client_vpn ? [1] : []
+
+    content {
+      name     = "BlockAdminPanelAccessViaVPNWhitelist"
+      priority = 1 # Highest priority, processed first.
+
+      action {
+        block {} # Block the request if the conditions below are met.
+      }
+
+      statement {
+        # This AND statement requires both nested statement blocks to be true.
+        and_statement {
+          # Condition 1: The request URI starts with /wp-admin/
+          statement {
+            byte_match_statement {
+              search_string = "/wp-admin/"
+              field_to_match {
+                uri_path {}
+              }
+              text_transformation {
+                priority = 0
+                type     = "NONE"
+              }
+              positional_constraint = "STARTS_WITH"
+            }
+          }
+          # Condition 2: The source IP is NOT in our VPN IP Set.
+          statement {
+            not_statement {
+              statement {
+                ip_set_reference_statement {
+                  arn = aws_wafv2_ip_set.vpn_access_ips[0].arn
+                }
+              }
+            }
+          }
+        }
+      }
+
+      visibility_config {
+        cloudwatch_metrics_enabled = true
+        metric_name                = "BlockAdminPanelAccessViaVPNWhitelist"
+        sampled_requests_enabled   = true
+      }
+    }
+  }
+
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-cloudfront-waf-${var.environment}"
   })
@@ -133,6 +186,24 @@ resource "aws_wafv2_web_acl_logging_configuration" "cloudfront_waf_logging" {
 
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.firehose_cloudfront_waf_logs[0].arn]
   resource_arn            = aws_wafv2_web_acl.cloudfront_waf[0].arn
+}
+
+# --- IP Set for VPN Access --- #
+# This IP Set will contain the egress IP addresses of the Client VPN endpoint.
+# It is used in a WAF rule to grant exclusive access to whitelisted IPs.
+resource "aws_wafv2_ip_set" "vpn_access_ips" {
+  provider = aws.cloudfront
+  # Create this resource only if both CloudFront WAF and Client VPN are enabled.
+  count = var.enable_cloudfront_waf && var.enable_client_vpn ? 1 : 0
+
+  name               = "${var.name_prefix}-vpn-access-ips-${var.environment}"
+  scope              = "CLOUDFRONT"
+  ip_address_version = "IPV4"
+  addresses          = var.vpn_egress_cidrs
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-vpn-access-ips-${var.environment}"
+  })
 }
 
 # --- Notes --- #

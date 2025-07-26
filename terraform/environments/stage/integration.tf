@@ -57,3 +57,22 @@ resource "aws_sqs_queue_policy" "wordpress_media_s3_policy" {
   queue_url = module.sqs[0].queue_urls["image-processing"]
   policy    = data.aws_iam_policy_document.sqs_policy_for_s3[0].json
 }
+
+# --- WAF IP Set Updater for Client VPN --- #
+# This data source runs an external script to fetch the dynamic egress IPs of the Client VPN.
+# It provides a clean, declarative way to bring external data into Terraform.
+
+data "external" "vpn_egress_ips" {
+  # Run only if both Client VPN and CloudFront WAF are enabled.
+  count = var.enable_client_vpn && var.enable_cloudfront_waf ? 1 : 0
+
+  program = ["bash", "${path.root}/../scripts/get_vpn_ips.sh"]
+
+  # Pass input to the script as a JSON object.
+  query = {
+    vpn_endpoint_id = module.client_vpn[0].client_vpn_endpoint_id
+    region          = var.aws_region # Pass the region where the VPN is deployed
+  }
+
+  depends_on = [module.client_vpn]
+}

@@ -166,3 +166,17 @@ variable "custom_domain_aliases" {
   type        = list(string)
   default     = [] # Default to an empty list, indicating no custom domains.
 }
+
+# --- Client VPN Integration --- #
+
+variable "enable_client_vpn" {
+  description = "Controls whether the Client VPN module is enabled. Set to 'true' to create the VPN endpoint."
+  type        = bool
+  default     = false
+}
+
+variable "vpn_egress_cidrs" {
+  description = "A list of CIDR blocks representing the Client VPN egress IPs to be whitelisted in WAF."
+  type        = list(string)
+  default     = []
+}

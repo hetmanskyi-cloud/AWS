@@ -39,6 +39,11 @@ terraform {
       source  = "hashicorp/template"
       version = ">= 2.2.0"
     }
+    # For executing external scripts and commands, such as fetching data from APIs or running local scripts
+    external = {
+      source  = "hashicorp/external"
+      version = ">= 2.3.0"
+    }
   }
 }
 
@@ -116,7 +121,14 @@ provider "tls" {
 }
 
 # --- Template Provider --- #
-provider "template" {}
+provider "template" {
+  # No configuration is required for this provider.
+}
+
+# --- External Provider --- #
+provider "external" {
+  # No configuration is required for this provider.
+}
 
 # --- Notes --- #
 # 1. Provider Aliases:

@@ -512,6 +512,13 @@ module "cloudfront" {
   acm_certificate_arn   = var.create_dns_and_ssl ? module.acm[0].acm_arn : null
   custom_domain_aliases = var.create_dns_and_ssl ? concat([var.custom_domain_name], var.subject_alternative_names) : []
 
+  # Client VPN Settings
+  enable_client_vpn = var.enable_client_vpn
+
+  # Pass the list of IPs from external data source to the CloudFront module.
+  # We use jsondecode to parse the JSON string returned by the script.
+  vpn_egress_cidrs = var.enable_client_vpn && var.enable_cloudfront_waf ? jsondecode(data.external.vpn_egress_ips[0].result.public_ips_json) : []
+
   depends_on = [
     module.kms # CloudFront logging (Firehose/CloudWatch) may depend on KMS
   ]
@@ -787,6 +794,11 @@ module "client_vpn" {
 
   # Logging Configuration
   client_vpn_log_retention_days = var.client_vpn_log_retention_days
+
+  # VPC Integration
+  vpc_cidr = module.vpc.vpc_cidr_block
+  # Pointing to public subnets
+  vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]
 }
 
 # --- Notes and Recommendations --- #

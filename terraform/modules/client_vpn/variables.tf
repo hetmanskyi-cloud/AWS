@@ -49,6 +49,18 @@ variable "client_vpn_log_retention_days" {
   }
 }
 
+# --- VPC Integration --- #
+
+variable "vpc_subnet_ids" {
+  description = "A list of subnet IDs to associate with the Client VPN endpoint for high availability."
+  type        = list(string)
+}
+
+variable "vpc_cidr" {
+  description = "The primary CIDR block of the VPC. Used for authorization rules and routes."
+  type        = string
+}
+
 # --- Notes --- #
 # 1. Naming and Tagging:
 #    - The `name_prefix`, `environment`, and `tags` variables ensure that all resources created

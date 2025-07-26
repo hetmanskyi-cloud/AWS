@@ -116,3 +116,19 @@ output "cloudfront_distribution_etag" {
   description = "The current ETag of the CloudFront distribution, used for triggering updates in other resources."
   value       = local.enable_cloudfront_media_distribution ? aws_cloudfront_distribution.wordpress_media[0].etag : null
 }
+
+# --- WAF IP Set Outputs for VPN Integration --- #
+output "waf_vpn_ip_set_id" {
+  description = "The ID of the IP Set used for whitelisting VPN access."
+  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].id : null
+}
+
+output "waf_vpn_ip_set_name" {
+  description = "The name of the IP Set used for whitelisting VPN access."
+  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].name : null
+}
+
+output "waf_vpn_ip_set_arn" {
+  description = "The ARN of the IP Set used for whitelisting VPN access."
+  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].arn : null
+}

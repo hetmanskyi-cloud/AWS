@@ -6,6 +6,11 @@ output "client_vpn_config" {
   sensitive   = true # This output contains private keys and certificates and should be handled securely.
 }
 
+output "client_vpn_endpoint_id" {
+  description = "The ID of the Client VPN endpoint."
+  value       = aws_ec2_client_vpn_endpoint.endpoint.id
+}
+
 # --- Notes --- #
 # 1. Usage:
 #    - After a successful `terraform apply`, you can extract the configuration file with the command:

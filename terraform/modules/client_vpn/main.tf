@@ -92,6 +92,41 @@ resource "aws_ec2_client_vpn_endpoint" "endpoint" {
   ]
 }
 
+# modules/client_vpn/main.tf
+
+# --- Network Association --- #
+# Associates the Client VPN endpoint with one or more subnets in the target VPC.
+# This is required for the endpoint to pass traffic into the VPC.
+resource "aws_ec2_client_vpn_network_association" "vpc" {
+  # Create a map where keys are the indices of the list (0, 1, 2...)
+  # and values are the subnet IDs themselves. The keys are known before apply.
+  for_each = { for i, subnet_id in var.vpc_subnet_ids : i => subnet_id }
+
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
+  subnet_id              = each.value # Use each.value to get the subnet ID
+}
+
+# --- Authorization Rule --- #
+# Authorizes clients to access a specific network. Without this, no traffic is allowed.
+# Here, we allow access to the entire VPC for all clients.
+resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
+  target_network_cidr    = var.vpc_cidr
+  authorize_all_groups   = true
+  description            = "Allow all clients to access the VPC"
+}
+
+# --- Network Route --- #
+# Creates a route to direct traffic from clients to the target network (VPC).
+resource "aws_ec2_client_vpn_route" "vpc" {
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
+  destination_cidr_block = var.vpc_cidr
+  target_vpc_subnet_id   = var.vpc_subnet_ids[0] # Route traffic through the first specified subnet
+
+  # Ensure the network association is complete before creating the route
+  depends_on = [aws_ec2_client_vpn_network_association.vpc]
+}
+
 # --- Client Config Renderer --- #
 # This data source uses the template file to generate a ready-to-use .ovpn configuration file
 # by embedding the endpoint DNS name and the necessary client certificates and keys.
