@@ -53,6 +53,8 @@ module "vpc" {
   environment = var.environment                          # Environment (e.g., dev, stage, prod)
   name_prefix = var.name_prefix                          # Prefix for naming resources
   tags        = merge(local.common_tags, local.tags_vpc) # Tags for resources
+
+  depends_on = [module.kms]
 }
 
 # --- KMS Module Configuration --- #
