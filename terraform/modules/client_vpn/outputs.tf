@@ -1,9 +1,10 @@
 # --- Client VPN Module Outputs --- #
 
 output "client_vpn_config" {
-  description = "The rendered OpenVPN configuration file (.ovpn) for the client. Contains embedded certificates and keys."
-  value       = data.template_file.config.rendered
-  sensitive   = true # This output contains private keys and certificates and should be handled securely.
+  description = "The rendered OpenVPN configuration file (.ovpn). Available ONLY for 'certificate' authentication."
+  # Return the rendered config if available, otherwise return a helpful message.
+  value     = var.authentication_type == "certificate" ? data.template_file.config[0].rendered : "N/A for federated authentication. Download from AWS self-service portal."
+  sensitive = true # This output contains private keys and certificates and should be handled securely.
 }
 
 output "client_vpn_endpoint_id" {

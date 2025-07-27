@@ -804,6 +804,10 @@ module "client_vpn" {
   vpc_cidr = module.vpc.vpc_cidr_block
   # Pointing to public subnets
   vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]
+
+  # Authentication settings
+  authentication_type = var.client_vpn_authentication_type
+  saml_provider_arn   = var.client_vpn_saml_provider_arn
 }
 
 # --- Notes and Recommendations --- #

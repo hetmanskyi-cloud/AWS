@@ -1185,6 +1185,18 @@ variable "client_vpn_log_retention_days" {
   default     = 30
 }
 
+variable "client_vpn_authentication_type" {
+  description = "The authentication method for Client VPN. Valid values are 'certificate' or 'federated'."
+  type        = string
+  default     = "certificate"
+}
+
+variable "client_vpn_saml_provider_arn" {
+  description = "The ARN of the IAM SAML identity provider. Required only if authentication_type is 'federated'."
+  type        = string
+  default     = null
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.

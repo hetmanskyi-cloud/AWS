@@ -31,6 +31,25 @@ variable "client_vpn_split_tunnel" {
   default     = true
 }
 
+# --- Autentication Configuration --- #
+
+variable "authentication_type" {
+  description = "The authentication method to use. Valid values are 'certificate' or 'federated'."
+  type        = string
+  default     = "certificate"
+
+  validation {
+    condition     = contains(["certificate", "federated"], var.authentication_type)
+    error_message = "Allowed values for authentication_type are 'certificate' or 'federated'."
+  }
+}
+
+variable "saml_provider_arn" {
+  description = "The ARN of the IAM SAML identity provider. Required when authentication_type is 'federated'."
+  type        = string
+  default     = null
+}
+
 # --- Logging Configuration --- #
 
 variable "client_vpn_log_retention_days" {
@@ -44,7 +63,7 @@ variable "client_vpn_log_retention_days" {
       0, 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653
     ], var.client_vpn_log_retention_days)
 
-    # The error_message string is for the user running Terraform, so it can be in Russian.
+    # The error_message string is for the user running Terraform
     error_message = "expected retention_in_days to be one of [0 1 3 5 7 14 30 60 90 120 150 180 365 400 545 731 1096 1827 2192 2557 2922 3288 3653]"
   }
 }
