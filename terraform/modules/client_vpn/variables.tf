@@ -31,6 +31,12 @@ variable "client_vpn_split_tunnel" {
   default     = true
 }
 
+variable "custom_dns_servers" {
+  description = "A list of up to two DNS server IPs to be used by clients. Use the VPC's DNS server (e.g., '10.0.0.2') to resolve private hostnames."
+  type        = list(string)
+  default     = []
+}
+
 # --- Autentication Configuration --- #
 
 variable "authentication_type" {
@@ -46,6 +52,18 @@ variable "authentication_type" {
 
 variable "saml_provider_arn" {
   description = "The ARN of the IAM SAML identity provider. Required when authentication_type is 'federated'."
+  type        = string
+  default     = null
+}
+
+variable "enable_self_service_portal" {
+  description = "Enable the self-service portal for users to download the client configuration. Recommended for 'federated' authentication."
+  type        = bool
+  default     = false
+}
+
+variable "vpn_access_group_id" {
+  description = "The ID of the group to which access is granted. Required for 'federated' authentication to restrict access."
   type        = string
   default     = null
 }

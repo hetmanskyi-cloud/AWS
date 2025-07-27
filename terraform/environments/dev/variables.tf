@@ -1197,6 +1197,18 @@ variable "client_vpn_saml_provider_arn" {
   default     = null
 }
 
+variable "client_vpn_enable_self_service_portal" {
+  description = "Enable the self-service portal for federated authentication."
+  type        = bool
+  default     = false
+}
+
+variable "client_vpn_access_group_id" {
+  description = "The ID of a group to which access is granted (for federated auth)."
+  type        = string
+  default     = null
+}
+
 # --- Notes --- #
 # 1. This file contains global variables shared across all modules.
 # 2. All environment-specific values (dev, stage, prod) should be defined in terraform.tfvars.

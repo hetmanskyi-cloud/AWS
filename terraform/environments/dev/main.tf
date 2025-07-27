@@ -803,12 +803,20 @@ module "client_vpn" {
   # VPC Integration
   vpc_id   = module.vpc.vpc_id
   vpc_cidr = module.vpc.vpc_cidr_block
+
+  # Pass the VPC's DNS server address, calculated dynamically from the VPC CIDR.
+  custom_dns_servers = [cidrhost(var.vpc_cidr_block, 2)]
+
   # Pointing to public subnets
   vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]
 
   # Authentication settings
   authentication_type = var.client_vpn_authentication_type
   saml_provider_arn   = var.client_vpn_saml_provider_arn
+
+  # Additional features
+  enable_self_service_portal = var.client_vpn_enable_self_service_portal
+  vpn_access_group_id        = var.client_vpn_access_group_id
 }
 
 # --- Notes and Recommendations --- #

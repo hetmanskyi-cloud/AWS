@@ -63,6 +63,12 @@ resource "aws_ec2_client_vpn_endpoint" "endpoint" {
   # Network and IP configuration
   client_cidr_block = var.client_vpn_client_cidr_block # The address space for connecting clients
 
+  # Conditionally enable the self-service portal
+  self_service_portal = var.enable_self_service_portal ? "enabled" : "disabled"
+
+  # Push custom DNS servers to the client upon connection.
+  dns_servers = var.custom_dns_servers
+
   # Server certificate is always required for tunnel encryption
   server_certificate_arn = aws_acm_certificate.server.arn
 
@@ -115,8 +121,11 @@ resource "aws_ec2_client_vpn_network_association" "vpc" {
 resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
   client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
   target_network_cidr    = var.vpc_cidr
-  authorize_all_groups   = true
   description            = "Allow all clients to access the VPC"
+
+  # Use a specific group ID if provided (for federated auth), otherwise authorize all.
+  access_group_id      = var.vpn_access_group_id
+  authorize_all_groups = var.vpn_access_group_id == null ? true : null
 }
 
 # --- Client Config Renderer (Conditional) --- #
