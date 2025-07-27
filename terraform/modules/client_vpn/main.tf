@@ -59,6 +59,7 @@ resource "aws_ec2_client_vpn_endpoint" "endpoint" {
 
   # Security group to control access to the Client VPN endpoint
   security_group_ids = [aws_security_group.client_vpn.id]
+  vpc_id             = var.vpc_id
 
   # Network and IP configuration
   client_cidr_block = var.client_vpn_client_cidr_block # The address space for connecting clients
@@ -124,8 +125,8 @@ resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
   description            = "Allow all clients to access the VPC"
 
   # Use a specific group ID if provided (for federated auth), otherwise authorize all.
-  access_group_id      = var.vpn_access_group_id
-  authorize_all_groups = var.vpn_access_group_id == null ? true : null
+  access_group_id      = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? var.vpn_access_group_id : null
+  authorize_all_groups = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? false : true
 }
 
 # --- Client Config Renderer (Conditional) --- #
