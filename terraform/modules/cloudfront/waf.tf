@@ -6,9 +6,8 @@
 
 resource "aws_wafv2_web_acl" "cloudfront_waf" {
   provider = aws.cloudfront
-  # Create WAF Web ACL only if CloudFront WAF is enabled in variables
-  # and the main CloudFront distribution is enabled.
-  count = var.enable_cloudfront_waf && local.enable_cloudfront_media_distribution ? 1 : 0
+  # Create WAF Web ACL only if CloudFront WAF is enabled in variables.
+  count = var.enable_cloudfront_waf ? 1 : 0
 
   name        = "${var.name_prefix}-cloudfront-waf-${var.environment}"
   description = "Primary Edge WAF protecting CloudFront origins: ALB and S3"
