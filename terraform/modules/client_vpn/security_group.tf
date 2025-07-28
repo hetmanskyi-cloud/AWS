@@ -18,7 +18,7 @@ resource "aws_security_group_rule" "allow_vpn_connections_in" {
   from_port         = 443
   to_port           = 443
   protocol          = "udp"
-  cidr_blocks       = ["0.0.0.0/0"]
+  cidr_blocks       = ["0.0.0.0/0"] # tfsec:ignore:aws-ec2-no-public-ingress-sgr
   security_group_id = aws_security_group.client_vpn.id
   description       = "Allow inbound OpenVPN connections"
 }
@@ -30,8 +30,8 @@ resource "aws_security_group_rule" "allow_all_outbound" {
   type              = "egress"
   from_port         = 0
   to_port           = 0
-  protocol          = "-1" # All protocols
-  cidr_blocks       = ["0.0.0.0/0"]
+  protocol          = "-1"          # All protocols
+  cidr_blocks       = ["0.0.0.0/0"] # tfsec:ignore:aws-ec2-no-public-egress-sgr
   security_group_id = aws_security_group.client_vpn.id
   description       = "Allow all outbound traffic from VPN endpoint"
 }

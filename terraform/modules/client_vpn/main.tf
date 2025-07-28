@@ -39,6 +39,7 @@ resource "aws_acm_certificate" "ca" {
 resource "aws_cloudwatch_log_group" "client_vpn_logs" {
   name              = "/aws/client-vpn/${var.name_prefix}-${var.environment}" # Log group name with a standard prefix
   retention_in_days = var.client_vpn_log_retention_days                       # Log retention period
+  kms_key_id        = var.kms_key_arn
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-client-vpn-logs-${var.environment}"

@@ -794,6 +794,9 @@ module "client_vpn" {
   environment = var.environment
   tags        = merge(local.common_tags, local.tags_client_vpn)
 
+  # KMS Key for encryption
+  kms_key_arn = module.kms.kms_key_arn
+
   # VPN Endpoint Configuration
   client_vpn_split_tunnel      = var.client_vpn_split_tunnel
   client_vpn_client_cidr_block = var.client_vpn_client_cidr_block

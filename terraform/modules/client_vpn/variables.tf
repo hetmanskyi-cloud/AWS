@@ -17,6 +17,14 @@ variable "tags" {
   type        = map(string)
 }
 
+# --- KMS Key Configuration --- #
+
+variable "kms_key_arn" {
+  description = "The ARN of the KMS key to use for encrypting the CloudWatch Log Group."
+  type        = string
+  default     = null
+}
+
 # --- Client VPN Configuration --- #
 
 variable "client_vpn_client_cidr_block" {
