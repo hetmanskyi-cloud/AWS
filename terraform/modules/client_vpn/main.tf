@@ -92,7 +92,7 @@ resource "aws_ec2_client_vpn_endpoint" "endpoint" {
 
   # Security and transport settings
   split_tunnel                  = var.client_vpn_split_tunnel # Defines if only specified traffic goes through the VPN
-  transport_protocol            = "udp"                       # Recommended transport protocol for performance
+  transport_protocol            = "tcp"                       # Recommended transport protocol for performance
   vpn_port                      = 443
   session_timeout_hours         = 24
   disconnect_on_session_timeout = false
@@ -129,6 +129,15 @@ resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
   authorize_all_groups = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? false : true
 }
 
+# --- Random String for VPN DNS ---
+# Creates a random prefix to replace the wildcard in the Client VPN DNS name.
+# This is a best practice to prevent DNS caching issues.
+resource "random_string" "vpn_prefix" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
 # --- Client Config Renderer (Conditional) --- #
 # This data source generates the .ovpn file ONLY for certificate-based authentication.
 data "template_file" "config" {
@@ -138,7 +147,7 @@ data "template_file" "config" {
   template = file("${path.module}/client_vpn_config.tpl")
 
   vars = {
-    vpn_endpoint_dns_name = aws_ec2_client_vpn_endpoint.endpoint.dns_name
+    vpn_endpoint_dns_name = replace(aws_ec2_client_vpn_endpoint.endpoint.dns_name, "*.", "${random_string.vpn_prefix.id}.")
     ca_cert               = tls_self_signed_cert.ca.cert_pem
     client_cert           = tls_locally_signed_cert.client[0].cert_pem
     client_key            = tls_private_key.client[0].private_key_pem

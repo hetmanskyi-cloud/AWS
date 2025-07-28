@@ -2,7 +2,7 @@
 
 client
 dev tun
-proto udp
+proto tcp
 remote ${vpn_endpoint_dns_name} 443
 resolv-retry infinite
 nobind
