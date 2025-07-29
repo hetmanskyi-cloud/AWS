@@ -394,65 +394,15 @@
       no_log: true
       tags: [wordpress, db-check, ssl]
 
-    - name: Create wp-config.php
-      command: >-
-        wp config create --path="{{ wp_path }}" --dbname="{{ db_name }}" --dbuser="{{ db_user }}"
-        --dbpass="{{ db_password }}" --dbhost="{{ wp_config.DB_HOST }}" --dbprefix="wp_" --skip-check --force
-      become_user: www-data
-      args:
-        creates: "{{ wp_path }}/wp-config.php"
+    - name: Create wp-config.php from template
+      template:
+        src: ../templates/wp-config.php.j2
+        dest: "{{ wp_path }}/wp-config.php"
+        owner: www-data
+        group: www-data
+        mode: '0644'
       no_log: true
-      tags: [wordpress, config, wp-cli]
-
-    - name: Configure salts, Redis, URLs, and other settings in wp-config.php
-      command: "wp config set {{ item.key }} '{{ item.value }}' --path={{ wp_path }} {{ item.raw | default('') }}"
-      loop:
-        - { key: 'AUTH_KEY', value: "{{ auth_key }}" }
-        - { key: 'SECURE_AUTH_KEY', value: "{{ secure_auth_key }}" }
-        - { key: 'LOGGED_IN_KEY', value: "{{ logged_in_key }}" }
-        - { key: 'NONCE_KEY', value: "{{ nonce_key }}" }
-        - { key: 'AUTH_SALT', value: "{{ auth_salt }}" }
-        - { key: 'SECURE_AUTH_SALT', value: "{{ secure_auth_salt }}" }
-        - { key: 'LOGGED_IN_SALT', value: "{{ logged_in_salt }}" }
-        - { key: 'NONCE_SALT', value: "{{ nonce_salt }}" }
-        - { key: 'WP_REDIS_HOST', value: "{{ wp_config.REDIS_HOST }}" }
-        - { key: 'WP_REDIS_PORT', value: "{{ wp_config.REDIS_PORT }}" }
-        - { key: 'WP_REDIS_PASSWORD', value: "{{ redis_auth_token }}" }
-        - { key: 'WP_REDIS_CLIENT', value: 'predis' }
-        - { key: 'WP_REDIS_SCHEME', value: 'tls' }
-        - { key: 'WP_CACHE', value: 'true', raw: '--raw' }
-        - { key: 'WP_SITEURL', value: "{{ site_url }}" }
-        - { key: 'WP_HOME', value: "{{ site_url }}" }
-        - { key: 'MYSQL_CLIENT_FLAGS', value: 'MYSQLI_CLIENT_SSL', raw: '--raw' }
-        - { key: 'MYSQL_SSL_CA', value: '/etc/ssl/certs/rds-combined-ca-bundle.pem' }
-        - { key: 'WP_DEBUG', value: 'true', raw: '--raw' }
-        - { key: 'WP_DEBUG_LOG', value: '/var/log/wordpress.log' }
-        - { key: 'WP_DEBUG_DISPLAY', value: 'false', raw: '--raw' }
-      become_user: www-data
-      no_log: true
-      tags: [wordpress, config, wp-cli]
-
-    - name: Conditionally force SSL for admin area
-      command: "wp config set FORCE_SSL_ADMIN true --raw --path={{ wp_path }}"
-      become_user: www-data
-      when: enable_https | bool
-      tags: [wordpress, config, ssl]
-
-    - name: Add reverse proxy HTTPS snippet to wp-config.php
-      blockinfile:
-        path: "{{ wp_path }}/wp-config.php"
-        marker: "# BEGIN ANSIBLE MANAGED BLOCK: Reverse Proxy Support"
-        insertbefore: "/* That's all, stop editing! Happy publishing. */"
-        block: |
-          // Tell WordPress it is behind a reverse proxy
-          if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-              $_SERVER['HTTPS'] = 'on';
-          }
-          if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-              $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
-          }
-      become_user: www-data
-      tags: [wordpress, config, ssl]
+      tags: [wordpress, config]
 
     - name: Check if WordPress is already installed
       command: "wp core is-installed --path={{ wp_path }}"
@@ -464,7 +414,7 @@
 
     - name: Install WordPress core
       command: >-
-        wp core install --path="{{ wp_path }}" --url="{{ site_url }}" --title="{{ wp_config.WP_TITLE }}"
+        wp core install --path="{{ wp_path }}" --title="{{ wp_config.WP_TITLE }}"
         --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_password }}"
         --admin_email="{{ wp_admin_email }}" --skip-email
       when: wordpress_install_status.rc != 0

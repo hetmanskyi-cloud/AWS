@@ -386,6 +386,14 @@ output "client_vpn_config_file" {
   sensitive   = true
 }
 
+output "waf_vpn_ip_set_id" {
+  value = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_id : null
+}
+
+output "waf_vpn_ip_set_name" {
+  value = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_name : null
+}
+
 # --- Notes --- #
 # - Outputs are designed for modular reuse and visibility in the Terraform state.
 # - Sensitive outputs (like user_data) are marked as sensitive.

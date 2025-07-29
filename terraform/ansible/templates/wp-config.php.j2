@@ -1,0 +1,95 @@
+<?php
+/**
+ * The base configuration for WordPress
+ */
+
+// ** MySQL settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define( 'DB_NAME', '{{ db_name }}' );
+
+/** MySQL database username */
+define( 'DB_USER', '{{ db_user }}' );
+
+/** MySQL database password */
+define( 'DB_PASSWORD', '{{ db_password }}' );
+
+/** MySQL hostname */
+define( 'DB_HOST', '{{ wp_config.DB_HOST }}' );
+
+/** Database Charset to use in creating database tables. */
+define( 'DB_CHARSET', 'utf8' );
+
+/** The Database Collate type. Don't change this if in doubt. */
+define( 'DB_COLLATE', '' );
+
+/**#@+
+ * Authentication Unique Keys and Salts.
+ */
+define('AUTH_KEY',         '{{ auth_key }}');
+define('SECURE_AUTH_KEY',  '{{ secure_auth_key }}');
+define('LOGGED_IN_KEY',    '{{ logged_in_key }}');
+define('NONCE_KEY',        '{{ nonce_key }}');
+define('AUTH_SALT',        '{{ auth_salt }}');
+define('SECURE_AUTH_SALT', '{{ secure_auth_salt }}');
+define('LOGGED_IN_SALT',   '{{ logged_in_salt }}');
+define('NONCE_SALT',       '{{ nonce_salt }}');
+/**#@-*/
+
+/**
+ * WordPress Database Table prefix.
+ */
+$table_prefix = 'wp_';
+
+/**
+ * For developers: WordPress debugging mode.
+ */
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_LOG', '/var/log/wordpress.log' );
+define( 'WP_DEBUG_DISPLAY', false );
+
+/**
+ * Redis Object Cache Settings
+ */
+define('WP_REDIS_HOST', '{{ wp_config.REDIS_HOST }}');
+define('WP_REDIS_PORT', '{{ wp_config.REDIS_PORT }}');
+define('WP_REDIS_PASSWORD', '{{ redis_auth_token }}');
+define('WP_REDIS_CLIENT', 'predis');
+define('WP_REDIS_SCHEME', 'tls');
+define('WP_CACHE', true);
+
+/**
+ * MySQL SSL Settings
+ */
+define('MYSQL_CLIENT_FLAGS', MYSQLI_CLIENT_SSL);
+define('MYSQL_SSL_CA', '/etc/ssl/certs/rds-combined-ca-bundle.pem');
+
+{% if enable_https %}
+define('FORCE_SSL_ADMIN', true);
+{% endif %}
+
+// --- START: Dynamic URL & Reverse Proxy Support ---
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+    $protocol = 'https://';
+} else {
+    $protocol = 'http://';
+}
+
+if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+    $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
+}
+
+define('WP_HOME', $protocol . $_SERVER['HTTP_HOST']);
+define('WP_SITEURL', $protocol . $_SERVER['HTTP_HOST']);
+// --- END: Dynamic URL & Reverse Proxy Support ---
+
+
+/* That's all, stop editing! Happy publishing. */
+
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+        define( 'ABSPATH', __DIR__ . '/' );
+}
+
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';

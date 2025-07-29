@@ -12,31 +12,7 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# --- 1. Determine Site URL --- #
-
-# --- PRODUCTION Configuration (Domain + HTTPS) --- #
-# Uncomment this block and comment out the test block below when switching to HTTPS.
-# if [ -n "${PUBLIC_SITE_URL}" ]; then
-#   # PUBLIC_SITE_URL (CloudFront) should already include https://
-#   SITE_URL="${PUBLIC_SITE_URL}"
-#   log "CloudFront is enabled. Setting site URL to: ${SITE_URL}"
-# else
-#   # The user always connects to the ALB via https
-#   SITE_URL="https://{$AWS_LB_DNS}"
-#   log "CloudFront is disabled. Setting site URL to ALB: ${SITE_URL}"
-# fi
-
-# --- TESTING Configuration (current, via HTTP) --- #
-# This block is currently active. Comment it out and uncomment the production block above when switching to HTTPS.
-if [ -n "${PUBLIC_SITE_URL}" ]; then
-  SITE_URL="${PUBLIC_SITE_URL}"
-  log "CloudFront is enabled. Setting site URL to: ${SITE_URL}"
-else
-  SITE_URL="http://${AWS_LB_DNS}"
-  log "CloudFront is disabled. Setting site URL to ALB: ${SITE_URL}"
-fi
-
-# --- 2. Start logging and ensure required base packages are installed --- #
+# --- 1. Start logging and ensure required base packages are installed --- #
 
 # Redirect all stdout and stderr to log file and console
 exec 1> >(tee -a /var/log/wordpress_install.log) 2>&1
@@ -49,7 +25,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   netcat-openbsd
 log "Base packages verified and installed if missing."
 
-# --- 3. Wait for MySQL (RDS) to become available (up to 60 seconds) --- #
+# --- 2. Wait for MySQL (RDS) to become available (up to 60 seconds) --- #
 
 log "Checking if MySQL is ready on host: ${DB_HOST}, port: ${DB_PORT}..."
 for i in {1..12}; do
@@ -67,7 +43,7 @@ if ! nc -z "${DB_HOST}" "${DB_PORT}"; then
   exit 1
 fi
 
-# --- 4. Retrieve secrets from AWS Secrets Manager --- #
+# --- 3. Retrieve secrets from AWS Secrets Manager --- #
 
 # Retrieve WordPress Secrets
 log "Retrieving WordPress secrets from AWS Secrets Manager..."
@@ -157,9 +133,9 @@ echo "REDIS_AUTH_TOKEN=\"$REDIS_AUTH_TOKEN\"" | sudo tee -a /etc/environment
 
 log "All secrets successfully retrieved and exported."
 
-# --- 5. Install Dependencies and Configure PHP Environment --- #
+# --- 4. Install Dependencies and Configure PHP Environment --- #
 
-# 5.1. Install all required system packages
+# 4.1. Install all required system packages
 log "Installing WordPress and system dependencies..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   nginx \
@@ -180,12 +156,12 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 log "WordPress dependencies installed successfully."
 
-# 5.2. Force update of CA certificates
+# 4.2. Force update of CA certificates
 log "Forcibly updating CA certificates for SSL/TLS connections..."
 sudo update-ca-certificates --fresh
 log "CA certificates updated."
 
-# 5.3. Configure PHP to find system CA certificates for both FPM and CLI
+# 4.3. Configure PHP to find system CA certificates for both FPM and CLI
 log "Configuring PHP to use system CA bundle for SSL..."
 
 # Find and patch the FPM php.ini
@@ -206,7 +182,7 @@ else
   log "WARNING: Could not find loaded php.ini file for CLI!"
 fi
 
-# 5.4. Configure PHP to use Redis for session handling
+# 4.4. Configure PHP to use Redis for session handling
 log "Configuring PHP to use Redis for sessions over TLS and enhance security..."
 PHP_INI_PATH="/etc/php/${PHP_VERSION}/fpm/conf.d/99-redis-session.ini"
 cat << EOF | sudo tee $PHP_INI_PATH
@@ -217,13 +193,13 @@ session.cookie_httponly = 1
 EOF
 log "PHP session config created at $PHP_INI_PATH."
 
-# 5.5. Set secure permissions for PHP session directory
+# 4.5. Set secure permissions for PHP session directory
 log "Securing PHP session directory..."
 sudo chown root:www-data /var/lib/php/sessions
 sudo chmod 1733 /var/lib/php/sessions
 log "PHP session directory permissions set."
 
-# --- 6. Configure Nginx --- #
+# --- 5. Configure Nginx --- #
 
 log "Configuring Nginx..."
 
@@ -313,7 +289,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# --- 7. Download and install WordPress and Predis library --- #
+# --- 6. Download and install WordPress and Predis library --- #
 
 log "Downloading and installing WordPress from GitHub..."
 
@@ -370,7 +346,7 @@ if [ $? -ne 0 ]; then
 fi
 log "Predis library installed successfully."
 
-# --- 8. Install WP-CLI --- #
+# --- 7. Install WP-CLI --- #
 
 log "Installing WP-CLI..."
 
@@ -400,9 +376,9 @@ export WP_CLI_CACHE_DIR="${WP_TMP_DIR}/wp-cli-cache"
 
 log "WP-CLI downloaded and made executable at ${WP_TMP_DIR}/wp-cli.phar. It will be moved to /usr/local/bin/wp later."
 
-# --- 9. Configure wp-config.php (DB, Redis, ALB/CloudFront URL) --- #
+# --- 8. Configure wp-config.php (DB, Redis, ALB/CloudFront URL) --- #
 
-# 9.1. Preparing the configuration wp-config.php
+# 8.1. Preparing the configuration wp-config.php
 log "Configuring wp-config.php for WordPress..."
 
 # Ensure wp-config-sample.php exists; if missing, download it
@@ -422,7 +398,7 @@ for VAR in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT \
   fi
 done
 
-# 9.2. Generate wp-config.php as www-data
+# 8.2. Generate wp-config.php as www-data
 log "Create the main wp-config.php file..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config create \
   --path="$WP_PATH" \
@@ -434,7 +410,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config create \
   --skip-check \
   --force
 
-# 9.3. Set up security keys and salts
+# 8.3. Set up security keys and salts
 log "Set up security keys and salts..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set AUTH_KEY "$AUTH_KEY" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH_KEY "$SECURE_AUTH_KEY" --path="$WP_PATH"
@@ -445,7 +421,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set SECURE_AUTH
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set LOGGED_IN_SALT "$LOGGED_IN_SALT" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set NONCE_SALT "$NONCE_SALT" --path="$WP_PATH"
 
-# 9.4. Configure Redis Object Cache
+# 8.4. Configure Redis Object Cache
 log "Configure Redis Object Cache..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_HOST "$REDIS_HOST" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_PORT "$REDIS_PORT" --path="$WP_PATH"
@@ -454,60 +430,49 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_CL
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_REDIS_SCHEME "tls" --path="$WP_PATH"
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_CACHE "true" --raw --path="$WP_PATH"
 
-# --- 9.5. Set site URLs and Apply HTTPS Settings --- #
-log "Setting WordPress public URL to: ${SITE_URL}"
-
-# Set the site URL and home URL
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_SITEURL "${SITE_URL}" --path="$WP_PATH"
-sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_HOME "${SITE_URL}" --path="$WP_PATH"
+# --- 8.5. Configure Dynamic URLs and Reverse Proxy Settings --- #
 
 # Help WordPress handle cookies correctly behind a reverse proxy
 log "Setting cookie domain for reverse proxy..."
 sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set COOKIE_DOMAIN "" --path="$WP_PATH"
 
-# Always make WordPress proxy-aware
-log "Adding reverse proxy PHP snippet to wp-config.php..."
+# Add PHP snippet to dynamically determine URL and handle reverse proxy SSL
+log "Adding dynamic URL and reverse proxy PHP snippet to wp-config.php..."
 
-# Check if the snippet already exists to ensure idempotency.
-if ! sudo -u www-data grep -q "HTTP_X_FORWARDED_PROTO" "$WP_PATH/wp-config.php"; then
-    # Define the line pattern we want to insert our snippet BEFORE
-    TARGET_LINE_PATTERN="^\/\* That's all, stop editing! Happy publishing. \*\/"
+# Define the PHP block to be inserted
+PHP_SNIPPET=$(cat <<'EOF'
 
-    # Create a temporary file with the snippet
-    SNIPPET_FILE="/tmp/proxy-snippet.txt"
-    cat << 'EOF' | sudo tee "$SNIPPET_FILE" > /dev/null
-
-// Tell WordPress it is behind a reverse proxy for HTTPS (Inserted by deploy script)
+// --- START: Dynamic URL & Reverse Proxy Support (Inserted by deploy script) ---
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     $_SERVER['HTTPS'] = 'on';
+    $protocol = 'https://';
+} else {
+    $protocol = 'http://';
 }
 
+if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+    $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
+}
+
+define('WP_HOME', $protocol . $_SERVER['HTTP_HOST']);
+define('WP_SITEURL', $protocol . $_SERVER['HTTP_HOST']);
+// --- END: Dynamic URL & Reverse Proxy Support ---
+
 EOF
+)
 
-    # Create a new temporary config file
-    TMP_CONFIG="/tmp/wp-config.tmp"
-
-    # Use a robust combination of sed and cat to insert the snippet
-    # 1. Get all lines BEFORE the target line and write to a new temp config
-    sudo sed "/${TARGET_LINE_PATTERN}/Q" "$WP_PATH/wp-config.php" > "$TMP_CONFIG"
-    # 2. Append our snippet from its file to the new temp config
-    sudo cat "$SNIPPET_FILE" >> "$TMP_CONFIG"
-    # 3. Append the target line and everything AFTER it to the new temp config
-    sudo sed -n "/${TARGET_LINE_PATTERN}/,\$p" "$WP_PATH/wp-config.php" >> "$TMP_CONFIG"
-
-    # 4. Replace the original config with the new, correct one
-    sudo mv "$TMP_CONFIG" "$WP_PATH/wp-config.php"
-
-    # 5. Clean up temporary file
-    sudo rm "$SNIPPET_FILE"
-
-    log "Reverse proxy snippet inserted correctly."
+# Insert the block before "/* That's all, stop editing! */"
+# This check ensures the block is only inserted once by looking for a unique part of the snippet.
+if ! sudo -u www-data grep -q "define('WP_HOME'" "$WP_PATH/wp-config.php"; then
+    # Use sed to find the target line and insert the content of the PHP_SNIPPET variable before it
+    sudo sed -i "/\/\* That's all, stop editing!/i ${PHP_SNIPPET}" "$WP_PATH/wp-config.php"
+    log "Dynamic URL snippet inserted into wp-config.php."
 else
-    log "Reverse proxy PHP snippet already exists in wp-config.php. Skipping."
+    log "Dynamic URL snippet already exists in wp-config.php. Skipping."
 fi
 
 # Conditionally force SSL for the admin area
-# This setting only works correctly if the proxy-aware snippet above is in place.
+# This setting works correctly with the proxy-aware snippet above.
 source /etc/environment
 if [ "${ENABLE_HTTPS}" = "true" ]; then
     log "HTTPS is enabled: Forcing SSL for admin area..."
@@ -516,7 +481,7 @@ else
     log "HTTPS is disabled: Skipping FORCE_SSL_ADMIN."
 fi
 
-# 9.6. Final verifications and permissions
+# 8.6. Final verifications and permissions
 log "Final verifications and permissions for wp-config.php..."
 
 # Verify wp-config.php was created
@@ -530,7 +495,7 @@ sudo chown www-data:www-data "$WP_PATH/wp-config.php"
 sudo chmod 644 "$WP_PATH/wp-config.php"
 log "Ownership and permissions set for wp-config.php"
 
-# 9.7 Optional: Verify DB connection over SSL
+# 8.7 Optional: Verify DB connection over SSL
 if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" \
     --ssl-ca="/etc/ssl/certs/rds-combined-ca-bundle.pem" \
     -e "USE $DB_NAME;" > /dev/null 2>&1; then
@@ -542,7 +507,7 @@ fi
 
 log "wp-config.php created and validated successfully."
 
-# --- 9.8 Enable WordPress Debug Logging --- #
+# --- 8.8 Enable WordPress Debug Logging --- #
 
 log "Enabling WP_DEBUG and log file path..."
 
@@ -560,7 +525,7 @@ sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" config set WP_DEBUG_DI
 
 log "WordPress debug logging enabled."
 
-# --- 10. Initialize WordPress database and admin user --- #
+# --- 9. Initialize WordPress database and admin user --- #
 
 log "Starting WordPress database initialization..."
 SSL_CA_PATH="/etc/ssl/certs/rds-combined-ca-bundle.pem"
@@ -622,7 +587,6 @@ else
   # Run WordPress installation with the public URL
   sudo -u www-data HOME=$WP_TMP_DIR php "$WP_CLI_PHAR_PATH" core install \
     --path="$WP_PATH" \
-    --url="${SITE_URL}" \
     --title="$WP_TITLE" \
     --admin_user="$WP_ADMIN" \
     --admin_password="$WP_ADMIN_PASSWORD" \
@@ -653,7 +617,7 @@ else
   fi
 fi
 
-# --- 11. Activate Pre-installed Plugins --- #
+# --- 10. Activate Pre-installed Plugins --- #
 
 log "Activating plugins included in the Git repository..."
 
@@ -668,7 +632,7 @@ else
   log "WARNING: Failed to enable Redis Object Cache via WP-CLI."
 fi
 
-# --- 12. Create ALB health check endpoint from S3 --- #
+# --- 11. Create ALB health check endpoint from S3 --- #
 
 if [ -n "${HEALTHCHECK_S3_PATH:-}" ]; then
   log "Downloading healthcheck.php from S3: ${HEALTHCHECK_S3_PATH}"
@@ -688,7 +652,7 @@ else
   log "HEALTHCHECK_S3_PATH is not defined. Skipping healthcheck setup."
 fi
 
-# --- 13. Final cleanup and security steps --- #
+# --- 12. Final cleanup and security steps --- #
 
 # Update package index
 log "Performing safe system update..."
@@ -715,8 +679,6 @@ log "Sensitive secrets removed from /etc/environment."
 log "Cleaning up temporary workspace at $WP_TMP_DIR..."
 rm -rf "$WP_TMP_DIR"
 log "Temporary workspace deleted."
-
-# --- 14. End of Script --- #
 
 log "WordPress deployment completed successfully. Exiting..."
 
