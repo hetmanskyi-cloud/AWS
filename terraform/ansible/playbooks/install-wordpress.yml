@@ -401,7 +401,7 @@
         owner: www-data
         group: www-data
         mode: '0644'
-      no_log: true
+      # no_log: true
       tags: [wordpress, config]
 
     - name: Check if WordPress is already installed
@@ -419,7 +419,7 @@
         --admin_email="{{ wp_admin_email }}" --skip-email
       when: wordpress_install_status.rc != 0
       become_user: www-data
-      no_log: true
+      # no_log: true
       tags: [wordpress, install, wp-cli]
 
     - name: Activate included plugins
@@ -443,7 +443,7 @@
         - 'DB_USER="{{ db_user }}"'
         - 'DB_PASSWORD="{{ db_password }}"'
         - 'REDIS_AUTH_TOKEN="{{ redis_auth_token }}"'
-      no_log: true
+      # no_log: true
       tags: [wordpress, config]
 
     # --- 9. POST-INSTALL HEALTHCHECK AND LOGS --- #
