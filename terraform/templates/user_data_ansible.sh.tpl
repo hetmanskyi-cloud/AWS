@@ -61,7 +61,6 @@ log "Creating temporary JSON file with variables for Ansible..."
 EXTRA_VARS_FILE="/tmp/extra_vars.json"
 
 # Use a HEREDOC to create a clean JSON file.
-# We pass complex objects directly, and simple variables as strings.
 cat <<EOF > $EXTRA_VARS_FILE
 {
   "wp_config": ${wp_config},

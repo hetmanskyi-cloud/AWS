@@ -19,6 +19,7 @@ terraform {
       source  = "hashicorp/random" # Source for the Random provider
       version = ">= 3.0"           # Required version for Random provider
     }
+    # The Null provider is used for resources that do not create any remote objects,
     # For using null_resource to trigger local scripts (e.g., building Lambda layers)
     null = {
       source  = "hashicorp/null" # Source for the Null provider
@@ -93,7 +94,6 @@ provider "aws" {
 
 # --- Random Provider --- #
 # Used for generating random strings and passwords for secrets and unique names.
-# Define the Random provider for generating random strings if needed
 provider "random" {
 
   # No configuration required as this provider generates random values
@@ -111,22 +111,26 @@ provider "null" {
 # This provider is used as a data source to create ZIP archives on the fly,
 # for example, for Lambda deployment packages.
 provider "archive" {
+
   # No configuration is required for this provider.
 }
 
 # --- TLS Provider --- #
 # This provider is used for managing TLS certificates.
 provider "tls" {
+
   # No configuration is required for this provider.
 }
 
 # --- Template Provider --- #
 provider "template" {
+
   # No configuration is required for this provider.
 }
 
 # --- External Provider --- #
 provider "external" {
+
   # No configuration is required for this provider.
 }
 

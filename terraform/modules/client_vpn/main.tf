@@ -130,13 +130,13 @@ resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
   authorize_all_groups = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? false : true
 }
 
-# --- Random String for VPN DNS ---
-# Creates a random prefix to replace the wildcard in the Client VPN DNS name.
-# This is a best practice to prevent DNS caching issues.
-resource "random_string" "vpn_prefix" {
-  length  = 8
-  special = false
-  upper   = false
+# --- Pet Name for VPN DNS --- #
+# Creates a persistent random name (e.g., "nice-panda") to use as a stable
+# DNS prefix. Unlike random_string, this value is stored in the state
+# and does not change on every plan, making the configuration idempotent.
+resource "random_pet" "vpn_prefix" {
+  length    = 2  # Creates a two-word name like "nice-panda"
+  separator = "" # No separator, e.g. "nicepanda"
 }
 
 # --- Client Config Renderer (Conditional) --- #
@@ -148,7 +148,7 @@ data "template_file" "config" {
   template = file("${path.module}/client_vpn_config.tpl")
 
   vars = {
-    vpn_endpoint_dns_name = replace(aws_ec2_client_vpn_endpoint.endpoint.dns_name, "*.", "${random_string.vpn_prefix.id}.")
+    vpn_endpoint_dns_name = replace(aws_ec2_client_vpn_endpoint.endpoint.dns_name, "*.", "${random_pet.vpn_prefix.id}.")
     ca_cert               = tls_self_signed_cert.ca.cert_pem
     client_cert           = tls_locally_signed_cert.client[0].cert_pem
     client_key            = tls_private_key.client[0].private_key_pem
