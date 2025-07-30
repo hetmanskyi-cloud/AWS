@@ -71,81 +71,84 @@
       delay: 10
       tags: [packages]
 
-    # --- 2. RUST AND CARGO INSTALLATION --- #
+    # --- 2. EFS STACK INSTALLATION (Conditional) --- #
 
-    # Install Rust/Cargo using the official rustup installer.
-    - name: Install Rust and Cargo via rustup
-      shell: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      args:
-        creates: "/root/.cargo/bin/rustc" # Skip if rust is already installed
-      tags: [packages, rust]
+    - name: Install EFS Client and its dependencies (Rust/Cargo)
+      block:
 
-    # Create a symbolic link for the cargo binary to a directory in the system's PATH.
-    # This makes the 'cargo' command immediately available to all subsequent tasks in the playbook.
-    - name: Create symlink for cargo to make it available in PATH
-      file:
-        src: /root/.cargo/bin/cargo
-        dest: /usr/local/bin/cargo
-        state: link
-      tags: [packages, rust]
+        # RUST AND CARGO INSTALLATION (EFS dependency)
+        - name: Install Rust and Cargo via rustup
+          shell: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          args:
+            creates: "/root/.cargo/bin/rustc" # Skip if rust is already installed
+          tags: [packages, rust]
 
-    # --- 3. EFS CLIENT INSTALLATION AND CONFIGURATION --- #
+        - name: Create symlink for cargo to make it available in PATH
+          file:
+            src: /root/.cargo/bin/cargo
+            dest: /usr/local/bin/cargo
+            state: link
+          tags: [packages, rust]
 
-    - name: Clone efs-utils repository from GitHub
-      git:
-        repo: https://github.com/aws/efs-utils
-        dest: /tmp/efs-utils
-        version: master # Use the latest stable code from the master branch
-      tags: [efs, install]
+        # EFS CLIENT INSTALLATION AND CONFIGURATION
+        - name: Clone efs-utils repository from GitHub
+          git:
+            repo: https://github.com/aws/efs-utils
+            dest: /tmp/efs-utils
+            version: master # Use the latest stable code from the master branch
+          tags: [efs, install]
 
-    - name: Build efs-utils .deb package
-      command: ./build-deb.sh
-      args:
-        chdir: /tmp/efs-utils
-        creates: /tmp/efs-utils/build/amazon-efs-utils.deb # Skip if already built
-      environment:
-        PIP_BREAK_SYSTEM_PACKAGES: "1"
-      tags: [efs, install]
+        - name: Build efs-utils .deb package
+          command: ./build-deb.sh
+          args:
+            chdir: /tmp/efs-utils
+            creates: /tmp/efs-utils/build/amazon-efs-utils.deb # Skip if already built
+          environment:
+            PIP_BREAK_SYSTEM_PACKAGES: "1"
+          tags: [efs, install]
 
-    - name: Find the exact name of the built .deb package
-      find:
-        paths: /tmp/efs-utils/build
-        patterns: "amazon-efs-utils*deb"
-      register: efs_deb_file
-      tags: [efs, install]
+        - name: Find the exact name of the built .deb package
+          find:
+            paths: /tmp/efs-utils/build
+            patterns: "amazon-efs-utils*deb"
+          register: efs_deb_file
+          tags: [efs, install]
 
-    - name: Install amazon-efs-utils from built package
-      apt:
-        deb: "{{ efs_deb_file.files[0].path }}"
-      when: efs_deb_file.matched > 0
-      tags: [efs, install]
+        - name: Install amazon-efs-utils from built package
+          apt:
+            deb: "{{ efs_deb_file.files[0].path }}"
+          when: efs_deb_file.matched > 0
+          tags: [efs, install]
 
-    - name: Clean up efs-utils build directory
-      file:
-        path: /tmp/efs-utils
-        state: absent
-      tags: [efs, cleanup]
+        - name: Clean up efs-utils build directory
+          file:
+            path: /tmp/efs-utils
+            state: absent
+          tags: [efs, cleanup]
 
-    - name: Ensure EFS mount point exists
-      file:
-        path: "{{ wp_path }}/wp-content/uploads"
-        state: directory
-        owner: www-data
-        group: www-data
-        mode: '0775'
-      tags: [efs, config]
+        - name: Ensure EFS mount point exists
+          file:
+            path: "{{ wp_path }}/wp-content/uploads"
+            state: directory
+            owner: www-data
+            group: www-data
+            mode: '0775'
+          tags: [efs, config]
 
-    - name: Configure EFS mount in /etc/fstab
-      mount:
-        path: "{{ wp_path }}/wp-content/uploads"
-        src: "{{ efs_file_system_id }}:/"
-        fstype: efs
-        opts: "_netdev,tls,accesspoint={{ efs_access_point_id }}"
-        state: present
-      tags: [efs, config]
+        - name: Configure EFS mount in /etc/fstab
+          mount:
+            path: "{{ wp_path }}/wp-content/uploads"
+            src: "{{ efs_file_system_id }}:/"
+            fstype: efs
+            opts: "_netdev,tls,accesspoint={{ efs_access_point_id }}"
+            state: present
+          tags: [efs, config]
 
-    # --- 4. CLOUDWATCH AGENT CONFIGURATION --- #
+      when: efs_file_system_id is defined and efs_file_system_id != ""
+      tags: [efs]
+
+    # --- 3. CLOUDWATCH AGENT CONFIGURATION --- #
 
     - name: Install CloudWatch Agent
       apt:
@@ -215,7 +218,7 @@
       when: enable_cloudwatch_logs | bool
       tags: [monitoring, cloudwatch]
 
-    # --- 5. PHP AND REDIS CONFIGURATION --- #
+    # --- 4. PHP AND REDIS CONFIGURATION --- #
 
     - name: Download Amazon RDS global SSL certificate bundle
       get_url:
@@ -260,7 +263,7 @@
       notify: Restart PHP-FPM
       tags: [php, config, redis]
 
-    # --- 6. NGINX CONFIGURATION --- #
+    # --- 5. NGINX CONFIGURATION --- #
 
     - name: Create Nginx virtual host configuration from template
       template:
@@ -298,7 +301,7 @@
       notify: Restart Nginx
       tags: [nginx, config, optimization]
 
-    # --- 7. WORDPRESS CORE AND WP-CLI INSTALLATION --- #
+    # --- 6. WORDPRESS CORE AND WP-CLI INSTALLATION --- #
 
     - name: Clone WordPress from Git repository
       git:
@@ -366,7 +369,7 @@
         mode: '0755'
       tags: [wordpress, wp-cli]
 
-    # --- 8. WORDPRESS CONFIGURATION AND INSTALLATION --- #
+    # --- 7. WORDPRESS CONFIGURATION AND INSTALLATION --- #
 
     - name: Verify DB connection with SSL via mysql client
       command: >-
@@ -446,7 +449,7 @@
       # no_log: true
       tags: [wordpress, config]
 
-    # --- 9. POST-INSTALL HEALTHCHECK AND LOGS --- #
+    # --- 8. POST-INSTALL HEALTHCHECK AND LOGS --- #
 
     - name: Create WordPress debug log file
       file:
@@ -480,7 +483,7 @@
         mode: '0644'
       tags: [wordpress, healthcheck]
 
-    # --- 10. SYSTEM CLEANUP --- #
+    # --- 9. SYSTEM CLEANUP --- #
 
     - name: Clean up APT package cache
       apt:
