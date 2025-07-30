@@ -3,6 +3,11 @@
  * The base configuration for WordPress
  */
 
+// --- Fix HTTPS redirect issue when behind CloudFront and ALB ---
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
+    $_SERVER['HTTPS'] = 'on';
+}
+
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
 define( 'DB_NAME', '{{ db_name }}' );
@@ -66,23 +71,6 @@ define('MYSQL_SSL_CA', '/etc/ssl/certs/rds-combined-ca-bundle.pem');
 {% if enable_https %}
 define('FORCE_SSL_ADMIN', true);
 {% endif %}
-
-// --- START: Dynamic URL & Reverse Proxy Support ---
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-    $_SERVER['HTTPS'] = 'on';
-    $protocol = 'https://';
-} else {
-    $protocol = 'http://';
-}
-
-if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-    $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
-}
-
-define('WP_HOME', $protocol . $_SERVER['HTTP_HOST']);
-define('WP_SITEURL', $protocol . $_SERVER['HTTP_HOST']);
-// --- END: Dynamic URL & Reverse Proxy Support ---
-
 
 /* That's all, stop editing! Happy publishing. */
 

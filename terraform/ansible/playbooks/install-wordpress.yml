@@ -414,7 +414,7 @@
 
     - name: Install WordPress core
       command: >-
-        wp core install --path="{{ wp_path }}" --title="{{ wp_config.WP_TITLE }}"
+        wp core install --path="{{ wp_path }}" --url="{{ site_url }}" --title="{{ wp_config.WP_TITLE }}"
         --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_password }}"
         --admin_email="{{ wp_admin_email }}" --skip-email
       when: wordpress_install_status.rc != 0
