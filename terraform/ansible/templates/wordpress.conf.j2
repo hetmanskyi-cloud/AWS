@@ -28,6 +28,10 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:{{ php_fpm_socket }};
+        # Makes $_SERVER['HTTP_X_FORWARDED_HOST'] available in PHP
+        fastcgi_param HTTP_X_FORWARDED_HOST $http_x_forwarded_host;
+        # Makes $_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO'] available in PHP
+        fastcgi_param HTTP_CLOUDFRONT_FORWARDED_PROTO $http_cloudfront_forwarded_proto;
         fastcgi_param HTTPS $forwarded_https;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     }
