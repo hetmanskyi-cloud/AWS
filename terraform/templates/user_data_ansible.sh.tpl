@@ -39,7 +39,7 @@ log "Retrieving all secrets from AWS Secrets Manager..."
 WP_SECRETS=$(aws secretsmanager get-secret-value --region "${aws_region}" --secret-id "${wordpress_secrets_name}" --query 'SecretString' --output text)
 export WP_ADMIN_USER=$(echo "$WP_SECRETS" | jq -r '.ADMIN_USER')
 export WP_ADMIN_EMAIL=$(echo "$WP_SECRETS" | jq -r '.ADMIN_EMAIL')
-export WP_ADMIN_PASSWORD=$(echo "$WP_SECRETS" | jq -r '.ADMIN_PASSWORD')
+export WP_ADMIN_PASSWORD_BASE64=$(echo "$WP_SECRETS" | jq -r '.ADMIN_PASSWORD' | base64 -w0)
 export AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.AUTH_KEY')
 export SECURE_AUTH_KEY=$(echo "$WP_SECRETS" | jq -r '.SECURE_AUTH_KEY')
 export LOGGED_IN_KEY=$(echo "$WP_SECRETS" | jq -r '.LOGGED_IN_KEY')
@@ -73,7 +73,7 @@ cat <<EOF > $EXTRA_VARS_FILE
   "efs_access_point_id": "${efs_access_point_id}",
   "enable_cloudwatch_logs": ${enable_cloudwatch_logs},
   "wp_admin_user": "$${WP_ADMIN_USER}",
-  "wp_admin_password": "$${WP_ADMIN_PASSWORD}",
+  "wp_admin_password_base64": "$${WP_ADMIN_PASSWORD_BASE64}",
   "wp_admin_email": "$${WP_ADMIN_EMAIL}",
   "db_name": "$${DB_NAME}",
   "db_user": "$${DB_USER}",
