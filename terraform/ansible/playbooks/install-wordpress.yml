@@ -422,11 +422,9 @@
         --url="{{ site_url }}"
         --title="{{ wp_config.WP_TITLE }}"
         --admin_user="{{ wp_admin_user }}"
-        --admin_password="$WP_ADMIN_PASS"
+        --admin_password="{{ wp_admin_password | quote }}"
         --admin_email="{{ wp_admin_email }}"
         --skip-email
-      environment:
-        WP_ADMIN_PASS: "{{ wp_admin_password }}"
       when: wordpress_install_status.rc != 0
       become_user: www-data
       # no_log: true
