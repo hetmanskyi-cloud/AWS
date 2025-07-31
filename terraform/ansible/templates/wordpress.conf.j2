@@ -9,31 +9,43 @@ server {
 
     server_name _;
 
-    # Pass the real client IP from the ALB to the logs.
+    # Pass the real client IP from ALB/CloudFront to logs.
     set_real_ip_from 0.0.0.0/0;
     real_ip_header X-Forwarded-For;
 
-    # Detect if the connection from the ALB is HTTPS.
-    set $forwarded_https off;
-    if ($http_x_forwarded_proto = "https") {
-        set $forwarded_https on;
-    }
-
-    # Main location block to handle permalinks.
-    location / {
-        try_files $uri $uri/ /index.php?$args;
-    }
-
-    # Pass PHP scripts to FastCGI server (PHP-FPM).
+    # Universal HTTPS and Host fix for PHP behind proxies (CloudFront/ALB)
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:{{ php_fpm_socket }};
-        # Makes $_SERVER['HTTP_X_FORWARDED_HOST'] available in PHP
-        fastcgi_param HTTP_X_FORWARDED_HOST $http_x_forwarded_host;
-        # Makes $_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO'] available in PHP
-        fastcgi_param HTTP_CLOUDFRONT_FORWARDED_PROTO $http_cloudfront_forwarded_proto;
-        fastcgi_param HTTPS $forwarded_https;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+
+        # 1. Detect HTTPS: first via CloudFront, then via ALB
+        set $proxy_https off;
+        if ($http_cloudfront_forwarded_proto = 'https') {
+            set $proxy_https on;
+        }
+        if ($http_x_forwarded_proto = 'https') {
+            set $proxy_https on;
+        }
+
+        # 2. Set proxy_host: use CloudFront/ALB host if present, otherwise $host
+        set $proxy_host $host;
+        if ($http_x_forwarded_host != '') {
+            set $proxy_host $http_x_forwarded_host;
+        }
+
+        # 3. Pass all required headers to PHP-FPM
+        fastcgi_param HTTPS                         $proxy_https;
+        fastcgi_param HTTP_HOST                     $proxy_host;
+        fastcgi_param HTTP_X_FORWARDED_FOR          $proxy_add_x_forwarded_for;
+        fastcgi_param HTTP_X_FORWARDED_HOST         $proxy_host;
+        fastcgi_param HTTP_X_FORWARDED_PROTO        $http_x_forwarded_proto;
+        fastcgi_param HTTP_CLOUDFRONT_FORWARDED_PROTO $http_cloudfront_forwarded_proto;
+    }
+
+    # Main location block for WordPress permalinks.
+    location / {
+        try_files $uri $uri/ /index.php?$args;
     }
 
     # Deny access to hidden files like .htaccess.
