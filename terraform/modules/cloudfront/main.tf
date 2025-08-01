@@ -78,6 +78,38 @@ resource "aws_cloudfront_cache_policy" "wordpress_media_cache_policy" {
   }
 }
 
+# --- CloudFront Origin Request Policy for ALB --- #
+# This policy forwards all necessary headers for WordPress to correctly identify
+# the viewer's protocol (HTTPS) and host when behind CloudFront.
+resource "aws_cloudfront_origin_request_policy" "wordpress_alb_policy" {
+  provider = aws.cloudfront
+  count    = local.enable_cloudfront_media_distribution ? 1 : 0
+  name     = "${var.name_prefix}-alb-origin-policy-${var.environment}"
+  comment  = "Policy to forward headers for WordPress behind CloudFront+ALB"
+
+  headers_config {
+    header_behavior = "whitelist"
+    headers {
+      # Forward all headers needed for protocol/host detection and client IP
+      items = [
+        "Host",
+        "X-Forwarded-For",
+        "X-Forwarded-Host",
+        "X-Forwarded-Proto",
+        "CloudFront-Forwarded-Proto"
+      ]
+    }
+  }
+
+  cookies_config {
+    cookie_behavior = "all"
+  }
+
+  query_strings_config {
+    query_string_behavior = "all"
+  }
+}
+
 # --- CloudFront Distribution --- #
 # Creates a single CloudFront distribution with two origins:
 # 1. ALB for the WordPress application (dynamic content).
@@ -149,6 +181,9 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
     # and query strings to the application. This is critical for dynamic content.
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
 
+    # Use the custom origin request policy to forward necessary headers for WordPress.
+    origin_request_policy_id = local.enable_cloudfront_media_distribution ? aws_cloudfront_origin_request_policy.wordpress_alb_policy[0].id : null
+
     # Use the AWS-managed policy for security headers, suitable for web applications.
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
@@ -166,6 +201,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
     # Use the same no-cache policy as the default behavior for consistency.
     cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    origin_request_policy_id   = local.enable_cloudfront_media_distribution ? aws_cloudfront_origin_request_policy.wordpress_alb_policy[0].id : null
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
 
@@ -182,6 +218,7 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 
     # Use the same no-cache policy as the default behavior.
     cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    origin_request_policy_id   = local.enable_cloudfront_media_distribution ? aws_cloudfront_origin_request_policy.wordpress_alb_policy[0].id : null
     response_headers_policy_id = "eaab4381-ed33-4a86-88ca-d9558dc6cd63" # Managed-SecurityHeadersPolicy
   }
 
@@ -283,8 +320,10 @@ resource "aws_cloudfront_distribution" "wordpress_media" {
 # 4. Modern Protocol Support: The distribution is configured with 'http_version = "http2and3"', enabling the latest HTTP/3 protocol
 #    for clients that support it, while maintaining backward compatibility with HTTP/2 for optimal performance and reduced latency.
 # 5. Cache and Headers Strategy:
-#    - Application origin (ALB): Uses the AWS-managed "CachingDisabled" policy, which forwards all headers, cookies, and query strings,
-#      and disables caching to ensure real-time application behavior. Caching for dynamic content is delegated to the origin application.
+#    - Application origin (ALB): Uses a combination of two policies for optimal behavior. The AWS-managed "CachingDisabled"
+#      policy ensures that dynamic content is not cached. A custom "Origin Request Policy" is used to explicitly forward
+#      the necessary headers (`Host`, `X-Forwarded-*`, `CloudFront-Forwarded-Proto`), all cookies, and all query strings
+#      to the origin. This combination allows the application to function correctly behind the reverse proxy.
 #    - Media origin (S3): Uses a custom optimized policy that excludes cookies and query strings, enables Brotli/GZIP compression,
 #      and sets long TTLs for maximum performance.
 #    - Security Headers: This distribution uses AWS-managed Response Headers Policies (e.g., "Managed-SecurityHeadersPolicy") attached
