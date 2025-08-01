@@ -95,7 +95,6 @@ resource "aws_cloudfront_origin_request_policy" "wordpress_alb_policy" {
         "Host",
         "X-Forwarded-For",
         "X-Forwarded-Host",
-        "X-Forwarded-Proto",
         "CloudFront-Forwarded-Proto"
       ]
     }
