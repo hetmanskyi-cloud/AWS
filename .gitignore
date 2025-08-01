@@ -18,6 +18,7 @@ terraform.rc
 # Sensitive files
 *.pem
 *.key
+*.ovpn
 
 # AWS credentials
 /.aws/*
