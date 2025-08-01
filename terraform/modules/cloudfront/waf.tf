@@ -1,3 +1,10 @@
+# --- Data Source to get the public IP of the machine running Terraform --- #
+# This fetches the current public IP address to add it to the WAF whitelist.
+data "http" "my_ip" {
+  # This data source fetches the public IP of the machine running Terraform.
+  url = "https://ipv4.icanhazip.com"
+}
+
 # --- AWS WAF Web ACL for CloudFront (us-east-1) --- #
 # This resource creates an AWS WAFv2 Web Access Control List (Web ACL) for CloudFront,
 # acting as the primary, edge security layer. It protects both the WordPress application
@@ -198,7 +205,7 @@ resource "aws_wafv2_ip_set" "vpn_access_ips" {
   name               = "${var.name_prefix}-vpn-access-ips-${var.environment}"
   scope              = "CLOUDFRONT"
   ip_address_version = "IPV4"
-  addresses          = var.vpn_egress_cidrs
+  addresses          = concat(var.vpn_egress_cidrs, ["${chomp(data.http.my_ip.response_body)}/32"])
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-vpn-access-ips-${var.environment}"

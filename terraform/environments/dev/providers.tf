@@ -45,6 +45,11 @@ terraform {
       source  = "hashicorp/external"
       version = ">= 2.3.0"
     }
+    # The HTTP provider is used to make HTTP requests, such as fetching remote files or APIs
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.5"
+    }
   }
 }
 
@@ -130,6 +135,12 @@ provider "template" {
 
 # --- External Provider --- #
 provider "external" {
+
+  # No configuration is required for this provider.
+}
+
+# --- HTTP Provider --- #
+provider "http" {
 
   # No configuration is required for this provider.
 }
