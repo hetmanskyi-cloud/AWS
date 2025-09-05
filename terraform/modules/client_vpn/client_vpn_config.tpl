@@ -4,6 +4,7 @@ client
 dev tun
 proto tcp
 remote ${vpn_endpoint_dns_name} 443
+remote-random-hostname
 resolv-retry infinite
 nobind
 remote-cert-tls server

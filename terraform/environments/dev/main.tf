@@ -809,8 +809,8 @@ module "client_vpn" {
   vpc_id   = module.vpc.vpc_id
   vpc_cidr = module.vpc.vpc_cidr_block
 
-  # Pass the VPC's DNS server address, calculated dynamically from the VPC CIDR.
-  custom_dns_servers = [cidrhost(var.vpc_cidr_block, 2)]
+  # Pass the VPC's DNS server address, derived from the VPC CIDR (from module output to avoid drift).
+  custom_dns_servers = [cidrhost(module.vpc.vpc_cidr_block, 2)]
 
   # Pointing to public subnets
   vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]

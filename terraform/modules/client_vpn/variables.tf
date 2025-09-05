@@ -43,6 +43,11 @@ variable "custom_dns_servers" {
   description = "A list of up to two DNS server IPs to be used by clients. Use the VPC's DNS server (e.g., '10.0.0.2') to resolve private hostnames."
   type        = list(string)
   default     = []
+
+  validation {
+    condition     = length(var.custom_dns_servers) <= 2
+    error_message = "Provide at most two DNS servers."
+  }
 }
 
 # --- Autentication Configuration --- #
