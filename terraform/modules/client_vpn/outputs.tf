@@ -2,9 +2,13 @@
 
 output "client_vpn_config" {
   description = "The rendered OpenVPN configuration file (.ovpn). Available ONLY for 'certificate' authentication."
-  # Return the rendered config if available, otherwise return a helpful message.
-  value     = var.authentication_type == "certificate" ? data.template_file.config[0].rendered : "N/A for federated authentication. Download from AWS self-service portal."
-  sensitive = true # This output contains private keys and certificates and should be handled securely.
+  value       = local.client_vpn_config_rendered
+  sensitive   = true
+}
+
+output "client_vpn_config_info" {
+  description = "Human-readable hint on how to obtain the client config depending on the auth mode."
+  value       = var.authentication_type == "certificate" ? "Use: terraform output -raw client_vpn_config > client.ovpn" : "N/A for federated authentication. Download from AWS self-service portal."
 }
 
 output "client_vpn_endpoint_id" {

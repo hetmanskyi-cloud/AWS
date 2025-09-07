@@ -381,9 +381,19 @@ output "efs_security_group_id" {
 # --- Client VPN Module Outputs --- #
 
 output "client_vpn_config_file" {
-  description = "The rendered OpenVPN configuration (.ovpn) file for the client. Available only if the module is enabled."
-  value       = var.enable_client_vpn ? module.client_vpn[0].client_vpn_config : "Client VPN module is disabled."
+  description = "The rendered OpenVPN configuration (.ovpn) file for the client, if available."
+  value       = try(module.client_vpn[0].client_vpn_config, "Client VPN module is disabled.")
   sensitive   = true
+}
+
+output "client_vpn_endpoint_id" {
+  description = "The ID of the Client VPN endpoint, if created."
+  value       = try(module.client_vpn[0].client_vpn_endpoint_id, null)
+}
+
+output "client_vpn_config_info" {
+  description = "Hint on how to obtain the client VPN configuration depending on the auth mode."
+  value       = try(module.client_vpn[0].client_vpn_config_info, "Client VPN not enabled")
 }
 
 output "waf_vpn_ip_set_id" {
