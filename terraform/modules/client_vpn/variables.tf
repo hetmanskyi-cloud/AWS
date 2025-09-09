@@ -27,10 +27,10 @@ variable "kms_key_arn" {
 
 # --- Client VPN Configuration --- #
 
-variable "client_vpn_client_cidr_block" {
-  description = "The IPv4 address range, in CIDR notation, from which to assign client IP addresses. Must be a /22 block or greater (e.g., '10.100.0.0/22')."
-  type        = string
-  # No default value, as this is a critical network design choice.
+variable "client_vpn_client_cidr_blocks" {
+  description = "List of IPv4 address ranges, in CIDR notation, from which to assign client IP addresses (e.g., ['10.100.0.0/22'])."
+  type        = list(string)
+  default     = []
 }
 
 variable "client_vpn_split_tunnel" {

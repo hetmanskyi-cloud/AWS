@@ -226,7 +226,8 @@ module "asg" {
   redis_auth_secret_name = aws_secretsmanager_secret.redis_auth.name
 
   # Client VPN Configuration
-  client_vpn_client_cidr_block = var.client_vpn_client_cidr_block
+  client_vpn_client_cidr_blocks = var.client_vpn_client_cidr_blocks
+  enable_client_vpn             = var.enable_client_vpn
 
   depends_on = [module.vpc, module.kms,
     aws_secretsmanager_secret_version.wp_secrets_version,
@@ -799,8 +800,8 @@ module "client_vpn" {
   kms_key_arn = module.kms.kms_key_arn
 
   # VPN Endpoint Configuration
-  client_vpn_split_tunnel      = var.client_vpn_split_tunnel
-  client_vpn_client_cidr_block = var.client_vpn_client_cidr_block
+  client_vpn_split_tunnel       = var.client_vpn_split_tunnel
+  client_vpn_client_cidr_blocks = var.client_vpn_client_cidr_blocks
 
   # Logging Configuration
   client_vpn_log_retention_days = var.client_vpn_log_retention_days

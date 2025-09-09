@@ -142,7 +142,10 @@ resource "aws_iam_policy" "alb_firehose_cw_policy" {
           "logs:CreateLogGroup",
           "logs:CreateLogStream"
         ],
-        Resource = "*"
+        Resource = [
+          "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/alb-waf-logs:*",
+          "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/alb-waf-logs:log-stream:S3Delivery"
+        ]
       }
     ]
   })

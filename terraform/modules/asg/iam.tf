@@ -100,7 +100,7 @@ resource "aws_iam_role_policy_attachment" "s3_access_policy_attachment" {
   count = length(aws_iam_policy.s3_access_policy) > 0 ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
-  policy_arn = length(aws_iam_policy.s3_access_policy) > 0 ? aws_iam_policy.s3_access_policy[0].arn : null
+  policy_arn = aws_iam_policy.s3_access_policy[0].arn
 }
 
 # --- CloudWatch Access Policy --- #
@@ -268,7 +268,7 @@ resource "aws_iam_role_policy_attachment" "kms_access" {
   ) ? 1 : 0
 
   role       = aws_iam_role.asg_role.name
-  policy_arn = length(aws_iam_policy.kms_decrypt_policy) > 0 ? aws_iam_policy.kms_decrypt_policy[0].arn : null
+  policy_arn = aws_iam_policy.kms_decrypt_policy[0].arn
 }
 
 # --- IAM Instance Profile --- #

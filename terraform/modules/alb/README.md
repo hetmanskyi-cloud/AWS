@@ -175,52 +175,56 @@ This module provisions:
 
 ## 7. Inputs
 
-| Name                               | Type           | Description                                              | Validation                          |
-|------------------------------------|----------------|----------------------------------------------------------|-------------------------------------|
-| `aws_region`                       | `string`       | AWS region for resources                                 | Format: `xx-xxxx-x`                 |
-| `aws_account_id`                   | `string`       | AWS Account ID for security policies                     | 12-digit numeric string             |
-| `name_prefix`                      | `string`       | Prefix for resource names                                | <= 24 chars                         |
-| `environment`                      | `string`       | Deployment environment                                   | One of: `dev`, `stage`, `prod`      |
-| `tags`                             | `map(string)`  | Tags to apply to all resources                           | `{}` (Optional)                     |
-| `public_subnets`                   | `list(string)` | Public subnet IDs for ALB                                | Valid subnet IDs                    |
-| `vpc_id`                           | `string`       | VPC ID for ALB                                           | Valid VPC ID                        |
-| `target_group_port`                | `number`       | Port for the target group                                | Default: `80`                       |
-| `certificate_arn`                  | `string`       | SSL Certificate ARN for HTTPS listener                   | Required if HTTPS enabled           |
-| `alb_enable_deletion_protection`   | `bool`         | Enable deletion protection for the ALB                   | Default: `false`                    |
-| `enable_https_listener`            | `bool`         | Toggle HTTPS Listener                                    | `true` or `false`                   |
-| `enable_alb_access_logs`           | `bool`         | Toggle ALB access logs                                   | `true` or `false`                   |
-| `alb_logs_bucket_name`             | `string`       | S3 bucket for ALB logs                                   | Non-empty string or `null`          |
-| `logging_bucket_arn`               | `string`       | ARN of S3 bucket for Firehose                            | Non-empty if Firehose enabled       |
-| `kms_key_arn`                      | `string`       | KMS key ARN for log encryption                           | Non-empty if Firehose enabled       |
-| `enable_firehose`                  | `bool`         | Toggle Kinesis Firehose                                  | `true` or `false`                   |
-| `enable_waf`                       | `bool`         | Toggle WAF protection                                    | `true` or `false`                   |
-| `enable_waf_logging`               | `bool`         | Toggle WAF logging (requires Firehose)                   | `true` or `false`                   |
-| `sns_topic_arn`                    | `string`       | SNS topic for CloudWatch Alarms                          | Valid SNS ARN                       |
-| `alb_request_count_threshold`      | `number`       | Threshold for high request count on ALB                  | Default: `1000`                     |
-| `alb_5xx_threshold`                | `number`       | Threshold for 5XX errors on ALB                          | Default: `50`                       |
-| `enable_high_request_alarm`        | `bool`         | Enable CloudWatch alarm for high request count           | Default: `false`                    |
-| `enable_5xx_alarm`                 | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors              | Default: `false`                    |
-| `enable_target_response_time_alarm`| `bool`         | Enable CloudWatch alarm for Target Response Time         | Default: `false`                    |
+| Name                                    | Type           | Description                                                | Validation                          |
+|-----------------------------------------|----------------|------------------------------------------------------------|-------------------------------------|
+| `name_prefix`                           | `string`       | Prefix for resource names                                  | <= 24 chars                         |
+| `environment`                           | `string`       | Deployment environment                                     | One of: `dev`, `stage`, `prod`      |
+| `tags`                                  | `map(string)`  | Tags to apply to all resources                             | `{}` (Optional)                     |
+| `public_subnets`                        | `list(string)` | Public subnet IDs for ALB                                  | Valid subnet IDs                    |
+| `vpc_id`                                | `string`       | VPC ID for ALB                                             | Valid VPC ID                        |
+| `vpc_cidr_block`                        | `string`       | The CIDR block of the VPC, used for internal health checks.| Non-empty string                    |
+| `target_group_port`                     | `number`       | Port for the target group                                  | Default: `80`                       |
+| `certificate_arn`                       | `string`       | SSL Certificate ARN for HTTPS listener                     | Required if HTTPS enabled           |
+| `alb_enable_deletion_protection`        | `bool`         | Enable deletion protection for the ALB                     | Default: `false`                    |
+| `enable_https_listener`                 | `bool`         | Toggle HTTPS Listener                                      | `true` or `false`                   |
+| `enable_alb_access_logs`                | `bool`         | Toggle ALB access logs                                     | `true` or `false`                   |
+| `alb_logs_bucket_name`                  | `string`       | S3 bucket for ALB logs                                     | Non-empty string or `null`          |
+| `logging_bucket_arn`                    | `string`       | ARN of S3 bucket for Firehose                              | Non-empty if Firehose enabled       |
+| `kms_key_arn`                           | `string`       | KMS key ARN for log encryption                             | Non-empty if Firehose enabled       |
+| `enable_alb_firehose`                   | `bool`         | Toggle Kinesis Firehose                                    | `true` or `false`                   |
+| `enable_alb_firehose_cloudwatch_logs`   | `bool`         | Enable CloudWatch logging for Firehose delivery stream     | `true` or `false`                   |
+| `enable_alb_waf`                        | `bool`         | Toggle WAF protection                                      | `true` or `false`                   |
+| `enable_alb_waf_logging`                | `bool`         | Toggle WAF logging (requires Firehose)                     | `true` or `false`                   |
+| `cloudfront_to_alb_secret_header_value` | `string`       | Secret value for the custom CloudFront → ALB header.       | `sensitive`                         |
+| `alb_access_cloudfront_mode`            | `bool`         | If true, restricts ALB ingress to CloudFront IPs.          | Default: `false`                    |
+| `asg_security_group_id`                 | `string`       | The ID of the security group attached to the ASG instances.| Non-empty string                    |
+| `sns_topic_arn`                         | `string`       | SNS topic for CloudWatch Alarms                            | Valid SNS ARN                       |
+| `alb_request_count_threshold`           | `number`       | Threshold for high request count on ALB                    | Default: `1000`                     |
+| `alb_5xx_threshold`                     | `number`       | Threshold for 5XX errors on ALB                            | Default: `50`                       |
+| `enable_high_request_alarm`             | `bool`         | Enable CloudWatch alarm for high request count             | Default: `false`                    |
+| `enable_5xx_alarm`                      | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors                | Default: `false`                    |
+| `enable_target_response_time_alarm`     | `bool`         | Enable CloudWatch alarm for Target Response Time           | Default: `false`                    |
 
 ---
 
 ## 8. Outputs
 
-| **Name**                            | **Description**                                    |
-|-------------------------------------|----------------------------------------------------|
-| `alb_arn`                           | ARN of the Application Load Balancer               |
-| `alb_dns_name`                      | DNS name of the Application Load Balancer          |
-| `alb_name`                          | Name of the Application Load Balancer              |
-| `alb_security_group_id`             | Security Group ID of the ALB                       |
-| `wordpress_tg_arn`                  | ARN of the WordPress Target Group                  |
-| `alb_target_group_name`             | Name of the WordPress target group                 |
-| `alb_access_logs_bucket_name`       | Name of the S3 bucket for ALB access logs          |
-| `waf_arn`                           | ARN of the WAF Web ACL (if enabled)                |
-| `enable_https_listener`             | Whether HTTPS listener is enabled on the ALB       |
-| `alb_high_request_count_alarm_arn`  | ARN for high request count alarm                   |
-| `alb_5xx_errors_alarm_arn`          | ARN for 5XX errors alarm                           |
-| `alb_target_response_time_alarm_arn`| ARN for target response time alarm                 |
-| `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                    |
+| **Name**                            | **Description**                                      |
+|-------------------------------------|------------------------------------------------------|
+| `alb_arn`                           | ARN of the Application Load Balancer                 |
+| `alb_dns_name`                      | DNS name of the Application Load Balancer            |
+| `alb_name`                          | Name of the Application Load Balancer                |
+| `alb_security_group_id`             | Security Group ID of the ALB                         |
+| `wordpress_tg_arn`                  | ARN of the WordPress Target Group                    |
+| `alb_target_group_name`             | Name of the WordPress target group                   |
+| `alb_access_logs_bucket_name`       | Name of the S3 bucket for ALB access logs            |
+| `alb_waf_arn`                       | ARN of the WAF Web ACL (if enabled)                  |
+| `alb_waf_logs_firehose_arn`         | ARN of the Kinesis Firehose for WAF logs (if enabled)|
+| `enable_https_listener`             | Whether HTTPS listener is enabled on the ALB         |
+| `alb_high_request_count_alarm_arn`  | ARN for high request count alarm                     |
+| `alb_5xx_errors_alarm_arn`          | ARN for 5XX errors alarm                             |
+| `alb_target_response_time_alarm_arn`| ARN for target response time alarm                   |
+| `alb_unhealthy_host_count_alarm_arn`| ARN for unhealthy targets alarm                      |
 
 ---
 
@@ -229,23 +233,29 @@ This module provisions:
 
 ```hcl
 module "alb" {
-  source                         = "./modules/alb"
-  aws_region                     = "eu-west-1"
-  aws_account_id                 = "123456789012"
-  name_prefix                    = "dev"
-  environment                    = "dev"
-  public_subnets                 = module.vpc.public_subnet_ids
-  vpc_id                         = module.vpc.vpc_id
-  enable_https_listener          = true
-  certificate_arn                = "arn:aws:acm:eu-west-1:123456789012:certificate/example"
-  enable_alb_access_logs         = true
-  alb_logs_bucket_name           = "prod-alb-logs"
-  logging_bucket_arn             = module.s3.logging_bucket_arn
-  kms_key_arn                    = module.kms.kms_key_arn
-  enable_firehose                = true
-  enable_waf                     = true
-  enable_waf_logging             = true
-  sns_topic_arn                  = aws_sns_topic.cloudwatch_alarms.arn
+  source                                = "./modules/alb"
+  name_prefix                           = "prod"
+  environment                           = "prod"
+  tags                                  = { "Terraform" = "true" }
+  public_subnets                        = module.vpc.public_subnet_ids
+  vpc_id                                = module.vpc.vpc_id
+  vpc_cidr_block                        = module.vpc.vpc_cidr_block
+  asg_security_group_id                 = module.asg.asg_security_group_id
+  enable_https_listener                 = true
+  certificate_arn                       = "arn:aws:acm:eu-west-1:123456789012:certificate/example"
+  enable_alb_access_logs                = true
+  alb_logs_bucket_name                  = "prod-alb-logs"
+  logging_bucket_arn                    = module.s3.logging_bucket_arn
+  kms_key_arn                           = module.kms.kms_key_arn
+  enable_alb_firehose                   = true
+  enable_alb_waf                        = true
+  enable_alb_waf_logging                = true
+  alb_access_cloudfront_mode            = true
+  cloudfront_to_alb_secret_header_value = "a-secure-secret-value"
+  sns_topic_arn                         = aws_sns_topic.cloudwatch_alarms.arn
+  enable_high_request_alarm             = true
+  enable_5xx_alarm                      = true
+  enable_target_response_time_alarm     = true
 }
 ```
 
@@ -267,7 +277,7 @@ module "alb" {
 - Review and tighten Security Group rules periodically.
 - Regularly audit IAM roles and policies for least privilege.
 - Configure CloudWatch alarms with SNS notifications for proactive monitoring.
-- Ensure `enable_firehose` is enabled if WAF logging is required.
+- Ensure `enable_alb_firehose` is enabled if WAF logging is required.
 
 ---
 
@@ -277,9 +287,9 @@ This module supports conditional creation of certain resources based on input va
 
 - **HTTPS Listener** is created only if `enable_https_listener = true`.
 - **ALB Access Logging** is enabled only if `enable_alb_access_logs = true` and `alb_logs_bucket_name` is provided.
-- **Kinesis Firehose** is provisioned only if `enable_firehose = true`.
-- **AWS WAF** is created and attached to ALB only if `enable_waf = true`.
-- **WAF Logging** is enabled only if both `enable_waf_logging = true` and `enable_firehose = true`.
+- **Kinesis Firehose** is provisioned only if `enable_alb_firehose = true`.
+- **AWS WAF** is created and attached to ALB only if `enable_alb_waf = true`.
+- **WAF Logging** is enabled only if both `enable_alb_waf_logging = true` and `enable_alb_firehose = true`.
 - **CloudWatch Alarms** are created based on the following flags:
   - `enable_high_request_alarm` for high request count alarm
   - `enable_5xx_alarm` for 5XX errors alarm
@@ -298,7 +308,7 @@ This module supports conditional creation of certain resources based on input va
 - Review and tighten Security Group rules periodically.
 - Regularly audit IAM roles and policies for least privilege.
 - Configure CloudWatch alarms with SNS notifications for proactive monitoring.
-- Ensure `enable_firehose` is enabled if WAF logging is required.
+- Ensure `enable_alb_firehose` is enabled if WAF logging is required.
 
 ---
 
@@ -329,8 +339,8 @@ Integrates with:
 - **Solution:** Ensure a valid ACM certificate is provisioned in the same region and `enable_https_listener = true`.
 
 ### 2. WAF Logging not delivered to S3
-- **Cause:** `enable_firehose` is not enabled or `logging_bucket_arn` is incorrect.
-- **Solution:** Verify both `enable_firehose = true` and a valid `logging_bucket_arn` are set.
+- **Cause:** `enable_alb_firehose` is not enabled or `logging_bucket_arn` is incorrect.
+- **Solution:** Verify both `enable_alb_firehose = true` and a valid `logging_bucket_name` are set.
 
 ### 3. CloudWatch Alarms not triggering
 - **Cause:** `enable_high_request_alarm`, `enable_5xx_alarm`, or `enable_target_response_time_alarm` not set.

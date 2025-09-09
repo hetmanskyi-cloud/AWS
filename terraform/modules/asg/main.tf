@@ -57,8 +57,7 @@ resource "aws_autoscaling_group" "asg" {
 
   # Termination policy for predictable scaling behavior
   # Terminate the oldest instance first to ensure stability and cost-effectiveness.
-  # If an immediate replacement is required, the newest instance will be terminated first.
-  termination_policies = ["OldestInstance", "NewestInstance"]
+  termination_policies = ["OldestInstance"]
 
   # Lifecycle Configuration
   # Ensures rolling updates by creating new instances before terminating old ones, avoiding downtime

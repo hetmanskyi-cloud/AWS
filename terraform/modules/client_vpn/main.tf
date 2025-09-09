@@ -82,7 +82,7 @@ resource "aws_ec2_client_vpn_endpoint" "endpoint" {
   vpc_id             = var.vpc_id
 
   # Network and IP configuration for connected clients
-  client_cidr_block = var.client_vpn_client_cidr_block # Address space for clients
+  client_cidr_block = var.client_vpn_client_cidr_blocks[0] # Address space for clients
 
   # Conditionally enable the self-service portal
   self_service_portal = var.enable_self_service_portal ? "enabled" : "disabled"

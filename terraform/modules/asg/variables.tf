@@ -354,6 +354,7 @@ variable "sns_topic_arn" {
 variable "vpc_endpoint_security_group_id" {
   description = "Security Group ID for VPC Endpoints"
   type        = string
+  default     = null
 }
 
 # --- Redis Variables --- #
@@ -455,10 +456,16 @@ variable "efs_access_point_id" {
 
 # --- Client VPN Configuration --- #
 # Variables related to AWS Client VPN for secure access to the ASG instances.
-variable "client_vpn_client_cidr_block" {
-  description = "The IPv4 address range, in CIDR notation, from which to assign client IP addresses. Must be a /22 block or greater (e.g., '10.100.0.0/22')."
-  type        = string
-  # No default value, as this is a critical network design choice.
+variable "client_vpn_client_cidr_blocks" {
+  description = "List of IPv4 address ranges, in CIDR notation, from which to assign client IP addresses (e.g., ['10.100.0.0/22'])."
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_client_vpn" {
+  description = "Enable or disable Client VPN access to ASG instances"
+  type        = bool
+  default     = false
 }
 
 # --- Notes --- #

@@ -201,6 +201,8 @@ This module provisions the following AWS resources:
 | `enable_data_source`           | `bool`         | Enable fetching ASG instance data                       | false              |
 | `enable_asg_ssh_access`        | `bool`         | Allow SSH for ASG instances	                            | false              |
 | `ssh_allowed_cidr`	           | `list(string)` |	CIDR blocks allowed for SSH	                            | ["0.0.0.0/0"]      |
+| `enable_client_vpn_access`     | `bool`         | Enable Client VPN access to ASG instances               | false              |
+| `client_vpn_client_cidr_blocks`| `list(string)` | List of CIDR blocks for Client VPN access               | []                 |
 | `enable_ebs_encryption`	       | `bool`         |	Enable EBS encryption via KMS	                          | false              |
 | `wordpress_secrets_name`	     | `string`	      | Name of WordPress secret in Secrets Manager	            | Required           |
 | `wordpress_secrets_arn`	       | `string`	      | ARN of WordPress secret in Secrets Manager	            | Required           |
