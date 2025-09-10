@@ -442,15 +442,15 @@ module "alb" {
 module "interface_endpoints" {
   source = "../../modules/interface_endpoints" # Path to module Interface Endpoints
 
-  aws_region                 = var.aws_region
-  name_prefix                = var.name_prefix
-  environment                = var.environment
-  vpc_id                     = module.vpc.vpc_id
-  vpc_cidr_block             = module.vpc.vpc_cidr_block
-  private_subnet_ids         = local.private_subnet_ids
-  enable_interface_endpoints = var.enable_interface_endpoints
-  endpoint_services          = var.interface_endpoint_services
-  tags                       = merge(local.common_tags, local.tags_interface_endpoints)
+  aws_region                  = var.aws_region
+  name_prefix                 = var.name_prefix
+  environment                 = var.environment
+  vpc_id                      = module.vpc.vpc_id
+  vpc_cidr_block              = module.vpc.vpc_cidr_block
+  private_subnet_ids          = local.private_subnet_ids
+  enable_interface_endpoints  = var.enable_interface_endpoints
+  interface_endpoint_services = var.interface_endpoint_services
+  tags                        = merge(local.common_tags, local.tags_interface_endpoints)
 }
 
 # --- CloudFront Module Configuration --- #

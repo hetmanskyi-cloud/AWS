@@ -18,7 +18,7 @@ terraform {
 # It is disabled by default and can be enabled by setting `enable_interface_endpoints = true`.
 
 resource "aws_vpc_endpoint" "main" {
-  for_each = var.enable_interface_endpoints ? toset(var.endpoint_services) : toset([])
+  for_each = var.enable_interface_endpoints ? toset(var.interface_endpoint_services) : toset([])
 
   vpc_id            = var.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.${each.key}"

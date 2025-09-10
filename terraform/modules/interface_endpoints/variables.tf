@@ -73,8 +73,8 @@ variable "private_subnet_ids" {
   type        = list(string)
 
   validation {
-    condition     = alltrue([for id in var.private_subnet_ids : can(regex("^subnet-[a-f0-9]{8,17}$", id))])
-    error_message = "All subnet IDs must be valid AWS subnet IDs."
+    condition     = !var.enable_interface_endpoints || length(var.private_subnet_ids) > 0
+    error_message = "At least one private subnet ID must be provided when enable_interface_endpoints is true."
   }
 }
 
@@ -88,7 +88,7 @@ variable "enable_interface_endpoints" {
   default     = false
 }
 
-variable "endpoint_services" {
+variable "interface_endpoint_services" {
   description = "A list of AWS services for which to create interface endpoints."
   type        = list(string)
   default = [
