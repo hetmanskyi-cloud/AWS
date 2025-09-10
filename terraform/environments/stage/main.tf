@@ -651,7 +651,7 @@ module "dynamodb" {
   tags        = merge(local.common_tags, local.tags_dynamodb)
 
   dynamodb_table_name                    = var.dynamodb_table_name
-  dynamodb_billing_mode                  = var.dynamodb_billing_mode
+  dynamodb_provisioned_autoscaling       = var.dynamodb_provisioned_autoscaling
   dynamodb_table_class                   = var.dynamodb_table_class
   dynamodb_hash_key_name                 = var.dynamodb_hash_key_name
   dynamodb_hash_key_type                 = var.dynamodb_hash_key_type

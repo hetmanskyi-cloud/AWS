@@ -975,9 +975,16 @@ variable "dynamodb_table_name" {
   type        = string
 }
 
-variable "dynamodb_billing_mode" {
-  description = "Billing mode for the DynamoDB table (PROVISIONED or PAY_PER_REQUEST)."
-  type        = string
+variable "dynamodb_provisioned_autoscaling" {
+  description = "If this object is configured, the table will be created in PROVISIONED mode with autoscaling. If null (default), the table will be in PAY_PER_REQUEST mode."
+  type = object({
+    read_min_capacity        = number
+    read_max_capacity        = number
+    read_target_utilization  = number
+    write_min_capacity       = number
+    write_max_capacity       = number
+    write_target_utilization = number
+  })
 }
 
 variable "dynamodb_table_class" {

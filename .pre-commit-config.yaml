@@ -13,7 +13,7 @@ repos:
   # --- Basic Code Hygiene (Essential for any repository) --- #
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0  # Pinning versions is critical for reproducibility
+    rev: v6.0.0  # Pinning versions is critical for reproducibility
     hooks:
       - id: trailing-whitespace  # Fixes trailing whitespace
       - id: end-of-file-fixer  # Ensures files end in a newline
@@ -22,7 +22,7 @@ repos:
   # --- Fundamental Terraform Hooks (Format and Lint) --- #
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.99.5  # Use the latest stable version
+    rev: v1.100.0  # Use the latest stable version
     hooks:
       # Formatting
       - id: terraform_fmt

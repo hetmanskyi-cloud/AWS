@@ -26,14 +26,26 @@ variable "dynamodb_table_name" {
   type        = string
 }
 
-variable "dynamodb_billing_mode" {
-  description = "Controls the billing and capacity mode. Can be PROVISIONED or PAY_PER_REQUEST."
-  type        = string
-  default     = "PAY_PER_REQUEST"
-  validation {
-    condition     = contains(["PROVISIONED", "PAY_PER_REQUEST"], var.dynamodb_billing_mode)
-    error_message = "Allowed values for billing_mode are PROVISIONED or PAY_PER_REQUEST."
-  }
+variable "dynamodb_provisioned_autoscaling" {
+  description = <<-EOT
+  If this object is configured, the table will be created in PROVISIONED mode with autoscaling.
+  If null (default), the table will be in PAY_PER_REQUEST mode.
+  - read_min_capacity: The minimum read capacity units.
+  - read_max_capacity: The maximum read capacity units.
+  - read_target_utilization: The target read utilization percentage (e.g., 70).
+  - write_min_capacity: The minimum write capacity units.
+  - write_max_capacity: The maximum write capacity units.
+  - write_target_utilization: The target write utilization percentage (e.g., 70).
+  EOT
+  type = object({
+    read_min_capacity        = number
+    read_max_capacity        = number
+    read_target_utilization  = number
+    write_min_capacity       = number
+    write_max_capacity       = number
+    write_target_utilization = number
+  })
+  default = null
 }
 
 variable "dynamodb_table_class" {
