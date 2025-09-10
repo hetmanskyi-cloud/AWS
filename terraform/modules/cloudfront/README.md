@@ -142,55 +142,55 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 
 ## 6. Module Files Structure
 
-| **File** | **Description** |
-|---|---|
-| `main.tf` | Defines the core CloudFront distribution, OAC, and cache policies. |
-| `logging.tf` | Configures CloudFront Access Logging v2 via CloudWatch Log Delivery. |
-| `waf.tf` | Provisions the WAFv2 Web ACL, IP sets, and managed rules. |
-| `firehose.tf` | Sets up the Kinesis Firehose stream for WAF log delivery. |
-| `iam.tf` | Manages IAM roles and policies required for Kinesis Firehose. |
-| `metrics.tf` | Contains CloudWatch Alarms for monitoring key CloudFront metrics. |
-| `variables.tf` | Defines all configurable input variables for the module. |
-| `outputs.tf` | Exposes important resource attributes as module outputs. |
+| **File**       | **Description**                                                      |
+|----------------|----------------------------------------------------------------------|
+| `main.tf`      | Defines the core CloudFront distribution, OAC, and cache policies.   |
+| `logging.tf`   | Configures CloudFront Access Logging v2 via CloudWatch Log Delivery. |
+| `waf.tf`       | Provisions the WAFv2 Web ACL, IP sets, and managed rules.            |
+| `firehose.tf`  | Sets up the Kinesis Firehose stream for WAF log delivery.            |
+| `iam.tf`       | Manages IAM roles and policies required for Kinesis Firehose.        |
+| `metrics.tf`   | Contains CloudWatch Alarms for monitoring key CloudFront metrics.    |
+| `variables.tf` | Defines all configurable input variables for the module.             |
+| `outputs.tf`   | Exposes important resource attributes as module outputs.             |
 
 ---
 
 ## 7. Inputs
 
-| Name | Type | Description |
-|---|---|---|
-| `name_prefix` | `string` | A prefix for all resource names. |
-| `environment` | `string` | The deployment environment (e.g., 'dev', 'prod'). |
-| `tags` | `map(string)` | A map of tags to apply to all resources. |
-| `s3_module_outputs` | `object` | Outputs from the S3 module, including the media bucket domain name. |
-| `alb_dns_name` | `string` | The DNS name of the Application Load Balancer origin. |
-| `cloudfront_to_alb_secret_header_value` | `string` | The secret value sent in a custom header to the ALB. |
-| `enable_cloudfront_waf` | `bool` | Set to `true` to enable AWS WAF protection. |
-| `enable_cloudfront_firehose` | `bool` | Set to `true` to enable Kinesis Firehose for WAF logs. |
-| `enable_cloudfront_standard_logging_v2` | `bool` | Set to `true` to enable modern CloudFront access logging. |
-| `logging_bucket_arn` | `string` | ARN of the central S3 bucket for all logs. |
-| `logging_bucket_name` | `string` | Name of the central S3 logging bucket. |
-| `kms_key_arn` | `string` | Optional: ARN of a KMS key to encrypt WAF logs in S3. |
-| `sns_alarm_topic_arn` | `string` | Optional: ARN of the SNS topic for CloudWatch alarm notifications. |
-| `acm_certificate_arn` | `string` | Optional: ARN of an ACM certificate in `us-east-1` for a custom domain. |
-| `custom_domain_aliases` | `list(string)` | Optional: A list of custom domain names to associate with the distribution. |
-| `enable_origin_shield` | `bool` | Set to `true` to enable Origin Shield for the ALB origin. |
-| `aws_region` | `string` | The primary AWS region of your infrastructure (used by Origin Shield). |
+| Name                                    | Type           | Description                                                                 |
+|-----------------------------------------|----------------|-----------------------------------------------------------------------------|
+| `name_prefix`                           | `string`       | A prefix for all resource names.                                            |
+| `environment`                           | `string`       | The deployment environment (e.g., 'dev', 'prod').                           |
+| `tags`                                  | `map(string)`  | A map of tags to apply to all resources.                                    |
+| `s3_module_outputs`                     | `object`       | Outputs from the S3 module, including the media bucket domain name.         |
+| `alb_dns_name`                          | `string`       | The DNS name of the Application Load Balancer origin.                       |
+| `cloudfront_to_alb_secret_header_value` | `string`       | The secret value sent in a custom header to the ALB.                        |
+| `enable_cloudfront_waf`                 | `bool`         | Set to `true` to enable AWS WAF protection.                                 |
+| `enable_cloudfront_firehose`            | `bool`         | Set to `true` to enable Kinesis Firehose for WAF logs.                      |
+| `enable_cloudfront_standard_logging_v2` | `bool`         | Set to `true` to enable modern CloudFront access logging.                   |
+| `logging_bucket_arn`                    | `string`       | ARN of the central S3 bucket for all logs.                                  |
+| `logging_bucket_name`                   | `string`       | Name of the central S3 logging bucket.                                      |
+| `kms_key_arn`                           | `string`       | Optional: ARN of a KMS key to encrypt WAF logs in S3.                       |
+| `sns_alarm_topic_arn`                   | `string`       | Optional: ARN of the SNS topic for CloudWatch alarm notifications.          |
+| `acm_certificate_arn`                   | `string`       | Optional: ARN of an ACM certificate in `us-east-1` for a custom domain.     |
+| `custom_domain_aliases`                 | `list(string)` | Optional: A list of custom domain names to associate with the distribution. |
+| `enable_origin_shield`                  | `bool`         | Set to `true` to enable Origin Shield for the ALB origin.                   |
+| `aws_region`                            | `string`       | The primary AWS region of your infrastructure (used by Origin Shield).      |
 
 ---
 
 ## 8. Outputs
 
-| Name | Description |
-|---|---|
-| `cloudfront_distribution_id` | The ID of the CloudFront distribution. |
-| `cloudfront_distribution_arn` | The ARN of the CloudFront distribution. |
-| `cloudfront_distribution_domain_name` | The domain name of the CloudFront distribution. |
-| `cloudfront_distribution_hosted_zone_id` | The Route 53 Hosted Zone ID for the CloudFront distribution. |
-| `cloudfront_oac_id` | The ID of the Origin Access Control (OAC). |
-| `waf_web_acl_arn` | The ARN of the WAFv2 Web ACL. |
-| `firehose_delivery_stream_arn` | The ARN of the Kinesis Firehose stream for WAF logs. |
-| `cloudfront_standard_logging_v2_log_prefix` | The S3 URI prefix for CloudFront access logs. |
+| Name                                        | Description                                                  |
+|---------------------------------------------|--------------------------------------------------------------|
+| `cloudfront_distribution_id`                | The ID of the CloudFront distribution.                       |
+| `cloudfront_distribution_arn`               | The ARN of the CloudFront distribution.                      |
+| `cloudfront_distribution_domain_name`       | The domain name of the CloudFront distribution.              |
+| `cloudfront_distribution_hosted_zone_id`    | The Route 53 Hosted Zone ID for the CloudFront distribution. |
+| `cloudfront_oac_id`                         | The ID of the Origin Access Control (OAC).                   |
+| `waf_web_acl_arn`                           | The ARN of the WAFv2 Web ACL.                                |
+| `firehose_delivery_stream_arn`              | The ARN of the Kinesis Firehose stream for WAF logs.         |
+| `cloudfront_standard_logging_v2_log_prefix` | The S3 URI prefix for CloudFront access logs.                |
 
 ---
 

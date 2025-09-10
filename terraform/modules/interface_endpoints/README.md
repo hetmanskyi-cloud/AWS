@@ -131,30 +131,20 @@ graph LR
 
 ## 4. Features
 
-- Provisions VPC Interface Endpoints for secure, private access to essential AWS services:
-  - **AWS Systems Manager (SSM)**
-  - **SSM Messages**
-  - **EC2 Messages** (for Auto Scaling Group communication)
-  - **CloudWatch Logs**
-  - **AWS Key Management Service (KMS)** (optional)
+- Provisions VPC Interface Endpoints for a **configurable list of AWS services**.
+- Defaults to creating endpoints for essential services: `ssm`, `ssmmessages`, `ec2messages`, `logs`, and `kms`.
 - Enables **Private DNS** for seamless service resolution within the VPC.
 - Creates a dedicated **Security Group** with strict HTTPS (TCP 443) access control.
-- Supports **conditional resource creation** based on input flags.
-- Deploys endpoints **across all private subnets** for high availability in multiple Availability Zones (AZs).
-- Exports endpoint IDs and DNS names for easy integration with other modules.
-
-This architecture allows EC2 instances in private subnets (without internet access) to securely communicate with AWS services through private VPC endpoints.
+- Supports **conditional resource creation** via a single boolean flag.
+- Deploys endpoints **across all specified private subnets** for high availability.
 
 ---
 
 ## 5. Module Architecture
 
 This module provisions the following resources:
-
-- **Interface VPC Endpoints** for AWS Systems Manager (SSM), SSM Messages, EC2 Messages, CloudWatch Logs, and KMS.
-- **Dedicated Security Group** to control HTTPS (TCP 443) access from the VPC to AWS services.
-- **Private DNS** enabled for seamless communication using standard AWS service endpoints.
-- **Ingress/Egress Security Group Rules** designed to allow traffic only within the VPC and to AWS PrivateLink services.
+- **`aws_vpc_endpoint`**: A single, dynamic resource that creates multiple Interface VPC Endpoints based on a list of services.
+- **`aws_security_group`**: A dedicated Security Group to control HTTPS (TCP 443) access to the endpoints.
 
 ---
 
@@ -171,34 +161,26 @@ This module provisions the following resources:
 
 ## 7. Inputs
 
-| Name                          | Type           | Description                               | Validation                              |
-|-------------------------------|----------------|-------------------------------------------|-----------------------------------------|
-| `aws_region`                  | `string`       | AWS region for resources.                 | Format: `xx-xxxx-x` (e.g., `eu-west-1`) |
-| `name_prefix`                 | `string`       | Prefix for naming resources.              | Non-empty string                        |
-| `environment`                 | `string`       | Deployment environment label.             | One of: `dev`, `stage`, `prod`          |
-| `tags`                        | `map(string)`  | Tags to apply to all resources.           | `{}` (Optional)                         |
-| `vpc_id`                      | `string`       | ID of the existing VPC.                   | Valid AWS VPC ID                        |
-| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                    | Valid CIDR block format                 |
-| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.               | Valid AWS subnet IDs                    |
-| `enable_interface_endpoints`  | `bool`         | Enable or disable Interface VPC Endpoints | Default: `false`                        |
+| Name                          | Type           | Description                                           | Default / Required  |
+|-------------------------------|----------------|-------------------------------------------------------|---------------------|
+| `aws_region`                  | `string`       | AWS region for resources.                             | Required            |
+| `name_prefix`                 | `string`       | Prefix for naming resources.                          | Required            |
+| `environment`                 | `string`       | Deployment environment label.                         | Required            |
+| `tags`                        | `map(string)`  | Tags to apply to all resources.                       | `{}` (Optional)     |
+| `vpc_id`                      | `string`       | ID of the existing VPC.                               | Required            |
+| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                                | Required            |
+| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.                           | Required            |
+| `enable_interface_endpoints`  | `bool`         | Enable or disable all Interface VPC Endpoints.        | `false` (Optional)  |
+| `endpoint_services`           | `list(string)` | A list of AWS services for which to create endpoints. | See default list    |
 
 ---
 
 ## 8. Outputs
 
-| **Name**                     | **Description**                                   |
-|------------------------------|---------------------------------------------------|
-| `ssm_endpoint_id`            | ID of the Systems Manager Interface Endpoint      |
-| `ssm_messages_endpoint_id`   | ID of the SSM Messages Interface Endpoint         |
-| `asg_messages_endpoint_id`   | ID of the EC2 Messages Interface Endpoint         |
-| `cloudwatch_logs_endpoint_id`| ID of the CloudWatch Logs Interface Endpoint      |
-| `kms_endpoint_id`            | ID of the KMS Interface Endpoint                  |
-| `endpoint_security_group_id` | ID of the Security Group created for endpoints    |
-
-Outputs provided:
-- Endpoint IDs for each AWS service.
-- Security Group ID for managing endpoint access.
-- Outputs use safe evaluation (`try(...)` and `length(...)`) to avoid errors when the module is disabled.
+| **Name**                     | **Description**                                               |
+|------------------------------|---------------------------------------------------------------|
+| `endpoint_ids`               | A map of the created VPC endpoint IDs, keyed by service name. |
+| `endpoint_security_group_id` | ID of the Security Group created for endpoints.               |
 
 ---
 
@@ -208,13 +190,17 @@ Outputs provided:
 module "interface_endpoints" {
   source = "./modules/interface_endpoints"
 
-  aws_region                 = "eu-west-1"
-  name_prefix                = "dev"
-  environment                = "dev"
-  vpc_id                     = module.vpc.vpc_id
-  vpc_cidr_block             = module.vpc.vpc_cidr_block
-  private_subnet_ids         = module.vpc.private_subnet_ids
-  enable_interface_endpoints = false  # Default is false, set to true when needed
+  enable_interface_endpoints = true # Set to true to enable
+
+  aws_region         = "eu-west-1"
+  name_prefix        = "dev"
+  environment        = "dev"
+  vpc_id             = module.vpc.vpc_id
+  vpc_cidr_block     = module.vpc.vpc_cidr_block
+  private_subnet_ids = module.vpc.private_subnet_ids
+
+  # Optionally override the default list of services
+  # endpoint_services = ["ssm", "ecr.api", "ecr.dkr"]
 }
 ```
 
@@ -223,23 +209,16 @@ module "interface_endpoints" {
 ## 10. Security Considerations
 
 - Communication is strictly limited to **HTTPS (TCP 443)**.
-- **Ingress:** Allowed only from the VPC CIDR block.
-- **Egress:** Allowed only to AWS services and PrivateLink endpoints.
+- **Ingress:** Allowed only from within the VPC CIDR block.
+- **Egress:** Allowed to `0.0.0.0/0` on port 443, which is required for endpoints to communicate with regional AWS service APIs.
 - **Private DNS** is enabled to ensure services are accessed via standard AWS service URLs without exposing traffic to the public internet.
-- Carefully manage `private_subnet_ids` to maintain correct Availability Zone (AZ) coverage and avoid routing issues.
-- Monitor endpoint health and connectivity using **CloudWatch metrics and alarms**.
-- Review IAM policies attached to EC2 instances to ensure they have the necessary permissions for SSM, CloudWatch, and KMS access.
 
 ---
 
 ## 11. Conditional Resource Creation
 
-This module supports conditional creation of all resources based on input variables:
-
-- **KMS Endpoint** is created only if `enable_kms_endpoint = true`.
-- **Dedicated Security Group** is created only when `create_endpoint_sg = true`.
-
-This allows the module to remain in the project without creating any resources until needed.
+- **Master Switch:** The creation of all resources in this module is controlled by a single variable, `enable_interface_endpoints`. If it is `false` (the default), no resources will be created.
+- **Service Selection:** The specific endpoints to be created are determined by the `endpoint_services` list variable. You can customize this list to add or remove services as needed.
 
 ---
 

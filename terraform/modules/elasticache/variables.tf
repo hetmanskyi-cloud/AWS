@@ -60,7 +60,6 @@ variable "redis_auth_token" {
   description = "The AUTH token for Redis. Should be passed from the root module."
   type        = string
   sensitive   = true
-  default     = null
 }
 
 variable "kms_key_arn" {

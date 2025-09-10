@@ -449,6 +449,7 @@ module "interface_endpoints" {
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
   enable_interface_endpoints = var.enable_interface_endpoints
+  endpoint_services          = var.interface_endpoint_services
   tags                       = merge(local.common_tags, local.tags_interface_endpoints)
 }
 
@@ -751,12 +752,8 @@ module "efs" {
   tags        = merge(local.common_tags, local.tags_efs) # Assuming you add local.tags_efs in metadata.tf
 
   # Network configuration
-  vpc_id = module.vpc.vpc_id
-  subnet_ids_map = {
-    public_subnet_1 = module.vpc.public_subnet_1_id
-    public_subnet_2 = module.vpc.public_subnet_2_id
-    public_subnet_3 = module.vpc.public_subnet_3_id
-  }
+  vpc_id                = module.vpc.vpc_id
+  subnet_ids            = local.private_subnet_ids
   asg_security_group_id = module.asg.asg_security_group_id
 
   # Security and Encryption

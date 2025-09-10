@@ -2,7 +2,6 @@
 # This file defines the IAM role, instance profile, and associated policies for EC2 instances
 # managed by the Auto Scaling Group (ASG). These policies enable:
 # - Access to S3 buckets (WordPress media and deployment scripts)
-# - Conditional access to the SSM Ansible logs bucket (for log upload in the "dev" environment only)
 # - CloudWatch Agent and custom log publishing
 # - Systems Manager (SSM) for secure remote management
 # - KMS access for decrypting EBS and S3 objects

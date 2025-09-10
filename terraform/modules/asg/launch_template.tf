@@ -234,11 +234,10 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - In 'stage' and 'prod', a pre-built golden AMI with WordPress, Nginx, PHP, and plugins is used.
 #    - The AMI ID must be defined explicitly in terraform.tfvars.
 #
-# 2. **User Data**:
-#    - In 'dev', user_data installs and configures WordPress, Nginx, PHP, and plugins via deploy_wordpress.sh and supporting files from S3.
-#    - In 'stage'/'prod', user_data only updates runtime secrets and config; no software installation or S3 download is performed.
-#    - CloudWatch Logs integration can be enabled with `enable_cloudwatch_logs`; log group names must be passed via `cloudwatch_log_groups`.
-#    - IMPORTANT: The 'scripts' bucket must be enabled in terraform.tfvars for dev.
+# 2. **User Data and Environment Logic**:
+#    - The user_data script behaves differently based on the environment.
+#    - In 'dev', it performs a full bootstrap: downloading and running `deploy_wordpress.sh` from S3 to install and configure the entire stack.
+#    - In 'stage'/'prod', it assumes a pre-built 'golden AMI' is used. The script only updates runtime configurations (like secrets) and does not perform a new installation.
 #
 # 3. **SSH Access**:
 #    - Temporary SSH access for debugging can be enabled via `enable_ssh_access` variable.
@@ -268,13 +267,12 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - Periodically update the AMI ID to include the latest OS and security updates.
 #    - Rolling updates in the ASG are configured to apply changes with zero downtime.
 #
-# 10. **AWS Secrets Manager**:
-#     - WordPress, database, and Redis credentials are securely stored in AWS Secrets Manager.
-#     - These secrets are **not injected directly into user_data** for security reasons.
-#     - Instead, they are retrieved **at runtime by the `deploy_wordpress.sh` script**
-#       using the `aws secretsmanager get-secret-value` command.
-#     - Only non-sensitive configuration variables are exported in user_data.
-#     - Ensure the instance profile includes `secretsmanager:GetSecretValue` and `secretsmanager:DescribeSecret` permissions.
+# 10. **AWS Secrets Manager Integration**:
+#     - For maximum security, this module avoids injecting raw secret values into user_data.
+#     - Instead, it passes the **names and ARNs** of the secrets (for WordPress, RDS, and Redis) to the instance.
+#     - Scripts running on the instance (like `deploy_wordpress.sh`) are then responsible for using the AWS CLI
+#       to fetch the actual secret values from Secrets Manager at runtime.
+#     - This ensures that sensitive data is not stored in plain text in the Launch Template or user_data.
 #
 # 11. **EBS Encryption**:
 #     - Root EBS volumes are encrypted with a customer-managed KMS key (`kms_key_arn`).

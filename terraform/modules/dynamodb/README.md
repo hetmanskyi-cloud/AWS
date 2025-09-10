@@ -124,43 +124,43 @@ This module provisions the following resources:
 
 ## 6. Module Files Structure
 
-| **File** | **Description** |
-|---|---|
-| `main.tf` | Defines the `aws_dynamodb_table` and all optional autoscaling resources. |
+| **File**       | **Description**                                                                       |
+|----------------|---------------------------------------------------------------------------------------|
+| `main.tf`      | Defines the `aws_dynamodb_table` and all optional autoscaling resources.              |
 | `variables.tf` | Defines all input variables, including the `dynamodb_provisioned_autoscaling` object. |
-| `outputs.tf` | Exposes the table's name and ARN for use in other modules. |
-| `metrics.tf` | Contains CloudWatch Alarms for monitoring table health. |
+| `outputs.tf`   | Exposes the table's name and ARN for use in other modules.                            |
+| `metrics.tf`   | Contains CloudWatch Alarms for monitoring table health.                               |
 
 ---
 
 ## 7. Inputs
 
-| Name | Type | Description |
-|---|---|---|
-| `name_prefix` | `string` | A prefix for all resource names. |
-| `environment` | `string` | The deployment environment (e.g., 'dev', 'prod'). |
-| `tags` | `map(string)` | A map of tags to apply to all resources. |
-| `dynamodb_table_name` | `string` | The base name for the DynamoDB table. |
-| `dynamodb_hash_key_name` | `string` | The name of the table's partition key. |
-| `dynamodb_hash_key_type` | `string` | The type of the partition key (`S`, `N`, or `B`). |
-| `dynamodb_range_key_name` | `string` | Optional: The name of the table's sort key. |
-| `dynamodb_range_key_type` | `string` | Optional: The type of the sort key. |
-| `dynamodb_gsi` | `list(object)` | A list of objects, each defining a Global Secondary Index. |
-| `dynamodb_provisioned_autoscaling` | `object` | **If set, enables `PROVISIONED` mode with autoscaling.** Contains min/max capacity and target utilization. Defaults to `null` (`PAY_PER_REQUEST` mode). |
-| `enable_dynamodb_point_in_time_recovery` | `bool` | Enables Point-in-Time Recovery. Default: `true`. |
-| `dynamodb_deletion_protection_enabled` | `bool` | Enables deletion protection. Default: `true`. |
-| `enable_dynamodb_ttl` | `bool` | Enables Time-to-Live (TTL) on an attribute. Default: `false`. |
-| `dynamodb_ttl_attribute_name` | `string` | The attribute name for TTL. Default: `ExpirationTime`. |
-| `kms_key_arn` | `string` | Optional: ARN of a KMS key for server-side encryption. |
-| `cloudwatch_alarms_topic_arn` | `string` | Optional: ARN of an SNS topic for alarm notifications. |
+| Name                                     | Type           | Description                                                                                           |
+|------------------------------------------|----------------|-------------------------------------------------------------------------------------------------------|
+| `name_prefix`                            | `string`       | A prefix for all resource names.                                                                      |
+| `environment`                            | `string`       | The deployment environment (e.g., 'dev', 'prod').                                                     |
+| `tags`                                   | `map(string)`  | A map of tags to apply to all resources.                                                              |
+| `dynamodb_table_name`                    | `string`       | The base name for the DynamoDB table.                                                                 |
+| `dynamodb_hash_key_name`                 | `string`       | The name of the table's partition key.                                                                |
+| `dynamodb_hash_key_type`                 | `string`       | The type of the partition key (`S`, `N`, or `B`).                                                     |
+| `dynamodb_range_key_name`                | `string`       | Optional: The name of the table's sort key.                                                           |
+| `dynamodb_range_key_type`                | `string`       | Optional: The type of the sort key.                                                                   |
+| `dynamodb_gsi`                           | `list(object)` | A list of objects, each defining a Global Secondary Index.                                            |
+| `dynamodb_provisioned_autoscaling`       | `object`       | **If set, enables `PROVISIONED` mode with autoscaling.** Defaults to `null` (`PAY_PER_REQUEST` mode). |
+| `enable_dynamodb_point_in_time_recovery` | `bool`         | Enables Point-in-Time Recovery. Default: `true`.                                                      |
+| `dynamodb_deletion_protection_enabled`   | `bool`         | Enables deletion protection. Default: `true`.                                                         |
+| `enable_dynamodb_ttl`                    | `bool`         | Enables Time-to-Live (TTL) on an attribute. Default: `false`.                                         |
+| `dynamodb_ttl_attribute_name`            | `string`       | The attribute name for TTL. Default: `ExpirationTime`.                                                |
+| `kms_key_arn`                            | `string`       | Optional: ARN of a KMS key for server-side encryption.                                                |
+| `cloudwatch_alarms_topic_arn`            | `string`       | Optional: ARN of an SNS topic for alarm notifications.                                                |
 
 ---
 
 ## 8. Outputs
 
-| Name | Description |
-|---|---|
-| `dynamodb_table_arn` | The ARN of the DynamoDB table, used for IAM policies. |
+| Name                  | Description                                           |
+|-----------------------|-------------------------------------------------------|
+| `dynamodb_table_arn`  | The ARN of the DynamoDB table, used for IAM policies. |
 | `dynamodb_table_name` | The name of the DynamoDB table, used by applications. |
 
 ---

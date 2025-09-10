@@ -154,7 +154,7 @@ graph TB
   - Configurable port (default: 6379).
 
 - **Parameter Group Management**:
-  - Redis parameter group automatically selected based on Redis version.
+  - Correctly determines the parameter group `family` based on the Redis version (e.g., `redis6.x` for version 6.2, `redis7` for version 7.1).
   - Creates a parameter group for compatibility with AWS requirements. No custom parameters are defined — default AWS settings are used.
 
 - **Backup Configuration**:
@@ -177,6 +177,10 @@ graph TB
   - Dedicated security group for Redis.
   - Restricted inbound access from specified ASG Security Group.
   - No explicit egress rules (follows AWS best practices).
+
+- **Production Safety**:
+  - Deletion protection is disabled by default but recommended for the `prod` environment.
+  - Ensures zero-downtime updates for parameter groups via `create_before_destroy`.
 
 ---
 
@@ -208,35 +212,33 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| Name                                  | Type          | Description                                | Default/Required  |
-|---------------------------------------|---------------|--------------------------------------------|-------------------|
-| `name_prefix`                         | `string`      | Prefix for resource names                  | **Required**      |
-| `environment`                         | `string`      | Environment (`dev`, `stage`, `prod`)       | **Required**      |
-| `tags`                                | `map(string)` | Tags to apply to all resources             | `{}` (Optional)   |
-| `vpc_id`                              | `string`      | VPC ID for deployment                      | **Required**      |
-| `private_subnet_ids`                  | `list(string)`| List of private subnet IDs                 | **Required**      |
-| `asg_security_group_id`               | `string`      | Security Group ID for ASG access           | **Required**      |
-| `redis_version`                       | `string`      | Redis version (`X.Y`)                      | **Required**      |
-| `node_type`                           | `string`      | Node type (e.g., `cache.t3.micro`)         | **Required**      |
-| `replicas_per_node_group`             | `number`      | Number of replicas per shard               | **Required**      |
-| `num_node_groups`                     | `number`      | Number of shards                           | **Required**      |
-| `enable_failover`                     | `bool`        | Enable automatic failover                  | `false`           |
-| `redis_port`                          | `number`      | Redis port                                 | `6379`            |
-| `snapshot_retention_limit`            | `number`      | Snapshot retention days                    | **Required**      |
-| `snapshot_window`                     | `string`      | Snapshot window (`HH:MM-HH:MM`)            | `"03:00-04:00"`   |
-| `redis_cpu_threshold`                 | `number`      | CPU utilization threshold (%)              | **Required**      |
-| `redis_memory_threshold`              | `number`      | Memory threshold (bytes)                   | **Required**      |
-| `redis_cpu_credits_threshold`         | `number`      | CPU credits threshold                      | `5`               |
-| `redis_replication_bytes_threshold`   | `number`      | Replication bytes threshold                | `50000000`        |
-| `sns_topic_arn`                       | `string`      | SNS topic ARN for alarms                   | **Required**      |
-| `kms_key_arn`                         | `string`      | KMS key ARN for encryption                 | **Required**      |
-| `enable_redis_low_memory_alarm`       | `bool`        | Enable low memory alarm                    | `false`           |
-| `enable_redis_high_cpu_alarm`         | `bool`        | Enable high CPU alarm                      | `false`           |
-| `enable_redis_replication_bytes_alarm`| `bool`        | Enable replication bytes alarm             | `false`           |
-| `enable_redis_low_cpu_credits_alarm`  | `bool`        | Enable CPU credits alarm                   | `false`           |
-| `redis_security_group_id`             | `string`      | Security Group ID for ElastiCache Redis    | `null`            |
-| `redis_auth_secret_name`              | `string`      | Secrets Manager name with Redis AUTH token | ""                |
-| `redis_auth_secret_arn`               | `string`      | ARN of the Redis secret in Secrets Manager | ""                |
+| Name                                  | Type          | Description                                                         | Default/Required  |
+|---------------------------------------|---------------|---------------------------------------------------------------------|-------------------|
+| `name_prefix`                         | `string`      | Prefix for resource names                                           | **Required**      |
+| `environment`                         | `string`      | Environment (`dev`, `stage`, `prod`)                                | **Required**      |
+| `tags`                                | `map(string)` | Tags to apply to all resources                                      | `{}` (Optional)   |
+| `vpc_id`                              | `string`      | VPC ID for deployment                                               | **Required**      |
+| `private_subnet_ids`                  | `list(string)`| List of private subnet IDs                                          | **Required**      |
+| `asg_security_group_id`               | `string`      | Security Group ID for ASG access                                    | **Required**      |
+| `redis_version`                       | `string`      | Redis version (`X.Y`)                                               | **Required**      |
+| `node_type`                           | `string`      | Node type (e.g., `cache.t3.micro`)                                  | **Required**      |
+| `replicas_per_node_group`             | `number`      | Number of replicas per shard                                        | **Required**      |
+| `num_node_groups`                     | `number`      | Number of shards                                                    | **Required**      |
+| `enable_failover`                     | `bool`        | Enable automatic failover                                           | `false`           |
+| `redis_port`                          | `number`      | Redis port                                                          | `6379`            |
+| `snapshot_retention_limit`            | `number`      | Snapshot retention days                                             | **Required**      |
+| `snapshot_window`                     | `string`      | Snapshot window (`HH:MM-HH:MM`)                                     | `"03:00-04:00"`   |
+| `redis_cpu_threshold`                 | `number`      | CPU utilization threshold (%)                                       | **Required**      |
+| `redis_memory_threshold`              | `number`      | Memory threshold (bytes)                                            | **Required**      |
+| `redis_cpu_credits_threshold`         | `number`      | CPU credits threshold                                               | `5`               |
+| `redis_replication_bytes_threshold`   | `number`      | Replication bytes threshold                                         | `50000000`        |
+| `sns_topic_arn`                       | `string`      | SNS topic ARN for alarms                                            | **Required**      |
+| `kms_key_arn`                         | `string`      | KMS key ARN for encryption                                          | **Required**      |
+| `enable_redis_low_memory_alarm`       | `bool`        | Enable low memory alarm                                             | `false`           |
+| `enable_redis_high_cpu_alarm`         | `bool`        | Enable high CPU alarm                                               | `false`           |
+| `enable_redis_replication_bytes_alarm`| `bool`        | Enable replication bytes alarm                                      | `false`           |
+| `enable_redis_low_cpu_credits_alarm`  | `bool`        | Enable CPU credits alarm                                            | `false`           |
+| `redis_auth_token`                    | `string`      | The Redis AUTH token. Must be passed securely from the root module. | **Required**      |
 
 ---
 
@@ -256,27 +258,43 @@ This module provisions the following AWS resources:
 
 ## 9. Example Usage
 
+This module should be called from a root configuration (e.g., `environments/dev/main.tf`).
+
+**In `environments/dev/secrets.tf` (or similar):**
+```hcl
+# Generate a random password for the Redis AUTH token
+resource "random_password" "redis_auth_token" {
+  length  = 32
+  special = false
+}
+```
+
+**In `environments/dev/main.tf`:**
 ```hcl
 module "elasticache" {
-  source = "./modules/elasticache"
+  source = "../../modules/elasticache"
 
   name_prefix = "dev"
   environment = "dev"
 
-  vpc_id                = "vpc-0123456789abcdef0"
-  private_subnet_ids    = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
-  asg_security_group_id = "sg-0123456789abcdef0"
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_ids    = module.vpc.private_subnet_ids
+  asg_security_group_id = module.asg.asg_security_group_id
+
+  # Securely pass the generated token to the module.
+  # The value is stored in the Terraform state file, not in plain text.
+  redis_auth_token = random_password.redis_auth_token.result
 
   redis_version = "7.1"
   node_type     = "cache.t3.micro"
 
   replicas_per_node_group = 1
-  num_node_groups         = 2
+  num_node_groups         = 1 # Corrected from 2 to 1 for a simple HA setup
   enable_failover         = true
 
   snapshot_retention_limit = 7
   redis_cpu_threshold      = 80
-  redis_memory_threshold   = 104857600
+  redis_memory_threshold   = 104857600 # 100MB
 
   # Enable CloudWatch alarms
   enable_redis_low_memory_alarm = true
@@ -284,20 +302,19 @@ module "elasticache" {
   enable_redis_replication_bytes_alarm = true
   enable_redis_low_cpu_credits_alarm = true
 
-  sns_topic_arn     = aws_sns_topic.cloudwatch_alarms.arn
-  kms_key_arn       = module.kms.kms_key_arn
+  sns_topic_arn     = aws_sns_topic.cloudwatch_alarms.topic.arn
+  kms_key_arn       = module.kms.key_arn
 }
 ```
 ---
 
 ## 10. Security Considerations / Recommendations
 
-- Place Redis in private subnets only.
-- Restrict Redis access strictly to allowed Security Groups (e.g., ASG).
-- Enable **KMS encryption** for data at rest.
-- Use in-transit encryption (enabled by default).
-- Monitor CloudWatch alarms and SNS notifications for proactive alerts.
-- Validate IAM permissions for KMS and CloudWatch access.
+- **AUTH Token Management**: The `redis_auth_token` variable is the most critical security input. It must be passed securely from the root module. Do not hardcode it. The recommended method is to generate it with the `random_password` resource or manage it in AWS Secrets Manager at the root level and pass the result to this module.
+- **Network Security**: Place Redis in private subnets only. Restrict Redis access strictly to allowed Security Groups (e.g., from the ASG).
+- **Encryption**: Always enable KMS encryption for data at rest and use in-transit encryption (enabled by default).
+- **Monitoring**: Monitor CloudWatch alarms and SNS notifications for proactive alerts.
+- **IAM Permissions**: Validate IAM permissions for KMS and CloudWatch access at the root level.
 
 ---
 

@@ -88,6 +88,18 @@ variable "enable_interface_endpoints" {
   default     = false
 }
 
+variable "endpoint_services" {
+  description = "A list of AWS services for which to create interface endpoints."
+  type        = list(string)
+  default = [
+    "ssm",
+    "ssmmessages",
+    "ec2messages",
+    "logs",
+    "kms"
+  ]
+}
+
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.

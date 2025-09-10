@@ -31,9 +31,9 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "subnet_ids_map" {
-  description = "A map of subnet IDs where EFS mount targets will be created. Keys are static names, values are subnet IDs."
-  type        = map(string)
+variable "subnet_ids" {
+  description = "A set of subnet IDs for creating EFS mount targets."
+  type        = set(string)
 }
 
 variable "asg_security_group_id" {

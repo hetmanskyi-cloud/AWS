@@ -14,6 +14,14 @@ terraform {
   }
 }
 
+locals {
+  redis_family = {
+    "6.2" = "redis6.x"
+    "7.0" = "redis7"
+    "7.1" = "redis7"
+  }
+}
+
 # --- ElastiCache Subnet Group --- #
 # Creates a subnet group for ElastiCache Redis, enabling deployment in specified private subnets.
 resource "aws_elasticache_subnet_group" "redis_subnet_group" {
@@ -58,7 +66,7 @@ resource "aws_elasticache_replication_group" "redis" {
   auth_token                 = var.redis_auth_token # Redis AUTH token for client authentication.
 
   lifecycle {
-    prevent_destroy = false # Prevent accidental deletion
+    prevent_destroy = false # In prod, this should be set to true to prevent accidental deletion
   }
 
   tags = merge(var.tags, {
@@ -71,7 +79,7 @@ resource "aws_elasticache_replication_group" "redis" {
 # Uses default AWS parameters which are well-optimized for most use cases.
 resource "aws_elasticache_parameter_group" "redis_params" {
   name        = "${var.name_prefix}-redis-params-${var.environment}"
-  family      = "redis${split(".", var.redis_version)[0]}" # Specifies Redis version family.
+  family      = lookup(local.redis_family, var.redis_version, "redis${split(".", var.redis_version)[0]}") # Specifies Redis version family.
   description = "Parameter group for Redis ${var.redis_version} with default settings"
 
   tags = merge(var.tags, {

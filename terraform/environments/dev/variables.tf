@@ -841,6 +841,12 @@ variable "enable_interface_endpoints" {
   default     = false
 }
 
+variable "interface_endpoint_services" {
+  description = "A list of AWS services for which to create interface endpoints. If null, the module's default list will be used."
+  type        = list(string)
+  default     = null
+}
+
 # --- CloudWatch Variables --- #
 
 variable "enable_cloudwatch_logs" {

@@ -449,6 +449,7 @@ module "interface_endpoints" {
   vpc_cidr_block             = module.vpc.vpc_cidr_block
   private_subnet_ids         = local.private_subnet_ids
   enable_interface_endpoints = var.enable_interface_endpoints
+  endpoint_services          = var.interface_endpoint_services
   tags                       = merge(local.common_tags, local.tags_interface_endpoints)
 }
 
@@ -475,7 +476,6 @@ module "cloudfront" {
 
   # CloudFront Distribution Settings
   wordpress_media_cloudfront_enabled = var.wordpress_media_cloudfront_enabled
-  logging_bucket_enabled             = try(var.default_region_buckets["logging"].enabled, false)
   cloudfront_price_class             = var.cloudfront_price_class
 
   # Pass the entire map of bucket configurations. This allows the module to know
@@ -586,8 +586,8 @@ module "route53" {
 
 # --- Lambda Layer Module for Pillow --- #
 
-# This module call instructs Terraform to build and deploy the Pillow dependency layer
-# It is created only if the image processing feature is enabled in terraform.tfvars
+# This module call instructs Terraform to build and deploy the Pillow dependency layer.
+# It is created only if the image processing feature is enabled in terraform.tfvars.
 module "lambda_layer" {
   count = var.enable_image_processor && try(var.default_region_buckets["wordpress_media"].enabled, false) ? 1 : 0
 
@@ -752,12 +752,8 @@ module "efs" {
   tags        = merge(local.common_tags, local.tags_efs) # Assuming you add local.tags_efs in metadata.tf
 
   # Network configuration
-  vpc_id = module.vpc.vpc_id
-  subnet_ids_map = {
-    public_subnet_1 = module.vpc.public_subnet_1_id
-    public_subnet_2 = module.vpc.public_subnet_2_id
-    public_subnet_3 = module.vpc.public_subnet_3_id
-  }
+  vpc_id                = module.vpc.vpc_id
+  subnet_ids            = local.private_subnet_ids
   asg_security_group_id = module.asg.asg_security_group_id
 
   # Security and Encryption

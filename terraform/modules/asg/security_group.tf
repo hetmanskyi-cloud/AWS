@@ -126,10 +126,10 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 #    - Use **least privilege** principles where applicable.
 #    - If using VPC Endpoints, you can safely restrict public egress while retaining AWS service access.
 #
-# 4. **Future Readiness**:
-#    - The VPC Interface Endpoints module is currently **disabled**, but the security group is ready for future use.
-#    - If ASG instances are later moved to private subnets **without NAT Gateway**, enabling `enable_interface_endpoints`
-#      will redirect traffic through private endpoints instead of the public internet.
+# 4. **VPC Endpoint Readiness**:
+#    - The module is prepared for integration with AWS Interface Endpoints.
+#    - If ASG instances are moved to private subnets without a NAT Gateway, enabling the Interface Endpoints
+#      module at the root level will allow traffic to flow to AWS services privately.
 #
 # 5. **Instance Connectivity**:
 #    - ASG instances must reach AWS APIs (SSM, CloudWatch, Secrets Manager, KMS) via HTTPS (port 443).

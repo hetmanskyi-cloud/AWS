@@ -46,10 +46,10 @@ resource "aws_efs_file_system" "efs" {
 # Using for_each ensures that one mount target is created per subnet ID provided in the variable,
 # which is essential for high availability across multiple Availability Zones.
 resource "aws_efs_mount_target" "efs_mount_target" {
-  for_each = var.subnet_ids_map
+  for_each = var.subnet_ids
 
   file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = each.value
+  subnet_id       = each.key
   security_groups = [aws_security_group.efs_sg.id]
 }
 
@@ -62,7 +62,7 @@ resource "aws_efs_mount_target" "efs_mount_target" {
 #
 # 2. **Mount Targets (`aws_efs_mount_target`)**:
 #    - These resources act as network interfaces (ENIs) for the EFS file system within your VPC.
-#    - The `for_each` loop is crucial here; it iterates over the map of subnets (`var.subnet_ids_map`) and creates one
+#    - The `for_each` loop is crucial here; it iterates over the set of subnets (`var.subnet_ids`) and creates one
 #      mount target in each, making the file system accessible across multiple Availability Zones.
 #    - Each mount target is associated with the dedicated EFS security group to control access.
 #
