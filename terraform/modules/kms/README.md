@@ -204,26 +204,30 @@ This module provisions:
 
 ## 7. Inputs
 
-| Name                            | Type          | Description                                                         | Default / Required               |
-|---------------------------------|---------------|---------------------------------------------------------------------|----------------------------------|
-| `aws_account_id`                | `string`      | AWS Account ID (12-digit numeric string)                            | **Required**                     |
-| `aws_region`                    | `string`      | AWS Region (format: xx-xxxx-x, e.g., eu-west-1)                     | **Required**                     |
-| `replication_region`            | `string`      | AWS Region for replica key (optional)                               | `""` (no replication by default) |
-| `name_prefix`                   | `string`      | Prefix for naming resources                                         | **Required**                     |
-| `environment`                   | `string`      | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
-| `tags`                          | `map(string)` | Tags to apply to all resources.                                     | `{}` (Optional)                  |
-| `enable_key_rotation`           | `bool`        | Enable automatic key rotation                                       | `true`                           |
-| `kms_root_access`               | `bool`        | Enable or disable root access to the KMS key                        | `true/false`                     |
-| `enable_kms_admin_role`         | `bool`        | Create IAM role for key management                                  | `false`                          |
-| `enable_key_monitoring`         | `bool`        | Enable CloudWatch alarms for key usage                              | `false`                          |
-| `enable_kms_access_denied_alarm`| `bool`        | Enable CloudWatch alarm for KMS AccessDenied errors                 | `true`                           |
-| `key_decrypt_threshold`         | `number`      | Threshold for decrypt operations alarm                              | `100`                            |
-| `sns_topic_arn`                 | `string`      | ARN of SNS topic for alarms (required if monitoring enabled)        | `""`                             |
-| `default_region_buckets`        | `map(object)` | Configuration for default region S3 buckets (see details below)     | `{}`                             |
-| `replication_region_buckets`    | `map(object)` | Configuration for replication region S3 buckets (see details below) | `{}`                             |
-| `enable_dynamodb`               | `bool`        | Allow DynamoDB service usage                                        | `false`                          |
-| `enable_firehose`               | `bool`        | Allow Kinesis Firehose usage                                        | `false`                          |
-| `enable_waf_logging`            | `bool`        | Allow WAF logging usage                                             | `false`                          |
+| Name                                    | Type          | Description                                                         | Default / Required               |
+|-----------------------------------------|---------------|---------------------------------------------------------------------|----------------------------------|
+| `aws_account_id`                        | `string`      | AWS Account ID (12-digit numeric string)                            | **Required**                     |
+| `aws_region`                            | `string`      | AWS Region (format: xx-xxxx-x, e.g., eu-west-1)                     | **Required**                     |
+| `replication_region`                    | `string`      | AWS Region for replica key (optional)                               | `""` (no replication by default) |
+| `name_prefix`                           | `string`      | Prefix for naming resources                                         | **Required**                     |
+| `environment`                           | `string`      | Deployment environment label                                        | One of: `dev`, `stage`, `prod`   |
+| `tags`                                  | `map(string)` | Tags to apply to all resources.                                     | `{}` (Optional)                  |
+| `enable_key_rotation`                   | `bool`        | Enable automatic key rotation                                       | `true`                           |
+| `kms_root_access`                       | `bool`        | Enable or disable root access to the KMS key                        | `true/false`                     |
+| `enable_kms_admin_role`                 | `bool`        | Create IAM role for key management                                  | `false`                          |
+| `enable_key_monitoring`                 | `bool`        | Enable CloudWatch alarms for key usage                              | `false`                          |
+| `enable_kms_access_denied_alarm`        | `bool`        | Enable CloudWatch alarm for KMS AccessDenied errors                 | `true`                           |
+| `key_decrypt_threshold`                 | `number`      | Threshold for decrypt operations alarm                              | `100`                            |
+| `sns_topic_arn`                         | `string`      | ARN of SNS topic for alarms (required if monitoring enabled)        | `""`                             |
+| `default_region_buckets`                | `map(object)` | Configuration for default region S3 buckets (see details below)     | `{}`                             |
+| `replication_region_buckets`            | `map(object)` | Configuration for replication region S3 buckets (see details below) | `{}`                             |
+| `enable_dynamodb`                       | `bool`        | Allow DynamoDB service usage                                        | `false`                          |
+| `enable_alb_firehose`                   | `bool`        | Allow Kinesis Firehose usage for ALB logs                           | `false`                          |
+| `enable_cloudfront_firehose`            | `bool`        | Allow Kinesis Firehose usage for CloudFront logs                    | `false`                          |
+| `enable_alb_waf_logging`                | `bool`        | Allow WAF logging usage for ALB                                     | `false`                          |
+| `enable_cloudfront_waf`                 | `bool`        | Allow WAF logging usage for CloudFront                              | `false`                          |
+| `enable_cloudfront_standard_logging_v2` | `bool`        | Enable CloudFront standard logging to S3                            | `true`                           |
+| `enable_image_processor`                | `bool`        | Grant SQS service permissions for DLQ encryption                    | `false`                          |
 
 ---
 
@@ -373,7 +377,7 @@ When cross-region replication is enabled, the module automatically:
 This module supports conditional creation of certain resources based on input variables:
 
 - **Customer KMS Key** is always created when the module is enabled.
-- **Cross-region Replica KMS Key** is created only if the `replication_region_buckets` map is defined and not empty.
+- **Cross-region Replica KMS Key** is created only if the `replication_region_buckets` map contains at least one bucket with `enabled = true`.
 - **KMS Grants** for S3 replication are created automatically **if cross-region replication is configured** (i.e., at least one `replication_region_bucket` is enabled).
 - **IAM Role and Policy for KMS administration** are created only if `enable_kms_admin_role = true`.
 - **CloudWatch Alarms** for monitoring decryption operations are created only if `enable_key_monitoring = true`.
