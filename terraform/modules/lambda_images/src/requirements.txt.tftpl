@@ -1,1 +1,8 @@
+# This file is a Terraform template for specifying Python dependencies.
+# It is specifically designed to be processed by the 'lambda_layer' module
+# (which might be called from an 'environments/main.tf' file) to dynamically
+# create a Lambda Layer with a pinned version of Pillow.
+#
+# Do NOT use this file directly for 'pip install'.
+# The 'pillow_version' variable is rendered by Terraform's 'templatefile' function.
 Pillow==${pillow_version}

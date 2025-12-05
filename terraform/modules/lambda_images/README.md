@@ -127,43 +127,41 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-## 7. Inputs
-
-| Name                            | Type           | Description                                           | Default                                |
-|---------------------------------|----------------|-------------------------------------------------------|----------------------------------------|
-| `aws_region`                    | `string`       | AWS region for resource deployment.                   | **Required**                           |
-| `aws_account_id`                | `string`       | The AWS account ID.                                   | **Required**                           |
-| `name_prefix`                   | `string`       | Prefix for all created resource names.                | **Required**                           |
-| `environment`                   | `string`       | Deployment environment (e.g., `dev`, `prod`).         | **Required**                           |
-| `tags`                          | `map(string)`  | A map of tags to apply to all resources.              | `{}`                                   |
-| `lambda_function_name`          | `string`       | The name of the Lambda function.                      | **Required**                           |
-| `lambda_handler`                | `string`       | The function entrypoint in your code.                 | `"image_processor.lambda_handler"`     |
-| `lambda_runtime`                | `string`       | The runtime for the Lambda function.                  | `"python3.12"`                         |
-| `lambda_memory_size`            | `number`       | Memory (MB) allocated to the function.                | `256`                                  |
-| `lambda_timeout`                | `number`       | Function timeout in seconds.                          | `60`                                   |
-| `lambda_architecture`           | `list(string)` | Instruction set architecture (`x86_64` or `arm64`).   | `["x86_64"]`                           |
-| `lambda_environment_variables`  | `map(string)`  | Environment variables for the function.               | `{ "TARGET_WIDTH" = "1024" }`          |
-| `lambda_layers`                 | `list(string)` | List of Lambda Layer ARNs to attach.                  | `[]`                                   |
-| `ephemeral_storage_mb`          | `number`       | Ephemeral storage in MB (`/tmp`).                     | `512`                                  |
-| `dead_letter_queue_arn`         | `string`       | ARN of the SQS Dead Letter Queue (DLQ).               | **Required**                           |
-| `lambda_source_code_path`       | `string`       | Local path to the Lambda source code.                 | `"./src"`                              |
-| `lambda_iam_policy_attachments` | `list(string)` | List of IAM policy ARNs to attach to the role.        | `[]`                                   |
-| `sqs_trigger_queue_arn`         | `string`       | ARN of the SQS queue that triggers the function.      | **Required**                           |
-| `sqs_batch_size`                | `number`       | Maximum number of records per SQS batch.              | `5`                                    |
-| `dynamodb_table_arn`            | `string`       | ARN of the DynamoDB table (for IAM permissions).      | **Required**                           |
-| `dynamodb_table_name`           | `string`       | Name of the DynamoDB table (for env variables).       | **Required**                           |
-| `source_s3_bucket_name`         | `string`       | Name of the S3 bucket for source images.              | **Required**                           |
-| `source_s3_prefix`              | `string`       | S3 prefix for original images.                        | `"uploads/"`                           |
-| `destination_s3_prefix`         | `string`       | S3 prefix for processed images.                       | `"processed/"`                         |
-| `alarms_enabled`                | `bool`         | If true, create CloudWatch alarms for the function.   | `true`                                 |
-| `sns_topic_arn`                 | `string`       | SNS Topic ARN for alarm notifications.                | `null`                                 |
-| `error_alarm_threshold`         | `number`       | Threshold for the error alarm.                        | `5`                                    |
-| `throttles_alarm_threshold`     | `number`       | Threshold for the throttles alarm.                    | `5`                                    |
-| `duration_alarm_threshold_ms`   | `number`       | p95 duration alarm threshold in milliseconds.         | `30000`                                |
-| `alarm_evaluation_periods`      | `number`       | Number of periods to evaluate for the alarm.          | `1`                                    |
-| `alarm_period_seconds`          | `number`       | Period in seconds to evaluate the alarm.              | `300`                                  |
-| `kms_key_arn`                   | `string`       | KMS key ARN for SQS/S3 decryption.                    | **Required** |
-| `enable_lambda_tracing`         | `bool`         | Enable AWS X-Ray active tracing for the function.     | `true`                                 |
+| Name                            | Type           | Description                                           |
+|---------------------------------|----------------|-------------------------------------------------------|
+| `aws_region`                    | `string`       | AWS region for resource deployment.                   |
+| `aws_account_id`                | `string`       | The AWS account ID.                                   |
+| `name_prefix`                   | `string`       | Prefix for all created resource names.                |
+| `environment`                   | `string`       | Deployment environment (e.g., `dev`, `prod`).         |
+| `tags`                          | `map(string)`  | A map of tags to apply to all resources.              |
+| `lambda_function_name`          | `string`       | The name of the Lambda function.                      |
+| `lambda_handler`                | `string`       | The function entrypoint in your code.                 |
+| `lambda_runtime`                | `string`       | The runtime for the Lambda function.                  |
+| `lambda_memory_size`            | `number`       | Memory (MB) allocated to the function.                |
+| `lambda_timeout`                | `number`       | Function timeout in seconds.                          |
+| `lambda_architecture`           | `list(string)` | Instruction set architecture (`x86_64` or `arm64`).   |
+| `lambda_environment_variables`  | `map(string)`  | Environment variables for the function.               |
+| `lambda_layers`                 | `list(string)` | List of Lambda Layer ARNs to attach.                  |
+| `ephemeral_storage_mb`          | `number`       | Ephemeral storage in MB (`/tmp`).                     |
+| `dead_letter_queue_arn`         | `string`       | ARN of the SQS Dead Letter Queue (DLQ).               |
+| `lambda_source_code_path`       | `string`       | Local path to the Lambda source code.                 |
+| `lambda_iam_policy_attachments` | `list(string)` | List of IAM policy ARNs to attach to the role.        |
+| `sqs_trigger_queue_arn`         | `string`       | ARN of the SQS queue that triggers the function.      |
+| `sqs_batch_size`                | `number`       | Maximum number of records per SQS batch.              |
+| `dynamodb_table_arn`            | `string`       | ARN of the DynamoDB table (for IAM permissions).      |
+| `dynamodb_table_name`           | `string`       | Name of the DynamoDB table (for env variables).       |
+| `source_s3_bucket_name`         | `string`       | Name of the S3 bucket for source images.              |
+| `source_s3_prefix`              | `string`       | S3 prefix for original images.                        |
+| `destination_s3_prefix`         | `string`       | S3 prefix for processed images.                       |
+| `alarms_enabled`                | `bool`         | If true, create CloudWatch alarms for the function.   |
+| `sns_topic_arn`                 | `string`       | SNS Topic ARN for alarm notifications.                |
+| `error_alarm_threshold`         | `number`       | Threshold for the error alarm.                        |
+| `throttles_alarm_threshold`     | `number`       | Threshold for the throttles alarm.                    |
+| `duration_alarm_threshold_ms`   | `number`       | p95 duration alarm threshold in milliseconds.         |
+| `alarm_evaluation_periods`      | `number`       | Number of periods to evaluate for the alarm.          |
+| `alarm_period_seconds`          | `number`       | Period in seconds to evaluate the alarm.              |
+| `kms_key_arn`                   | `string`       | KMS key ARN for SQS/S3 decryption.                    |
+| `enable_lambda_tracing`         | `bool`         | Enable AWS X-Ray active tracing for the function.     |
 
 ---
 

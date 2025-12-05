@@ -12,7 +12,7 @@ variable "environment" {
   description = "Environment for the resources (e.g., dev, stage, prod)"
   type        = string
   validation {
-    condition     = can(regex("(dev|stage|prod)", var.environment))
+    condition     = can(regex("^(dev|stage|prod)$", var.environment))
     error_message = "The environment must be one of 'dev', 'stage', or 'prod'."
   }
 }

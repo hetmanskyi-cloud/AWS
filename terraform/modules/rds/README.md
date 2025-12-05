@@ -197,56 +197,42 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| **Name**                              | **Type**       | **Description**                                                               | **Default/Required**  |
-|---------------------------------------|----------------|-------------------------------------------------------------------------------|-----------------------|
-| **AWS Region Configuration**          |                |                                                                               |                       |
-| `aws_region`                          | `string`       | The AWS region where resources will be created                                | Required              |
-| `aws_account_id`                      | `string`       | AWS account ID for permissions and policies                                   | Required              |
-| **Naming and Environment Variables**  |                |                                                                               |                       |
-| `name_prefix`                         | `string`       | Prefix for resource names                                                     | Required              |
-| `environment`                         | `string`       | Environment for the resources (e.g., dev, stage, prod)                        | Required              |
-| `tags`                                | `map(string)`  | Tags to apply to all resources.                                               | `{}` (Optional)       |
-| **RDS Instance Configuration**        |                |                                                                               |                       |
-| `allocated_storage`                   | `number`       | Storage size in GB for the RDS instance                                       | Required              |
-| `instance_class`                      | `string`       | Instance class for RDS (e.g., db.t3.micro)                                    | Required              |
-| `engine`                              | `string`       | Database engine for the RDS instance (e.g., 'mysql', 'postgres')              | Required              |
-| `engine_version`                      | `string`       | Database engine version (e.g., '8.0' for MySQL)                               | Required              |
-| `db_username`                         | `string`       | Master username for RDS                                                       | Required              |
-| `db_password`                         | `string`       | Master password for RDS                                                       | Required              |
-| `db_name`                             | `string`       | Initial database name                                                         | Required              |
-| `db_port`                             | `number`       | Database port for RDS (e.g., 3306 for MySQL)                                  | `3306`                |
-| `multi_az`                            | `bool`         | Enable Multi-AZ deployment for RDS high availability                          | `false`               |
-| **Backup and Retention Configuration**|                |                                                                               |                       |
-| `backup_retention_period`             | `number`       | Number of days to retain RDS backups                                          | Required              |
-| `backup_window`                       | `string`       | Preferred window for automated RDS backups (e.g., '03:00-04:00')              | Required              |
-| `rds_log_retention_days`              | `number`       | Number of days to retain RDS logs in CloudWatch                               | `30`                  |
-| **Performance and Protection**        |                |                                                                               |                       |
-| `performance_insights_enabled`        | `bool`         | Enable or disable Performance Insights for RDS instance                       | Required              |
-| `rds_deletion_protection`             | `bool`         | Enable or disable deletion protection for RDS instance                        | Required              |
-| `skip_final_snapshot`                 | `bool`         | Skip final snapshot when deleting the RDS instance                            | `true`                |
-| **Networking Variables**              |                |                                                                               |                       |
-| `vpc_id`                              | `string`       | The ID of the VPC where the RDS instance is hosted                            | Required              |
-| `vpc_cidr_block`                      | `string`       | CIDR block of the VPC where RDS is deployed                                   | Required              |
-| `private_subnet_ids`                  | `list(string)` | List of private subnet IDs for RDS deployment                                 | Required              |
-| `private_subnet_cidr_blocks`          | `list(string)` | List of CIDR blocks for private subnets                                       | Required              |
-| `public_subnet_cidr_blocks`           | `list(string)` | List of CIDR blocks for public subnets                                        | Required              |
-| **Security Group Variables**          |                |                                                                               |                       |
-| `asg_security_group_id`               | `string`       | Security Group ID for ASG instances that need access to the RDS instance      | Required              |
-| **Encryption**                        |                |                                                                               |                       |
-| `kms_key_arn`                         | `string`       | The ARN of the KMS key for RDS encryption                                     | Required              |
-| **Enhanced Monitoring**               |                |                                                                               |                       |
-| `enable_rds_monitoring`               | `bool`         | Enable RDS enhanced monitoring if set to true                                 | Required              |
-| **CloudWatch Monitoring Variables**   |                |                                                                               |                       |
-| `rds_cpu_threshold_high`              | `number`       | Threshold for high CPU utilization on RDS                                     | Required              |
-| `rds_storage_threshold`               | `number`       | Threshold for low free storage space on RDS (in bytes)                        | Required              |
-| `rds_connections_threshold`           | `number`       | Threshold for high number of database connections on RDS                      | Required              |
-| `sns_topic_arn`                       | `string`       | ARN of the SNS Topic for sending CloudWatch alarm notifications               | Required              |
-| **Read Replica Configuration**        |                |                                                                               |                       |
-| `read_replicas_count`                 | `number`       | Number of read replicas for the RDS instance                                  | Required              |
-| **CloudWatch Alarm Configuration**    |                |                                                                               |                       |
-| `enable_low_storage_alarm`            | `bool`         | Enable the CloudWatch Alarm for low storage on RDS                            | `false`               |
-| `enable_high_cpu_alarm`               | `bool`         | Enable the CloudWatch Alarm for high CPU utilization on RDS                   | `false`               |
-| `enable_high_connections_alarm`       | `bool`         | Enable the CloudWatch Alarm for high database connections on RDS              | `false`               |
+| Name                           | Type           | Description                                                               |
+|--------------------------------|----------------|---------------------------------------------------------------------------|
+| `aws_region`                   | `string`       | The AWS region where resources will be created                            |
+| `aws_account_id`               | `string`       | AWS account ID for permissions and policies                               |
+| `name_prefix`                  | `string`       | Prefix for resource names                                                 |
+| `environment`                  | `string`       | Environment for the resources (e.g., dev, stage, prod)                    |
+| `tags`                         | `map(string)`  | Tags to apply to all resources.                                           |
+| `allocated_storage`            | `number`       | Storage size in GB for the RDS instance                                   |
+| `instance_class`               | `string`       | Instance class for RDS (e.g., db.t3.micro)                                |
+| `engine`                       | `string`       | Database engine for the RDS instance (e.g., 'mysql', 'postgres')          |
+| `engine_version`               | `string`       | Database engine version (e.g., '8.0' for MySQL)                           |
+| `db_username`                  | `string`       | Master username for RDS                                                   |
+| `db_password`                  | `string`       | Master password for RDS                                                   |
+| `db_name`                      | `string`       | Initial database name                                                     |
+| `db_port`                      | `number`       | Database port for RDS (e.g., 3306 for MySQL)                              |
+| `multi_az`                     | `bool`         | Enable Multi-AZ deployment for RDS high availability                      |
+| `backup_retention_period`      | `number`       | Number of days to retain RDS backups                                      |
+| `backup_window`                | `string`       | Preferred window for automated RDS backups (e.g., '03:00-04:00')          |
+| `rds_log_retention_days`       | `number`       | Number of days to retain RDS logs in CloudWatch                           |
+| `performance_insights_enabled` | `bool`         | Enable or disable Performance Insights for RDS instance                   |
+| `rds_deletion_protection`      | `bool`         | Enable or disable deletion protection for RDS instance                    |
+| `skip_final_snapshot`          | `bool`         | Skip final snapshot when deleting the RDS instance                        |
+| `vpc_id`                       | `string`       | The ID of the VPC where the RDS instance is hosted                        |
+| `vpc_cidr_block`               | `string`       | CIDR block of the VPC where RDS is deployed                               |
+| `private_subnet_ids`           | `list(string)` | List of private subnet IDs for RDS deployment                             |
+| `asg_security_group_id`        | `string`       | Security Group ID for ASG instances that need access to the RDS instance  |
+| `kms_key_arn`                  | `string`       | The ARN of the KMS key for RDS encryption                                 |
+| `enable_rds_monitoring`        | `bool`         | Enable RDS enhanced monitoring if set to true                             |
+| `rds_cpu_threshold_high`       | `number`       | Threshold for high CPU utilization on RDS                                 |
+| `rds_storage_threshold`        | `number`       | Threshold for low free storage space on RDS (in bytes)                    |
+| `rds_connections_threshold`    | `number`       | Threshold for high number of database connections on RDS                  |
+| `sns_topic_arn`                | `string`       | ARN of the SNS Topic for sending CloudWatch alarm notifications           |
+| `read_replicas_count`          | `number`       | Number of read replicas for the RDS instance                              |
+| `enable_low_storage_alarm`     | `bool`         | Enable the CloudWatch Alarm for low storage on RDS                        |
+| `enable_high_cpu_alarm`        | `bool`         | Enable the CloudWatch Alarm for high CPU utilization on RDS               |
+| `enable_high_connections_alarm`| `bool`         | Enable the CloudWatch Alarm for high database connections on RDS          |
 
 ---
 
@@ -300,10 +286,7 @@ module "rds" {
 
   # Networking
   vpc_id                    = module.vpc.vpc_id
-  vpc_cidr_block            = module.vpc.vpc_cidr_block
   private_subnet_ids        = module.vpc.private_subnet_ids
-  private_subnet_cidr_blocks = module.vpc.private_subnet_cidr_blocks
-  public_subnet_cidr_blocks = module.vpc.public_subnet_cidr_blocks
   asg_security_group_id     = module.asg.security_group_id
 
   # Encryption

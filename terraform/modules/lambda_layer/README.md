@@ -104,15 +104,15 @@ This module provisions the following resources:
 
 ## 7. Inputs
 
-| Name                 | Type           | Description                                                                          | Default          |
-|----------------------|----------------|--------------------------------------------------------------------------------------|------------------|
-| `name_prefix`        | `string`       | Prefix for resource names.                                                           | **Required**     |
-| `environment`        | `string`       | Environment for the resources (e.g., `dev`, `stage`, `prod`).                        | **Required**     |
-| `layer_name`         | `string`       | The unique name for the Lambda Layer (e.g., 'Pillow-Dependencies').                  | **Required**     |
-| `source_path`        | `string`       | The relative path to the source directory containing the `requirements.txt.tftpl`.   | **Required**     |
-| `layer_runtime`      | `list(string)` | A list of compatible runtimes for the layer (e.g., `["python3.12"]`).                | `["python3.12"]` |
-| `library_version`    | `string`       | The specific version of the library to install (e.g., '11.2.1' for Pillow).          | **Required**     |
-| `layer_architecture` | `list(string)` | The compatible instruction set architecture (e.g., `["x86_64"]`).                    | `["x86_64"]`     |
+| Name                 | Type           | Description                                                                          |
+|----------------------|----------------|--------------------------------------------------------------------------------------|
+| `name_prefix`        | `string`       | Prefix for resource names.                                                           |
+| `environment`        | `string`       | Environment for the resources (e.g., `dev`, `stage`, `prod`).                        |
+| `layer_name`         | `string`       | The unique name for the Lambda Layer (e.g., 'Pillow-Dependencies').                  |
+| `source_path`        | `string`       | The relative path to the source directory containing the `requirements.txt.tftpl`.   |
+| `layer_runtime`      | `list(string)` | A list of compatible runtimes for the layer (e.g., `["python3.12"]`).                |
+| `library_version`    | `string`       | The specific version of the library to install (e.g., '11.2.1' for Pillow).          |
+| `layer_architecture` | `list(string)` | The compatible instruction set architecture (e.g., `["x86_64"]`).                    |
 
 ---
 

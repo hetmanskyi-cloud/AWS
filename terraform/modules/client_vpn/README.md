@@ -144,21 +144,21 @@ graph TD
 
 ---
 
-## 7. Inputs (Variables)
+## 7. Inputs
 
-| Variable                       | Type          | Description                                          | Default/Required |
-|--------------------------------|---------------|------------------------------------------------------|------------------|
-| `name_prefix`                  | `string`      | Prefix for all resource names.                       | Required         |
-| `environment`                  | `string`      | Deployment environment (e.g., 'dev').                | Required         |
-| `vpc_id`                       | `string`      | ID of the VPC to associate the endpoint with.        | Required         |
-| `vpc_cidr`                     | `string`      | Primary CIDR block of the VPC for routing.           | Required         |
-| `vpc_subnet_ids`               | `list(string)`| Subnets to associate for high availability.          | Required         |
-| `authentication_type`          | `string`      | Authentication method: `certificate` or `federated`. | `certificate`    |
-| `client_vpn_client_cidr_blocks`| `list(string)`| IP range for clients. Must not overlap with VPC CIDR.| Required         |
-| `client_vpn_split_tunnel`      | `bool`        | If true, only VPC traffic goes through the VPN.      | `true`           |
-| `saml_provider_arn`            | `string`      | ARN of the IAM SAML provider (for `federated` auth). | `null`           |
-| `custom_dns_servers`           | `list(string)`| Up to two DNS servers to push to clients.            | `[]`             |
-| `kms_key_arn`                  | `string`      | Optional KMS key ARN to encrypt connection logs.     | `null`           |
+| Name                           | Type           | Description                                          |
+|--------------------------------|----------------|------------------------------------------------------|
+| `name_prefix`                  | `string`       | Prefix for all resource names.                       |
+| `environment`                  | `string`       | Deployment environment (e.g., 'dev').                |
+| `vpc_id`                       | `string`       | ID of the VPC to associate the endpoint with.        |
+| `vpc_cidr`                     | `string`       | Primary CIDR block of the VPC for routing.           |
+| `vpc_subnet_ids`               | `list(string)` | Subnets to associate for high availability.          |
+| `authentication_type`          | `string`       | Authentication method: `certificate` or `federated`. |
+| `client_vpn_client_cidr_blocks`| `list(string)` | IP range for clients. Must not overlap with VPC CIDR.|
+| `client_vpn_split_tunnel`      | `bool`         | If true, only VPC traffic goes through the VPN.      |
+| `saml_provider_arn`            | `string`       | ARN of the IAM SAML provider (for `federated` auth). |
+| `custom_dns_servers`           | `list(string)` | Up to two DNS servers to push to clients.            |
+| `kms_key_arn`                  | `string`       | Optional KMS key ARN to encrypt connection logs.     |
 
 _(Full list of variables available in the `variables.tf` file)_
 

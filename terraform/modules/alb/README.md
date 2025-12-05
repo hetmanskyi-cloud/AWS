@@ -175,35 +175,35 @@ This module provisions:
 
 ## 7. Inputs
 
-| Name                                    | Type           | Description                                                | Validation                          |
-|-----------------------------------------|----------------|------------------------------------------------------------|-------------------------------------|
-| `name_prefix`                           | `string`       | Prefix for resource names                                  | <= 24 chars                         |
-| `environment`                           | `string`       | Deployment environment                                     | One of: `dev`, `stage`, `prod`      |
-| `tags`                                  | `map(string)`  | Tags to apply to all resources                             | `{}` (Optional)                     |
-| `public_subnets`                        | `list(string)` | Public subnet IDs for ALB                                  | Valid subnet IDs                    |
-| `vpc_id`                                | `string`       | VPC ID for ALB                                             | Valid VPC ID                        |
-| `vpc_cidr_block`                        | `string`       | The CIDR block of the VPC, used for internal health checks.| Non-empty string                    |
-| `target_group_port`                     | `number`       | Port for the target group                                  | Default: `80`                       |
-| `certificate_arn`                       | `string`       | SSL Certificate ARN for HTTPS listener                     | Required if HTTPS enabled           |
-| `alb_enable_deletion_protection`        | `bool`         | Enable deletion protection for the ALB                     | Default: `false`                    |
-| `enable_https_listener`                 | `bool`         | Toggle HTTPS Listener                                      | `true` or `false`                   |
-| `enable_alb_access_logs`                | `bool`         | Toggle ALB access logs                                     | `true` or `false`                   |
-| `alb_logs_bucket_name`                  | `string`       | S3 bucket for ALB logs                                     | Non-empty string or `null`          |
-| `logging_bucket_arn`                    | `string`       | ARN of S3 bucket for Firehose                              | Non-empty if Firehose enabled       |
-| `kms_key_arn`                           | `string`       | KMS key ARN for log encryption                             | Non-empty if Firehose enabled       |
-| `enable_alb_firehose`                   | `bool`         | Toggle Kinesis Firehose                                    | `true` or `false`                   |
-| `enable_alb_firehose_cloudwatch_logs`   | `bool`         | Enable CloudWatch logging for Firehose delivery stream     | `true` or `false`                   |
-| `enable_alb_waf`                        | `bool`         | Toggle WAF protection                                      | `true` or `false`                   |
-| `enable_alb_waf_logging`                | `bool`         | Toggle WAF logging (requires Firehose)                     | `true` or `false`                   |
-| `cloudfront_to_alb_secret_header_value` | `string`       | Secret value for the custom CloudFront → ALB header.       | `sensitive`                         |
-| `alb_access_cloudfront_mode`            | `bool`         | If true, restricts ALB ingress to CloudFront IPs.          | Default: `false`                    |
-| `asg_security_group_id`                 | `string`       | The ID of the security group attached to the ASG instances.| Non-empty string                    |
-| `sns_topic_arn`                         | `string`       | SNS topic for CloudWatch Alarms                            | Valid SNS ARN                       |
-| `alb_request_count_threshold`           | `number`       | Threshold for high request count on ALB                    | Default: `1000`                     |
-| `alb_5xx_threshold`                     | `number`       | Threshold for 5XX errors on ALB                            | Default: `50`                       |
-| `enable_high_request_alarm`             | `bool`         | Enable CloudWatch alarm for high request count             | Default: `false`                    |
-| `enable_5xx_alarm`                      | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors                | Default: `false`                    |
-| `enable_target_response_time_alarm`     | `bool`         | Enable CloudWatch alarm for Target Response Time           | Default: `false`                    |
+| Name                                    | Type           | Description                                                |
+|-----------------------------------------|----------------|------------------------------------------------------------|
+| `name_prefix`                           | `string`       | Prefix for resource names                                  |
+| `environment`                           | `string`       | Deployment environment                                     |
+| `tags`                                  | `map(string)`  | Tags to apply to all resources                             |
+| `public_subnets`                        | `list(string)` | Public subnet IDs for ALB                                  |
+| `vpc_id`                                | `string`       | VPC ID for ALB                                             |
+| `vpc_cidr_block`                        | `string`       | The CIDR block of the VPC, used for internal health checks.|
+| `target_group_port`                     | `number`       | Port for the target group                                  |
+| `certificate_arn`                       | `string`       | SSL Certificate ARN for HTTPS listener                     |
+| `alb_enable_deletion_protection`        | `bool`         | Enable deletion protection for the ALB                     |
+| `enable_https_listener`                 | `bool`         | Toggle HTTPS Listener                                      |
+| `enable_alb_access_logs`                | `bool`         | Toggle ALB access logs                                     |
+| `alb_logs_bucket_name`                  | `string`       | S3 bucket for ALB logs                                     |
+| `logging_bucket_arn`                    | `string`       | ARN of S3 bucket for Firehose                              |
+| `kms_key_arn`                           | `string`       | KMS key ARN for log encryption                             |
+| `enable_alb_firehose`                   | `bool`         | Toggle Kinesis Firehose                                    |
+| `enable_alb_firehose_cloudwatch_logs`   | `bool`         | Enable CloudWatch logging for Firehose delivery stream     |
+| `enable_alb_waf`                        | `bool`         | Toggle WAF protection                                      |
+| `enable_alb_waf_logging`                | `bool`         | Toggle WAF logging (requires Firehose)                     |
+| `cloudfront_to_alb_secret_header_value` | `string`       | Secret value for the custom CloudFront → ALB header.       |
+| `alb_access_cloudfront_mode`            | `bool`         | If true, restricts ALB ingress to CloudFront IPs.          |
+| `asg_security_group_id`                 | `string`       | The ID of the security group attached to the ASG instances.|
+| `sns_topic_arn`                         | `string`       | SNS topic for CloudWatch Alarms                            |
+| `alb_request_count_threshold`           | `number`       | Threshold for high request count on ALB                    |
+| `alb_5xx_threshold`                     | `number`       | Threshold for 5XX errors on ALB                            |
+| `enable_high_request_alarm`             | `bool`         | Enable CloudWatch alarm for high request count             |
+| `enable_5xx_alarm`                      | `bool`         | Enable CloudWatch alarm for HTTP 5XX errors                |
+| `enable_target_response_time_alarm`     | `bool`         | Enable CloudWatch alarm for Target Response Time           |
 
 ---
 

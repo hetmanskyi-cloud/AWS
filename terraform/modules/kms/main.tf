@@ -41,7 +41,7 @@ provider "aws" {
 
 # Replica KMS key in the replication region for cross-region S3 replication (conditional).
 resource "aws_kms_replica_key" "replica_key" {
-  count = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? 1 : 0
+  for_each = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? { "replica_key" : true } : {}
 
   provider        = aws.replication
   description     = "Replica of general encryption key for S3 replication in ${var.replication_region}"
@@ -117,6 +117,14 @@ locals {
     var.enable_image_processor ? ["dynamodb.amazonaws.com"] : [],
   ))
 }
+
+# --- Data Sources --- #
+# Data source to get the ARN of the AutoScaling service-linked role.
+# This avoids hardcoding the ARN and makes the module more robust.
+data "aws_iam_role" "autoscaling_service_role" {
+  name = "AWSServiceRoleForAutoScaling"
+}
+
 
 # --- Policy for the Primary KMS Key --- #
 # Policy for the primary KMS key granting optional root access (temporary, for setup),
@@ -216,7 +224,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Sid    = "AllowAutoScalingServiceRoleUsage",
           Effect = "Allow",
           Principal = {
-            AWS = "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+            AWS = data.aws_iam_role.autoscaling_service_role.arn
           },
           Action = [
             "kms:Encrypt",
@@ -234,7 +242,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
           Sid    = "AllowAutoScalingServiceRoleCreateGrant",
           Effect = "Allow",
           Principal = {
-            AWS = "arn:aws:iam::${var.aws_account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+            AWS = data.aws_iam_role.autoscaling_service_role.arn
           },
           Action = [
             "kms:CreateGrant"
@@ -264,7 +272,7 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
   # Notes:
   # 1. Root access to the KMS key is controlled by the 'kms_root_access' variable.
   #    Set to `true` during initial setup to allow full administrative access via the root account.
-  #    Before setting it to `false`, make sure to set `enable_admin_kms_role = true` to provision an IAM role for secure key management.
+  #    Before setting it to `false`, make sure to set `enable_kms_admin_role = true` to provision an IAM role for secure key management.
   #    This ensures that administrative access remains available after root permissions are removed.
   #
   # 2. If EC2 instances are later moved to private subnets without internet access,
@@ -276,9 +284,9 @@ resource "aws_kms_key_policy" "general_encryption_key_policy" {
 # Granting S3 service permissions to use the replica KMS key for cross-region S3 replication.
 # Replica key policies cannot be directly modified; grants are used instead.
 resource "aws_kms_grant" "s3_replication_grant" {
-  count = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? 1 : 0
+  for_each = aws_kms_replica_key.replica_key
 
-  key_id            = length(aws_kms_replica_key.replica_key) > 0 ? aws_kms_replica_key.replica_key[0].id : null
+  key_id            = each.value.id
   grantee_principal = "s3.amazonaws.com"
 
   operations = local.s3_replication_grant_operations

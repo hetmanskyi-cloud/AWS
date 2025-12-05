@@ -16,6 +16,11 @@ variable "aws_account_id" {
 variable "aws_region" {
   description = "The primary AWS region where the main infrastructure is deployed."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "The AWS region must follow the format 'xx-xxxx-x', e.g., 'eu-west-1'."
+  }
 }
 
 # Replication region for S3

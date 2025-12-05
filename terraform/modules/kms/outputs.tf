@@ -15,7 +15,7 @@ output "kms_key_id" {
 # --- KMS Replica Key ARN --- #
 output "kms_replica_key_arn" {
   description = "ARN of the replica KMS key in the replication region"
-  value       = length(aws_kms_replica_key.replica_key) > 0 ? aws_kms_replica_key.replica_key[0].arn : null
+  value       = try(aws_kms_replica_key.replica_key["replica_key"].arn, null)
 }
 
 # --- Enable KMS Admin Role --- #

@@ -161,17 +161,17 @@ This module provisions the following resources:
 
 ## 7. Inputs
 
-| Name                          | Type           | Description                                           | Default / Required  |
-|-------------------------------|----------------|-------------------------------------------------------|---------------------|
-| `aws_region`                  | `string`       | AWS region for resources.                             | Required            |
-| `name_prefix`                 | `string`       | Prefix for naming resources.                          | Required            |
-| `environment`                 | `string`       | Deployment environment label.                         | Required            |
-| `tags`                        | `map(string)`  | Tags to apply to all resources.                       | `{}` (Optional)     |
-| `vpc_id`                      | `string`       | ID of the existing VPC.                               | Required            |
-| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                                | Required            |
-| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.                           | Required            |
-| `enable_interface_endpoints`  | `bool`         | Enable or disable all Interface VPC Endpoints.        | `false` (Optional)  |
-| `endpoint_services`           | `list(string)` | A list of AWS services for which to create endpoints. | See default list    |
+| Name                          | Type           | Description                                           |
+|-------------------------------|----------------|-------------------------------------------------------|
+| `aws_region`                  | `string`       | AWS region for resources.                             |
+| `name_prefix`                 | `string`       | Prefix for naming resources.                          |
+| `environment`                 | `string`       | Deployment environment label.                         |
+| `tags`                        | `map(string)`  | Tags to apply to all resources.                       |
+| `vpc_id`                      | `string`       | ID of the existing VPC.                               |
+| `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                                |
+| `private_subnet_ids`          | `list(string)` | List of private subnet IDs.                           |
+| `enable_interface_endpoints`  | `bool`         | Enable or disable all Interface VPC Endpoints.        |
+| `endpoint_services`           | `list(string)` | A list of AWS services for which to create endpoints. |
 
 ---
 

@@ -212,33 +212,33 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| Name                                  | Type          | Description                                                         | Default/Required  |
-|---------------------------------------|---------------|---------------------------------------------------------------------|-------------------|
-| `name_prefix`                         | `string`      | Prefix for resource names                                           | **Required**      |
-| `environment`                         | `string`      | Environment (`dev`, `stage`, `prod`)                                | **Required**      |
-| `tags`                                | `map(string)` | Tags to apply to all resources                                      | `{}` (Optional)   |
-| `vpc_id`                              | `string`      | VPC ID for deployment                                               | **Required**      |
-| `private_subnet_ids`                  | `list(string)`| List of private subnet IDs                                          | **Required**      |
-| `asg_security_group_id`               | `string`      | Security Group ID for ASG access                                    | **Required**      |
-| `redis_version`                       | `string`      | Redis version (`X.Y`)                                               | **Required**      |
-| `node_type`                           | `string`      | Node type (e.g., `cache.t3.micro`)                                  | **Required**      |
-| `replicas_per_node_group`             | `number`      | Number of replicas per shard                                        | **Required**      |
-| `num_node_groups`                     | `number`      | Number of shards                                                    | **Required**      |
-| `enable_failover`                     | `bool`        | Enable automatic failover                                           | `false`           |
-| `redis_port`                          | `number`      | Redis port                                                          | `6379`            |
-| `snapshot_retention_limit`            | `number`      | Snapshot retention days                                             | **Required**      |
-| `snapshot_window`                     | `string`      | Snapshot window (`HH:MM-HH:MM`)                                     | `"03:00-04:00"`   |
-| `redis_cpu_threshold`                 | `number`      | CPU utilization threshold (%)                                       | **Required**      |
-| `redis_memory_threshold`              | `number`      | Memory threshold (bytes)                                            | **Required**      |
-| `redis_cpu_credits_threshold`         | `number`      | CPU credits threshold                                               | `5`               |
-| `redis_replication_bytes_threshold`   | `number`      | Replication bytes threshold                                         | `50000000`        |
-| `sns_topic_arn`                       | `string`      | SNS topic ARN for alarms                                            | **Required**      |
-| `kms_key_arn`                         | `string`      | KMS key ARN for encryption                                          | **Required**      |
-| `enable_redis_low_memory_alarm`       | `bool`        | Enable low memory alarm                                             | `false`           |
-| `enable_redis_high_cpu_alarm`         | `bool`        | Enable high CPU alarm                                               | `false`           |
-| `enable_redis_replication_bytes_alarm`| `bool`        | Enable replication bytes alarm                                      | `false`           |
-| `enable_redis_low_cpu_credits_alarm`  | `bool`        | Enable CPU credits alarm                                            | `false`           |
-| `redis_auth_token`                    | `string`      | The Redis AUTH token. Must be passed securely from the root module. | **Required**      |
+| Name                                  | Type          | Description                                                         |
+|---------------------------------------|---------------|---------------------------------------------------------------------|
+| `name_prefix`                         | `string`      | Prefix for resource names                                           |
+| `environment`                         | `string`      | Environment (`dev`, `stage`, `prod`)                                |
+| `tags`                                | `map(string)` | Tags to apply to all resources                                      |
+| `vpc_id`                              | `string`      | VPC ID for deployment                                               |
+| `private_subnet_ids`                  | `list(string)`| List of private subnet IDs                                          |
+| `asg_security_group_id`               | `string`      | Security Group ID for ASG access                                    |
+| `redis_version`                       | `string`      | Redis version (`X.Y`)                                               |
+| `node_type`                           | `string`      | Node type (e.g., `cache.t3.micro`)                                  |
+| `replicas_per_node_group`             | `number`      | Number of replicas per shard                                        |
+| `num_node_groups`                     | `number`      | Number of shards                                                    |
+| `enable_failover`                     | `bool`        | Enable automatic failover                                           |
+| `redis_port`                          | `number`      | Redis port                                                          |
+| `snapshot_retention_limit`            | `number`      | Snapshot retention days                                             |
+| `snapshot_window`                     | `string`      | Snapshot window (`HH:MM-HH:MM`)                                     |
+| `redis_cpu_threshold`                 | `number`      | CPU utilization threshold (%)                                       |
+| `redis_memory_threshold`              | `number`      | Memory threshold (bytes)                                            |
+| `redis_cpu_credits_threshold`         | `number`      | CPU credits threshold                                               |
+| `redis_replication_bytes_threshold`   | `number`      | Replication bytes threshold                                         |
+| `sns_topic_arn`                       | `string`      | SNS topic ARN for alarms                                            |
+| `kms_key_arn`                         | `string`      | KMS key ARN for encryption                                          |
+| `enable_redis_low_memory_alarm`       | `bool`        | Enable low memory alarm                                             |
+| `enable_redis_high_cpu_alarm`         | `bool`        | Enable high CPU alarm                                               |
+| `enable_redis_replication_bytes_alarm`| `bool`        | Enable replication bytes alarm                                      |
+| `enable_redis_low_cpu_credits_alarm`  | `bool`        | Enable CPU credits alarm                                            |
+| `redis_auth_token`                    | `string`      | The Redis AUTH token. Must be passed securely from the root module. |
 
 ---
 

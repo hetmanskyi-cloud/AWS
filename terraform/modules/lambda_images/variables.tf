@@ -93,6 +93,11 @@ variable "dead_letter_queue_arn" {
   description = "The ARN of an SQS queue to use as a Dead Letter Queue (DLQ). This variable is required as DLQ is a mandatory feature for this module."
   type        = string
   # No default value makes this variable required.
+
+  validation {
+    condition     = can(regex("^arn:aws:sqs:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.dead_letter_queue_arn))
+    error_message = "The Dead Letter Queue ARN must be a valid SQS ARN."
+  }
 }
 
 # --- Lambda Deployment Package Settings --- #
@@ -118,6 +123,11 @@ variable "lambda_iam_policy_attachments" {
 variable "sqs_trigger_queue_arn" {
   description = "The ARN of the SQS queue that triggers the Lambda function."
   type        = string
+
+  validation {
+    condition     = can(regex("^arn:aws:sqs:[a-z0-9-]+:[0-9]{12}:[a-zA-Z0-9-_]+$", var.sqs_trigger_queue_arn))
+    error_message = "The SQS Trigger Queue ARN must be a valid SQS ARN."
+  }
 }
 
 variable "sqs_batch_size" {
@@ -131,6 +141,11 @@ variable "sqs_batch_size" {
 variable "dynamodb_table_arn" {
   description = "The ARN of the DynamoDB table, used for IAM policy permissions."
   type        = string
+
+  validation {
+    condition     = can(regex("^arn:aws:dynamodb:[a-z0-9-]+:[0-9]{12}:table/[a-zA-Z0-9-_]+$", var.dynamodb_table_arn))
+    error_message = "The DynamoDB Table ARN must be a valid DynamoDB Table ARN."
+  }
 }
 
 variable "dynamodb_table_name" {
@@ -208,8 +223,8 @@ variable "kms_key_arn" {
   type        = string
 
   validation {
-    condition     = length(var.kms_key_arn) > 0
-    error_message = "kms_key_arn cannot be empty."
+    condition     = can(regex("^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+$", var.kms_key_arn))
+    error_message = "The KMS Key ARN must be a valid KMS Key ARN."
   }
 }
 
