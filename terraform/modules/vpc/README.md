@@ -186,43 +186,43 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| **Name**                      | **Type**       | **Description**                                                                                                 | **Default/Required** |
-|-------------------------------|----------------|-----------------------------------------------------------------------------------------------------------------|----------------------|
-| `aws_region`                  | `string`       | AWS region where resources will be created.                                                                     | **Required**         |
-| `aws_account_id`              | `string`       | AWS account ID for configuring permissions.                                                                     | **Required**         |
-| `vpc_cidr_block`              | `string`       | CIDR block for the VPC.                                                                                         | **Required**         |
-| `name_prefix`                 | `string`       | Prefix for resource names.                                                                                      | **Required**         |
-| `environment`                 | `string`       | Environment tag (e.g., dev, stage, prod).                                                                       | **Required**         |
-| `tags`                        | `map(string)`  | Tags to apply to all resources.                                                                                 | `{}` (Optional)      |
-| `public_subnets`              | `map(object)`  | Map of public subnets to create. Key is a logical name, value is an object with `cidr_block` and `availability_zone`. | `{}` (Optional)      |
-| `private_subnets`             | `map(object)`  | Map of private subnets to create. Key is a logical name, value is an object with `cidr_block` and `availability_zone`. | `{}` (Optional)      |
-| `enable_nat_gateway`          | `bool`         | Set to true to enable NAT Gateway for outbound internet access from private subnets.                            | `false` (Optional)   |
-| `single_nat_gateway`          | `bool`         | Set to true for one NAT Gateway. If false, a NAT Gateway is created in each AZ for high availability.           | `false` (Optional)   |
-| `kms_key_arn`                 | `string`       | ARN of KMS key for Flow Logs encryption.                                                                        | **Required**         |
-| `flow_logs_retention_in_days` | `number`       | Number of days to retain VPC Flow Logs.                                                                         | **Required**         |
-| `ssh_allowed_cidr`            | `list(string)` | List of allowed CIDR blocks for SSH access.                                                                     | `[]` (Optional)      |
-| `sns_topic_arn`               | `string`       | ARN of SNS Topic for CloudWatch Alarms notifications.                                                             | `null` (Optional)    |
+| **Name**                      | **Type**        | **Description**                                         |
+|-------------------------------|-----------------|---------------------------------------------------------|
+| `aws_region`                  | `string`        | AWS region for resource creation.                       |
+| `aws_account_id`              | `string`        | AWS account ID for policy permissions.                  |
+| `vpc_cidr_block`              | `string`        | The CIDR block for the VPC.                             |
+| `name_prefix`                 | `string`        | Prefix for resource names.                              |
+| `environment`                 | `string`        | Deployment environment (e.g., `dev`, `stage`, `prod`).  |
+| `tags`                        | `map(string)`   | Tags to apply to all resources.                         |
+| `enable_nat_gateway`          | `bool`          | Enable NAT Gateway for private subnets.                 |
+| `single_nat_gateway`          | `bool`          | Use a single NAT Gateway for all AZs.                   |
+| `public_subnets`              | `map(object)`   | Map of public subnets to create.                        |
+| `private_subnets`             | `map(object)`   | Map of private subnets to create.                       |
+| `kms_key_arn`                 | `string`        | KMS key ARN for Flow Log encryption.                    |
+| `flow_logs_retention_in_days` | `number`        | Retention period for VPC Flow Logs.                     |
+| `ssh_allowed_cidr`            | `list(string)`  | Allowed CIDR blocks for SSH access.                     |
+| `sns_topic_arn`               | `string`        | SNS topic ARN for CloudWatch alarm notifications.       |
 
 ---
 
 ## 8. Outputs
 
-| **Name**                     | **Description**                                                                |
-|------------------------------|--------------------------------------------------------------------------------|
-| `vpc_id`                     | The ID of the created VPC.                                                     |
-| `vpc_arn`                    | The ARN of the VPC.                                                            |
-| `vpc_cidr_block`             | The CIDR block of the VPC.                                                     |
-| `public_subnet_ids`          | List of IDs of public subnets.                                                 |
-| `private_subnet_ids`         | List of IDs of private subnets.                                                |
-| `public_subnets_map`         | A map of public subnets with their details (id, cidr_block, availability_zone).  |
-| `private_subnets_map`        | A map of private subnets with their details (id, cidr_block, availability_zone). |
-| `nat_gateway_public_ips`     | List of public Elastic IP addresses assigned to the NAT Gateways.              |
-| `public_route_table_id`      | ID of the public route table.                                                  |
-| `private_route_table_ids`    | A map of private route table IDs, keyed by the private subnet key.             |
-| `s3_endpoint_id`             | The ID of the S3 Gateway Endpoint.                                             |
-| `dynamodb_endpoint_id`       | The ID of the DynamoDB VPC Endpoint.                                           |
-| `default_security_group_id`  | The ID of the default security group for the VPC.                              |
-| `vpc_flow_logs_log_group_name` | Name of the CloudWatch Log Group for VPC Flow Logs.                            |
+| **Name**                       | **Description**                                                                  |
+|--------------------------------|----------------------------------------------------------------------------------|
+| `vpc_id`                       | The ID of the VPC.                                                               |
+| `vpc_arn`                      | The ARN of the VPC.                                                              |
+| `vpc_cidr_block`               | The CIDR block of the VPC.                                                       |
+| `public_subnet_ids`            | List of IDs of public subnets.                                                   |
+| `private_subnet_ids`           | List of IDs of private subnets.                                                  |
+| `public_subnets_map`           | A map of public subnets with their details (id, cidr_block, availability_zone).  |
+| `private_subnets_map`          | A map of private subnets with their details (id, cidr_block, availability_zone). |
+| `nat_gateway_public_ips`       | List of public Elastic IP addresses assigned to the NAT Gateways.                |
+| `public_route_table_id`        | ID of the public route table.                                                    |
+| `private_route_table_ids`      | A map of private route table IDs, keyed by the private subnet key.               |
+| `s3_endpoint_id`               | The ID of the S3 Gateway Endpoint.                                               |
+| `dynamodb_endpoint_id`         | The ID of the DynamoDB VPC Endpoint.                                             |
+| `default_security_group_id`    | The ID of the default security group for the VPC.                                |
+| `vpc_flow_logs_log_group_name` | Name of the CloudWatch Log Group for VPC Flow Logs.                              |
 
 ---
 

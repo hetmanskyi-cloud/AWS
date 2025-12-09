@@ -143,6 +143,48 @@ variable "s3_scripts" {
   default     = {}
 }
 
+# --- S3 Scripts Bucket Key --- #
+variable "s3_scripts_bucket_key" {
+  description = "Key for the scripts bucket within the default_region_buckets map. This allows referencing the scripts bucket dynamically."
+  type        = string
+  default     = "scripts"
+}
+
+# --- S3 Logging Bucket Key --- #
+variable "s3_logging_bucket_key" {
+  description = "Key for the logging bucket within the default_region_buckets map. This allows referencing the logging bucket dynamically."
+  type        = string
+  default     = "logging"
+}
+
+# --- S3 Terraform State Bucket Key --- #
+variable "s3_terraform_state_bucket_key" {
+  description = "Key for the Terraform state bucket within the default_region_buckets map. This allows referencing the Terraform state bucket dynamically."
+  type        = string
+  default     = "terraform_state"
+}
+
+# --- S3 ALB Logs Bucket Key --- #
+variable "s3_alb_logs_bucket_key" {
+  description = "Key for the ALB logs bucket within the default_region_buckets map. This allows referencing the ALB logs bucket dynamically."
+  type        = string
+  default     = "alb_logs"
+}
+
+# --- S3 CloudTrail Bucket Key --- #
+variable "s3_cloudtrail_bucket_key" {
+  description = "Key for the CloudTrail bucket within the default_region_buckets map. This allows referencing the CloudTrail bucket dynamically."
+  type        = string
+  default     = "cloudtrail"
+}
+
+# --- S3 WordPress Media Bucket Key --- #
+variable "s3_wordpress_media_bucket_key" {
+  description = "Key for the WordPress media bucket within the default_region_buckets map. This allows referencing the WordPress media bucket dynamically."
+  type        = string
+  default     = "wordpress_media"
+}
+
 # --- Enable CORS --- #
 variable "enable_cors" {
   description = "Enable CORS for WordPress media bucket."
@@ -164,7 +206,7 @@ variable "enable_dynamodb" {
   default     = false
 
   validation {
-    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), "terraform_state") && var.default_region_buckets["terraform_state"].enabled : true
+    condition     = var.enable_dynamodb ? contains(keys(var.default_region_buckets), var.s3_terraform_state_bucket_key) && var.default_region_buckets[var.s3_terraform_state_bucket_key].enabled : true
     error_message = "enable_dynamodb requires terraform_state bucket enabled."
   }
 }

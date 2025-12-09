@@ -28,7 +28,7 @@ terraform {
 # checkov:skip=CKV_AWS_145:Justification: Encryption is configured via a separate aws_s3_bucket_server_side_encryption_configuration resource for modular flexibility and reuse.
 resource "aws_s3_bucket" "default_region_buckets" {
   # Dynamic buckets in default region
-  # If the Terraform state bucket ("terraform_state") is included, additional precautions are needed.
+  # If the Terraform state bucket (${var.s3_terraform_state_bucket_key}) is included, additional precautions are needed.
   for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
 
   provider = aws # Default AWS provider
@@ -54,7 +54,7 @@ resource "aws_s3_bucket" "default_region_buckets" {
   # - prevent_destroy = true   → protects bucket from deletion via 'terraform destroy' or accidental removal
   #
   # To enable strict protection, manually uncomment the block below.
-  # If you need to apply protection **only to specific buckets** (e.g., 'terraform_state'), implement per-resource logic manually.
+  # If you need to apply protection **only to specific buckets** (e.g., '${var.s3_terraform_state_bucket_key}'), implement per-resource logic manually.
 
   # lifecycle {
   #   prevent_destroy = true
@@ -86,11 +86,11 @@ resource "aws_s3_bucket" "s3_replication_bucket" {
 # Scripts are loaded from the local project directory and stored in S3 for use during EC2 provisioning.
 resource "aws_s3_object" "deploy_wordpress_scripts_files" {
   # Conditional script deployment
-  for_each = can(var.default_region_buckets["scripts"].enabled) ? var.s3_scripts : {}
+  for_each = can(var.default_region_buckets[var.s3_scripts_bucket_key].enabled) ? var.s3_scripts : {}
 
-  bucket = aws_s3_bucket.default_region_buckets["scripts"].id # Target 'scripts' bucket
-  key    = each.key                                           # S3 object key
-  source = "${path.root}/${each.value}"                       # Local script path
+  bucket = aws_s3_bucket.default_region_buckets[var.s3_scripts_bucket_key].id # Target 'scripts' bucket
+  key    = each.key                                                           # S3 object key
+  source = "${path.root}/${each.value}"                                       # Local script path
 
   server_side_encryption = "aws:kms"       # KMS encryption
   kms_key_id             = var.kms_key_arn # KMS key ARN
@@ -181,7 +181,7 @@ resource "aws_s3_bucket_ownership_controls" "default_region_logging_ownership" {
   # Apply to enabled default region buckets that require ACLs for log delivery
   for_each = tomap({
     for key, value in var.default_region_buckets :
-    key => value if value.enabled && contains(["logging", "alb_logs", "cloudtrail"], key)
+    key => value if value.enabled && contains([var.s3_logging_bucket_key, var.s3_alb_logs_bucket_key, var.s3_cloudtrail_bucket_key], key)
     # Filter includes 'logging' (S3 access logs), 'alb_logs', and 'cloudtrail'
   })
 
@@ -200,7 +200,7 @@ resource "aws_s3_bucket_ownership_controls" "default_region_other_ownership" {
   # Apply to enabled default region buckets that do NOT require ACLs
   for_each = tomap({
     for key, value in var.default_region_buckets :
-    key => value if value.enabled && !contains(["logging", "alb_logs", "cloudtrail"], key)
+    key => value if value.enabled && !contains([var.s3_logging_bucket_key, var.s3_alb_logs_bucket_key, var.s3_cloudtrail_bucket_key], key)
     # Filter excludes 'logging', 'alb_logs', and 'cloudtrail'
   })
 
@@ -240,7 +240,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bu
   # SSE for default region buckets
   for_each = tomap({
     for key, value in var.default_region_buckets : key => value
-    if value.enabled && key != "alb_logs"
+    if value.enabled && key != var.s3_alb_logs_bucket_key
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -270,7 +270,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default_region_bu
 resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs_bucket" {
   for_each = tomap({
     for key, value in var.default_region_buckets :
-    key => value if value.enabled && key == "alb_logs"
+    key => value if value.enabled && key == var.s3_alb_logs_bucket_key
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id
@@ -297,7 +297,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "replication_regio
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"                                                                                                    # KMS encryption algorithm
-      kms_master_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn # Используем реплику ключа KMS
+      kms_master_key_id = var.kms_replica_key_arn != null && var.kms_replica_key_arn != "" ? var.kms_replica_key_arn : var.kms_key_arn # Use KMS replica key
     }
     bucket_key_enabled = true # Enable Bucket Key for cost optimization
   }
@@ -340,8 +340,8 @@ resource "aws_s3_bucket_public_access_block" "replication_region_bucket_public_a
 # Grants S3 log delivery permissions for server access logging.
 # This resource is created only if the 'logging' bucket itself is enabled.
 resource "aws_s3_bucket_acl" "logging_bucket_acl" {
-  count  = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  count  = try(var.default_region_buckets[var.s3_logging_bucket_key].enabled, false) ? 1 : 0
+  bucket = aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].id
 
   acl = "log-delivery-write"
 
@@ -364,13 +364,13 @@ resource "aws_s3_bucket_logging" "default_region_bucket_server_access_logging" {
     key => value
     if value.enabled
     && lookup(value, "server_access_logging", false)
-    && can(var.default_region_buckets["logging"].enabled)
-    && key != "logging"
+    && can(var.default_region_buckets[var.s3_logging_bucket_key].enabled)
+    && key != var.s3_logging_bucket_key
   })
 
-  bucket        = aws_s3_bucket.default_region_buckets[each.key].id    # Source bucket
-  target_bucket = aws_s3_bucket.default_region_buckets["logging"].id   # Logging destination
-  target_prefix = "${var.name_prefix}/${each.key}-server-access-logs/" # Log path
+  bucket        = aws_s3_bucket.default_region_buckets[each.key].id                  # Source bucket
+  target_bucket = aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].id # Logging destination
+  target_prefix = "${var.name_prefix}/${each.key}-server-access-logs/"               # Log path
 }
 
 # --- Random Suffix for Bucket Names --- #

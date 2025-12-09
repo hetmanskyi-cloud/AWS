@@ -7,34 +7,34 @@
 
 output "scripts_bucket_arn" {
   description = "ARN of scripts bucket." # Description: ARN
-  value       = var.default_region_buckets["scripts"].enabled ? aws_s3_bucket.default_region_buckets["scripts"].arn : null
+  value       = var.default_region_buckets[var.s3_scripts_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_scripts_bucket_key].arn : null
 }
 
 output "scripts_bucket_name" {
   description = "Name of scripts bucket." # Description: Name
-  value       = var.default_region_buckets["scripts"].enabled ? aws_s3_bucket.default_region_buckets["scripts"].bucket : null
+  value       = var.default_region_buckets[var.s3_scripts_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_scripts_bucket_key].bucket : null
 }
 
 # --- Logging Bucket --- #
 
 output "logging_bucket_arn" {
   description = "ARN of logging bucket." # Description: ARN
-  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].arn : null
+  value       = var.default_region_buckets[var.s3_logging_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn : null
 }
 
 output "logging_bucket_name" {
   description = "Name of logging bucket." # Description: Name
-  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].bucket : null
+  value       = var.default_region_buckets[var.s3_logging_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].bucket : null
 }
 
 output "logging_bucket_id" {
   description = "ID of logging bucket." # Description: ID
-  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].id : null
+  value       = var.default_region_buckets[var.s3_logging_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].id : null
 }
 
 output "logging_bucket_domain_name" {
   description = "The domain name of the central logging S3 bucket."
-  value       = var.default_region_buckets["logging"].enabled ? aws_s3_bucket.default_region_buckets["logging"].bucket_domain_name : null
+  value       = var.default_region_buckets[var.s3_logging_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].bucket_domain_name : null
 }
 
 # --- ALB Logs Bucket --- #
@@ -42,72 +42,72 @@ output "logging_bucket_domain_name" {
 # --- Output: ALB Logs Bucket Name --- #
 output "alb_logs_bucket_name" {
   description = "Name of the S3 bucket for ALB logs"
-  value = lookup(var.default_region_buckets, "alb_logs", {
+  value = lookup(var.default_region_buckets, var.s3_alb_logs_bucket_key, {
     enabled               = false
     versioning            = false
     replication           = false
     logging               = false
     server_access_logging = false
     region                = null
-  }).enabled ? aws_s3_bucket.default_region_buckets["alb_logs"].bucket : null
+  }).enabled ? aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].bucket : null
 }
 
 # --- CloudTrail Bucket --- #
 
 output "cloudtrail_bucket_arn" {
   description = "ARN of the CloudTrail S3 bucket"
-  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].arn : null
+  value       = var.default_region_buckets[var.s3_cloudtrail_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_cloudtrail_bucket_key].arn : null
 }
 
 output "cloudtrail_bucket_id" {
   description = "ID of the CloudTrail S3 bucket"
-  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].id : null
+  value       = var.default_region_buckets[var.s3_cloudtrail_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_cloudtrail_bucket_key].id : null
 }
 
 output "cloudtrail_bucket_name" {
   description = "Name of the CloudTrail S3 bucket"
-  value       = var.default_region_buckets["cloudtrail"].enabled ? aws_s3_bucket.default_region_buckets["cloudtrail"].bucket : null
+  value       = var.default_region_buckets[var.s3_cloudtrail_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_cloudtrail_bucket_key].bucket : null
 }
 
 # --- Terraform State Bucket --- #
 
 output "terraform_state_bucket_arn" {
   description = "ARN of Terraform state bucket." # Description: ARN
-  value       = var.default_region_buckets["terraform_state"].enabled ? aws_s3_bucket.default_region_buckets["terraform_state"].arn : null
+  value       = var.default_region_buckets[var.s3_terraform_state_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_terraform_state_bucket_key].arn : null
 }
 
 output "terraform_state_bucket_name" {
   description = "Name of Terraform state bucket." # Description: Name
-  value       = var.default_region_buckets["terraform_state"].enabled ? aws_s3_bucket.default_region_buckets["terraform_state"].bucket : null
+  value       = var.default_region_buckets[var.s3_terraform_state_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_terraform_state_bucket_key].bucket : null
 }
 
 # --- WordPress Media Bucket --- #
 
 output "wordpress_media_bucket_arn" {
   description = "ARN of WordPress media bucket." # Description: ARN
-  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].arn : null
+  value       = var.default_region_buckets[var.s3_wordpress_media_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_wordpress_media_bucket_key].arn : null
 }
 
 output "wordpress_media_bucket_name" {
   description = "Name of WordPress media bucket." # Description: Name
-  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket : null
+  value       = var.default_region_buckets[var.s3_wordpress_media_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_wordpress_media_bucket_key].bucket : null
 }
 
 output "wordpress_media_bucket_id" {
   description = "ID of WordPress media S3 bucket (required for notifications configuration)."
-  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].id : null
+  value       = var.default_region_buckets[var.s3_wordpress_media_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_wordpress_media_bucket_key].id : null
 }
 
 output "wordpress_media_bucket_regional_domain_name" {
   description = "The regional domain name of the WordPress media S3 bucket."
-  value       = var.default_region_buckets["wordpress_media"].enabled ? aws_s3_bucket.default_region_buckets["wordpress_media"].bucket_regional_domain_name : null
+  value       = var.default_region_buckets[var.s3_wordpress_media_bucket_key].enabled ? aws_s3_bucket.default_region_buckets[var.s3_wordpress_media_bucket_key].bucket_regional_domain_name : null
 }
 
 # --- WordPress Scripts ETags Map --- #
 # S3 ETags for deployed WordPress script files.
-# IMPORTANT: Scripts must be uploaded to the 'scripts' bucket. If the bucket is not enabled, the map will be empty and EC2 provisioning will fail.
+# IMPORTANT: Scripts must be uploaded to the '${var.s3_scripts_bucket_key}' bucket. If the bucket is not enabled, the map will be empty and EC2 provisioning will fail.
 output "deploy_wordpress_scripts_files_etags_map" {
-  value       = var.default_region_buckets["scripts"].enabled ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
+  value       = var.default_region_buckets[var.s3_scripts_bucket_key].enabled ? { for k, obj in aws_s3_object.deploy_wordpress_scripts_files : k => obj.etag } : {}
   description = "Map of script file keys to ETags."
 }
 
@@ -115,17 +115,17 @@ output "deploy_wordpress_scripts_files_etags_map" {
 # Since we only have one replication bucket (key "wordpress_media"), we reference it explicitly.
 
 output "replication_bucket_arn" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].arn : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[var.s3_wordpress_media_bucket_key].arn : null
   description = "ARN of replication bucket." # Description: ARN
 }
 
 output "replication_bucket_name" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].bucket : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[var.s3_wordpress_media_bucket_key].bucket : null
   description = "Name of replication bucket." # Description: Name
 }
 
 output "replication_bucket_region" {
-  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket["wordpress_media"].region : null
+  value       = local.replication_buckets_enabled ? aws_s3_bucket.s3_replication_bucket[var.s3_wordpress_media_bucket_key].region : null
   description = "Region of replication bucket." # Description: Region
 }
 
@@ -157,5 +157,5 @@ output "all_enabled_buckets_names" {
 
 # --- Notes --- #
 # 1. Bucket Outputs: For all configured (if enabled), null if disabled.
-# 2. WordPress Scripts: 'deploy_wordpress_scripts_files_etags_map' - ETags for uploaded scripts.
+# 2. ${var.s3_scripts_bucket_key} Scripts: 'deploy_wordpress_scripts_files_etags_map' - ETags for uploaded scripts.
 # 3. DynamoDB: Outputs for state locking table (if enabled).

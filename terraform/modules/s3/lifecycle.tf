@@ -2,7 +2,7 @@
 # Defines lifecycle rules for default region S3 buckets.
 resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   # Dynamic lifecycle for default region buckets
-  for_each = { for key, value in var.default_region_buckets : key => value if value.enabled && key != "terraform_state" }
+  for_each = { for key, value in var.default_region_buckets : key => value if value.enabled && key != var.s3_terraform_state_bucket_key }
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
@@ -105,7 +105,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replication_lifecycle" {
 # Defines lifecycle rules for terraform_state bucket.
 resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_lifecycle" {
   # Apply only if terraform_state bucket is enabled
-  for_each = { for key, value in var.default_region_buckets : key => value if value.enabled && key == "terraform_state" }
+  for_each = { for key, value in var.default_region_buckets : key => value if value.enabled && key == var.s3_terraform_state_bucket_key }
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
 
@@ -155,4 +155,4 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state_lifecycle" {
 #   - Managed separately to prevent accidental state file deletion.
 #   - **No automatic deletion of objects.** All object versions are retained for 90 days.
 #   - Incomplete multipart uploads are aborted after 7 days to save storage costs.
-#   - Lifecycle applies **only if `terraform_state` bucket is enabled.**
+#   - Lifecycle applies **only if `${var.s3_terraform_state_bucket_key}` bucket is enabled.**

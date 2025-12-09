@@ -31,7 +31,7 @@ resource "aws_s3_bucket_cors_configuration" "wordpress_media_cors" {
 resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
   # HTTPS policy for default region buckets (EXCLUDING Logging, ALB Logs and CloudTrail)
   for_each = tomap({
-    for key, value in var.default_region_buckets : key => value if value.enabled && key != "alb_logs" && key != "logging" && key != "cloudtrail" && key != "wordpress_media"
+    for key, value in var.default_region_buckets : key => value if value.enabled && key != var.s3_alb_logs_bucket_key && key != var.s3_logging_bucket_key && key != var.s3_cloudtrail_bucket_key && key != "wordpress_media"
   })
 
   bucket = aws_s3_bucket.default_region_buckets[each.key].id # Target bucket
@@ -66,7 +66,7 @@ resource "aws_s3_bucket_policy" "default_region_enforce_https_policy" {
 # that a single resource manages the bucket policy.
 data "aws_iam_policy_document" "unified_logging_bucket_policy" {
   # This policy is constructed only if the logging bucket itself is enabled.
-  count = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
+  count = try(var.default_region_buckets[var.s3_logging_bucket_key].enabled, false) ? 1 : 0
 
   # Statement 1: Allow S3 Server Access Logs to write to this bucket.
   # This is required for other S3 buckets to deliver their own access logs here.
@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
     }
 
     resources = [
-      try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
+      try("${aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn}/*", null)
     ]
 
     # This condition ensures the bucket owner gets full control over the delivered log objects.
@@ -109,8 +109,8 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
       }
 
       resources = compact([
-        try(aws_s3_bucket.default_region_buckets["logging"].arn, null),
-        try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
+        try(aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn, null),
+        try("${aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn}/*", null)
       ])
 
       # This security condition restricts access to delivery services originating from your AWS account.
@@ -135,8 +135,8 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
     }
 
     resources = compact([
-      try(aws_s3_bucket.default_region_buckets["logging"].arn, null),
-      try("${aws_s3_bucket.default_region_buckets["logging"].arn}/*", null)
+      try(aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn, null),
+      try("${aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].arn}/*", null)
     ])
 
     condition {
@@ -151,9 +151,9 @@ data "aws_iam_policy_document" "unified_logging_bucket_policy" {
 # This single resource applies the comprehensive policy constructed above,
 # acting as the sole source of truth for the logging bucket's policy.
 resource "aws_s3_bucket_policy" "unified_logging_bucket_policy" {
-  count = try(var.default_region_buckets["logging"].enabled, false) ? 1 : 0
+  count = try(var.default_region_buckets[var.s3_logging_bucket_key].enabled, false) ? 1 : 0
 
-  bucket = aws_s3_bucket.default_region_buckets["logging"].id
+  bucket = aws_s3_bucket.default_region_buckets[var.s3_logging_bucket_key].id
   policy = data.aws_iam_policy_document.unified_logging_bucket_policy[0].json
 
   depends_on = [
@@ -226,7 +226,7 @@ data "aws_elb_service_account" "main" {
 # --- IAM Policy Document for ALB Logs Bucket Permissions --- #
 data "aws_iam_policy_document" "alb_logs_bucket_policy" {
   # Create this data source only if the alb_logs bucket is enabled in the variables.
-  count = try(var.default_region_buckets["alb_logs"].enabled, false) ? 1 : 0 # Conditional data source
+  count = try(var.default_region_buckets[var.s3_alb_logs_bucket_key].enabled, false) ? 1 : 0
 
   # Statement 1: AWSLogDeliveryWrite - Service principal
   # Grants the ALB service "delivery.logs.amazonaws.com" permission to PutObject
@@ -241,7 +241,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*", null)
+      try("${aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn}/AWSLogs/${var.aws_account_id}/*", null)
     ]
 
     condition {
@@ -264,7 +264,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/AWSLogs/${var.aws_account_id}/*", null)
+      try("${aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn}/AWSLogs/${var.aws_account_id}/*", null)
     ]
 
     condition {
@@ -287,7 +287,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null)
+      try(aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn, null)
     ]
   }
 
@@ -303,7 +303,7 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = [
-      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null)
+      try(aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn, null)
     ]
   }
 
@@ -319,8 +319,8 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
     }
 
     resources = compact([
-      try(aws_s3_bucket.default_region_buckets["alb_logs"].arn, null),
-      try("${aws_s3_bucket.default_region_buckets["alb_logs"].arn}/*", null)
+      try(aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn, null),
+      try("${aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].arn}/*", null)
     ])
 
     condition {
@@ -333,9 +333,9 @@ data "aws_iam_policy_document" "alb_logs_bucket_policy" {
 
 # --- Apply ALB Logs Bucket Policy --- #
 resource "aws_s3_bucket_policy" "alb_logs_bucket_policy" {
-  count = try(var.default_region_buckets["alb_logs"].enabled, false) ? 1 : 0
+  count = try(var.default_region_buckets[var.s3_alb_logs_bucket_key].enabled, false) ? 1 : 0
 
-  bucket = aws_s3_bucket.default_region_buckets["alb_logs"].id
+  bucket = aws_s3_bucket.default_region_buckets[var.s3_alb_logs_bucket_key].id
   policy = data.aws_iam_policy_document.alb_logs_bucket_policy[0].json
 
   depends_on = [
@@ -468,7 +468,7 @@ resource "aws_s3_bucket_policy" "wordpress_media_policy" {
 #    - **Restrict 'allowed_origins' in production (CRITICAL security).**
 #
 # 2. Enforce HTTPS Policy (Default Region Buckets):
-#    - HTTPS enforcement for default region buckets, **excluding 'wordpress_media', 'logging', 'alb_logs', 'cloudtrail', which have dedicated policies.**
+#    - HTTPS enforcement for default region buckets, **excluding '${var.s3_wordpress_media_bucket_key}', '${var.s3_logging_bucket_key}', '${var.s3_alb_logs_bucket_key}', '${var.s3_cloudtrail_bucket_key}', which have dedicated policies.**
 #    - Denies HTTP access to bucket and objects.
 #
 # 3. Unified Replication Destination Bucket Policy:
@@ -476,37 +476,37 @@ resource "aws_s3_bucket_policy" "wordpress_media_policy" {
 #    - Grants replication role permissions (ReplicateObject, etc.) on destination bucket.
 #
 # 4. ALB Logs Bucket Permissions (IAM Policy Document):
-#    - Permissions for ALB to write logs to 'alb_logs' bucket.
+#    - Permissions for ALB to write logs to '${var.s3_alb_logs_bucket_key}' bucket.
 #    - Permits **'delivery.logs.amazonaws.com' service principal and regional ELB account** (via data source) for GetBucketAcl/PutObject.
 #    - Condition: s3:x-amz-acl = "bucket-owner-full-control".
 #    - Enforces HTTPS-only access.
 #
 # 5. Bucket Policy Application Summary:
-#    - **Unified 'wordpress_media' policy:** Applied exclusively to the 'wordpress_media' bucket, granting granular access to CloudFront, the EC2 Role, and the image processor Lambda.
-#    - **Dedicated Logging policy:** Applied exclusively to the 'logging' bucket (allows S3 log delivery & enforces HTTPS).
-#    - **Dedicated ALB logs policy:** Applied exclusively to the 'alb_logs' bucket.
+#    - **Unified '${var.s3_wordpress_media_bucket_key}' policy:** Applied exclusively to the '${var.s3_wordpress_media_bucket_key}' bucket, granting granular access to CloudFront, the EC2 Role, and the image processor Lambda.
+#    - **Dedicated Logging policy:** Applied exclusively to the '${var.s3_logging_bucket_key}' bucket (allows S3 log delivery & enforces HTTPS).
+#    - **Dedicated ALB logs policy:** Applied exclusively to the '${var.s3_alb_logs_bucket_key}' bucket.
 #    - **Generic HTTPS-Only policy:** Applied to remaining general-purpose buckets.
 #    - **Replication Destination policy:** Applied to replication region buckets.
 #
 # 6. Security Best Practices:
-#    - Encryption for logging buckets: 'logging' uses SSE-KMS, 'alb_logs' uses SSE-S3 (AES256).
+#    - Encryption for logging buckets: '${var.s3_logging_bucket_key}' uses SSE-KMS, '${var.s3_alb_logs_bucket_key}' uses SSE-S3 (AES256).
 #    - Versioning: enabled where object history is needed.
 #    - Public Access Block: configured for all buckets (prevent public access).
 #    - **Access control primarily relies on IAM and Bucket Policies, leveraging 'BucketOwnerEnforced' where applicable.**
 #
 # 7. CloudTrail Bucket Policy:
-#    - **Policy for CloudTrail bucket is *not defined in this `s3/policies.tf` file*.**
+#    - **Policy for ${var.s3_cloudtrail_bucket_key} bucket is *not defined in this `s3/policies.tf` file*.**
 #    - **It is defined in `cloudtrail.tf` of the *main module*.**
 #
 # 8. WordPress Media Bucket CORS Configuration Details:
-#    - Enables controlled cross-origin access to 'wordpress_media' bucket.
+#    - Enables controlled cross-origin access to '${var.s3_wordpress_media_bucket_key}' bucket.
 #    - Allows only GET requests with 'Content-Type' header.
 #    - **Important:** 'allowed_origins' must be properly restricted in production for security.
 #
-# 9. Scripts Bucket:
+# 9. ${var.s3_scripts_bucket_key} Bucket:
 #    - No dedicated bucket policy defined in this file.
 #    - Access is managed via IAM roles attached to EC2 instances.
 #
 # 10. CloudFront Logging Policy:
-#    - The **unified logging bucket policy** includes a statement that grants the 'delivery.logs.amazonaws.com'
+#    - The **unified ${var.s3_logging_bucket_key} bucket policy** includes a statement that grants the 'delivery.logs.amazonaws.com'
 #      service principal permissions to write CloudFront v2 real-time logs.

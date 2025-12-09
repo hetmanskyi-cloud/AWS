@@ -4,9 +4,9 @@
 
 # Local variable to check if terraform_state bucket is enabled
 locals {
-  terraform_state_bucket  = contains(keys(var.default_region_buckets), "terraform_state")                                # Check if terraform_state bucket exists
-  terraform_state_enabled = local.terraform_state_bucket ? var.default_region_buckets["terraform_state"].enabled : false # Check if terraform_state bucket is enabled
-  dynamodb_can_be_created = var.enable_dynamodb && local.terraform_state_enabled                                         # Condition: DynamoDB table can be created
+  terraform_state_bucket  = contains(keys(var.default_region_buckets), var.s3_terraform_state_bucket_key)                                # Check if terraform_state bucket exists
+  terraform_state_enabled = local.terraform_state_bucket ? var.default_region_buckets[var.s3_terraform_state_bucket_key].enabled : false # Check if terraform_state bucket is enabled
+  dynamodb_can_be_created = var.enable_dynamodb && local.terraform_state_enabled                                                         # Condition: DynamoDB table can be created
 }
 
 resource "aws_dynamodb_table" "terraform_locks" {
@@ -73,7 +73,7 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
 # --- Notes --- #
 # General notes for DynamoDB table.
-# 1. Creation Logic: DynamoDB table is created only if terraform_state bucket is enabled and enable_dynamodb = true.
+# 1. Creation Logic: DynamoDB table is created only if ${var.s3_terraform_state_bucket_key} bucket is enabled and enable_dynamodb = true.
 # 2. Purpose: Exclusively for Terraform state locking.
 # 3. Best Practices: Enable TTL, KMS encryption.
 # 4. Alternative Locking Method:
