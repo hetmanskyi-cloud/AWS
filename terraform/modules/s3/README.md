@@ -341,25 +341,31 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| **Name**                           | **Type**         | **Description**                                              | **Default**               |
-|------------------------------------|------------------|--------------------------------------------------------------|---------------------------|
-| `aws_region`                       | `string`         | Primary AWS region                                           | — *(required)*            |
-| `replication_region`               | `string`         | Region for replication buckets                               | — *(required)*            |
-| `environment`                      | `string`         | Deployment stage: dev, stage, or prod                        | — *(required)*            |
-| `tags`                             | `map(string)`    | Tags to apply to all resources.                              | `{}` (Optional)           |
-| `name_prefix`                      | `string`         | Prefix for resource names                                    | — *(required)*            |
-| `aws_account_id`                   | `string`         | Account ID for bucket policies                               | — *(required)*            |
-| `kms_key_arn`                      | `string`         | KMS key for encryption                                       | — *(required)*            |
-| `kms_replica_key_arn`              | `string`         | KMS key for replication (optional)                           | `null`                    |
-| `noncurrent_version_retention_days`| `number`         | Retention days for noncurrent versions                       | — *(required)*            |
-| `sns_topic_arn`                    | `string`         | SNS topic for bucket events                                  | — *(required)*            |
-| `replication_region_sns_topic_arn` | `string`         | SNS topic in replication region                              | `""`                      |
-| `default_region_buckets`           | `map(object)`    | Bucket configs in primary region                             | `{}`                      |
-| `replication_region_buckets`       | `map(object)`    | Bucket configs in replication region                         | `{}`                      |
-| `s3_scripts`                       | `map(string)`    | Files to upload to scripts bucket                            | `{}`                      |
-| `enable_cors`                      | `bool`           | Enable CORS for media bucket                                 | `false`                   |
-| `allowed_origins`                  | `list(string)`   | Origins allowed by CORS                                      | `["https://example.com"]` |
-| `enable_dynamodb`                  | `bool`           | Enable DynamoDB for state locking                            | `false`                   |
+
+| Name                               | Type           | Description                                              |
+|------------------------------------|----------------|----------------------------------------------------------|
+| `aws_region`                                  | `string`       | Primary AWS region                                       |
+| `replication_region`                        | `string`       | Region for replication buckets                           |
+| `environment`                               | `string`       | Deployment stage: dev, stage, or prod                    |
+| `tags`                                      | `map(string)`  | Tags to apply to all resources.                          |
+| `name_prefix`                               | `string`       | Prefix for resource names                                |
+| `aws_account_id`                            | `string`       | Account ID for bucket policies                           |
+| `kms_key_arn`                               | `string`       | KMS key for encryption                                   |
+| `kms_replica_key_arn`                       | `string`       | KMS key for replication (optional)                       |
+| `noncurrent_version_retention_days`         | `number`       | Retention days for noncurrent versions                   |
+| `sns_topic_arn`                             | `string`       | SNS topic for bucket events                              |
+| `replication_region_sns_topic_arn`          | `string`       | SNS topic in replication region                          |
+| `default_region_buckets`                    | `map(object)`  | Bucket configs in primary region                         |
+| `replication_region_buckets`                | `map(object)`  | Bucket configs in replication region                     |
+| `s3_scripts`                                | `map(string)`  | Files to upload to scripts bucket                        |
+| `enable_cors`                               | `bool`         | Enable CORS for media bucket                             |
+| `allowed_origins`                           | `list(string)` | Origins allowed by CORS                                  |
+| `enable_dynamodb`                           | `bool`         | Enable DynamoDB for state locking                        |
+| `lambda_iam_role_arn`                       | `string`       | IAM role ARN for the image processor Lambda.             |
+| `asg_instance_role_arn`                     | `string`       | IAM role ARN for the WordPress EC2 instances.            |
+| `wordpress_media_cloudfront_distribution_arn` | `string`       | ARN of the CloudFront distribution for the bucket policy.|
+| `wordpress_media_cloudfront_enabled`        | `bool`         | Enable the CloudFront policy for the media bucket.       |
+| `enable_cloudfront_standard_logging_v2`     | `bool`         | Enable CloudFront standard logging to S3.                |
 
 
 ---
@@ -373,6 +379,7 @@ This module provisions the following AWS resources:
 | `logging_bucket_arn`                       | ARN of logging bucket                                     |
 | `logging_bucket_name`                      | Name of logging bucket                                    |
 | `logging_bucket_id`                        | ID of logging bucket                                      |
+| `logging_bucket_domain_name`               | The domain name of the central logging S3 bucket.         |
 | `alb_logs_bucket_name`                     | Name of the S3 bucket for ALB logs                        |
 | `cloudtrail_bucket_arn`                    | ARN of the CloudTrail S3 bucket                           |
 | `cloudtrail_bucket_id`                     | ID of the CloudTrail S3 bucket                            |
@@ -381,6 +388,8 @@ This module provisions the following AWS resources:
 | `terraform_state_bucket_name`              | Name of Terraform state bucket                            |
 | `wordpress_media_bucket_arn`               | ARN of WordPress media bucket                             |
 | `wordpress_media_bucket_name`              | Name of WordPress media bucket                            |
+| `wordpress_media_bucket_id`                | ID of the WordPress media S3 bucket.                      |
+| `wordpress_media_bucket_regional_domain_name` | The regional domain name of the WordPress media bucket.   |
 | `deploy_wordpress_scripts_files_etags_map` | Map of script file keys to ETags                          |
 | `replication_bucket_arn`                   | ARN of replication bucket                                 |
 | `replication_bucket_name`                  | Name of replication bucket                                |

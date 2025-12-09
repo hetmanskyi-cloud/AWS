@@ -160,7 +160,7 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 | Name                                    | Type           | Description                                                                 |
 |-----------------------------------------|----------------|-----------------------------------------------------------------------------|
 | `name_prefix`                           | `string`       | A prefix for all resource names.                                            |
-| `environment`                           | `string`       | The deployment environment (e.g., 'dev', 'prod').                           |
+| `environment`                             | `string`       | The deployment environment (e.g., 'dev', 'prod').                           |
 | `tags`                                  | `map(string)`  | A map of tags to apply to all resources.                                    |
 | `s3_module_outputs`                     | `object`       | Outputs from the S3 module, including the media bucket domain name.         |
 | `alb_dns_name`                          | `string`       | The DNS name of the Application Load Balancer origin.                       |
@@ -176,6 +176,11 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 | `custom_domain_aliases`                 | `list(string)` | Optional: A list of custom domain names to associate with the distribution. |
 | `enable_origin_shield`                  | `bool`         | Set to `true` to enable Origin Shield for the ALB origin.                   |
 | `aws_region`                            | `string`       | The primary AWS region of your infrastructure (used by Origin Shield).      |
+| `default_region_buckets`                | `map(object)`  | A map describing S3 buckets, used for conditional resource creation.        |
+| `wordpress_media_cloudfront_enabled`    | `bool`         | Set to true to enable the CloudFront distribution for WordPress media files.|
+| `logging_bucket_enabled`                | `bool`         | Flag to indicate if the central S3 logging bucket is enabled.               |
+| `enable_client_vpn`                     | `bool`         | Controls whether the Client VPN module is enabled.                          |
+| `vpn_egress_cidrs`                      | `list(string)` | A list of CIDR blocks representing the Client VPN egress IPs.               |
 
 ---
 
@@ -188,9 +193,21 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 | `cloudfront_distribution_domain_name`       | The domain name of the CloudFront distribution.              |
 | `cloudfront_distribution_hosted_zone_id`    | The Route 53 Hosted Zone ID for the CloudFront distribution. |
 | `cloudfront_oac_id`                         | The ID of the Origin Access Control (OAC).                   |
+| `waf_web_acl_id`                            | The ID of the AWS WAFv2 Web ACL.                             |
 | `waf_web_acl_arn`                           | The ARN of the WAFv2 Web ACL.                                |
+| `firehose_delivery_stream_name`             | The name of the Kinesis Firehose stream for WAF logs.        |
 | `firehose_delivery_stream_arn`              | The ARN of the Kinesis Firehose stream for WAF logs.         |
+| `firehose_iam_role_arn`                     | The ARN of the IAM role for Kinesis Firehose.                |
+| `cloudfront_access_logs_source_name`        | The name of the CloudWatch Log Delivery Source.              |
+| `cloudfront_access_logs_destination_name`   | The name of the CloudWatch Log Delivery Destination.         |
+| `cloudfront_access_logs_destination_arn`    | The ARN of the CloudWatch Log Delivery Destination.          |
+| `cloudfront_access_logs_delivery_id`        | The ID of the CloudWatch Log Delivery connection.            |
+| `cloudfront_access_logs_delivery_arn`       | The ARN of the CloudWatch Log Delivery connection.           |
 | `cloudfront_standard_logging_v2_log_prefix` | The S3 URI prefix for CloudFront access logs.                |
+| `cloudfront_distribution_etag`              | The current ETag of the CloudFront distribution.             |
+| `waf_vpn_ip_set_id`                         | The ID of the IP Set for whitelisting VPN access.            |
+| `waf_vpn_ip_set_name`                       | The name of the IP Set for whitelisting VPN access.          |
+| `waf_vpn_ip_set_arn`                        | The ARN of the IP Set for whitelisting VPN access.           |
 
 ---
 

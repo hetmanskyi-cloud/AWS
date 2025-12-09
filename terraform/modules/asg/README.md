@@ -26,15 +26,17 @@
 
 ## 1. Overview
 
-This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) with all supporting resources required to host a scalable WordPress application. It includes EC2 instance configuration, launch template, scaling policies, security groups, and CloudWatch monitoring. The module seamlessly integrates with the Application Load Balancer (ALB), RDS MySQL, ElastiCache Redis, and optionally uses S3 for media storage and deployment scripts.
+This Terraform module provisions a fully managed AWS Auto Scaling Group (ASG) designed to host a scalable and secure WordPress application. It deploys instances into **private subnets**, isolating them from direct internet traffic. The module includes a Launch Template, scaling policies, security groups, and deep integration with other AWS services like ALB, RDS, and ElastiCache. Outbound internet access for bootstrapping and updates is managed via a NAT Gateway in the VPC.
 
 ---
 
 ## 2. Prerequisites / Requirements
 
 - AWS provider configured in `providers.tf`.
-- Valid AMI ID for the selected region.
-- Existing VPC, subnets, and ALB.
+- A valid AMI ID for the selected region.
+- An existing VPC with public and private subnets.
+- A **NAT Gateway** configured in the VPC to allow outbound internet access from the private subnets.
+- An existing Application Load Balancer (ALB).
 
 ---
 
@@ -47,15 +49,16 @@ graph TB
     SNS["SNS Topic<br>(Notifications)"]
     ASG["Auto Scaling Group<br>(ASG)"]
     LT["Launch Template"]
-    EC2["EC2 Instances<br>(WordPress)"]
-    ALB["Application Load Balancer"]
-    RDS["RDS Database"]
-    Redis["ElastiCache Redis"]
+    EC2["EC2 Instances<br>(WordPress, in Private Subnet)"]
+    ALB["Application Load Balancer<br>(in Public Subnet)"]
+    NAT["NAT Gateway"]
+    IGW["Internet Gateway"]
+    RDS["RDS Database<br>(in Private Subnet)"]
+    Redis["ElastiCache Redis<br>(in Private Subnet)"]
     S3Media["S3 Bucket<br>(WordPress Media)"]
     S3Scripts["S3 Bucket<br>(Deployment Scripts)"]
     SecretsManager["AWS Secrets Manager"]
 
-    %% Subgraphs for organization
     subgraph "Security"
         SG["Security Group"]
         IAM["IAM Role & Instance Profile"]
@@ -102,6 +105,9 @@ graph TB
     EC2 -->|"Stores media in"| S3Media
     EC2 -->|"Fetches scripts from"| S3Scripts
     EC2 -->|"Retrieves secrets from"| SecretsManager
+    EC2 -->|"Outbound Internet"| NAT
+
+    NAT -->|"Routes through"| IGW
 
     ALB -->|"Routes traffic to"| EC2
     SG -->|"Controls traffic for"| EC2
@@ -117,7 +123,7 @@ graph TB
     classDef monitoring fill:#3F8624,stroke:#232F3E,color:white;
     classDef policy fill:#1A73E8,stroke:#232F3E,color:white;
 
-    class CloudWatch,SNS,ASG,LT,EC2,ALB,RDS,Redis,S3Media,S3Scripts,SecretsManager aws;
+    class CloudWatch,SNS,ASG,LT,EC2,ALB,RDS,Redis,S3Media,S3Scripts,SecretsManager,NAT,IGW aws;
     class SG,IAM,KMS,IMDSv2 security;
     class CPUAlarms,StatusAlarms,NetworkAlarms monitoring;
     class ScaleOut,ScaleIn,TargetTracking policy;
@@ -130,6 +136,7 @@ graph TB
 ## 4. Features
 
 - Automatically scale EC2 instances based on load.
+- Deploy instances into **private subnets** for enhanced security.
 - Deploy and configure WordPress with full infrastructure support.
 - Integrate with ALB, RDS, Redis, S3, CloudWatch, IAM, and KMS.
 
@@ -139,7 +146,7 @@ graph TB
 
 This module provisions the following AWS resources:
 
-- **Auto Scaling Group (ASG):** Manages EC2 instance scaling based on load.
+- **Auto Scaling Group (ASG):** Manages EC2 instance scaling within private subnets.
 - **Launch Template:** Defines EC2 instance configuration, AMI, instance type, and user data for WordPress deployment.
 - **EC2 Instances:** WordPress application servers integrated with RDS and Redis.
 - **IAM Role and Instance Profile:** Grants EC2 instances permissions for S3, Secrets Manager, and CloudWatch.
@@ -188,7 +195,7 @@ This module provisions the following AWS resources:
 | `volume_size`                  | `number`       | EBS volume size (GiB)                                   |
 | `volume_type`                  | `string`       | EBS volume type                                         |
 | `vpc_id`                       | `string`       | VPC ID                                                  |
-| `public_subnet_ids`            | `list(string)` | Subnets for ASG instances                               |
+| `subnet_ids`                   | `list(string)` | Subnets for ASG instances (typically private subnets)   |
 | `wordpress_tg_arn`             | `string`       | ALB Target Group ARN                                    |
 | `sns_topic_arn`                | `string`       | SNS topic for alarms                                    |
 | `kms_key_arn`                  | `string`       | KMS key ARN                                             |
@@ -255,7 +262,7 @@ module "asg" {
   desired_capacity  = 1
 
   vpc_id            = module.vpc.vpc_id
-  public_subnet_ids = module.vpc.public_subnet_ids
+  subnet_ids        = local.private_subnet_ids
 
   wordpress_tg_arn  = module.alb.wordpress_tg_arn
   sns_topic_arn     = aws_sns_topic.cloudwatch_alarms.arn
@@ -274,6 +281,8 @@ module "asg" {
 
 ## 10. Security Considerations / Recommendations
 
+- Instances are deployed into **private subnets**, isolating them from direct internet access.
+- Outbound traffic for software updates and to AWS APIs is routed through a **NAT Gateway**.
 - Use **IMDSv2 exclusively** to enhance instance metadata security.
 - Restrict **SSH access** in production environments. Prefer **SSM Session Manager**.
 - Enable **KMS encryption** for EBS volumes and S3 buckets.

@@ -28,90 +28,34 @@ resource "aws_vpc" "vpc" {
 }
 
 # --- Public Subnet Configurations --- #
-# Define three public subnets, each with public IP assignment enabled for instances.
-
-# Public Subnet 1
+# Dynamically create public subnets based on the public_subnets variable.
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
-
 # checkov:skip=CKV_AWS_130 Justification: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
-resource "aws_subnet" "public_subnet_1" {
+resource "aws_subnet" "public" {
+  for_each = var.public_subnets
+
   vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.public_subnet_cidr_block_1
+  cidr_block              = each.value.cidr_block
   map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
-  availability_zone       = var.availability_zone_public_1
+  availability_zone       = each.value.availability_zone
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-1-${var.environment}"
-  })
-}
-
-# Public Subnet 2
-# Public subnets must have public IP assignment enabled for instances that require direct internet access.
-
-# checkov:skip=CKV_AWS_130 Justification: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
-resource "aws_subnet" "public_subnet_2" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.public_subnet_cidr_block_2
-  map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
-  availability_zone       = var.availability_zone_public_2
-
-  tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-2-${var.environment}"
-  })
-}
-
-# Public Subnet 3
-# Public subnets must have public IP assignment enabled for instances that require direct internet access.
-
-# tfsec:ignore:aws-ec2-no-public-ip-subnet
-# checkov:skip=CKV_AWS_130 Justification: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
-resource "aws_subnet" "public_subnet_3" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.public_subnet_cidr_block_3
-  map_public_ip_on_launch = true # tfsec:ignore:aws-ec2-no-public-ip-subnet
-  availability_zone       = var.availability_zone_public_3
-
-  tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-subnet-3-${var.environment}"
+    Name = "${var.name_prefix}-public-subnet-${each.key}-${var.environment}"
   })
 }
 
 # --- Private Subnet Configurations --- #
-# Define three private subnets without public IP assignment.
+# Dynamically create private subnets based on the private_subnets variable.
+resource "aws_subnet" "private" {
+  for_each = var.private_subnets
 
-# Private Subnet 1
-resource "aws_subnet" "private_subnet_1" {
   vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.private_subnet_cidr_block_1
+  cidr_block              = each.value.cidr_block
   map_public_ip_on_launch = false
-  availability_zone       = var.availability_zone_private_1
+  availability_zone       = each.value.availability_zone
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-1-${var.environment}"
-  })
-}
-
-# Private Subnet 2
-resource "aws_subnet" "private_subnet_2" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.private_subnet_cidr_block_2
-  map_public_ip_on_launch = false
-  availability_zone       = var.availability_zone_private_2
-
-  tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-2-${var.environment}"
-  })
-}
-
-# Private Subnet 3
-resource "aws_subnet" "private_subnet_3" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = var.private_subnet_cidr_block_3
-  map_public_ip_on_launch = false
-  availability_zone       = var.availability_zone_private_3
-
-  tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-subnet-3-${var.environment}"
+    Name = "${var.name_prefix}-private-subnet-${each.key}-${var.environment}"
   })
 }
 

@@ -27,8 +27,8 @@ resource "aws_cloudwatch_metric_alarm" "dlq_messages_visible" {
   }
 
   # Notification Actions
-  alarm_actions = [var.cloudwatch_alarms_topic_arn]
-  ok_actions    = [var.cloudwatch_alarms_topic_arn] # Notify when the queue is clear again
+  alarm_actions = var.cloudwatch_alarms_topic_arn != null ? [var.cloudwatch_alarms_topic_arn] : []
+  ok_actions    = var.cloudwatch_alarms_topic_arn != null ? [var.cloudwatch_alarms_topic_arn] : [] # Notify when the queue is clear again
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-${each.key}-messages-visible-alarm-${var.environment}"

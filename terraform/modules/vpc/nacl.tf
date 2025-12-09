@@ -48,16 +48,17 @@ resource "aws_network_acl_rule" "public_inbound_https" {
 
 # Rule for inbound SSH traffic on port 22
 # SSH access is required for testing. In production, restrict this to a specific range.
-
 # checkov:skip=CKV_AWS_232 Justification: SSH access is restricted via variable-defined CIDR
 resource "aws_network_acl_rule" "public_inbound_ssh" {
+  for_each = toset(var.ssh_allowed_cidr)
+
   network_acl_id = aws_network_acl.public_nacl.id
-  rule_number    = 120
+  rule_number    = 120 + index(var.ssh_allowed_cidr, each.value)
   egress         = false
   protocol       = "tcp"
   from_port      = 22
   to_port        = 22
-  cidr_block     = var.ssh_allowed_cidr[0] #tfsec:ignore:aws-ec2-no-public-ingress-acl
+  cidr_block     = each.value #tfsec:ignore:aws-ec2-no-public-ingress-acl
   rule_action    = "allow"
 }
 
@@ -256,45 +257,35 @@ resource "aws_network_acl_rule" "private_outbound_ssm" {
   rule_action    = "allow"
 }
 
+# Rule for outbound HTTPS traffic to the internet for updates, etc. via NAT Gateway
+resource "aws_network_acl_rule" "private_outbound_https" {
+  network_acl_id = aws_network_acl.private_nacl.id
+  rule_number    = 270
+  egress         = true
+  protocol       = "tcp"
+  from_port      = 443
+  to_port        = 443
+  cidr_block     = "0.0.0.0/0"
+  rule_action    = "allow"
+}
+
 # --- NACL Associations --- #
 # Associate NACLs with the corresponding subnets.
 
-## Associate the public NACL with public subnets
-resource "aws_network_acl_association" "public_nacl_association_1" {
-  subnet_id      = aws_subnet.public_subnet_1.id  # ID of the first public subnet
-  network_acl_id = aws_network_acl.public_nacl.id # Public NACL ID
-  depends_on     = [aws_network_acl.public_nacl]  # Dependency for proper creation order
-}
+# Associate the public NACL with public subnets
+resource "aws_network_acl_association" "public" {
+  for_each = aws_subnet.public
 
-resource "aws_network_acl_association" "public_nacl_association_2" {
-  subnet_id      = aws_subnet.public_subnet_2.id
+  subnet_id      = each.value.id
   network_acl_id = aws_network_acl.public_nacl.id
-  depends_on     = [aws_network_acl.public_nacl]
 }
 
-resource "aws_network_acl_association" "public_nacl_association_3" {
-  subnet_id      = aws_subnet.public_subnet_3.id
-  network_acl_id = aws_network_acl.public_nacl.id
-  depends_on     = [aws_network_acl.public_nacl]
-}
+# Associate the private NACL with private subnets
+resource "aws_network_acl_association" "private" {
+  for_each = aws_subnet.private
 
-## Associate the private NACL with private subnets
-resource "aws_network_acl_association" "private_nacl_association_1" {
-  subnet_id      = aws_subnet.private_subnet_1.id  # ID of the first private subnet
-  network_acl_id = aws_network_acl.private_nacl.id # Private NACL ID
-  depends_on     = [aws_network_acl.private_nacl]
-}
-
-resource "aws_network_acl_association" "private_nacl_association_2" {
-  subnet_id      = aws_subnet.private_subnet_2.id
+  subnet_id      = each.value.id
   network_acl_id = aws_network_acl.private_nacl.id
-  depends_on     = [aws_network_acl.private_nacl]
-}
-
-resource "aws_network_acl_association" "private_nacl_association_3" {
-  subnet_id      = aws_subnet.private_subnet_3.id
-  network_acl_id = aws_network_acl.private_nacl.id
-  depends_on     = [aws_network_acl.private_nacl]
 }
 
 # --- Notes --- #

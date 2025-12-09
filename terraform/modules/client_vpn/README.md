@@ -150,13 +150,17 @@ graph TD
 |--------------------------------|----------------|------------------------------------------------------|
 | `name_prefix`                  | `string`       | Prefix for all resource names.                       |
 | `environment`                  | `string`       | Deployment environment (e.g., 'dev').                |
+| `tags`                         | `map(string)`  | A map of tags to assign to all taggable resources.   |
 | `vpc_id`                       | `string`       | ID of the VPC to associate the endpoint with.        |
 | `vpc_cidr`                     | `string`       | Primary CIDR block of the VPC for routing.           |
 | `vpc_subnet_ids`               | `list(string)` | Subnets to associate for high availability.          |
 | `authentication_type`          | `string`       | Authentication method: `certificate` or `federated`. |
 | `client_vpn_client_cidr_blocks`| `list(string)` | IP range for clients. Must not overlap with VPC CIDR.|
 | `client_vpn_split_tunnel`      | `bool`         | If true, only VPC traffic goes through the VPN.      |
+| `client_vpn_log_retention_days`| `number`       | The number of days to retain connection logs.        |
 | `saml_provider_arn`            | `string`       | ARN of the IAM SAML provider (for `federated` auth). |
+| `enable_self_service_portal`   | `bool`         | Enable the self-service portal for federated auth.   |
+| `vpn_access_group_id`          | `string`       | The ID of the group to grant access to (for `federated` auth). |
 | `custom_dns_servers`           | `list(string)` | Up to two DNS servers to push to clients.            |
 | `kms_key_arn`                  | `string`       | Optional KMS key ARN to encrypt connection logs.     |
 

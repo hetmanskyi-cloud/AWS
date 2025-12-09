@@ -116,7 +116,23 @@ graph TD
 
     %% Network components
     Internet["Internet"] --> WAF["AWS WAF<br/>(alb/waf.tf)"]
-    WAF --> ALB["Application Load Balancer<br/>with TLS termination<br/>(alb/main.tf)"]
+    WAF --> ALB["Application Load Balancer<br/>(in Public Subnet)<br/>(alb/main.tf)"]
+
+    subgraph "VPC (vpc/main.tf)"
+        subgraph "Public Subnets"
+            ALB
+            NAT["NAT Gateway"]
+        end
+        subgraph "Private Subnets"
+            ASG["Auto Scaling Group<br/>EC2 Instances<br/>(asg/main.tf)"]
+            RDS["RDS MySQL<br/>Multi-AZ<br/>(rds/main.tf)"]
+            Redis["ElastiCache Redis<br/>Replication Groups<br/>(elasticache/main.tf)"]
+        end
+    end
+
+    Internet --> IGW["Internet<br/>Gateway"]
+    IGW --> NAT
+    ASG --> NAT
 
     %% ACM for TLS
     ACM["ACM Certificates<br/>for TLS"]
@@ -124,21 +140,21 @@ graph TD
     ACM --> ALB
 
     %% Compute and database components
-    ALB --> ASG["Auto Scaling Group<br/>EC2 Instances<br/>WordPress + PHP-FPM<br/>(asg/main.tf)"]
-    ASG --> RDS["RDS MySQL<br/>Multi-AZ<br/>with Read Replicas<br/>(rds/main.tf)"]
-    ASG --> Redis["ElastiCache Redis<br/>Replication Groups<br/>(elasticache/main.tf)"]
+    ALB --> ASG
+    ASG --> RDS
+    ASG --> Redis
 
     %% WordPress Source Repository
     GitMirror["GitHub WordPress Mirror<br/>Version-controlled Source"] --> ASG
 
     %% Storage and encryption
-    ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>Cross-Region Replication<br/>(s3/main.tf)"]
-    S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>IAM Policies<br/>(kms/main.tf)"]
+    ASG --> S3["S3 Buckets<br/>Media, Logs, Scripts<br/>(s3/main.tf)"]
+    S3 --> KMS["KMS Encryption<br/>Key Rotation<br/>(kms/main.tf)"]
     RDS --> KMS
     Redis --> KMS
 
     %% Monitoring and logging
-    ALB --> CloudWatch["CloudWatch<br/>Metrics, Logs, Alarms<br/>(cloudwatch.tf, */metrics.tf)"]
+    ALB --> CloudWatch["CloudWatch<br/>Metrics, Logs, Alarms<br/>(cloudwatch.tf)"]
     ASG --> CloudWatch
     RDS --> CloudWatch
     Redis --> CloudWatch
@@ -150,10 +166,6 @@ graph TD
     CloudTrail --> CloudWatch
 
     %% VPC and security
-    ASG --> VPC["VPC<br/>Public & Private Subnets<br/>NACLs, Route Tables<br/>(vpc/main.tf)"]
-    RDS --> VPC
-    Redis --> VPC
-    ALB --> VPC
     VPC --> Endpoints["VPC Interface Endpoints<br/>Secure AWS Service Access<br/>(interface_endpoints/main.tf)"]
     VPC --> S3
 
@@ -215,6 +227,7 @@ _The diagram below illustrates the core AWS services, Terraform backend componen
 - **WordPress Hosting**: Pre-configured WordPress deployment with database and caching
 - **Disaster Recovery**: Cross-region S3 replication and database backups
 - **Cost Optimization**: Lifecycle policies, right-sized instances, and efficient resource usage
+- **Secure Outbound Access**: A NAT Gateway provides secure, managed outbound internet access for instances in private subnets.
 - **Remote State Management**: S3 backend with DynamoDB state locking for safe multi-user collaboration
 - **Compliance & Auditing**: CloudTrail logging and KMS encryption supporting security and compliance requirements
 
@@ -575,7 +588,6 @@ This project is designed for seamless integration between modules:
 
 ## 12. Future Improvements
 
-- Add support for **NAT Gateways** to enable private subnet internet access
 - Integrate **Transit Gateway** for multi-VPC architectures
 - Implement **S3 Object Lock** for compliance use cases
 - Add **Intelligent-Tiering** in S3 for cost optimization

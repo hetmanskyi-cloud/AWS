@@ -1,6 +1,5 @@
 # --- Internet Gateway Configuration --- #
 # Creates an Internet Gateway (IGW) to enable internet access for resources in the public subnet(s).
-
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
@@ -9,124 +8,111 @@ resource "aws_internet_gateway" "igw" {
   })
 }
 
+# --- NAT Gateway Resources (Conditional) --- #
+locals {
+  # Create a map of AZ -> NAT Gateway ID for HA routing.
+  # This is only used when enable_nat_gateway is true and single_nat_gateway is false.
+  az_to_nat_gateway_id = var.enable_nat_gateway && !var.single_nat_gateway ? {
+    for i, pub_subnet_key in keys(var.public_subnets) :
+    var.public_subnets[pub_subnet_key].availability_zone => aws_nat_gateway.nat[i].id
+  } : {}
+}
+
+# EIP for NAT Gateway(s)
+resource "aws_eip" "nat" {
+  count  = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.public_subnets)) : 0
+  domain = "vpc"
+
+  tags = merge(var.tags, {
+    Name = var.single_nat_gateway ? "${var.name_prefix}-nat-eip-${var.environment}" : "${var.name_prefix}-nat-eip-${keys(var.public_subnets)[count.index]}-${var.environment}"
+  })
+}
+
+# NAT Gateway(s)
+resource "aws_nat_gateway" "nat" {
+  count = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.public_subnets)) : 0
+
+  allocation_id = aws_eip.nat[count.index].id
+  # Place NAT Gateway in a public subnet.
+  # For HA, one is placed in each public subnet's AZ. For single, it's placed in the first one.
+  subnet_id = aws_subnet.public[keys(var.public_subnets)[count.index]].id
+
+  tags = merge(var.tags, {
+    Name = var.single_nat_gateway ? "${var.name_prefix}-nat-gateway-${var.environment}" : "${var.name_prefix}-nat-gateway-${keys(var.public_subnets)[count.index]}-${var.environment}"
+  })
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+
 # --- Public Route Table Configuration --- #
 # This route table provides internet access to resources in public subnets via the Internet Gateway (IGW).
-
-resource "aws_route_table" "public_route_table" {
+resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id
 
-  # Route all outbound internet-bound traffic (0.0.0.0/0) through the Internet Gateway.
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-route-table-${var.environment}"
+    Name = "${var.name_prefix}-public-rt-${var.environment}"
   })
-
-  # Ensures this route table is created after the Internet Gateway
-  depends_on = [aws_internet_gateway.igw]
 }
 
-# --- Public Subnet Route Table Association --- #
-# Associate the public route table with each public subnet to enable internet access.
+# Associate the public route table with all public subnets.
+resource "aws_route_table_association" "public" {
+  for_each = aws_subnet.public
 
-# Association for Public Subnet 1
-resource "aws_route_table_association" "public_route_table_association_1" {
-  subnet_id      = aws_subnet.public_subnet_1.id
-  route_table_id = aws_route_table.public_route_table.id
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public.id
 }
 
-# Association for Public Subnet 2
-resource "aws_route_table_association" "public_route_table_association_2" {
-  subnet_id      = aws_subnet.public_subnet_2.id
-  route_table_id = aws_route_table.public_route_table.id
-}
 
-# Association for Public Subnet 3
-resource "aws_route_table_association" "public_route_table_association_3" {
-  subnet_id      = aws_subnet.public_subnet_3.id
-  route_table_id = aws_route_table.public_route_table.id
-}
+# --- Private Route Table Configuration (per-AZ for HA) --- #
+# A route table is created for each private subnet to route traffic to the NAT Gateway in the same AZ.
+resource "aws_route_table" "private" {
+  for_each = var.private_subnets
+  vpc_id   = aws_vpc.vpc.id
 
-# --- Private Route Table Configuration --- #
-# This route table provides access to S3 and DynamoDB via Gateway Endpoints for resources in private subnets.
-
-resource "aws_route_table" "private_route_table" {
-  vpc_id = aws_vpc.vpc.id
+  dynamic "route" {
+    for_each = var.enable_nat_gateway ? [1] : []
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = var.single_nat_gateway ? aws_nat_gateway.nat[0].id : local.az_to_nat_gateway_id[each.value.availability_zone]
+    }
+  }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-route-table-${var.environment}"
+    Name = "${var.name_prefix}-private-rt-${each.key}-${var.environment}"
   })
 }
 
-# --- Private Subnet Route Table Association --- #
-# Associate the private route table with each private subnet.
+# Associate each private subnet with its corresponding private route table.
+resource "aws_route_table_association" "private" {
+  for_each = var.private_subnets
 
-# Association for Private Subnet 1
-resource "aws_route_table_association" "private_route_table_association_1" {
-  subnet_id      = aws_subnet.private_subnet_1.id
-  route_table_id = aws_route_table.private_route_table.id
+  subnet_id      = aws_subnet.private[each.key].id
+  route_table_id = aws_route_table.private[each.key].id
 }
 
-# Association for Private Subnet 2
-resource "aws_route_table_association" "private_route_table_association_2" {
-  subnet_id      = aws_subnet.private_subnet_2.id
-  route_table_id = aws_route_table.private_route_table.id
-}
-
-# Association for Private Subnet 3
-resource "aws_route_table_association" "private_route_table_association_3" {
-  subnet_id      = aws_subnet.private_subnet_3.id
-  route_table_id = aws_route_table.private_route_table.id
-}
 
 # --- Gateway Endpoints --- #
-
-# Gateway Endpoints for S3 and DynamoDB allow private access without requiring a NAT Gateway.
-# Gateway Endpoint routes are added to both private and public route tables
-# to allow ASG instances in public subnets to access S3 and DynamoDB
-# via AWS private network, even when public IPs are disabled.
-
-# --- S3 Gateway Endpoint --- #
-# Provides access to Amazon S3 through a Gateway Endpoint, allowing private access without internet.
+# S3 and DynamoDB Gateway Endpoints for private access from all subnets.
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = aws_vpc.vpc.id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids = [
-    aws_route_table.private_route_table.id,
-    aws_route_table.public_route_table.id
-  ]
-
-  depends_on = [
-    aws_internet_gateway.igw,
-    aws_route_table.public_route_table,
-    aws_route_table.private_route_table
-  ]
+  vpc_id          = aws_vpc.vpc.id
+  route_table_ids = toset(concat([aws_route_table.public.id], [for rt in values(aws_route_table.private) : rt.id]))
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-s3-endpoint-${var.environment}"
   })
 }
 
-# --- DynamoDB Endpoint --- #
-# Provides access to Amazon DynamoDB through a Gateway Endpoint, allowing private access without internet.
 resource "aws_vpc_endpoint" "dynamodb" {
   vpc_id            = aws_vpc.vpc.id
   service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
   vpc_endpoint_type = "Gateway"
-  route_table_ids = [
-    aws_route_table.private_route_table.id,
-    aws_route_table.public_route_table.id
-  ]
-
-  depends_on = [
-    aws_internet_gateway.igw,
-    aws_route_table.public_route_table,
-    aws_route_table.private_route_table
-  ]
+  route_table_ids   = toset(concat([aws_route_table.public.id], [for rt in values(aws_route_table.private) : rt.id]))
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-dynamodb-endpoint-${var.environment}"
@@ -134,28 +120,8 @@ resource "aws_vpc_endpoint" "dynamodb" {
 }
 
 # --- Notes --- #
-# 1. **Public route table**:
-#   - Routes general outbound traffic from public subnets to the internet through the Internet Gateway (IGW).
-#   - Also includes Gateway Endpoints for S3 and DynamoDB to allow instances without public IP
-#     to access these services privately.
-#
-# 2. **Private route table**:
-#   - Routes traffic to S3 and DynamoDB through Gateway Endpoints for private subnets.
-#   - Does not allow general internet-bound traffic, ensuring private connectivity.
-#
-# 3. **Endpoint routes**:
-#   - S3 and DynamoDB traffic are explicitly routed through their respective Gateway Endpoints
-#     in both public and private route tables.
-#   - This ensures that all instances, regardless of whether they have a public IP or not,
-#     access S3 and DynamoDB using the internal AWS network, improving both security and performance.
-#   - This approach avoids using the public internet and eliminates the need for NAT Gateway for S3/DynamoDB access.
-#
-# 4. **Subnet associations**:
-#   - The public route table is associated with public subnets for internet access and AWS Gateway Endpoints.
-#   - The private route table is associated with private subnets for restricted access and Gateway Endpoints.
-#   - Route_table_ids include both public and private route tables to allow private access from ASG instances without public IPs.
-#
-# 5. **Best practices**:
-#   - Ensure all route table associations match the intended subnet types to avoid connectivity issues.
-#   - Regularly review route table configurations to maintain alignment with security and architectural requirements.
-#   - Validate that public subnets without public IPs have a route to S3/DynamoDB if needed (via the Gateway Endpoints).
+# 1. NAT Gateway: Conditionally created to provide outbound internet access for private subnets.
+#    - single_nat_gateway=true: A single NAT gateway is created in one AZ. Cost-effective but not highly available.
+#    - single_nat_gateway=false: A NAT gateway is created in each AZ where a public subnet exists, providing high availability.
+# 2. Private Route Tables: Each private subnet gets its own route table to enable AZ-specific routing to the corresponding NAT Gateway.
+# 3. Gateway Endpoints: S3 and DynamoDB endpoints are associated with both the public route table and all private route tables to ensure private, efficient access from all subnets.

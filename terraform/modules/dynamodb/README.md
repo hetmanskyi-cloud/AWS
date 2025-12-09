@@ -147,6 +147,7 @@ This module provisions the following resources:
 | `dynamodb_range_key_type`                | `string`       | Optional: The type of the sort key.                                                                   |
 | `dynamodb_gsi`                           | `list(object)` | A list of objects, each defining a Global Secondary Index.                                            |
 | `dynamodb_provisioned_autoscaling`       | `object`       | **If set, enables `PROVISIONED` mode with autoscaling.** Defaults to `null` (`PAY_PER_REQUEST` mode). |
+| `dynamodb_table_class`                   | `string`       | The storage class of the table. Can be STANDARD or STANDARD_INFREQUENT_ACCESS.                        |
 | `enable_dynamodb_point_in_time_recovery` | `bool`         | Enables Point-in-Time Recovery. Default: `true`.                                                      |
 | `dynamodb_deletion_protection_enabled`   | `bool`         | Enables deletion protection. Default: `true`.                                                         |
 | `enable_dynamodb_ttl`                    | `bool`         | Enables Time-to-Live (TTL) on an attribute. Default: `false`.                                         |

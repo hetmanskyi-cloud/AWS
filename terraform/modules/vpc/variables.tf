@@ -40,72 +40,38 @@ variable "tags" {
   type        = map(string)
 }
 
-# --- Public Subnet Configuration Variables --- #
+# --- NAT Gateway Configuration Variables --- #
 
-# CIDR blocks for public subnets
-variable "public_subnet_cidr_block_1" {
-  description = "CIDR block for the first public subnet"
-  type        = string
+variable "enable_nat_gateway" {
+  description = "Set to true to enable NAT Gateway for outbound internet access from private subnets."
+  type        = bool
+  default     = false
 }
 
-variable "public_subnet_cidr_block_2" {
-  description = "CIDR block for the second public subnet"
-  type        = string
+variable "single_nat_gateway" {
+  description = "Set to true to create a single NAT Gateway. If false, a NAT Gateway is created in each Availability Zone for high availability."
+  type        = bool
+  default     = false
 }
 
-variable "public_subnet_cidr_block_3" {
-  description = "CIDR block for the third public subnet"
-  type        = string
+# --- Subnet Configuration Variables --- #
+
+variable "public_subnets" {
+  description = "A map of public subnets to create. The key is a logical name for the subnet, and the value is an object with cidr_block and availability_zone."
+  type = map(object({
+    cidr_block        = string
+    availability_zone = string
+  }))
+  default = {}
 }
 
-# Availability zones for public subnets
-variable "availability_zone_public_1" {
-  description = "Availability zone for the first public subnet"
-  type        = string
-}
-
-variable "availability_zone_public_2" {
-  description = "Availability zone for the second public subnet"
-  type        = string
-}
-
-variable "availability_zone_public_3" {
-  description = "Availability zone for the third public subnet"
-  type        = string
-}
-
-# --- Private Subnet Configuration Variables --- #
-
-# CIDR blocks for private subnets
-variable "private_subnet_cidr_block_1" {
-  description = "CIDR block for the first private subnet"
-  type        = string
-}
-
-variable "private_subnet_cidr_block_2" {
-  description = "CIDR block for the second private subnet"
-  type        = string
-}
-
-variable "private_subnet_cidr_block_3" {
-  description = "CIDR block for the third private subnet"
-  type        = string
-}
-
-# Availability zones for private subnets
-variable "availability_zone_private_1" {
-  description = "Availability zone for the first private subnet"
-  type        = string
-}
-
-variable "availability_zone_private_2" {
-  description = "Availability zone for the second private subnet"
-  type        = string
-}
-
-variable "availability_zone_private_3" {
-  description = "Availability zone for the third private subnet"
-  type        = string
+variable "private_subnets" {
+  description = "A map of private subnets to create. The key is a logical name for the subnet, and the value is an object with cidr_block and availability_zone."
+  type = map(object({
+    cidr_block        = string
+    availability_zone = string
+  }))
+  default = {}
 }
 
 # --- VPC Flow Logs Configuration Variables --- #

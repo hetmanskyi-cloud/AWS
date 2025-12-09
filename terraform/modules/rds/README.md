@@ -201,6 +201,8 @@ This module provisions the following AWS resources:
 |--------------------------------|----------------|---------------------------------------------------------------------------|
 | `aws_region`                   | `string`       | The AWS region where resources will be created                            |
 | `aws_account_id`               | `string`       | AWS account ID for permissions and policies                               |
+| `aws_region`                   | `string`       | The AWS region where resources will be created                            |
+| `aws_account_id`               | `string`       | AWS account ID for permissions and policies                               |
 | `name_prefix`                  | `string`       | Prefix for resource names                                                 |
 | `environment`                  | `string`       | Environment for the resources (e.g., dev, stage, prod)                    |
 | `tags`                         | `map(string)`  | Tags to apply to all resources.                                           |
@@ -220,7 +222,6 @@ This module provisions the following AWS resources:
 | `rds_deletion_protection`      | `bool`         | Enable or disable deletion protection for RDS instance                    |
 | `skip_final_snapshot`          | `bool`         | Skip final snapshot when deleting the RDS instance                        |
 | `vpc_id`                       | `string`       | The ID of the VPC where the RDS instance is hosted                        |
-| `vpc_cidr_block`               | `string`       | CIDR block of the VPC where RDS is deployed                               |
 | `private_subnet_ids`           | `list(string)` | List of private subnet IDs for RDS deployment                             |
 | `asg_security_group_id`        | `string`       | Security Group ID for ASG instances that need access to the RDS instance  |
 | `kms_key_arn`                  | `string`       | The ARN of the KMS key for RDS encryption                                 |
@@ -242,6 +243,7 @@ This module provisions the following AWS resources:
 |---------------------------------|-----------------------------------------------------------|
 | `db_name`                       | The name of the RDS database                              |
 | `rds_security_group_id`         | The ID of the security group for RDS access               |
+| `rds_security_group_name`       | The name of the RDS security group                        |
 | `db_port`                       | The port number of the RDS database                       |
 | `db_host`                       | The address of the RDS instance to be used as DB_HOST     |
 | `db_endpoint`                   | The endpoint of the RDS instance, including host and port |
