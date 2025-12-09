@@ -27,7 +27,7 @@ resource "aws_autoscaling_group" "asg" {
   max_size         = var.autoscaling_max  # Maximum number of instances
   desired_capacity = var.desired_capacity # Number of instances to maintain; null enables dynamic adjustment by ASG
 
-  vpc_zone_identifier = var.public_subnet_ids # Subnets for ASG instances
+  vpc_zone_identifier = var.subnet_ids # Subnets for ASG instances
 
   # Associates the ASG with the defined Launch Template that specifies instance configurations in asg/launch_template.tf
   launch_template {

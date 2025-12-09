@@ -214,8 +214,8 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "public_subnet_ids" {
-  description = "List of public subnet IDs for deploying instances"
+variable "subnet_ids" {
+  description = "List of subnet IDs for deploying instances"
   type        = list(string)
 }
 

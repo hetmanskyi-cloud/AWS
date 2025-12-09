@@ -20,9 +20,11 @@ module "vpc" {
   source = "../../modules/vpc" # Path to module VPC
 
   # CIDR and subnet configurations
-  vpc_cidr_block  = var.vpc_cidr_block
-  public_subnets  = var.public_subnets
-  private_subnets = var.private_subnets
+  vpc_cidr_block     = var.vpc_cidr_block
+  public_subnets     = var.public_subnets
+  private_subnets    = var.private_subnets
+  enable_nat_gateway = true
+  single_nat_gateway = true
 
   # AWS region and account settings
   aws_region     = var.aws_region
@@ -158,7 +160,7 @@ module "asg" {
   efs_access_point_id = var.enable_efs ? module.efs[0].efs_access_point_id : ""
 
   # Networking and security configurations
-  public_subnet_ids              = module.vpc.public_subnet_ids
+  subnet_ids                     = local.private_subnet_ids
   alb_security_group_id          = module.alb.alb_security_group_id
   vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
   vpc_id                         = module.vpc.vpc_id
