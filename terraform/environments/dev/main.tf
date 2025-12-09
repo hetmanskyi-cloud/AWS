@@ -1,10 +1,10 @@
 # --- Locals Block --- #
 locals {
 
-  # Individual subnet IDs
-  private_subnet_id_1 = module.vpc.private_subnet_1_id
-  private_subnet_id_2 = module.vpc.private_subnet_2_id
-  private_subnet_id_3 = module.vpc.private_subnet_3_id
+  # Individual subnet IDs from the VPC module's map output
+  private_subnet_id_1 = module.vpc.private_subnets_map["private-1"].id
+  private_subnet_id_2 = module.vpc.private_subnets_map["private-2"].id
+  private_subnet_id_3 = module.vpc.private_subnets_map["private-3"].id
 
   # Lists of subnet IDs
   private_subnet_ids = [
@@ -20,23 +20,9 @@ module "vpc" {
   source = "../../modules/vpc" # Path to module VPC
 
   # CIDR and subnet configurations
-  vpc_cidr_block             = var.vpc_cidr_block
-  public_subnet_cidr_block_1 = var.public_subnet_cidr_block_1
-  public_subnet_cidr_block_2 = var.public_subnet_cidr_block_2
-  public_subnet_cidr_block_3 = var.public_subnet_cidr_block_3
-
-  private_subnet_cidr_block_1 = var.private_subnet_cidr_block_1
-  private_subnet_cidr_block_2 = var.private_subnet_cidr_block_2
-  private_subnet_cidr_block_3 = var.private_subnet_cidr_block_3
-
-  # Availability Zones for subnets
-  availability_zone_public_1 = var.availability_zone_public_1
-  availability_zone_public_2 = var.availability_zone_public_2
-  availability_zone_public_3 = var.availability_zone_public_3
-
-  availability_zone_private_1 = var.availability_zone_private_1
-  availability_zone_private_2 = var.availability_zone_private_2
-  availability_zone_private_3 = var.availability_zone_private_3
+  vpc_cidr_block  = var.vpc_cidr_block
+  public_subnets  = var.public_subnets
+  private_subnets = var.private_subnets
 
   # AWS region and account settings
   aws_region     = var.aws_region
@@ -172,7 +158,7 @@ module "asg" {
   efs_access_point_id = var.enable_efs ? module.efs[0].efs_access_point_id : ""
 
   # Networking and security configurations
-  public_subnet_ids              = module.vpc.public_subnets
+  public_subnet_ids              = module.vpc.public_subnet_ids
   alb_security_group_id          = module.alb.alb_security_group_id
   vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
   vpc_id                         = module.vpc.vpc_id
@@ -409,7 +395,7 @@ module "alb" {
   tags                                = merge(local.common_tags, local.tags_alb)
   name_prefix                         = var.name_prefix
   environment                         = var.environment
-  public_subnets                      = module.vpc.public_subnets
+  public_subnets                      = module.vpc.public_subnet_ids
   alb_logs_bucket_name                = module.s3.alb_logs_bucket_name
   logging_bucket_arn                  = module.s3.logging_bucket_arn
   vpc_id                              = module.vpc.vpc_id
@@ -810,7 +796,7 @@ module "client_vpn" {
   custom_dns_servers = [cidrhost(module.vpc.vpc_cidr_block, 2)]
 
   # Pointing to public subnets
-  vpc_subnet_ids = [module.vpc.public_subnet_1_id, module.vpc.public_subnet_2_id, module.vpc.public_subnet_3_id]
+  vpc_subnet_ids = module.vpc.public_subnet_ids
 
   # Authentication settings
   authentication_type = var.client_vpn_authentication_type
