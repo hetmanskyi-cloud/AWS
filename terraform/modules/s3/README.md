@@ -144,14 +144,14 @@ graph LR
 
     %% Encryption Connections
     KMSEncryption --> scripts
-    KMSEncryption --> logging %% --- СОХРАНЕНО: Согласно коду main.tf бакет logging использует KMS
+    KMSEncryption --> logging %% --- According to main.tf, logging bucket uses KMS
     KMSEncryption --> cloudtrail
     KMSEncryption --> terraform_state
     KMSEncryption --> wordpress_media
 
     KMS --> KMSEncryption
 
-    SSE_S3Encryption --> alb_logs %% --- СОХРАНЕНО: Согласно коду main.tf бакет alb_logs использует SSE-S3
+    SSE_S3Encryption --> alb_logs %% --- According to main.tf, alb_logs bucket uses SSE-S3
 
     %% Logging Connections
     scripts -->|"Access Logs"| logging
@@ -174,11 +174,11 @@ graph LR
 
     %% IAM for Replication
     IAMRole -->|"Assumes"| IAMPolicy
-    IAMPolicy -->|"Grants Access"| scripts %% Оставляем как есть, если такая связь изначально присутствовала
-    IAMPolicy -->|"Grants Access"| wordpress_media %% Необходимо для исходного бакета репликации
-    IAMPolicy -->|"Grants Access"| rep_wordpress_media %% Необходимо для целевого бакета репликации
-    IAMPolicy -->|"Grants Access"| KMS %% Необходимо для исходного KMS ключа
-    IAMPolicy -->|"Grants Access"| rep_KMS %% Необходимо для целевого KMS ключа
+    IAMPolicy -->|"Grants Access"| scripts %% Retaining as is if such a link originally existed
+    IAMPolicy -->|"Grants Access"| wordpress_media %% Required for source replication bucket
+    IAMPolicy -->|"Grants Access"| rep_wordpress_media %% Required for target replication bucket
+    IAMPolicy -->|"Grants Access"| KMS %% Required for source KMS key
+    IAMPolicy -->|"Grants Access"| rep_KMS %% Required for target KMS key
 
     %% Replication Connections
     ReplicationConfig --> wordpress_media
@@ -341,67 +341,67 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| Name                                          | Type           | Description                                                                                                                                                                                                       |
-|-----------------------------------------------|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `aws_region`                                  | `string`       | AWS region where resources will be created                                                                                                                                                                        |
-| `environment`                                 | `string`       | Deployment environment (dev, stage, prod).                                                                                                                                                                        |
-| `tags`                                        | `map(string)`  | Component-level tags used for identifying resource ownership                                                                                                                                                      |
-| `name_prefix`                                 | `string`       | Prefix for S3 resource names (uniqueness).                                                                                                                                                                        |
-| `aws_account_id`                              | `string`       | AWS Account ID for bucket policies (security).                                                                                                                                                                    |
-| `kms_key_arn`                                 | `string`       | ARN of KMS key for S3 bucket encryption (security).                                                                                                                                                               |
-| `kms_replica_key_arn`                         | `string`       | ARN of KMS replica key in replication region for S3 bucket encryption (optional, dynamically created if replication is enabled)                                                                                     |
-| `noncurrent_version_retention_days`           | `number`       | Retention days for noncurrent object versions (versioning).                                                                                                                                                       |
-| `sns_topic_arn`                               | `string`       | ARN of SNS Topic for bucket notifications.                                                                                                                                                                        |
-| `replication_region_sns_topic_arn`            | `string`       | ARN of SNS Topic in replication region for bucket notifications.                                                                                                                                                  |
-| `default_region_buckets`                      | `map(object)`  | Config for default AWS region buckets. NOTE: The 'scripts' bucket must always be enabled (enabled = true). It is required for EC2 bootstrap and WordPress deployment via user_data script.                      |
-| `replication_region_buckets`                  | `map(object)`  | Config for replication region buckets.                                                                                                                                                                            |
-| `wordpress_media_cloudfront_distribution_arn` | `string`       | ARN of CloudFront distribution for wordpress_media bucket policy.                                                                                                                                                 |
-| `wordpress_media_cloudfront_enabled`          | `bool`         | Enable CloudFront policy for wordpress_media bucket.                                                                                                                                                              |
-| `lambda_iam_role_arn`                         | `string`       | The ARN of the IAM role for the image processor Lambda function. Used to grant S3 read/write permissions.                                                                                                         |
-| `asg_instance_role_arn`                       | `string`       | The ARN of the IAM role for the WordPress EC2 instances. Used to grant S3 upload permissions.                                                                                                                     |
-| `s3_scripts`                                  | `map(string)`  | Map of files for scripts bucket upload. Scripts will be uploaded only if the 'scripts' bucket is enabled. Local fallback is not used — this is the only method of delivery.                                       |
-| `s3_scripts_bucket_key`                       | `string`       | Key for the scripts bucket within the default_region_buckets map. This allows referencing the scripts bucket dynamically.                                                                                         |
-| `s3_logging_bucket_key`                       | `string`       | Key for the logging bucket within the default_region_buckets map. This allows referencing the logging bucket dynamically.                                                                                         |
-| `s3_terraform_state_bucket_key`               | `string`       | Key for the Terraform state bucket within the default_region_buckets map. This allows referencing the Terraform state bucket dynamically.                                                                         |
-| `s3_alb_logs_bucket_key`                      | `string`       | Key for the ALB logs bucket within the default_region_buckets map. This allows referencing the ALB logs bucket dynamically.                                                                                       |
-| `s3_cloudtrail_bucket_key`                    | `string`       | Key for the CloudTrail bucket within the default_region_buckets map. This allows referencing the CloudTrail bucket dynamically.                                                                                   |
-| `s3_wordpress_media_bucket_key`               | `string`       | Key for the WordPress media bucket within the default_region_buckets map. This allows referencing the WordPress media bucket dynamically.                                                                         |
-| `enable_cors`                                 | `bool`         | Enable CORS for WordPress media bucket.                                                                                                                                                                           |
-| `allowed_origins`                             | `list(string)` | List of allowed origins for S3 CORS. IMPORTANT: In production, restrict to trusted origins only.                                                                                                                  |
-| `enable_dynamodb`                             | `bool`         | Enable DynamoDB for Terraform state locking.                                                                                                                                                                      |
-| `enable_cloudfront_standard_logging_v2`       | `bool`         | Enable CloudFront standard logging (v2) to CloudWatch Logs and S3                                                                                                                                                 |
+| Name                                          | Type           | Description                                                                         |
+|-----------------------------------------------|----------------|-------------------------------------------------------------------------------------|
+| `aws_region`                                  | `string`       | AWS region for resource creation.                                                   |
+| `environment`                                 | `string`       | Deployment environment (e.g., dev, stage, prod).                                    |
+| `tags`                                        | `map(string)`  | Component-level resource tags.                                                      |
+| `name_prefix`                                 | `string`       | Prefix for S3 resource names.                                                       |
+| `aws_account_id`                              | `string`       | AWS Account ID for bucket policies.                                                 |
+| `kms_key_arn`                                 | `string`       | ARN of KMS key for S3 encryption.                                                   |
+| `kms_replica_key_arn`                         | `string`       | ARN of KMS replica key (replication region).                                        |
+| `noncurrent_version_retention_days`           | `number`       | Retention days for noncurrent object versions.                                      |
+| `sns_topic_arn`                               | `string`       | ARN of SNS Topic for bucket notifications.                                          |
+| `replication_region_sns_topic_arn`            | `string`       | ARN of SNS Topic in replication region.                                             |
+| `default_region_buckets`                      | `map(object)`  | Configuration for default AWS region buckets. Scripts bucket must be enabled.       |
+| `replication_region_buckets`                  | `map(object)`  | Configuration for replication region buckets.                                       |
+| `wordpress_media_cloudfront_distribution_arn` | `string`       | ARN of CloudFront distribution for WordPress media bucket policy.                   |
+| `wordpress_media_cloudfront_enabled`          | `bool`         | Enable CloudFront policy for WordPress media bucket.                                |
+| `lambda_iam_role_arn`                         | `string`       | IAM role ARN for image processor Lambda (S3 read/write).                            |
+| `asg_instance_role_arn`                       | `string`       | IAM role ARN for WordPress EC2 instances (S3 upload).                               |
+| `s3_scripts`                                  | `map(string)`  | Map of files for scripts bucket upload.                                             |
+| `s3_scripts_bucket_key`                       | `string`       | Key for 'scripts' bucket in `default_region_buckets`.                               |
+| `s3_logging_bucket_key`                       | `string`       | Key for 'logging' bucket in `default_region_buckets`.                               |
+| `s3_terraform_state_bucket_key`               | `string`       | Key for 'terraform_state' bucket in `default_region_buckets`.                       |
+| `s3_alb_logs_bucket_key`                      | `string`       | Key for 'alb_logs' bucket in `default_region_buckets`.                              |
+| `s3_cloudtrail_bucket_key`                    | `string`       | Key for 'cloudtrail' bucket in `default_region_buckets`.                            |
+| `s3_wordpress_media_bucket_key`               | `string`       | Key for 'wordpress_media' bucket in `default_region_buckets`.                       |
+| `enable_cors`                                 | `bool`         | Enable CORS for WordPress media bucket.                                             |
+| `allowed_origins`                             | `list(string)` | List of allowed origins for S3 CORS. Restrict in production.                        |
+| `enable_dynamodb`                             | `bool`         | Enable DynamoDB for Terraform state locking.                                        |
+| `enable_cloudfront_standard_logging_v2`       | `bool`         | Enable CloudFront standard logging (v2) to CloudWatch Logs and S3.                  |
 
 
 ---
 
 ## 8. Outputs
 
-| Name                                     | Description                                                               |
-|------------------------------------------|---------------------------------------------------------------------------|
-| `scripts_bucket_arn`                     | ARN of scripts bucket.                                                    |
-| `scripts_bucket_name`                    | Name of scripts bucket.                                                   |
-| `logging_bucket_arn`                     | ARN of logging bucket.                                                    |
-| `logging_bucket_name`                    | Name of logging bucket.                                                   |
-| `logging_bucket_id`                      | ID of logging bucket.                                                     |
-| `logging_bucket_domain_name`             | The domain name of the central logging S3 bucket.                         |
-| `alb_logs_bucket_name`                   | Name of the S3 bucket for ALB logs                                        |
-| `cloudtrail_bucket_arn`                  | ARN of the CloudTrail S3 bucket                                           |
-| `cloudtrail_bucket_id`                   | ID of the CloudTrail S3 bucket                                            |
-| `cloudtrail_bucket_name`                 | Name of the CloudTrail S3 bucket                                          |
-| `terraform_state_bucket_arn`             | ARN of Terraform state bucket.                                            |
-| `terraform_state_bucket_name`            | Name of Terraform state bucket.                                           |
-| `wordpress_media_bucket_arn`             | ARN of WordPress media bucket.                                            |
-| `wordpress_media_bucket_name`            | Name of WordPress media bucket.                                           |
-| `wordpress_media_bucket_id`              | ID of WordPress media S3 bucket (required for notifications configuration). |
-| `wordpress_media_bucket_regional_domain_name` | The regional domain name of the WordPress media S3 bucket.                |
-| `deploy_wordpress_scripts_files_etags_map` | Map of script file keys to ETags.                                         |
-| `replication_bucket_arn`                 | ARN of replication bucket.                                                |
-| `replication_bucket_name`                | Name of replication bucket.                                               |
-| `replication_bucket_region`              | Region of replication bucket.                                             |
-| `terraform_locks_table_arn`              | ARN of DynamoDB table for Terraform state locking.                        |
-| `terraform_locks_table_name`             | Name of DynamoDB table for Terraform state locking.                       |
-| `enable_dynamodb`                        | DynamoDB enabled for state locking.                                       |
-| `all_enabled_buckets_names`              | List of all enabled S3 bucket names                                       |
+| Name                                          | Description                                                                 |
+|-----------------------------------------------|-----------------------------------------------------------------------------|
+| `scripts_bucket_arn`                          | ARN of scripts bucket.                                                      |
+| `scripts_bucket_name`                         | Name of scripts bucket.                                                     |
+| `logging_bucket_arn`                          | ARN of logging bucket.                                                      |
+| `logging_bucket_name`                         | Name of logging bucket.                                                     |
+| `logging_bucket_id`                           | ID of logging bucket.                                                       |
+| `logging_bucket_domain_name`                  | The domain name of the central logging S3 bucket.                           |
+| `alb_logs_bucket_name`                        | Name of the S3 bucket for ALB logs                                          |
+| `cloudtrail_bucket_arn`                       | ARN of the CloudTrail S3 bucket                                             |
+| `cloudtrail_bucket_id`                        | ID of the CloudTrail S3 bucket                                              |
+| `cloudtrail_bucket_name`                      | Name of the CloudTrail S3 bucket                                            |
+| `terraform_state_bucket_arn`                  | ARN of Terraform state bucket.                                              |
+| `terraform_state_bucket_name`                 | Name of Terraform state bucket.                                             |
+| `wordpress_media_bucket_arn`                  | ARN of WordPress media bucket.                                              |
+| `wordpress_media_bucket_name`                 | Name of WordPress media bucket.                                             |
+| `wordpress_media_bucket_id`                   | ID of WordPress media S3 bucket (required for notifications configuration). |
+| `wordpress_media_bucket_regional_domain_name` | The regional domain name of the WordPress media S3 bucket.                  |
+| `deploy_wordpress_scripts_files_etags_map`    | Map of script file keys to ETags.                                           |
+| `replication_bucket_arn`                      | ARN of replication bucket.                                                  |
+| `replication_bucket_name`                     | Name of replication bucket.                                                 |
+| `replication_bucket_region`                   | Region of replication bucket.                                               |
+| `terraform_locks_table_arn`                   | ARN of DynamoDB table for Terraform state locking.                          |
+| `terraform_locks_table_name`                  | Name of DynamoDB table for Terraform state locking.                         |
+| `enable_dynamodb`                             | DynamoDB enabled for state locking.                                         |
+| `all_enabled_buckets_names`                   | List of all enabled S3 bucket names                                         |
 
 ---
 

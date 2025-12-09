@@ -101,6 +101,7 @@ resource "aws_route_table_association" "private" {
 # S3 and DynamoDB Gateway Endpoints for private access from all subnets.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id          = aws_vpc.vpc.id
+  service_name    = "com.amazonaws.${var.aws_region}.s3"
   route_table_ids = toset(concat([aws_route_table.public.id], [for rt in values(aws_route_table.private) : rt.id]))
 
   tags = merge(var.tags, {

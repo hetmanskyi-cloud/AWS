@@ -22,7 +22,7 @@ repos:
   # --- Fundamental Terraform Hooks (Format and Lint) --- #
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.100.0  # Use the latest stable version
+    rev: v1.104.0  # Use the latest stable version
     hooks:
       # Formatting
       - id: terraform_fmt

@@ -55,7 +55,7 @@ resource "aws_security_group_rule" "redis_ingress_from_asg" {
 #    - Default egress rules are used, allowing all outbound traffic within the VPC.  Explicit egress rules are generally not required for ElastiCache within a VPC.
 
 # 3. **Security Best Practices**:
-#    - Use VPC Endpoints for AWS services to keep traffic private (if applicable для ElastiCache related services, though less common for Redis itself).
+#    - Use VPC Endpoints for AWS services to keep traffic private (if applicable for ElastiCache related services, though less common for Redis itself).
 #    - Regularly audit Security Group rules.
 #    - Follow the principle of least privilege for network access.
 # 4. **Port Configuration:**

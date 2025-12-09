@@ -160,7 +160,7 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 | Name                                    | Type           | Description                                                                 |
 |-----------------------------------------|----------------|-----------------------------------------------------------------------------|
 | `name_prefix`                           | `string`       | A prefix for all resource names.                                            |
-| `environment`                             | `string`       | The deployment environment (e.g., 'dev', 'prod').                           |
+| `environment`                           | `string`       | The deployment environment (e.g., 'dev', 'prod').                           |
 | `tags`                                  | `map(string)`  | A map of tags to apply to all resources.                                    |
 | `s3_module_outputs`                     | `object`       | Outputs from the S3 module, including the media bucket domain name.         |
 | `alb_dns_name`                          | `string`       | The DNS name of the Application Load Balancer origin.                       |
