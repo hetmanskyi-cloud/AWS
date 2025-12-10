@@ -158,23 +158,6 @@ variable "s3_scripts" {
   default     = {}
 }
 
-variable "enable_asg_ssh_access" {
-  description = "Allow SSH access to ASG instances"
-  type        = bool
-  default     = false
-}
-
-variable "ssh_key_name" {
-  description = "Name of the SSH key for ASG access"
-  type        = string
-}
-
-variable "ssh_allowed_cidr" {
-  description = "List of allowed CIDR blocks for SSH access to ASG instances"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Open for development, restrict for production
-}
-
 variable "autoscaling_min" {
   description = "Minimum number of instances in the Auto Scaling Group"
   type        = number

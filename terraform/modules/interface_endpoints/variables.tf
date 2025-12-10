@@ -83,7 +83,7 @@ variable "private_subnet_ids" {
 # are created within the VPC. When set to `false`, no Interface Endpoints or
 # associated resources (such as Security Groups) will be created.
 variable "enable_interface_endpoints" {
-  description = "Enable or disable Interface VPC Endpoints (SSM, CloudWatch, KMS, etc.)"
+  description = "Enable or disable the creation of all Interface VPC Endpoints and related resources."
   type        = bool
   default     = false
 }
@@ -92,9 +92,6 @@ variable "interface_endpoint_services" {
   description = "A list of AWS services for which to create interface endpoints."
   type        = list(string)
   default = [
-    "ssm",
-    "ssmmessages",
-    "ec2messages",
     "logs",
     "kms"
   ]

@@ -17,20 +17,6 @@ resource "aws_security_group" "asg_security_group" {
   })
 }
 
-# SSH Traffic — Strongly recommended to disable SSH in production and use SSM instead
-resource "aws_security_group_rule" "allow_ssh" {
-  count = var.enable_asg_ssh_access ? 1 : 0
-
-  type        = "ingress"
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  cidr_blocks = var.ssh_allowed_cidr # Restrict to trusted IPs only (e.g., your office or VPN)
-
-  security_group_id = aws_security_group.asg_security_group.id
-  description       = "Allow SSH access for debugging. Disable in production."
-}
-
 # --- Traffic from ALB to ASG Instances --- #
 
 # --- Ingress Rules (Inbound Traffic) --- #
@@ -136,6 +122,6 @@ resource "aws_security_group_rule" "allow_private_ssm_egress" {
 #    - The default egress rule ensures all of these services are reachable without VPC Endpoints.
 #
 # 6. **Production Recommendations**:
-#    - In production, disable SSH ingress and rely exclusively on SSM for instance access.
+#    - Instance access is exclusively handled via AWS Systems Manager (SSM) Session Manager.
 #    - Monitor outbound usage and adjust rules if tighter controls are needed.
 #    - Use VPC Endpoints and private subnets with care — test thoroughly to ensure all services remain reachable.

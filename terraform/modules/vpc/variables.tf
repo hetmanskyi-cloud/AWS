@@ -88,13 +88,6 @@ variable "flow_logs_retention_in_days" {
   type        = number
 }
 
-# List of allowed CIDR blocks for SSH access to ASG instances
-# Recommended: Restrict in production via terraform.tfvars
-variable "ssh_allowed_cidr" {
-  description = "List of allowed CIDR blocks for SSH access to ASG instances"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Open for development, restrict in production
-}
 
 # --- SNS Topic ARN for CloudWatch Alarms --- #
 variable "sns_topic_arn" {

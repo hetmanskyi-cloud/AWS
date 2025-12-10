@@ -142,7 +142,6 @@ resource "aws_launch_template" "asg_launch_template" {
   # Define the AMI ID and instance type.
   image_id      = var.ami_id        # AMI ID specified in terraform.tfvars
   instance_type = var.instance_type # Instance type (e.g., t2.micro for AWS Free Tier)
-  key_name      = var.ssh_key_name  # SSH key pair name for secure instance access (optional)
 
   # Block Device Mappings
   # Configure the root EBS volume with encryption enabled if enabled via `enable_ebs_encryption`.
@@ -239,9 +238,9 @@ resource "aws_launch_template" "asg_launch_template" {
 #    - In 'dev', it performs a full bootstrap: downloading and running `deploy_wordpress.sh` from S3 to install and configure the entire stack.
 #    - In 'stage'/'prod', it assumes a pre-built 'golden AMI' is used. The script only updates runtime configurations (like secrets) and does not perform a new installation.
 #
-# 3. **SSH Access**:
-#    - Temporary SSH access for debugging can be enabled via `enable_ssh_access` variable.
-#    - In production, restrict SSH access to trusted IPs in the ASG security group.
+# 3. **Secure Instance Access**:
+#    - Instance access is managed exclusively via AWS Systems Manager (SSM) Session Manager.
+#    - This removes the need for direct SSH access, SSH key pairs, and open inbound ports, providing a more secure and auditable access method.
 #
 # 4. **SSM Management**:
 #    - All instances are fully managed via AWS Systems Manager (SSM).

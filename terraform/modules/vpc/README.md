@@ -145,7 +145,6 @@ graph LR
     - Supports both a single NAT Gateway for the VPC or a highly-available setup with a NAT Gateway in each Availability Zone.
 - **Network ACLs (NACLs)**:
     - Configurable rules for controlling inbound and outbound traffic for public and private subnets.
-    - Supports multiple CIDR blocks for SSH access rules.
 - **VPC Flow Logs**:
     - Captures all traffic (ACCEPT/REJECT) and sends it to a KMS-encrypted CloudWatch Log Group.
     - Includes a CloudWatch Alarm to monitor for log delivery errors.
@@ -186,22 +185,21 @@ This module provisions the following AWS resources:
 
 ## 7. Inputs
 
-| **Name**                      | **Type**        | **Description**                                         |
-|-------------------------------|-----------------|---------------------------------------------------------|
-| `aws_region`                  | `string`        | AWS region for resource creation.                       |
-| `aws_account_id`              | `string`        | AWS account ID for policy permissions.                  |
-| `vpc_cidr_block`              | `string`        | The CIDR block for the VPC.                             |
-| `name_prefix`                 | `string`        | Prefix for resource names.                              |
-| `environment`                 | `string`        | Deployment environment (e.g., `dev`, `stage`, `prod`).  |
-| `tags`                        | `map(string)`   | Tags to apply to all resources.                         |
-| `enable_nat_gateway`          | `bool`          | Enable NAT Gateway for private subnets.                 |
-| `single_nat_gateway`          | `bool`          | Use a single NAT Gateway for all AZs.                   |
-| `public_subnets`              | `map(object)`   | Map of public subnets to create.                        |
-| `private_subnets`             | `map(object)`   | Map of private subnets to create.                       |
-| `kms_key_arn`                 | `string`        | KMS key ARN for Flow Log encryption.                    |
-| `flow_logs_retention_in_days` | `number`        | Retention period for VPC Flow Logs.                     |
-| `ssh_allowed_cidr`            | `list(string)`  | Allowed CIDR blocks for SSH access.                     |
-| `sns_topic_arn`               | `string`        | SNS topic ARN for CloudWatch alarm notifications.       |
+| **Name**                      | **Type**        | **Description**                                                                  |
+|-------------------------------|-----------------|----------------------------------------------------------------------------------|
+| `aws_region`                  | `string`        | AWS region for resource creation.                                                |
+| `aws_account_id`              | `string`        | AWS account ID for policy permissions.                                           |
+| `vpc_cidr_block`              | `string`        | The CIDR block for the VPC.                                                      |
+| `name_prefix`                 | `string`        | Prefix for resource names.                                                       |
+| `environment`                 | `string`        | Deployment environment (e.g., `dev`, `stage`, `prod`).                           |
+| `tags`                        | `map(string)`   | Tags to apply to all resources.                                                  |
+| `enable_nat_gateway`          | `bool`          | Enable NAT Gateway for private subnets.                                          |
+| `single_nat_gateway`          | `bool`          | Use a single NAT Gateway for all AZs.                                            |
+| `public_subnets`              | `map(object)`   | Map of public subnets to create.                                                 |
+| `private_subnets`             | `map(object)`   | Map of private subnets to create.                                                |
+| `kms_key_arn`                 | `string`        | KMS key ARN for Flow Log encryption.                                             |
+| `flow_logs_retention_in_days` | `number`        | Retention period for VPC Flow Logs.                                              |
+| `sns_topic_arn`               | `string`        | SNS topic ARN for CloudWatch alarm notifications.                                |
 
 ---
 
@@ -271,9 +269,6 @@ module "vpc" {
     }
   }
 
-  # Security Configuration
-  ssh_allowed_cidr = ["10.10.0.0/16"] # Restrict SSH access
-
   # Flow Logs Configuration
   kms_key_arn                 = module.kms.key_arn
   flow_logs_retention_in_days = 30
@@ -284,36 +279,45 @@ module "vpc" {
 
 ## 10. Security Considerations / Recommendations
 
-1. **Network ACLs (NACLs)**:
-   - Rules are stateless; you must define rules for both inbound and outbound traffic.
-   - The private NACL allows outbound HTTPS to `0.0.0.0/0` to enable the NAT Gateway functionality.
-   - Restrict the `ssh_allowed_cidr` variable in production environments.
+This module includes several security-related configurations that should be carefully reviewed and adjusted for production environments.
 
-2. **Flow Logs Security**:
-   - KMS encryption is enforced for all log data.
-   - IAM roles follow the principle of least privilege.
-   - A CloudWatch alarm monitors for and alerts on log delivery failures.
+1.  **Network ACLs (NACLs)**:
+    *   The Public NACL rules are permissive by default to allow for ease of use in development environments. **These should be tightened for production.**
+    *   **Inbound HTTP/HTTPS from `0.0.0.0/0`**: This is required for public-facing ALBs but exposes the entire subnet. For resources that do not need public inbound access, use private subnets.
+    *   **Inbound Ephemeral Ports from `0.0.0.0/0`**: The rule `public_inbound_ephemeral` allows return traffic from any source. This is overly permissive and should be restricted if possible.
+    *   **Outbound `0.0.0.0/0`**: The public outbound NACL allows all traffic to all destinations. For a more secure posture, restrict this to only necessary protocols and destinations.
 
-3. **NAT Gateways**:
-   - For production, use the highly-available setup (`single_nat_gateway = false`) to avoid a single point of failure.
-   - Be aware that NAT Gateways incur costs (per hour and per GB processed).
+2.  **Public IP Assignment**:
+    *   Public subnets are configured with `map_public_ip_on_launch = true`. This means any EC2 instance launched in a public subnet will get a public IP address.
+    *   **Recommendation**: For production, consider setting this to `false` and using a bastion host or AWS SSM Session Manager for administrative access to instances, reducing the public attack surface.
 
-4. **Default Security Group**: The module locks down the default SG by removing all rules, forcing the explicit use of custom security groups for all resources.
+3.  **Flow Logs Security**:
+    *   KMS encryption is enforced for all log data at rest.
+    *   The IAM role for Flow Logs follows the principle of least privilege.
+    *   A CloudWatch alarm monitors for and alerts on log delivery failures, ensuring security visibility is maintained.
+
+4.  **NAT Gateways**:
+    *   For production environments, always use the highly-available setup (`single_nat_gateway = false`) to avoid a single point of failure for outbound internet connectivity from private subnets.
+    *   Be aware that NAT Gateways incur costs per hour and per gigabyte of data processed.
+
+5.  **Default Security Group**:
+    *   The module intentionally locks down the default security group by removing all ingress and egress rules. This forces the explicit definition of all required traffic via custom security groups, adhering to a "deny by default" security posture.
 
 ---
 
 ## 11. Conditional Resource Creation
 
 - **NAT Gateways**: `aws_eip` and `aws_nat_gateway` resources are created only if `enable_nat_gateway` is set to `true`.
-- **CloudWatch Alarms for Flow Logs**: Created only if `sns_topic_arn` is provided.
+- **CloudWatch Alarms for Flow Logs**: Created only if a non-null `sns_topic_arn` is provided.
 
 ---
 
 ## 12. Best Practices
 
 1. **High Availability**: For production workloads, create subnets in multiple Availability Zones and set `single_nat_gateway = false` for resilient outbound connectivity.
-2. **Security**: Regularly review NACL rules and restrict `ssh_allowed_cidr` to known IP ranges. Monitor VPC Flow Logs for suspicious activity.
+2. **Security**: Regularly review NACL rules. Monitor VPC Flow Logs for suspicious activity.
 3. **Scalability**: Use a logical naming convention for your subnet maps (e.g., "1a", "1b") to keep routing and associations clear.
+4. **Least Privilege**: Always start with the most restrictive NACL and security group rules possible and only open up traffic as needed.
 
 ---
 
@@ -357,21 +361,14 @@ aws ec2 describe-route-tables --filters Name=tag:Name,Values=<name_prefix>-publi
 aws ec2 describe-route-tables --filters Name=tag:Name,Values=<name_prefix>-private-rt-<subnet_key>-<environment>
 ```
 
-### 3. SSH Access Fails
-**Cause:** Incorrect Security Group or NACL configuration.
-**Solution:** Check the public NACL rules for an allow rule from your IP on port 22.
-```bash
-aws ec2 describe-network-acls --filters Name=tag:Name,Values=<name_prefix>-public-nacl-<environment>
-```
-
-### 4. Flow Logs Delivery Errors
+### 3. Flow Logs Delivery Errors
 **Cause:** IAM Role or KMS key policy permissions are incorrect.
 **Solution:**
 - Verify the IAM role policy allows `logs:PutLogEvents`.
 - Ensure the KMS key policy allows the `vpc-flow-logs.amazonaws.com` service principal.
 - Check the CloudWatch Alarm status for `FlowLogsDeliveryErrors`.
 
-### 8. AWS CLI Reference
+### 4. AWS CLI Reference
 ```bash
 # List VPCs
 aws ec2 describe-vpcs --filters Name=tag:Name,Values=<name_prefix>-vpc-<environment>
@@ -399,6 +396,7 @@ aws logs tail /aws/vpc/flow-logs/<env> --follow
 - All subnets and routing are now created dynamically. Ensure your `public_subnets` and `private_subnets` variable maps are structured correctly.
 - For High Availability, ensure you have subnets in multiple AZs and set `single_nat_gateway = false`.
 - NACL rule numbers are hardcoded and spaced to allow for future additions.
+- The commented-out ICMP rule in `nacl.tf` can be enabled for network diagnostics (e.g., `ping`).
 
 ---
 

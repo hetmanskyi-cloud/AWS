@@ -146,13 +146,6 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_logs_policy_attachment" {
   policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
 }
 
-# --- SSM Access Policy --- #
-# Enables ASG instances to be managed via AWS Systems Manager (SSM), allowing secure remote management.
-resource "aws_iam_role_policy_attachment" "ssm_access" {
-  role       = aws_iam_role.asg_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
 # --- Secrets Manager Access Policy --- #
 
 # This single policy grants instance access to all required secrets:

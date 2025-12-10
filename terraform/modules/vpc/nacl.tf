@@ -15,7 +15,7 @@ resource "aws_network_acl" "public_nacl" {
 }
 
 # --- Public NACL Rules --- #
-# Allow inbound traffic for HTTP, HTTPS, SSH, and return traffic.
+# Allow inbound traffic for HTTP, HTTPS, and return traffic.
 
 # Rules for public subnets controlling inbound traffic to ALB.
 # These rules must remain open (0.0.0.0/0) for ALB to accept HTTP/HTTPS traffic.
@@ -43,22 +43,6 @@ resource "aws_network_acl_rule" "public_inbound_https" {
   from_port      = 443
   to_port        = 443
   cidr_block     = "0.0.0.0/0"
-  rule_action    = "allow"
-}
-
-# Rule for inbound SSH traffic on port 22
-# SSH access is required for testing. In production, restrict this to a specific range.
-# checkov:skip=CKV_AWS_232 Justification: SSH access is restricted via variable-defined CIDR
-resource "aws_network_acl_rule" "public_inbound_ssh" {
-  for_each = toset(var.ssh_allowed_cidr)
-
-  network_acl_id = aws_network_acl.public_nacl.id
-  rule_number    = 120 + index(var.ssh_allowed_cidr, each.value)
-  egress         = false
-  protocol       = "tcp"
-  from_port      = 22
-  to_port        = 22
-  cidr_block     = each.value #tfsec:ignore:aws-ec2-no-public-ingress-acl
   rule_action    = "allow"
 }
 
@@ -289,7 +273,7 @@ resource "aws_network_acl_association" "private" {
 }
 
 # --- Notes --- #
-# 1. Public NACLs are configured to allow HTTP, HTTPS, and SSH traffic,
+# 1. Public NACLs are configured to allow HTTP, and HTTPS traffic,
 #    but these rules can be toggled via variables for enhanced security.
 # 2. Private NACLs allow restricted access to resources like MySQL and Redis within the VPC.
 # 3. Egress rules permit outbound traffic to DNS and ephemeral ports for normal operations.

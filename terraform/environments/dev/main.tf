@@ -103,11 +103,6 @@ module "asg" {
   # KMS key ARN for encrypting EBS volumes and other resources
   kms_key_arn = module.kms.kms_key_arn
 
-  # Configuration for enabling SSH access to ASG instances
-  enable_asg_ssh_access = var.enable_asg_ssh_access
-  ssh_key_name          = var.ssh_key_name
-  ssh_allowed_cidr      = var.ssh_allowed_cidr
-
   # ASG instance configuration
   ami_id                    = var.ami_id
   instance_type             = var.instance_type

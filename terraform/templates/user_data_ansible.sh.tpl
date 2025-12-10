@@ -31,6 +31,9 @@ apt-get install -y ansible git
 
 # --- 3. Clone Ansible Playbooks Repository --- #
 log "Cloning Ansible playbooks repository..."
+# This assumes the Ansible playbooks (including the 'terraform/ansible' structure)
+# are part of the 'AWS.git' repository. The playbooks will be located at
+# /opt/ansible/terraform/ansible/playbooks/install-wordpress.yml after cloning.
 git clone https://github.com/hetmanskyi-cloud/AWS.git /opt/ansible
 cd /opt/ansible
 

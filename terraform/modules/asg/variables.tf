@@ -35,7 +35,7 @@ variable "kms_key_arn" {
 }
 
 # --- ASG Instance Configuration --- #
-# Parameters related to instance type, AMI ID, and SSH settings.
+# Parameters related to instance type and AMI ID.
 
 variable "instance_type" {
   description = "ASG instance type (e.g., t2.micro)"
@@ -52,22 +52,7 @@ variable "ami_id" {
   }
 }
 
-variable "ssh_key_name" {
-  description = "Name of the SSH key for ASG access"
-  type        = string
-}
 
-variable "enable_asg_ssh_access" {
-  description = "Allow SSH access to ASG instances"
-  type        = bool
-  default     = false
-}
-
-variable "ssh_allowed_cidr" {
-  description = "List of allowed CIDR blocks for SSH access to ASG instances"
-  type        = list(string)
-  default     = ["0.0.0.0/0"] # Open for development. STRICTLY RESTRICT in production (e.g., VPN CIDR).
-}
 
 # --- Auto Scaling Configuration --- #
 # Variables controlling the scaling behavior of the ASG.
@@ -484,8 +469,7 @@ variable "enable_client_vpn" {
 #    - Subnet, VPC, SG, and other IDs are assumed to be passed from validated upstream modules.
 
 # 4. **Best Practices:**
-#    - Use restrictive `ssh_allowed_cidr` values in production (e.g., corporate VPN only).
-#    - Set `enable_asg_ssh_access = false` in production; prefer Session Manager (SSM).
+#    - Instance access should be managed exclusively via AWS Systems Manager (SSM) Session Manager.
 #    - Enable EBS volume encryption using KMS (`enable_ebs_encryption = true`).
 #    - Choose appropriate volume types based on workload (e.g., gp3 for IOPS/cost balance).
 

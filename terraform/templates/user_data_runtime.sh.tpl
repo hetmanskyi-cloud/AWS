@@ -69,7 +69,6 @@ env | sort >> /var/log/user-data.log
 # --- 2. Load Environment Variables --- #
 
 # All non-sensitive config vars are passed via /etc/environment by Terraform user_data.
-log "Loading environment variables..."
 set -a
 source /etc/environment
 set +a
