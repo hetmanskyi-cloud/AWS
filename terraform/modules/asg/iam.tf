@@ -320,6 +320,3 @@ resource "aws_iam_instance_profile" "asg_instance_profile" {
 #      read-only access (Get/Describe) to all three required secrets: WordPress, RDS, and Redis.
 #    - This avoids storing raw passwords in Terraform variables, leverages AWS-native secrets management,
 #      and simplifies policy administration.
-# 10. SSM Ansible logs policy:
-#    - Grants ASG instances permission to write and read Ansible logs to a dedicated S3 bucket in the "dev" environment.
-#    - The policy is conditionally created and attached only if the SSM Ansible logs bucket ARN is provided.
