@@ -150,22 +150,16 @@ graph LR
 
 ## 5. Scripts Structure
 
-The scripts in this directory are grouped into primary and supporting scripts:
-Primary scripts:
-- deploy_wordpress.sh: Full installation and configuration of WordPress
-- healthcheck.php: Application Load Balancer health check endpoint for WordPress
-Supporting (utility and monitoring) scripts:
-- check_aws_resources.sh: Validates AWS resource cleanup after destroy
-- debug_monitor.sh: Monitors EC2 logs in real-time via SSM
-- fix_php_encoding.sh: Ensures PHP files are encoded correctly in UTF-8 without BOM
-
-| Script                   | Description                                                                                 |
-|--------------------------|---------------------------------------------------------------------------------------------|
-| `deploy_wordpress.sh`    | Installs and configures WordPress on an EC2 instance integrated with RDS and ElastiCache.   |
-| `check_aws_resources.sh` | Validates AWS resources created by Terraform to ensure proper cleanup after destruction.    |
-| `debug_monitor.sh`       | Connects to EC2 instances via SSM and monitors WordPress deployment logs in real-time.      |
-| `fix_php_encoding.sh`    | Fixes encoding issues in PHP files, removing BOM and ensuring proper UTF-8 encoding.        |
-| `healthcheck.php`        | Provides health check endpoint for the Application Load Balancer with extended checks.      |
+| Script                   | Description                                                                     |
+|--------------------------|---------------------------------------------------------------------------------|
+| `build_layer.sh`         | Builds a Lambda Layer for Python with Pillow using Docker for reproducibility.  |
+| `check_aws_resources.sh` | Validates AWS resource cleanup post-Terraform destroy, using tags/prefixes.     |
+| `debug_monitor.sh`       | Monitors EC2 logs via SSM in real-time for deployment debugging.                |
+| `deploy_wordpress.sh`    | Installs and configures WordPress (Nginx, PHP, DB, Redis, CloudWatch Agent).    |
+| `fix_php_encoding.sh`    | Fixes PHP file encoding, removing BOM and ensuring clean UTF-8.                 |
+| `get_vpn_ips.sh`         | Retrieves public IPs for a given VPN endpoint, formatted for Terraform.         |
+| `healthcheck.php`        | WordPress health check endpoint for ALB, verifying DB, Redis, and REST API.     |
+| `update_wordpress.sh`    | Downloads and updates WordPress core/plugins, commits to Git, and creates tags. |
 
 ---
 

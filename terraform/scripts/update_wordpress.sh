@@ -22,10 +22,14 @@ for arg in "$@"; do
 done
 
 # --- Paths & URLs --- #
-DEST_DIR="${HOME}/wordpress" # Target WordPress Git repository
+DEST_DIR="${HOME}/wordpress" # Target WordPress Git repository for committing changes
 TMP_DIR="/tmp/wordpress-update"
 PLUGINS_DIR="${DEST_DIR}/wp-content/plugins"
 ARCHIVE_NAME="wordpress-${WP_VERSION}.zip"
+# ARCHIVE_URL points to the official WordPress release. This script downloads the official core,
+# updates the local 'DEST_DIR' which is a Git repository, and then commits/pushes those changes.
+# It assumes 'DEST_DIR' is a clone of 'https://github.com/hetmanskyi-cloud/wordpress.git'
+# (or similar project-specific fork) to which the updated core will be committed.
 ARCHIVE_URL="https://github.com/WordPress/WordPress/archive/refs/tags/${WP_VERSION}.zip"
 TAG_NAME="v${WP_VERSION}"
 

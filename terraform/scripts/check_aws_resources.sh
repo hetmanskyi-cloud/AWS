@@ -1,11 +1,14 @@
 #!/bin/bash
 
 set -e
-PROJECT_NAME="dev"
+
+# Allow PROJECT_NAME to be set by environment variable ($PROJECT_NAME) or as the first argument ($1),
+# with 'dev' as the default fallback if neither is provided.
+PROJECT_NAME="${1:-${PROJECT_NAME:-dev}}"
 
 echo "=== Checking remaining AWS resources for project: $PROJECT_NAME ==="
 
-# Function to check resource count
+# Helper function to execute an AWS CLI command and check its output for remaining resources.
 check_resource() {
     local resource_name="$1"
     local command="$2"
