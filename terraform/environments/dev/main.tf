@@ -1,19 +1,3 @@
-# --- Locals Block --- #
-locals {
-
-  # Individual subnet IDs from the VPC module's map output
-  private_subnet_id_1 = module.vpc.private_subnets_map["private-1"].id
-  private_subnet_id_2 = module.vpc.private_subnets_map["private-2"].id
-  private_subnet_id_3 = module.vpc.private_subnets_map["private-3"].id
-
-  # Lists of subnet IDs
-  private_subnet_ids = [
-    local.private_subnet_id_1,
-    local.private_subnet_id_2,
-    local.private_subnet_id_3
-  ]
-}
-
 # --- VPC Module Configuration --- #
 # Configures the Virtual Private Cloud (VPC) module to define the network infrastructure.
 module "vpc" {
@@ -104,19 +88,20 @@ module "asg" {
   kms_key_arn = module.kms.kms_key_arn
 
   # ASG instance configuration
-  ami_id                    = var.ami_id
-  instance_type             = var.instance_type
-  autoscaling_min           = var.autoscaling_min
-  autoscaling_max           = var.autoscaling_max
-  desired_capacity          = var.desired_capacity
-  health_check_grace_period = var.health_check_grace_period
-  enable_scaling_policies   = var.enable_scaling_policies
-  enable_target_tracking    = var.enable_target_tracking
-  enable_data_source        = var.enable_data_source
-  scale_out_cpu_threshold   = var.scale_out_cpu_threshold
-  scale_in_cpu_threshold    = var.scale_in_cpu_threshold
-  network_in_threshold      = var.network_in_threshold
-  network_out_threshold     = var.network_out_threshold
+  ami_id                     = var.ami_id
+  instance_type              = var.instance_type
+  autoscaling_min            = var.autoscaling_min
+  autoscaling_max            = var.autoscaling_max
+  desired_capacity           = var.desired_capacity
+  health_check_grace_period  = var.health_check_grace_period
+  enable_scaling_policies    = var.enable_scaling_policies
+  enable_target_tracking     = var.enable_target_tracking
+  enable_data_source         = var.enable_data_source
+  enable_interface_endpoints = var.enable_interface_endpoints
+  scale_out_cpu_threshold    = var.scale_out_cpu_threshold
+  scale_in_cpu_threshold     = var.scale_in_cpu_threshold
+  network_in_threshold       = var.network_in_threshold
+  network_out_threshold      = var.network_out_threshold
 
   # CloudWatch Alarms for Auto Scaling and instance health monitoring
   # Includes CPU utilization, network traffic, and EC2 status checks
@@ -155,7 +140,7 @@ module "asg" {
   efs_access_point_id = var.enable_efs ? module.efs[0].efs_access_point_id : ""
 
   # Networking and security configurations
-  subnet_ids                     = local.private_subnet_ids
+  subnet_ids                     = module.vpc.private_subnet_ids
   alb_security_group_id          = module.alb.alb_security_group_id
   vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
   vpc_id                         = module.vpc.vpc_id
@@ -244,7 +229,7 @@ module "rds" {
 
   # Network configuration for private subnets
   vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = local.private_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
 
   # Security group for RDS access (if needed in other modules)
   asg_security_group_id = module.asg.asg_security_group_id
@@ -356,7 +341,7 @@ module "elasticache" {
 
   # Networking (from VPC module)
   vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = local.private_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
 
   # Security Group (from ASG module)
   asg_security_group_id = module.asg.asg_security_group_id
@@ -430,7 +415,7 @@ module "interface_endpoints" {
   environment                 = var.environment
   vpc_id                      = module.vpc.vpc_id
   vpc_cidr_block              = module.vpc.vpc_cidr_block
-  private_subnet_ids          = local.private_subnet_ids
+  private_subnet_ids          = module.vpc.private_subnet_ids
   enable_interface_endpoints  = var.enable_interface_endpoints
   interface_endpoint_services = var.interface_endpoint_services
   tags                        = merge(local.common_tags, local.tags_interface_endpoints)
@@ -487,7 +472,7 @@ module "cloudfront" {
   enable_cloudfront_standard_logging_v2 = var.enable_cloudfront_standard_logging_v2
 
   # SNS Topic for CloudWatch Alarms notifications
-  sns_alarm_topic_arn = one(aws_sns_topic.cloudfront_alarms_topic[*].arn)
+  sns_alarm_topic_arn = var.enable_cloudfront_waf ? aws_sns_topic.cloudfront_alarms_topic[0].arn : null
 
   # CloudFront to ALB integration
   cloudfront_to_alb_secret_header_value = random_password.cloudfront_to_alb_header.result
@@ -736,7 +721,7 @@ module "efs" {
 
   # Network configuration
   vpc_id                = module.vpc.vpc_id
-  subnet_ids            = local.private_subnet_ids
+  subnet_ids            = module.vpc.private_subnet_ids
   asg_security_group_id = module.asg.asg_security_group_id
 
   # Security and Encryption
