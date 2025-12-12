@@ -34,6 +34,10 @@
 
 </div>
 
+## Status
+[![Terraform CI](https://github.com/sky/AWS/actions/workflows/terraform.yml/badge.svg)](https://github.com/sky/AWS/actions/workflows/terraform.yml)
+[![ShellCheck](https://github.com/sky/AWS/actions/workflows/terraform.yml/badge.svg?event=push&branch=main&workflow=shellcheck)](https://github.com/sky/AWS/actions/workflows/terraform.yml)
+
 This repository provides a production-ready, modular, and secure Infrastructure as Code (IaC) implementation for deploying a scalable WordPress application on AWS using Terraform. It adheres to AWS and DevOps best practices, emphasizing automation, monitoring, and security.
 
 ## Project Overview
@@ -44,6 +48,15 @@ This project focuses on automating the deployment and management of a WordPress 
 *   **Security**: Implements best practices for network, application, and data security, including WAF, KMS encryption, and IAM least privilege.
 *   **Modularity**: Built with reusable Terraform modules for clear organization and easy maintenance.
 *   **Automation**: Leverages Terraform for infrastructure provisioning and Ansible for application deployment.
+
+## Technologies Used
+
+*   **Infrastructure as Code**: Terraform
+*   **Configuration Management**: Ansible
+*   **Cloud Provider**: AWS
+*   **CI/CD**: GitHub Actions
+*   **Monitoring & Logging**: Amazon CloudWatch, AWS CloudTrail
+*   **Security Scanning**: tfsec, Checkov, TFLint, ShellCheck
 
 ## Getting Started
 
