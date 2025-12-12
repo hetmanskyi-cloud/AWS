@@ -31,12 +31,12 @@
 ![AWS CloudTrail](https://img.shields.io/badge/AWS_CloudTrail-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
 ![Amazon CloudWatch](https://img.shields.io/badge/Amazon_CloudWatch-FF9900?style=for-the-badge&logo=amazon-cloudwatch&logoColor=white)
 ![Amazon SNS](https://img.shields.io/badge/Amazon_SNS-FF9900?style=for-the-badge&logo=amazon-sns&logoColor=white)
+![AWS WAF](https://img.shields.io/badge/AWS_WAF-FF9900?style=for-the-badge&logo=aws-waf&logoColor=white)
+[![ShellCheck](https://github.com/sky/AWS/actions/workflows/terraform.yml/badge.svg?event=push&branch=main&workflow=shellcheck)](https://github.com/sky/AWS/actions/workflows/terraform.yml)
 
 </div>
 
 ## Status
-[![Terraform CI](https://github.com/sky/AWS/actions/workflows/terraform.yml/badge.svg)](https://github.com/sky/AWS/actions/workflows/terraform.yml)
-[![ShellCheck](https://github.com/sky/AWS/actions/workflows/terraform.yml/badge.svg?event=push&branch=main&workflow=shellcheck)](https://github.com/sky/AWS/actions/workflows/terraform.yml)
 
 This repository provides a production-ready, modular, and secure Infrastructure as Code (IaC) implementation for deploying a scalable WordPress application on AWS using Terraform. It adheres to AWS and DevOps best practices, emphasizing automation, monitoring, and security.
 
