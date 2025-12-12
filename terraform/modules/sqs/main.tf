@@ -1,14 +1,3 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-  }
-}
-
 # --- SQS Queue Resources --- #
 # To break the dependency cycle between a main queue and its DLQ, we create them in two steps.
 

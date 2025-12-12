@@ -1,19 +1,3 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
 # --- Application Load Balancer --- #
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 

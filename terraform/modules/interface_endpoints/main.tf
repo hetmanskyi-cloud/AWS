@@ -1,19 +1,3 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
 # This module creates Interface Endpoints for a list of specified AWS services.
 # It is disabled by default and can be enabled by setting `enable_interface_endpoints = true`.
 

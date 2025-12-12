@@ -1,30 +1,3 @@
-# --- Terraform Configuration --- #
-# Defines the required AWS provider and its version.
-# The 'aws.cloudfront' alias is explicitly configured for resources that must reside in us-east-1,
-# such as CloudFront distributions, WAF Web ACLs, and related IAM/Firehose/CloudWatch Log Delivery components.
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-      configuration_aliases = [
-        aws,            # Default AWS provider alias
-        aws.cloudfront, # Alias for AWS provider configured to us-east-1
-      ]
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-    http = {
-      source  = "hashicorp/http"
-      version = "~> 3.5"
-    }
-  }
-}
-
 # --- CloudFront Distribution for WordPress Application and Media --- #
 # This module creates a secure and performant CloudFront CDN to serve both dynamic
 # application content from an ALB and static media files from a private S3 bucket.

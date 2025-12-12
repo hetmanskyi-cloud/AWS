@@ -1,19 +1,5 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
+# --- Local Values --- #
+# Maps Redis versions to their corresponding ElastiCache parameter group families.
 locals {
   redis_family = {
     "6.2" = "redis6.x"

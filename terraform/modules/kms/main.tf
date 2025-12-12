@@ -1,19 +1,3 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
 # --- Initial Configuration for KMS Key --- #
 # Root account access is controlled via the `kms_root_access` variable.
 # Set to true during initial setup, and to false afterward to automatically remove root permissions from the key policy.
@@ -33,11 +17,7 @@ resource "aws_kms_key" "general_encryption_key" {
   })
 }
 
-# AWS provider for the replication region (if defined).
-provider "aws" {
-  alias  = "replication"
-  region = var.replication_region
-}
+
 
 # Replica KMS key in the replication region for cross-region S3 replication (conditional).
 resource "aws_kms_replica_key" "replica_key" {

@@ -1,22 +1,3 @@
-# --- Terraform Configuration --- #
-# Defines the required AWS provider and its version.
-# The 'aws.cloudfront' alias is explicitly configured for resources that must reside in us-east-1,
-# which is a requirement for ACM certificates used with global services like CloudFront.
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-      configuration_aliases = [
-        aws,
-        aws.cloudfront, # Alias for AWS provider configured to us-east-1
-      ]
-    }
-  }
-}
-
 # --- AWS Certificate Manager (ACM) Certificate Request --- #
 
 # This resource requests an Amazon-issued SSL/TLS certificate for use with CloudFront.

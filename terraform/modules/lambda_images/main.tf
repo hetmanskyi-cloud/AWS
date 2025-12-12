@@ -1,25 +1,3 @@
-# --- Terraform and Provider Requirements --- #
-# This block declares the minimum required versions of Terraform and the providers
-# used within this module to ensure compatibility and stability.
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.0"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.0"
-    }
-  }
-}
-
 # --- Main Lambda Module Configuration --- #
 # This file defines the core resources: the Lambda function itself,
 # its source code packaging, and its SQS trigger configuration.

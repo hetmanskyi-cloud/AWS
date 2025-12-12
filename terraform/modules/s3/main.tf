@@ -1,27 +1,6 @@
 # --- Main Configuration for S3 Buckets --- #
 # Defines S3 buckets and core configurations.
 
-# --- Terraform Configuration --- #
-# Defines Terraform provider and version, and configuration aliases for providers.
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-      configuration_aliases = [
-        aws,             # Alias for the default AWS provider
-        aws.replication, # Alias for the AWS provider in the replication region
-      ]
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
 # --- Default Region Buckets --- #
 # Dynamically creates S3 buckets in the default region.
 

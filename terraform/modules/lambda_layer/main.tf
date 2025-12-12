@@ -1,23 +1,8 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.0"
-    }
-  }
-}
-
 # --- Lambda Layer Automated Build and Deployment --- #
 # This file defines the logic to automatically build and deploy a Python Lambda Layer.
 # It uses a decoupled shell script for the build process, which is triggered by this module.
 
+# --- Locals --- #
 locals {
   # Render the requirements.txt content from the template file.
   requirements_content = templatefile("${var.source_path}/requirements.txt.tftpl", {

@@ -2,18 +2,7 @@
 # This file defines the aws_dynamodb_table resource, making it configurable
 # via the variables defined in variables.tf.
 
-# --- Terraform and Provider Requirements --- #
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
+# --- Local Values for Attribute Definitions --- #
 locals {
   # This block creates a unified map of all unique attributes required by the table's
   # primary key and all Global Secondary Indexes. This avoids defining the same attribute

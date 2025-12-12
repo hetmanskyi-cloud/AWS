@@ -1,19 +1,3 @@
-# Terraform version and provider requirements
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
-  }
-}
-
 # --- Main Configuration for RDS --- #
 # Configures a primary RDS instance with encryption and monitoring,
 # CloudWatch Log Groups for error and slowquery logs,

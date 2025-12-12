@@ -34,6 +34,11 @@ module "vpc" {
 module "kms" {
   source = "../../modules/kms" # Path to the KMS module
 
+  providers = {
+    aws             = aws.default
+    aws.replication = aws.replication
+  }
+
   # AWS region and account-specific details
   aws_region         = var.aws_region         # Region for KMS operations
   replication_region = var.replication_region # Region for replication

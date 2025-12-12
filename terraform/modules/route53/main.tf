@@ -1,14 +1,8 @@
-# --- Terraform Configuration --- #
-terraform {
-  required_version = "~> 1.12"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
+# --- Module: Route 53 DNS Configuration for Custom Domain with ACM and CloudFront --- #
+# This Terraform module sets up AWS Route 53 DNS records to enable a custom domain
+# to work with an ACM SSL certificate and a CloudFront distribution. It handles the
+# creation of the hosted zone, DNS validation records for ACM, and final ALIAS records
+# pointing to CloudFront, ensuring the correct order of operations to avoid dependency cycles.
 
 # --- Locals --- #
 locals {
