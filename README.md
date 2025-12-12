@@ -24,6 +24,13 @@
 ![Amazon SQS](https://img.shields.io/badge/Amazon_SQS-FF4F8B?style=for-the-badge&logo=amazon-sqs&logoColor=white)
 ![AWS Certificate Manager](https://img.shields.io/badge/AWS_Certificate_Manager-FF9900?style=for-the-badge&logo=aws-certificate-manager&logoColor=white)
 ![AWS Secrets Manager](https://img.shields.io/badge/AWS_Secrets_Manager-FF9900?style=for-the-badge&logo=aws-secrets-manager&logoColor=white)
+![Application Load Balancer](https://img.shields.io/badge/Application_Load_Balancer-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Auto Scaling Group](https://img.shields.io/badge/Auto_Scaling_Group-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![AWS Client VPN](https://img.shields.io/badge/AWS_Client_VPN-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![VPC Interface Endpoints](https://img.shields.io/badge/VPC_Interface_Endpoints-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![AWS CloudTrail](https://img.shields.io/badge/AWS_CloudTrail-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Amazon CloudWatch](https://img.shields.io/badge/Amazon_CloudWatch-FF9900?style=for-the-badge&logo=amazon-cloudwatch&logoColor=white)
+![Amazon SNS](https://img.shields.io/badge/Amazon_SNS-FF9900?style=for-the-badge&logo=amazon-sns&logoColor=white)
 
 </div>
 
