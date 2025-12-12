@@ -12,6 +12,18 @@
 ![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![Amazon VPC](https://img.shields.io/badge/Amazon_VPC-FF9900?style=for-the-badge&logo=amazon-vpc&logoColor=white)
+![NAT Gateway](https://img.shields.io/badge/NAT_Gateway-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Amazon S3](https://img.shields.io/badge/Amazon_S3-569A31?style=for-the-badge&logo=amazon-s3&logoColor=white)
+![Amazon Route 53](https://img.shields.io/badge/Amazon_Route_53-FF9900?style=for-the-badge&logo=amazon-route-53&logoColor=white)
+![Amazon CloudFront](https://img.shields.io/badge/Amazon_CloudFront-FF9900?style=for-the-badge&logo=amazon-cloudfront&logoColor=white)
+![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-FF9900?style=for-the-badge&logo=aws-lambda&logoColor=white)
+![AWS KMS](https://img.shields.io/badge/AWS_KMS-FF9900?style=for-the-badge&logo=aws-key-management-service&logoColor=white)
+![Amazon EFS](https://img.shields.io/badge/Amazon_EFS-FF9900?style=for-the-badge&logo=amazon-elastic-file-system&logoColor=white)
+![Amazon DynamoDB](https://img.shields.io/badge/Amazon_DynamoDB-4053D6?style=for-the-badge&logo=amazon-dynamodb&logoColor=white)
+![Amazon SQS](https://img.shields.io/badge/Amazon_SQS-FF4F8B?style=for-the-badge&logo=amazon-sqs&logoColor=white)
+![AWS Certificate Manager](https://img.shields.io/badge/AWS_Certificate_Manager-FF9900?style=for-the-badge&logo=aws-certificate-manager&logoColor=white)
+![AWS Secrets Manager](https://img.shields.io/badge/AWS_Secrets_Manager-FF9900?style=for-the-badge&logo=aws-secrets-manager&logoColor=white)
 
 </div>
 
