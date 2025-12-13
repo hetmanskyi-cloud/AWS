@@ -93,7 +93,7 @@ graph TD
 
     %% Deployment and Provisioning
     subgraph "Deployment Methodologies"
-        style GoldenAMI fill:#f9f9f9,stroke:#333
+        style GoldenAMI fill:#f8f9fa,stroke:#adb5bd
         Ansible[Ansible Playbooks] -- "Used for" --> DevDeployment("On-the-Fly Provisioning<br>(dev environment)")
         Ansible -- "Used to build" --> GoldenAMI("Golden AMI")
         GoldenAMI -- "Used by" --> StageDeployment("AMI-Based Deployment<br>(stage environment)")
@@ -130,7 +130,27 @@ graph TD
     Developer[Developer] --> ClientVPN
     ClientVPN --> VPC
 
-    classDef optional fill:#fefefe,stroke:#ccc,stroke-dasharray: 3 3,color:#777;
+    %% Style Definitions
+    classDef global fill:#fff3cd,stroke:#f5d04d,color:#856404
+    classDef network fill:#cce5ff,stroke:#66a3ff,color:#004085
+    classDef compute fill:#d4edda,stroke:#77c289,color:#155724
+    classDef datastore fill:#e0cce6,stroke:#a673b2,color:#381640
+    classDef security fill:#f8d7da,stroke:#f58fa0,color:#721c24
+    classDef integration fill:#d1ecf1,stroke:#74c6d4,color:#0c5460
+    classDef access fill:#e9ecef,stroke:#adb5bd,color:#343a40
+    classDef provisioning fill:#d6d8db,stroke:#6c757d,color:#343a40
+    classDef optional stroke-dasharray: 3 3,color:#555
+
+    %% Apply Styles
+    class User,Developer access
+    class CloudFront,WAF_Global,ACM,Route53 global
+    class VPC,ALB,NAT network
+    class ASG compute
+    class RDS,Redis,S3,DynamoDB datastore
+    class KMS,SecretsManager,WAF_Global security
+    class SQS,SNS,Lambda integration
+    class ClientVPN,CloudTrail access
+    class Ansible,DevDeployment,GoldenAMI,StageDeployment provisioning
     class Lambda,SQS,DynamoDB optional
 ```
 
