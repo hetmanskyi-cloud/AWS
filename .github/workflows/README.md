@@ -39,7 +39,7 @@ This automated process helps maintain code quality, consistency, and security by
 
 - **Repository Structure**: The workflow assumes that all Terraform configuration files (`.tf`) reside within a `terraform` directory at the root of the repository (i.e., `./terraform`). Most workflow steps operate within this directory.
 - **GitHub Actions Runner**: The workflow requires a GitHub-hosted `ubuntu-latest` runner or a compatible self-hosted runner with the necessary tools (like `curl`, `bash`, `pip`) available.
-- **Tool Versions**:
+- **Tool Versions**: The workflow currently uses floating versions (`latest`, `@v4`, etc.) for simplicity. For production environments, it is strongly recommended to pin these to specific versions (see Best Practices).
     - Terraform: Uses the `latest` version available via `hashicorp/setup-terraform`.
     - TFLint: Uses the `latest` version available via `terraform-linters/setup-tflint`.
     - tfsec: Installed dynamically using the official install script.
@@ -119,7 +119,7 @@ The `terraform.yml` workflow executes the following steps sequentially:
 4.  **Terraform Init**: Initializes the Terraform working directory (`./terraform`) and downloads required providers (`terraform init -upgrade`).
 5.  **Terraform Format**: Checks if the Terraform code in `./terraform` is correctly formatted (`terraform fmt -check -diff -recursive`). Fails if formatting issues are found.
 6.  **Terraform Validate**: Validates the syntax of the Terraform configuration in `./terraform` (`terraform validate`). Fails on syntax errors.
-7.  **ShellCheck**: Runs `ShellCheck` using `ludeeus/action-shellcheck@master` to find errors in any shell scripts in the repository.
+7.  **ShellCheck**: Runs `ShellCheck` using `ludeeus/action-shellcheck@master`. The `severity: error` parameter ensures that the workflow fails on any findings.
 8.  **Setup TFLint**: Installs the `latest` version of TFLint using `terraform-linters/setup-tflint@v4`.
 9.  **TFLint**: Runs `TFLint` against the code in `./terraform` to perform static analysis and linting (`tflint`). Fails if linting errors are found.
 10. **Install tfsec**: Downloads and installs the `tfsec` security scanner using its official install script.
@@ -152,8 +152,8 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 7. Security Considerations / Recommendations
 
--   **Permissions**: The workflow requests `contents: read` (to checkout code), `id-token: write` (often for OIDC auth, though not explicitly used in *these* steps), and `pull-requests: write` (potentially for adding comments - not used here but requested). These should be reviewed periodically based on actual needs.
--   **Tool Versions**: Using `latest` for Terraform/TFLint or dynamically installing tools (`tfsec`, `Checkov`) can introduce instability or unexpected behavior if breaking changes occur in new releases. Consider pinning to specific versions (e.g., `terraform_version: 1.8.0`, `tflint_version: v0.51.1`, specific action versions like `@v4.1.1` instead of `@v4`) for more predictable builds.
+-   **Permissions**: The workflow requests `contents: read` (to checkout code), `id-token: write` (for potential OIDC authentication), and `pull-requests: write`. These permissions should be reviewed periodically to ensure they adhere to the principle of least privilege.
+-   **Unpinned Tool Versions**: The workflow currently uses `latest` for tools like Terraform/TFLint, dynamically installs `tfsec` and `Checkov`, and references action versions like `@v4` or `@master`. This can introduce instability or breaking changes without warning. For production-grade stability, all actions and tools should be pinned to specific versions.
 -   **Security Scan Soft-Fails**: Both `tfsec` and `Checkov` are configured with `|| true`, meaning the workflow will pass even if security issues are detected. This prevents blocking PRs but requires **manual review** of the tool output in the workflow logs to identify and address findings. For stricter security enforcement, remove the `|| true`.
 -   **Skipped Checks**: `Checkov` is configured to skip `CKV_AWS_192`. Ensure this skip is intentional and documented, and review periodically if it's still necessary.
 
@@ -161,7 +161,7 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 8. Best Practices
 
--   **Pin Dependencies**: Pin versions for GitHub Actions (`uses: actions/checkout@v4.1.1`) and setup tools (`setup-terraform@v3.1.0`) for stability and security. Avoid using `latest` or `master` in production workflows.
+-   **Pin Dependencies**: For stability and security, it is critical to pin versions for all GitHub Actions and setup tools (e.g., `uses: actions/checkout@v4.1.7`, `with: terraform_version: 1.8.0`). Avoid using `latest`, `@vX` major versions, or `master` in production workflows, as they can pull in breaking changes unexpectedly.
 -   **Configuration Files**: Consider adding configuration files for linters and scanners (e.g., `.tflint.hcl`, `.tfsec/config.yml`, `.checkov.yml`) to customize rules, exclude paths, and manage findings more effectively.
 -   **Review Soft Fails**: Regularly check the logs of passed workflows for any security issues reported by `tfsec` or `Checkov` due to the soft-fail configuration.
 -   **Workflow Monitoring**: Keep an eye on workflow execution times. The caching step helps, but initialization time can grow with more providers.
@@ -181,7 +181,7 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 10. Future Improvements
 
--   **Pin Versions**: Replace `latest` and dynamic installs with specific, pinned versions for all actions and tools.
+-   **Pin Versions**: Replace all floating versions (`latest`, `@v4`, `@master`, etc.) with specific, pinned versions for all actions and tools to ensure reproducible builds.
 -   **Strict Security Checks**: Remove `|| true` from `tfsec` and `Checkov` steps for stricter security enforcement (workflow fails if issues are found).
 -   **PR Comments**: Integrate tools like `tfsec-pr-commenter-action` or configure Checkov/TFLint actions to post findings directly as comments on Pull Requests.
 -   **`terraform plan`**: Add a `terraform plan` step (likely requiring AWS credentials via OIDC or secrets) to preview changes, especially on Pull Requests.
