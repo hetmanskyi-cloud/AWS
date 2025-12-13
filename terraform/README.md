@@ -131,7 +131,7 @@ graph TD
     ClientVPN --> VPC
 
     classDef optional fill:#fefefe,stroke:#ccc,stroke-dasharray: 3 3,color:#777;
-    class Lambda, SQS, DynamoDB optional;
+    class Lambda,SQS,DynamoDB optional
 ```
 
 ---

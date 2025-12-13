@@ -176,11 +176,16 @@ graph LR
 
     %% IAM for Replication
     IAMRole -->|"Assumes"| IAMPolicy
-    IAMPolicy -->|"Grants Access"| scripts %% Retaining as is if such a link originally existed
-    IAMPolicy -->|"Grants Access"| wordpress_media %% Required for source replication bucket
-    IAMPolicy -->|"Grants Access"| rep_wordpress_media %% Required for target replication bucket
-    IAMPolicy -->|"Grants Access"| KMS %% Required for source KMS key
-    IAMPolicy -->|"Grants Access"| rep_KMS %% Required for target KMS key
+    %% Retaining as is if such a link originally existed
+    IAMPolicy -->|"Grants Access"| scripts
+    %% Required for source replication bucket
+    IAMPolicy -->|"Grants Access"| wordpress_media
+    %% Required for target replication bucket
+    IAMPolicy -->|"Grants Access"| rep_wordpress_media
+    %% Required for source KMS key
+    IAMPolicy -->|"Grants Access"| KMS
+    %% Required for target KMS key
+    IAMPolicy -->|"Grants Access"| rep_KMS
 
     %% Replication Connections
     ReplicationConfig --> wordpress_media
