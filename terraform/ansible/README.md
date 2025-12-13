@@ -51,41 +51,51 @@ To run these Ansible playbooks, the following are generally required on the cont
 ```mermaid
 graph TD
     subgraph "Control Machine"
-        A[Ansible Control Node]
+        Ansible[Ansible Control Node]
     end
 
-    subgraph "Deployment Flow"
-        A -- (SSH) --> B(EC2 Instance)
-        B -- Install --> C1(Base OS & Security)
-        B -- Install --> C2(Web Server: Nginx)
-        B -- Install --> C3(PHP-FPM)
-        B -- Install --> C4(Redis)
-        B -- Install --> C5(WordPress Core & Plugins)
-        B -- Install --> C6(CloudWatch Agent)
-        B -- Install --> C7(EFS Mount)
+    subgraph "Deployment Flow on EC2 Instance"
+        EC2[EC2 Instance]
+        EC2 -- Installs --> BaseOS("Base OS & Security")
+        EC2 -- Installs --> Nginx("Web Server: Nginx")
+        EC2 -- Installs --> PHP("PHP-FPM")
+        EC2 -- Installs --> RedisClient("Redis Client")
+        EC2 -- Installs --> WordPress("WordPress Core & Plugins")
+        EC2 -- Installs --> CW_Agent("CloudWatch Agent")
+        EC2 -- Installs --> EFS_Mount("EFS Mount Point")
     end
 
-    subgraph "External Services"
-        C5 -- Clone From --> D[Git Repository: WordPress Fork]
-        C5 -- Scripts From --> E[S3 Bucket: Scripts]
-        C5 -- Retrieve Credentials From --> F[AWS Secrets Manager]
-        C6 -- Send Logs To --> G[AWS CloudWatch Logs]
-        C7 -- Mount --> H[AWS EFS]
-        C4 -- Connect To --> I[AWS ElastiCache]
-        C3 -- Connect To --> J[AWS RDS]
+    subgraph "External AWS Services"
+        GitRepo["Git Repository<br><i>(WordPress Fork)</i>"]
+        S3["S3 Bucket<br><i>(Deployment Scripts)</i>"]
+        SecretsManager["AWS Secrets Manager"]
+        CloudWatch["AWS CloudWatch Logs"]
+        EFS["AWS EFS"]
+        ElastiCache["AWS ElastiCache"]
+        RDS["AWS RDS"]
     end
 
-    subgraph "Provisioning Workflow"
-        K[Terraform] -- Triggers Ansible --> A
-        K -- Provides Variables --> A
-        K -- Provisions Infrastructure --> ExternalServices
+    subgraph "Orchestration"
+        Terraform -- Triggers Ansible --> Ansible
+        Terraform -- Provides Variables --> Ansible
+        Terraform -- Provisions --> ExternalServices
     end
 
-    style K fill:#7D3C98,stroke:#232F3E,color:white
-    style A fill:#1A73E8,stroke:#232F3E,color:white
-    style B fill:#FF9900,stroke:#232F3E,color:white
-    style C1,C2,C3,C4,C5,C6,C7 fill:#3F8624,stroke:#232F3E,color:white
-    style D,E,F,G,H,I,J fill:#0B5345,stroke:#232F3E,color:white
+    %% Connections
+    WordPress -- Clone From --> GitRepo
+    WordPress -- Scripts From --> S3
+    WordPress -- Retrieve Credentials From --> SecretsManager
+    PHP -- Connects To --> RDS
+    RedisClient -- Connects To --> ElastiCache
+    CW_Agent -- Send Logs To --> CloudWatch
+    EFS_Mount -- Mounts --> EFS
+
+    %% Styling
+    style Terraform fill:#7D3C98,stroke:#232F3E,color:white
+    style Ansible fill:#1A73E8,stroke:#232F3E,color:white
+    style EC2 fill:#FF9900,stroke:#232F3E,color:white
+    class BaseOS,Nginx,PHP,RedisClient,WordPress,CW_Agent,EFS_Mount fill:#3F8624,stroke:#232F3E,color:white
+    class GitRepo,S3,SecretsManager,CloudWatch,EFS,ElastiCache,RDS fill:#0B5345,stroke:#232F3e,color:white
 ```
 
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_

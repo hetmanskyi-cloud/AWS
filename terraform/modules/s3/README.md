@@ -144,14 +144,16 @@ graph LR
 
     %% Encryption Connections
     KMSEncryption --> scripts
-    KMSEncryption --> logging %% --- According to main.tf, logging bucket uses KMS
+    %% --- According to main.tf, logging bucket uses KMS
+    KMSEncryption --> logging
     KMSEncryption --> cloudtrail
     KMSEncryption --> terraform_state
     KMSEncryption --> wordpress_media
 
     KMS --> KMSEncryption
 
-    SSE_S3Encryption --> alb_logs %% --- According to main.tf, alb_logs bucket uses SSE-S3
+    %% --- According to main.tf, alb_logs bucket uses SSE-S3
+    SSE_S3Encryption --> alb_logs
 
     %% Logging Connections
     scripts -->|"Access Logs"| logging

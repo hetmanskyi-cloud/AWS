@@ -46,7 +46,7 @@ This Terraform module automates the process of building and deploying an AWS Lam
 graph LR
     subgraph Local Machine
         Terraform[Terraform Apply]
-        LocalExec[null_resource<br/>(local-exec)]
+        LocalExec["null_resource\n(local-exec)"]
         BuildScript[scripts/build_layer.sh]
         Docker[Docker Daemon]
         LayerZip[layer.zip]

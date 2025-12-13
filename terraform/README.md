@@ -73,7 +73,8 @@ graph TD
             end
 
             subgraph "Supporting Services"
-                S3[S3 Buckets<br>(Media, Logs, Scripts)]
+                S3["S3 Buckets
+(Media, Logs, Scripts)"]
                 KMS[KMS Key]
                 SecretsManager[Secrets Manager]
                 SNS[SNS Topics]

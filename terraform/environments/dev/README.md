@@ -40,7 +40,6 @@ graph TD
         direction LR
 
         subgraph "Core Services"
-            style CoreServices fill:#f9f9f9,stroke:#333,stroke-width:2px
             VPC(VPC)
             ALB(ALB)
             ASG(ASG)
@@ -52,22 +51,22 @@ graph TD
             SNS(SNS Topics)
         end
 
-        subgraph "Optional Services (Toggled by Feature Flags)"
-            style OptionalServices fill:#fff,stroke:#999,stroke-dasharray: 5 5
+        subgraph "Optional Services"
+            style OptionalServices fill:#f8f9fa,stroke:#adb5bd,stroke-dasharray: 4 4
             CloudFront(CloudFront + WAF)
             ClientVPN(Client VPN)
             EFS(EFS File System)
             CloudTrail(CloudTrail)
 
             subgraph Lambda_Pipeline [Image Processing Pipeline]
-                style Lambda_Pipeline fill:#fff,stroke:#999,stroke-dasharray: 5 5
+                style Lambda_Pipeline fill:#f8f9fa,stroke:#adb5bd,stroke-dasharray: 4 4
                 Lambda(Lambda)
                 SQS(SQS)
                 DynamoDB(DynamoDB)
             end
 
             subgraph CustomDomain [Custom Domain]
-                style CustomDomain fill:#fff,stroke:#999,stroke-dasharray: 5 5
+                style CustomDomain fill:#f8f9fa,stroke:#adb5bd,stroke-dasharray: 4 4
                 ACM(ACM Certificate)
                 Route53(Route 53 DNS)
             end
@@ -109,11 +108,26 @@ graph TD
         ACM --> CloudFront
     end
 
-    classDef core fill:#d4edff,stroke:#004085,color:#004085;
-    classDef optional fill:#fefefe,stroke:#ccc,stroke-dasharray: 3 3,color:#777;
-    class VPC,ALB,ASG,RDS,ElastiCache,S3,KMS,SecretsManager,SNS core;
-    class CloudFront,ClientVPN,EFS,CloudTrail,Lambda,SQS,DynamoDB,ACM,Route53 optional;
+    %% Style Definitions
+    classDef network fill:#cce5ff,stroke:#66a3ff,color:#004085
+    classDef compute fill:#d4edda,stroke:#77c289,color:#155724
+    classDef datastore fill:#e0cce6,stroke:#a673b2,color:#381640
+    classDef security fill:#f8d7da,stroke:#f58fa0,color:#721c24
+    classDef cdn fill:#fff3cd,stroke:#f5d04d,color:#856404
+    classDef integration fill:#d1ecf1,stroke:#74c6d4,color:#0c5460
+    classDef access fill:#e9ecef,stroke:#adb5bd,color:#343a40
+    classDef optional stroke-dasharray: 3 3,color:#555
 
+    %% Apply Styles
+    class VPC,ALB network
+    class ASG compute
+    class RDS,ElastiCache,S3,DynamoDB,EFS datastore
+    class KMS,SecretsManager security
+    class CloudFront,Route53,ACM cdn
+    class Lambda,SQS,SNS integration
+    class ClientVPN,CloudTrail access
+
+    class CloudFront,ClientVPN,EFS,CloudTrail,Lambda,SQS,DynamoDB,ACM,Route53 optional
 ```
 
 ### 2.2. Key Configuration Choices
