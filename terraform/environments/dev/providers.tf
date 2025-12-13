@@ -56,13 +56,20 @@ terraform {
 # --- Provider Configurations --- #
 # Defines specific configurations for each provider, including aliases for different regions.
 
+# --- AWS Provider Authentication --- #
+# This configuration uses a specific AWS CLI profile named "terraform-role".
+# This profile is configured to assume an IAM Role (TerraformExecutionRole) which holds all necessary permissions.
+# The user's local AWS credentials (in ~/.aws/credentials) are only used to perform the sts:AssumeRole call,
+# providing a secure, temporary session for all Terraform operations.
+# See the root README.md for more details on setting up the local environment.
+
 # --- Default AWS Provider (Primary Region) --- #
 # This is the main provider for the primary deployment region (e.g., eu-west-1).
 # Configure the AWS alias provider and set the default region from a variable
 provider "aws" {
   alias   = "default"
   region  = var.aws_region
-  profile = "default"
+  profile = "terraform-role"
 
   # Common tags applied to all AWS resources (centralized in metadata.tf)
   default_tags {
@@ -76,7 +83,7 @@ provider "aws" {
 provider "aws" {
   alias   = "replication"
   region  = var.replication_region
-  profile = "default"
+  profile = "terraform-role"
 
   default_tags {
     tags = local.common_tags
@@ -90,7 +97,7 @@ provider "aws" {
 provider "aws" {
   alias   = "cloudfront"
   region  = "us-east-1"
-  profile = "default"
+  profile = "terraform-role"
 
   default_tags {
     tags = local.common_tags

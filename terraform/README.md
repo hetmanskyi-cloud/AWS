@@ -234,7 +234,55 @@ To deploy and manage this infrastructure, the following tools must be installed 
 
 ---
 
-## 7. How to Deploy
+## 7. AWS Provider Authentication
+
+This project uses a secure, role-based authentication model for all Terraform operations, adhering to the principle of least privilege.
+
+### 7.1. Authentication Model
+
+Instead of using long-lived IAM user keys with broad permissions, this project uses a combination of a limited-privilege IAM user and a powerful IAM role:
+
+1.  **IAM User (`terraform`):** A dedicated IAM user exists for Terraform operations. This user has **no permissions** attached to it directly, except for a single inline policy that allows it to perform one action: `sts:AssumeRole`.
+2.  **IAM Role (`TerraformExecutionRole`):** This role holds all the powerful permissions required by Terraform to create, manage, and update AWS resources (`AdministratorAccess`, etc.). Its trust policy is configured to only allow the `terraform` user to assume it.
+3.  **Local AWS Profile (`terraform-role`):** The Terraform configuration in this project is hardcoded to use a local AWS profile named `terraform-role`. This profile is configured to use the credentials of the `terraform` user to assume the `TerraformExecutionRole`.
+
+This model ensures that the permanent access keys stored on a developer's machine have a very small "blast radius." If compromised, they cannot be used to access or damage resources directly; they can only be used to request temporary credentials from the role, an action which can be monitored and easily revoked.
+
+### 7.2. Local Configuration Setup
+
+To use this model, you must configure your local AWS CLI files as follows.
+
+1.  **Configure the `credentials` file (`~/.aws/credentials`):**
+    This file should contain the long-lived access key for the `terraform` IAM user. This key will be used to assume the role.
+    ```ini
+    [default]
+    aws_access_key_id = YOUR_TERRAFORM_USER_ACCESS_KEY
+    aws_secret_access_key = YOUR_TERRAFORM_USER_SECRET_KEY
+    ```
+
+2.  **Configure the `config` file (`~/.aws/config`):**
+    This file defines the `terraform-role` profile that Terraform will use. It instructs the AWS CLI to use the `default` profile's credentials to assume the `TerraformExecutionRole`.
+    ```ini
+    [default]
+    region = eu-west-1 # Or your primary region
+
+    [profile terraform-role]
+    role_arn = arn:aws:iam::YOUR_ACCOUNT_ID:role/TerraformExecutionRole
+    source_profile = default
+    region = eu-west-1 # Or your primary region
+    ```
+    *Replace `YOUR_ACCOUNT_ID` with your actual AWS Account ID.*
+
+### 7.3. Key Rotation
+
+The long-lived access key for the `terraform` user should still be rotated periodically (e.g., every 90 days). The process is:
+1.  Create a new access key for the `terraform` user in the IAM console.
+2.  Update the `~/.aws/credentials` file with the new key.
+3.  Deactivate and delete the old key.
+
+---
+
+## 8. How to Deploy
 
 1.  **Clone the Repository:**
     ```bash
@@ -242,26 +290,28 @@ To deploy and manage this infrastructure, the following tools must be installed 
     cd <repository-name>
     ```
 
-2.  **Navigate to an Environment:**
+2.  **Set up your AWS credentials** as described in the **AWS Provider Authentication** section above.
+
+3.  **Navigate to an Environment:**
     Choose the environment you want to deploy (e.g., `dev`).
     ```bash
     cd environments/dev
     ```
 
-3.  **Configure Variables:**
+4.  **Configure Variables:**
     Copy the example variables file and customize it for your deployment.
     ```bash
     cp terraform.tfvars.example terraform.tfvars
-    # Edit terraform.tfvars with your specific values (e.g., account ID)
+    # Edit terraform.tfvars with your specific values
     ```
 
-4.  **Initialize Terraform:**
-    This downloads the necessary providers and initializes the backend. This project uses a local backend by default.
+5.  **Initialize Terraform:**
+    This downloads the necessary providers and initializes the backend.
     ```bash
     terraform init
     ```
 
-5.  **Plan and Apply:**
+6.  **Plan and Apply:**
     Generate an execution plan and then apply it to create the resources in AWS.
     ```bash
     terraform plan -out=tfplan
@@ -272,9 +322,9 @@ To deploy and manage this infrastructure, the following tools must be installed 
 
 ---
 
-## 8. Key Operational Workflows
+## 9. Key Operational Workflows
 
-### 8.1. Golden AMI Workflow
+### 9.1. Golden AMI Workflow
 
 The `stage` environment relies on a "Golden AMI" for deployments. To create or update it:
 1.  **Launch a Base Instance:** Use a `dev`-like environment to launch a fresh instance that runs the full Ansible provisioning process.
@@ -283,14 +333,14 @@ The `stage` environment relies on a "Golden AMI" for deployments. To create or u
 4.  **Update `terraform.tfvars`:** Update the `ami_id` variable in `environments/stage/terraform.tfvars` with the new AMI ID.
 5.  **Deploy:** Run `terraform apply` in the `stage` environment. The ASG will perform a rolling update to launch new instances from the new AMI.
 
-### 8.2. Secrets Rotation
+### 9.2. Secrets Rotation
 
 All sensitive data (database passwords, salts, etc.) is managed in AWS Secrets Manager. To rotate them:
 1.  **Update Version:** Change the `secrets_version` variable in `terraform.tfvars`.
 2.  **Apply:** Run `terraform apply` to regenerate the random values and update them in Secrets Manager.
 3.  **Roll Out:** Trigger a rolling refresh of the Auto Scaling Group to force new instances to launch and fetch the updated secrets on boot.
 
-### 8.3. Accessing EC2 Instances
+### 9.3. Accessing EC2 Instances
 
 Direct SSH access to instances is disabled. All access is managed through **AWS Systems Manager (SSM) Session Manager**.
 1.  Install the [Session Manager plugin for the AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
@@ -299,7 +349,7 @@ Direct SSH access to instances is disabled. All access is managed through **AWS 
     aws ssm start-session --target <instance-id>
     ```
 
-### 8.4. Connecting to the Client VPN
+### 9.4. Connecting to the Client VPN
 
 Secure access to the VPC (and the WordPress admin panel) is provided via the Client VPN.
 1.  **Get the `.ovpn` configuration file** from the Terraform output after deployment:
@@ -310,7 +360,7 @@ Secure access to the VPC (and the WordPress admin panel) is provided via the Cli
 
 ---
 
-## 9. Makefile
+## 10. Makefile
 
 The project includes a `Makefile` to automate common infrastructure management tasks. This simplifies the deployment and management of the AWS infrastructure by providing easy-to-use commands for Terraform operations, script execution, and maintenance tasks.
 
