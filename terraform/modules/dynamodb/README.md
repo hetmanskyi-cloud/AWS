@@ -130,6 +130,7 @@ This module provisions the following resources:
 | `variables.tf` | Defines all input variables, including the `dynamodb_provisioned_autoscaling` object. |
 | `outputs.tf`   | Exposes the table's name and ARN for use in other modules.                            |
 | `metrics.tf`   | Contains CloudWatch Alarms for monitoring table health.                               |
+| `versions.tf`  | Defines required Terraform and provider versions.                                     |
 
 ---
 

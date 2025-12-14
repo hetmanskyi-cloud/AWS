@@ -207,6 +207,7 @@ This module provisions the following AWS resources:
 | `metrics.tf`         | Configures CloudWatch alarms                             |
 | `variables.tf`       | Declares input variables                                 |
 | `outputs.tf`         | Exposes outputs for module integration                   |
+| `versions.tf`        | Defines required Terraform and provider versions.        |
 
 ---
 

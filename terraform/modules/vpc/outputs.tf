@@ -55,7 +55,7 @@ output "private_subnets_map" {
 # --- NAT Gateway IPs --- #
 output "nat_gateway_public_ips" {
   description = "List of public Elastic IP addresses assigned to the NAT Gateways."
-  value       = aws_eip.nat[*].public_ip
+  value       = var.enable_nat_gateway ? (var.single_nat_gateway ? aws_eip.nat_single[*].public_ip : values(aws_eip.nat_ha)[*].public_ip) : []
 }
 
 # --- Routing and Endpoint Outputs --- #

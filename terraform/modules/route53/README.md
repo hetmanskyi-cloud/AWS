@@ -106,6 +106,7 @@ This module provisions the following resources:
 | `main.tf`      | Defines the hosted zone, ACM validation records, and CloudFront ALIAS records. |
 | `variables.tf` | Input variables for custom domain, ACM, and CloudFront integration.            |
 | `outputs.tf`   | Exposes hosted zone ID, name servers, and generated FQDNs.                     |
+| `versions.tf`  | Defines required Terraform and provider versions.                              |
 
 ---
 

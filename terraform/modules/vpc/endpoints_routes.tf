@@ -9,36 +9,74 @@ resource "aws_internet_gateway" "igw" {
 }
 
 # --- NAT Gateway Resources (Conditional) --- #
+# The logic below creates one NAT Gateway per unique Availability Zone for High Availability (HA),
+# or a single NAT Gateway if single_nat_gateway is true.
+# This prevents creating costly duplicate gateways in the same AZ if multiple public subnets are defined there.
 locals {
-  # Create a map of AZ -> NAT Gateway ID for HA routing.
-  # This is only used when enable_nat_gateway is true and single_nat_gateway is false.
-  az_to_nat_gateway_id = var.enable_nat_gateway && !var.single_nat_gateway ? {
-    for i, pub_subnet_key in keys(var.public_subnets) :
-    var.public_subnets[pub_subnet_key].availability_zone => aws_nat_gateway.nat[i].id
-  } : {}
+  # 1. Get a set of unique Availability Zones from the public subnets map.
+  # This is the basis for HA NAT Gateway creation.
+  public_subnet_azs = toset([for subnet in var.public_subnets : subnet.availability_zone])
+
+  # 2. Create a map where each AZ keys a list of the public subnet keys in that AZ.
+  # Example: { "eu-west-1a" = ["public-1a", "public-dmz-1a"], "eu-west-1b" = ["public-1b"] }
+  public_subnet_keys_by_az = {
+    for az in local.public_subnet_azs : az => [
+      for key, subnet in var.public_subnets : key if subnet.availability_zone == az
+    ]
+  }
+
+  # 3. Determine the set of AZs that will host a NAT Gateway in HA mode.
+  # If HA mode is disabled, this set is empty.
+  nat_gateway_azs = var.enable_nat_gateway && !var.single_nat_gateway ? local.public_subnet_azs : toset([])
 }
 
-# EIP for NAT Gateway(s)
-resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.public_subnets)) : 0
-  domain = "vpc"
-
+# EIPs for NAT Gateways
+# In HA mode, one EIP is created for each unique AZ.
+# In Single mode, only one EIP is created.
+resource "aws_eip" "nat_ha" {
+  for_each = local.nat_gateway_azs
+  domain   = "vpc"
   tags = merge(var.tags, {
-    Name = var.single_nat_gateway ? "${var.name_prefix}-nat-eip-${var.environment}" : "${var.name_prefix}-nat-eip-${keys(var.public_subnets)[count.index]}-${var.environment}"
+    Name = "${var.name_prefix}-nat-eip-ha-${each.key}-${var.environment}"
   })
 }
 
-# NAT Gateway(s)
-resource "aws_nat_gateway" "nat" {
-  count = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.public_subnets)) : 0
+resource "aws_eip" "nat_single" {
+  count  = var.enable_nat_gateway && var.single_nat_gateway ? 1 : 0
+  domain = "vpc"
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-nat-eip-single-${var.environment}"
+  })
+}
 
-  allocation_id = aws_eip.nat[count.index].id
-  # Place NAT Gateway in a public subnet.
-  # For HA, one is placed in each public subnet's AZ. For single, it's placed in the first one.
-  subnet_id = aws_subnet.public[keys(var.public_subnets)[count.index]].id
+# NAT Gateways
+# In HA mode, one NAT Gateway is created per unique AZ, placed in the first public subnet of that AZ.
+# In Single mode, one NAT Gateway is created and placed in the first public subnet available.
+resource "aws_nat_gateway" "nat_ha" {
+  for_each = local.nat_gateway_azs
+
+  # An EIP is required for the NAT Gateway
+  allocation_id = aws_eip.nat_ha[each.key].id
+
+  # Place the NAT Gateway in the first public subnet found for that AZ.
+  # It's safe to pick the first one as all public subnets in an AZ share the same public route table.
+  subnet_id = aws_subnet.public[local.public_subnet_keys_by_az[each.key][0]].id
 
   tags = merge(var.tags, {
-    Name = var.single_nat_gateway ? "${var.name_prefix}-nat-gateway-${var.environment}" : "${var.name_prefix}-nat-gateway-${keys(var.public_subnets)[count.index]}-${var.environment}"
+    Name = "${var.name_prefix}-nat-gateway-${each.key}-${var.environment}"
+  })
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_nat_gateway" "nat_single" {
+  count = var.enable_nat_gateway && var.single_nat_gateway ? 1 : 0
+
+  allocation_id = aws_eip.nat_single[0].id
+  subnet_id     = values(aws_subnet.public)[0].id # Place in the first available public subnet
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-nat-gateway-${var.environment}"
   })
 
   depends_on = [aws_internet_gateway.igw]
@@ -56,7 +94,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-rt-${var.environment}"
+    Name = "${var.name_prefix}-public-route-table${var.environment}"
   })
 }
 
@@ -70,7 +108,14 @@ resource "aws_route_table_association" "public" {
 
 
 # --- Private Route Table Configuration (per-AZ for HA) --- #
-# A route table is created for each private subnet to route traffic to the NAT Gateway in the same AZ.
+# A route table is created for each private subnet to route traffic to the appropriate NAT Gateway.
+#
+# IMPORTANT: This configuration assumes network symmetry for HA mode.
+# In High Availability mode (!single_nat_gateway), the lookup for a NAT Gateway is based on the Availability Zone
+# of the *private* subnet. This implies that for every private subnet in a given AZ (e.g., 'eu-west-1a'),
+# there must be at least one public subnet in the *same* AZ.
+# If this condition is not met, Terraform will fail because it won't find a corresponding NAT Gateway
+# (as they are only created in AZs with public subnets).
 resource "aws_route_table" "private" {
   for_each = var.private_subnets
   vpc_id   = aws_vpc.vpc.id
@@ -78,13 +123,15 @@ resource "aws_route_table" "private" {
   dynamic "route" {
     for_each = var.enable_nat_gateway ? [1] : []
     content {
-      cidr_block     = "0.0.0.0/0"
-      nat_gateway_id = var.single_nat_gateway ? aws_nat_gateway.nat[0].id : local.az_to_nat_gateway_id[each.value.availability_zone]
+      cidr_block = "0.0.0.0/0"
+      # If single_nat_gateway is true, use the single NAT.
+      # Otherwise, look up the correct HA NAT Gateway for the private subnet's specific AZ.
+      nat_gateway_id = var.single_nat_gateway ? aws_nat_gateway.nat_single[0].id : aws_nat_gateway.nat_ha[each.value.availability_zone].id
     }
   }
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-rt-${each.key}-${var.environment}"
+    Name = "${var.name_prefix}-private-route-table-${each.key}-${var.environment}"
   })
 }
 

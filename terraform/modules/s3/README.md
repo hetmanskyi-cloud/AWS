@@ -343,6 +343,7 @@ This module provisions the following AWS resources:
 | `policies.tf`     | Bucket policies, CORS rules, and access controls                                         |
 | `replication.tf`  | Cross-region replication configuration and IAM roles                                     |
 | `variables.tf`    | Input variables                                                                          |
+| `versions.tf`     | Defines required Terraform and provider versions.                                        |
 
 ---
 

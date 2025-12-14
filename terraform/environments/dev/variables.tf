@@ -58,6 +58,16 @@ variable "vpc_cidr_block" {
   type        = string
 }
 
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway for private subnets."
+  type        = bool
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT Gateway for all AZs."
+  type        = bool
+}
+
 # --- Subnet Configuration Variables --- #
 
 variable "public_subnets" {

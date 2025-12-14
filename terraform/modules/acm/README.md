@@ -106,6 +106,7 @@ This separation is critical for preventing a circular dependency where `acm` dep
 | `variables.tf` | Defines all configurable input variables for the certificate.                   |
 | `outputs.tf`   | Exposes the certificate ARN and the data required for DNS validation.           |
 | `README.md`    | This documentation file.                                                        |
+| `versions.tf`  | Defines required Terraform and provider versions.                               |
 
 ---
 

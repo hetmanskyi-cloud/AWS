@@ -99,6 +99,7 @@ This module provisions the following resources:
 | `main.tf`      | Defines the `null_resource` trigger and the `aws_lambda_layer_version`.  |
 | `variables.tf` | Input variables for customization.                                       |
 | `outputs.tf`   | Module outputs, primarily the ARN of the created layer version.          |
+| `versions.tf`  | Defines required Terraform and provider versions.                        |
 
 ---
 

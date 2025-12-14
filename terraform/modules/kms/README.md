@@ -199,6 +199,7 @@ This module provisions:
 | `metrics.tf`     | CloudWatch alarms for monitoring key usage.                         |
 | `variables.tf`   | Input variables and validation rules for customization.             |
 | `outputs.tf`     | Module outputs including ARNs and IDs of created resources.         |
+| `versions.tf`    | Defines required Terraform and provider versions.                   |
 
 ---
 

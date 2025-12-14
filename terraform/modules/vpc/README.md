@@ -8,19 +8,20 @@
 - [2. Prerequisites / Requirements](#2-prerequisites--requirements)
 - [3. Architecture Diagram](#3-architecture-diagram)
 - [4. Features](#4-features)
-- [5. Module Architecture](#5-module-architecture)
-- [6. Module Files Structure](#6-module-files-structure)
-- [7. Inputs](#7-inputs)
-- [8. Outputs](#8-outputs)
-- [9. Example Usage](#9-example-usage)
-- [10. Security Considerations / Recommendations](#10-security-considerations--recommendations)
-- [11. Conditional Resource Creation](#11-conditional-resource-creation)
-- [12. Best Practices](#12-best-practices)
-- [13. Integration](#13-integration)
-- [14. Future Improvements](#14-future-improvements)
-- [15. Troubleshooting and Common Issues](#15-troubleshooting-and-common-issues)
-- [16. Notes](#16-notes)
-- [17. Useful Resources](#17-useful-resources)
+- [5. Design Assumptions and Limitations](#5-design-assumptions-and-limitations)
+- [6. Module Architecture](#6-module-architecture)
+- [7. Module Files Structure](#7-module-files-structure)
+- [8. Inputs](#8-inputs)
+- [9. Outputs](#9-outputs)
+- [10. Example Usage](#10-example-usage)
+- [11. Security Considerations / Recommendations](#11-security-considerations--recommendations)
+- [12. Conditional Resource Creation](#12-conditional-resource-creation)
+- [13. Best Practices](#13-best-practices)
+- [14. Integration](#14-integration)
+- [15. Future Improvements](#15-future-improvements)
+- [16. Troubleshooting and Common Issues](#16-troubleshooting-and-common-issues)
+- [17. Notes](#17-notes)
+- [18. Useful Resources](#18-useful-resources)
 
 ---
 
@@ -142,7 +143,7 @@ graph LR
     - Creates dedicated private route tables for each private subnet.
 - **NAT Gateway**:
     - Optional support for NAT Gateways to provide outbound internet access for private subnets.
-    - Supports both a single NAT Gateway for the VPC or a highly-available setup with a NAT Gateway in each Availability Zone.
+    - Supports both a single NAT Gateway for the VPC or a highly-available setup with one NAT Gateway per unique Availability Zone where public subnets are defined.
 - **Network ACLs (NACLs)**:
     - Configurable rules for controlling inbound and outbound traffic for public and private subnets.
 - **VPC Flow Logs**:
@@ -153,7 +154,34 @@ graph LR
 
 ---
 
-## 5. Module Architecture
+## 5. Design Assumptions and Limitations
+
+### Network Symmetry for HA NAT Gateways
+
+This module's High Availability (HA) NAT Gateway configuration (`single_nat_gateway = false`) operates on a crucial assumption: **network symmetry**.
+
+- **The Logic**: In HA mode, the module creates one NAT Gateway per Availability Zone (AZ) where a public subnet exists. Private subnets are then routed to the NAT Gateway located in their own AZ. The lookup for the correct NAT Gateway is performed using the private subnet's AZ.
+- **The Requirement**: For this to work, **if you define a private subnet in a specific AZ (e.g., `eu-west-1c`), you MUST also define at least one public subnet in that same AZ (`eu-west-1c`)**.
+- **The Risk**: If you create a private subnet in an AZ that has no public subnets, Terraform will fail during the `plan` or `apply` phase. It will be unable to find a corresponding NAT Gateway for that private subnet's route table, resulting in a "Key not found" error.
+
+**Example Failure Scenario:**
+
+```hcl
+# This configuration WILL FAIL
+public_subnets = {
+  "1a" = { availability_zone = "eu-west-1a", ... },
+  "1b" = { availability_zone = "eu-west-1b", ... }
+}
+private_subnets = {
+  "1a" = { availability_zone = "eu-west-1a", ... },
+  "1b" = { availability_zone = "eu-west-1b", ... },
+  "1c" = { availability_zone = "eu-west-1c", ... } # <--- FAILS HERE. No public subnet in 1c.
+}
+```
+
+---
+
+## 6. Module Architecture
 
 This module provisions the following AWS resources:
 - **VPC** with a customizable CIDR block.
@@ -170,7 +198,7 @@ This module provisions the following AWS resources:
 
 ---
 
-## 6. Module Files Structure
+## 7. Module Files Structure
 
 | **File**              | **Description**                                                                 |
 |-----------------------|---------------------------------------------------------------------------------|
@@ -180,10 +208,11 @@ This module provisions the following AWS resources:
 | `flow_logs.tf`        | Configures VPC Flow Logs, related IAM roles, policies, and CloudWatch alarms.   |
 | `variables.tf`        | Declares input variables for the module.                                        |
 | `outputs.tf`          | Exposes key outputs for integration with other modules.                         |
+| `versions.tf`         | Defines required Terraform and provider versions.                               |
 
 ---
 
-## 7. Inputs
+## 8. Inputs
 
 | **Name**                      | **Type**        | **Description**                                                                  |
 |-------------------------------|-----------------|----------------------------------------------------------------------------------|
@@ -203,7 +232,7 @@ This module provisions the following AWS resources:
 
 ---
 
-## 8. Outputs
+## 9. Outputs
 
 | **Name**                       | **Description**                                                                  |
 |--------------------------------|----------------------------------------------------------------------------------|
@@ -224,7 +253,7 @@ This module provisions the following AWS resources:
 
 ---
 
-## 9. Example Usage
+## 10. Example Usage
 
 ```hcl
 module "vpc" {
@@ -277,7 +306,7 @@ module "vpc" {
 ```
 ---
 
-## 10. Security Considerations / Recommendations
+## 11. Security Considerations / Recommendations
 
 This module includes several security-related configurations that should be carefully reviewed and adjusted for production environments.
 
@@ -297,7 +326,8 @@ This module includes several security-related configurations that should be care
     *   A CloudWatch alarm monitors for and alerts on log delivery failures, ensuring security visibility is maintained.
 
 4.  **NAT Gateways**:
-    *   For production environments, always use the highly-available setup (`single_nat_gateway = false`) to avoid a single point of failure for outbound internet connectivity from private subnets.
+    *   For production environments, always use the highly-available setup (`single_nat_gateway = false`) to ensure a resilient NAT Gateway in each unique Availability Zone for outbound internet connectivity from private subnets.
+    *   The module now includes a validation rule to ensure that if HA NAT Gateways are enabled, each private subnet's Availability Zone has a corresponding public subnet to host a NAT Gateway.
     *   Be aware that NAT Gateways incur costs per hour and per gigabyte of data processed.
 
 5.  **Default Security Group**:
@@ -305,23 +335,23 @@ This module includes several security-related configurations that should be care
 
 ---
 
-## 11. Conditional Resource Creation
+## 12. Conditional Resource Creation
 
 - **NAT Gateways**: `aws_eip` and `aws_nat_gateway` resources are created only if `enable_nat_gateway` is set to `true`.
-- **CloudWatch Alarms for Flow Logs**: Created only if a non-null `sns_topic_arn` is provided.
+- **CloudWatch Alarm for Flow Logs**: The `aws_cloudwatch_metric_alarm` resource for monitoring Flow Log delivery errors is created unconditionally. However, the `alarm_actions` that trigger SNS notifications are only attached if a non-null `sns_topic_arn` is provided. If the variable is `null`, the alarm exists but will not send notifications.
 
 ---
 
-## 12. Best Practices
+## 13. Best Practices
 
-1. **High Availability**: For production workloads, create subnets in multiple Availability Zones and set `single_nat_gateway = false` for resilient outbound connectivity.
+1. **High Availability**: For production workloads, create subnets in multiple Availability Zones and set `single_nat_gateway = false`. Ensure that every Availability Zone hosting a private subnet also has a public subnet for resilient outbound connectivity via NAT Gateways. This is enforced by a validation rule.
 2. **Security**: Regularly review NACL rules. Monitor VPC Flow Logs for suspicious activity.
 3. **Scalability**: Use a logical naming convention for your subnet maps (e.g., "1a", "1b") to keep routing and associations clear.
 4. **Least Privilege**: Always start with the most restrictive NACL and security group rules possible and only open up traffic as needed.
 
 ---
 
-## 13. Integration
+## 14. Integration
 
 This VPC module is designed to integrate with:
 - **ALB Module** — for public access to application load balancers.
@@ -331,7 +361,7 @@ This VPC module is designed to integrate with:
 
 ---
 
-## 14. Future Improvements
+## 15. Future Improvements
 
 - Implement **Transit Gateway integration** for multi-VPC architecture.
 - Add **custom DHCP options set** support.
@@ -340,7 +370,7 @@ This VPC module is designed to integrate with:
 
 ---
 
-## 15. Troubleshooting and Common Issues
+## 16. Troubleshooting and Common Issues
 
 This section outlines common issues and provides AWS CLI commands to help diagnose them.
 
@@ -392,7 +422,7 @@ aws logs tail /aws/vpc/flow-logs/<env> --follow
 
 ---
 
-## 16. Notes
+## 17. Notes
 - All subnets and routing are now created dynamically. Ensure your `public_subnets` and `private_subnets` variable maps are structured correctly.
 - For High Availability, ensure you have subnets in multiple AZs and set `single_nat_gateway = false`.
 - NACL rule numbers are hardcoded and spaced to allow for future additions.
@@ -400,7 +430,7 @@ aws logs tail /aws/vpc/flow-logs/<env> --follow
 
 ---
 
-## 17. Useful Resources
+## 18. Useful Resources
 
 - [AWS VPC Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html)
 - [Terraform AWS VPC Module](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest)

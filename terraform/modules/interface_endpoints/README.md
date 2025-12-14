@@ -139,6 +139,7 @@ This module provisions the following resources:
 | `security_group.tf`    | Security Group rules allowing HTTPS access to the endpoints.     |
 | `variables.tf`         | Input variables with detailed validation rules.                  |
 | `outputs.tf`           | Module outputs: Endpoint IDs and Security Group ID.              |
+| `versions.tf`          | Defines required Terraform and provider versions.                |
 
 ---
 

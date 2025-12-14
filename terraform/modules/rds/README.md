@@ -192,6 +192,7 @@ This module provisions the following AWS resources:
 | `iam.tf`               | Configures IAM roles and policies for RDS Enhanced Monitoring                               |
 | `variables.tf`         | Declares input variables for the module                                                     |
 | `outputs.tf`           | Exposes key outputs for integration with other modules                                      |
+| `versions.tf`          | Defines required Terraform and provider versions.                                           |
 
 ---
 

@@ -152,6 +152,7 @@ This module provisions all resources in the **`us-east-1`** region using the `aw
 | `metrics.tf`   | Contains CloudWatch Alarms for monitoring key CloudFront metrics.    |
 | `variables.tf` | Defines all configurable input variables for the module.             |
 | `outputs.tf`   | Exposes important resource attributes as module outputs.             |
+| `versions.tf`  | Defines required Terraform and provider versions.                    |
 
 ---
 

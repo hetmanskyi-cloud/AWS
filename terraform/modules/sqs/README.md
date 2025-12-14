@@ -109,6 +109,7 @@ This module provisions the following AWS resources:
 | `variables.tf` | Input variables for queue configuration and encryption.     |
 | `outputs.tf`   | Exposes queue ARNs, names, and URLs.                        |
 | `metrics.tf`   | Configures CloudWatch alarms for DLQ monitoring.            |
+| `versions.tf`  | Defines required Terraform and provider versions.           |
 
 ---
 

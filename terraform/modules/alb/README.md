@@ -170,6 +170,7 @@ This module provisions:
 | `metrics.tf`         | Contains CloudWatch Alarms for monitoring ALB performance and errors.     |
 | `variables.tf`       | Defines all configurable variables with validation and defaults.          |
 | `outputs.tf`         | Exposes module outputs for integration with other modules or environments.|
+| `versions.tf`        | Defines required Terraform and provider versions.                         |
 
 ---
 

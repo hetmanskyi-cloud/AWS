@@ -122,6 +122,7 @@ This module provisions the following AWS resources:
 | `outputs.tf`     | Module outputs, including the function ARN and IAM role ARN.             |
 | `metrics.tf`     | CloudWatch alarms for monitoring function health and performance.        |
 | `src/`           | Directory containing the Python source code and `requirements.txt.tftpl`.|
+| `versions.tf`    | Defines required Terraform and provider versions.                        |
 
 ---
 

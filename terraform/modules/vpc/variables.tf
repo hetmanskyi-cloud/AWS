@@ -72,6 +72,18 @@ variable "private_subnets" {
     availability_zone = string
   }))
   default = {}
+
+  validation {
+    # This rule ensures that if HA NAT Gateways are enabled, every private subnet has a corresponding
+    # public subnet in the same Availability Zone to host the NAT Gateway.
+    condition = !var.enable_nat_gateway || var.single_nat_gateway || alltrue([
+      for pvt_subnet in var.private_subnets : contains(
+        [for pub_subnet in var.public_subnets : pub_subnet.availability_zone],
+        pvt_subnet.availability_zone
+      )
+    ])
+    error_message = "When High Availability NAT Gateways are enabled (enable_nat_gateway=true, single_nat_gateway=false), each private subnet's Availability Zone must have a corresponding public subnet in the same AZ."
+  }
 }
 
 # --- VPC Flow Logs Configuration Variables --- #

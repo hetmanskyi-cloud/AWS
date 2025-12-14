@@ -138,6 +138,7 @@ This module provisions the following resources:
 | `metrics.tf`        | Contains the optional CloudWatch Alarm for monitoring burst credits.                |
 | `variables.tf`      | Defines all input variables for the module.                                         |
 | `outputs.tf`        | Exposes key resource IDs and attributes for use in other modules.                   |
+| `versions.tf`       | Defines required Terraform and provider versions.                                   |
 
 ---
 
