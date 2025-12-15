@@ -140,7 +140,7 @@ graph LR
 - **Dynamic Subnet Management**: Configures any number of public and private subnets across multiple availability zones using a map-based variable.
 - **Routing**:
     - Creates a single route table for all public subnets with a default route to an Internet Gateway.
-    - Creates dedicated private route tables for each private subnet.
+    - Creates one route table per Availability Zone, shared by all private subnets within that AZ.
 - **NAT Gateway**:
     - Optional support for NAT Gateways to provide outbound internet access for private subnets.
     - Supports both a single NAT Gateway for the VPC or a highly-available setup with one NAT Gateway per unique Availability Zone where public subnets are defined.
@@ -151,6 +151,7 @@ graph LR
     - Includes a CloudWatch Alarm to monitor for log delivery errors.
 - **Gateway Endpoints**: Configurable S3 and DynamoDB endpoints for private access from all subnets.
 - **Security**: Locks down the default security group by removing all default rules.
+- **Dynamic NACLs**: Network ACLs and their rules are dynamically configurable via input variables, allowing for flexible security postures without modifying the module code.
 
 ---
 
@@ -200,15 +201,15 @@ This module provisions the following AWS resources:
 
 ## 7. Module Files Structure
 
-| **File**              | **Description**                                                                 |
-|-----------------------|---------------------------------------------------------------------------------|
-| `main.tf`             | Defines the VPC, subnets, and default security group.                           |
-| `endpoints_routes.tf` | Configures route tables, IGW, NAT Gateways, and Gateway Endpoints.              |
-| `nacl.tf`             | Creates and associates Network ACLs for public and private subnets.             |
-| `flow_logs.tf`        | Configures VPC Flow Logs, related IAM roles, policies, and CloudWatch alarms.   |
-| `variables.tf`        | Declares input variables for the module.                                        |
-| `outputs.tf`          | Exposes key outputs for integration with other modules.                         |
-| `versions.tf`         | Defines required Terraform and provider versions.                               |
+| **File**          | **Description**                                                                   |
+|-------------------|-----------------------------------------------------------------------------------|
+| `main.tf`         | Defines the VPC, subnets, and default security group.                             |
+| `network.tf`      | Configures IGW, NAT Gateways, Route Tables, associations, and Gateway Endpoints.  |
+| `nacl.tf`         | Creates and associates Network ACLs for public and private subnets.               |
+| `flow_logs.tf`    | Configures VPC Flow Logs, related IAM roles, policies, and CloudWatch alarms.     |
+| `variables.tf`    | Declares input variables for the module.                                          |
+| `outputs.tf`      | Exposes key outputs for integration with other modules.                           |
+| `versions.tf`     | Defines required Terraform and provider versions.                                 |
 
 ---
 
@@ -229,6 +230,11 @@ This module provisions the following AWS resources:
 | `kms_key_arn`                 | `string`        | KMS key ARN for Flow Log encryption.                                             |
 | `flow_logs_retention_in_days` | `number`        | Retention period for VPC Flow Logs.                                              |
 | `sns_topic_arn`               | `string`        | SNS topic ARN for CloudWatch alarm notifications.                                |
+| `enable_dns_hostnames`        | `bool`          | Set to true to ensure that instances launched in the VPC get DNS hostnames.      |
+| `enable_dns_support`          | `bool`          | Set to true to ensure that DNS resolution is supported for the VPC.              |
+| `vpc_flow_log_traffic_type`   | `string`        | The type of traffic to capture in VPC Flow Logs (`ALL`, `ACCEPT`, or `REJECT`).  |
+| `public_nacl_rules`           | `map(object)`   | A map of objects defining the ingress and egress rules for the public NACL.      |
+| `private_nacl_rules`          | `map(object)`   | A map of objects defining the ingress and egress rules for the private NACL.     |
 
 ---
 
@@ -245,7 +251,7 @@ This module provisions the following AWS resources:
 | `private_subnets_map`          | A map of private subnets with their details (id, cidr_block, availability_zone). |
 | `nat_gateway_public_ips`       | List of public Elastic IP addresses assigned to the NAT Gateways.                |
 | `public_route_table_id`        | ID of the public route table.                                                    |
-| `private_route_table_ids`      | A map of private route table IDs, keyed by the private subnet key.               |
+| `private_route_table_ids`      | A map of private route table IDs, keyed by Availability Zone.                    |
 | `s3_endpoint_id`               | The ID of the S3 Gateway Endpoint.                                               |
 | `dynamodb_endpoint_id`         | The ID of the DynamoDB VPC Endpoint.                                             |
 | `default_security_group_id`    | The ID of the default security group for the VPC.                                |
@@ -285,15 +291,15 @@ module "vpc" {
 
   private_subnets = {
     "1a" = {
-      cidr_block        = "10.0.101.0/24"
+      cidr_block        = "10.0.10.0/24"
       availability_zone = "eu-west-1a"
     },
     "1b" = {
-      cidr_block        = "10.0.102.0/24"
+      cidr_block        = "10.0.20.0/24"
       availability_zone = "eu-west-1b"
     },
     "1c" = {
-      cidr_block        = "10.0.103.0/24"
+      cidr_block        = "10.0.30.0/24"
       availability_zone = "eu-west-1c"
     }
   }
@@ -388,7 +394,7 @@ aws ec2 describe-route-tables --filters Name=tag:Name,Values=<name_prefix>-publi
 - Check that the private route table for the specific AZ has a `0.0.0.0/0` route pointing to the correct NAT Gateway ID.
 - Verify the private NACL allows outbound HTTPS traffic.
 ```bash
-aws ec2 describe-route-tables --filters Name=tag:Name,Values=<name_prefix>-private-rt-<subnet_key>-<environment>
+aws ec2 describe-route-tables --filters Name=tag:Name,Values=<name_prefix>-private-rtb-<az>-<environment>
 ```
 
 ### 3. Flow Logs Delivery Errors

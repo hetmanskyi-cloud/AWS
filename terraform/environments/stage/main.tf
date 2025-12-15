@@ -7,6 +7,8 @@ module "vpc" {
   vpc_cidr_block     = var.vpc_cidr_block
   public_subnets     = var.public_subnets
   private_subnets    = var.private_subnets
+  public_nacl_rules  = var.public_nacl_rules
+  private_nacl_rules = var.private_nacl_rules
   enable_nat_gateway = var.enable_nat_gateway
   single_nat_gateway = var.single_nat_gateway
 

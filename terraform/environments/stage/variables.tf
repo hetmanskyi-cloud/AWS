@@ -88,6 +88,18 @@ variable "private_subnets" {
   default = {}
 }
 
+variable "public_nacl_rules" {
+  description = "A map of network ACL rules for public subnets"
+  type        = any
+  default     = {}
+}
+
+variable "private_nacl_rules" {
+  description = "A map of network ACL rules for private subnets"
+  type        = any
+  default     = {}
+}
+
 # CloudWatch Flow Log Retention
 variable "flow_logs_retention_in_days" {
   description = "Retention period in days for CloudWatch logs"

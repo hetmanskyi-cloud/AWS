@@ -81,15 +81,19 @@ resource "aws_security_group_rule" "all_outbound" {
 
 # --- Outbound Rule for ASG to VPC Endpoints --- #
 # Allows outbound HTTPS traffic from ASG instances to VPC Endpoints (e.g., SSM, CloudWatch).
-# Enabled only if `enable_interface_endpoints = true` and a valid SG ID is provided.
+# Enabled only if `enable_interface_endpoints = true`.
 resource "aws_security_group_rule" "allow_private_ssm_egress" {
-  count = var.enable_interface_endpoints && var.vpc_endpoint_security_group_id != null ? 1 : 0
+  # This rule is created only if interface endpoints are enabled.
+  # The decision is based on a static variable known at plan time, avoiding errors.
+  count = var.enable_interface_endpoints ? 1 : 0
 
-  security_group_id        = aws_security_group.asg_security_group.id # ASG Security Group
-  type                     = "egress"
-  protocol                 = "tcp"
-  from_port                = 443
-  to_port                  = 443
+  security_group_id = aws_security_group.asg_security_group.id # ASG Security Group
+  type              = "egress"
+  protocol          = "tcp"
+  from_port         = 443
+  to_port           = 443
+  # The source SG ID is computed at apply time, which is perfectly valid
+  # as long as it's not used in the 'count' expression itself.
   source_security_group_id = var.vpc_endpoint_security_group_id # Security Group of VPC Endpoints
   description              = "Allow outbound HTTPS traffic from ASG instances to VPC Endpoints"
 }

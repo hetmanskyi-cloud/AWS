@@ -148,6 +148,10 @@ resource "aws_ec2_client_vpn_authorization_rule" "vpc_access" {
 
   access_group_id      = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? var.vpn_access_group_id : null
   authorize_all_groups = (var.vpn_access_group_id != null && var.vpn_access_group_id != "") ? false : true
+
+  depends_on = [
+    aws_ec2_client_vpn_network_association.vpc
+  ]
 }
 
 # --- Pet Name for VPN DNS --- #
@@ -158,21 +162,7 @@ resource "random_pet" "vpn_prefix" {
   separator = "" # No separator, e.g. "nicepanda"
 }
 
-# --- Routes to VPC CIDR from each associated subnet --- #
-# Adds explicit routes so client traffic destined for the VPC is forwarded via each associated subnet.
-# NOTE: Route creation can race with associations; `depends_on` ensures associations are ready first.
-resource "aws_ec2_client_vpn_route" "to_vpc" {
-  for_each = { for i, subnet_id in var.vpc_subnet_ids : i => subnet_id }
 
-  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.endpoint.id
-  destination_cidr_block = var.vpc_cidr
-  target_vpc_subnet_id   = each.value
-  description            = "Route VPC CIDR via associated subnet ${each.value}"
-
-  depends_on = [
-    aws_ec2_client_vpn_network_association.vpc
-  ]
-}
 
 # --- Notes --- #
 # 1. General Logic:
@@ -188,7 +178,7 @@ resource "aws_ec2_client_vpn_route" "to_vpc" {
 #
 # 4. Routing & Associations:
 #    - Each selected subnet is associated with the endpoint (HA across AZs).
-#    - Explicit routes to `var.vpc_cidr` are required; they do not appear automatically with associations.
+#    - A route to `var.vpc_cidr` is automatically added by AWS upon network association.
 #
 # 5. DNS:
 #    - Provide up to two DNS servers; prefer the VPC resolver (base IP + 2 of the VPC CIDR) to resolve private zones.

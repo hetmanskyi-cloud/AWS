@@ -78,9 +78,9 @@ resource "aws_cloudwatch_log_group" "vpc_log_group" {
 # - Use IAM role for secure delivery
 resource "aws_flow_log" "vpc_flow_log" {
   log_destination      = aws_cloudwatch_log_group.vpc_log_group.arn
-  traffic_type         = "ALL"              # Capture all traffic (accepted, rejected, and all)
-  vpc_id               = aws_vpc.vpc.id     # Specify the VPC ID
-  log_destination_type = "cloud-watch-logs" # Set destination to CloudWatch Logs
+  traffic_type         = var.vpc_flow_log_traffic_type # Capture all traffic (accepted, rejected, and all)
+  vpc_id               = aws_vpc.vpc.id                # Specify the VPC ID
+  log_destination_type = "cloud-watch-logs"            # Set destination to CloudWatch Logs
   iam_role_arn         = aws_iam_role.vpc_flow_logs_role.arn
 
   # Prevents Terraform from blocking the destroy action on this resource

@@ -23,7 +23,7 @@ ENV             ?= dev
 
 # Path to the current environment's Terraform configuration (dev, stage, prod)
 TF_DIR          = environments/$(ENV)
-SCRIPTS_DIR     = ./scripts     # Directory for helper scripts
+SCRIPTS_DIR = ./scripts
 
 # Tag value for the Environment tag on the golden AMI itself. This will be 'golden' regardless of source ENV.
 AMI_GOLDEN_TAG  ?= golden
@@ -54,27 +54,27 @@ validate:
 
 # Preview infrastructure changes without applying (always run before apply)
 plan:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) plan
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) plan
 
 # Apply infrastructure changes (auto-approve, use with caution)
 apply:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) apply -auto-approve
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) apply -auto-approve
 
 # Destroy all managed infrastructure (irreversible, use with caution)
 destroy:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) destroy -auto-approve
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) destroy -auto-approve
 
 # Show current Terraform-managed infrastructure
 show:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) show
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) show
 
 # Display Terraform outputs for the current environment
 output:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) output
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) output
 
 # Refresh the local state with remote infrastructure (makes no changes)
 refresh:
-	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) refresh
+	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) refresh
 
 # Generate a resource dependency graph in DOT format (see with Graphviz)
 graph:
@@ -82,11 +82,11 @@ graph:
 
 # Monitor the WordPress installation process on EC2 via SSM
 debug:
-	bash $(SCRIPTS_DIR)/debug_monitor.sh
+	AWS_PROFILE=terraform-role bash $(SCRIPTS_DIR)/debug_monitor.sh
 
 # Check for AWS resources that remain after destroy (avoids cloud resource leaks)
 check:
-	bash $(SCRIPTS_DIR)/check_aws_resources.sh
+	AWS_PROFILE=terraform-role bash $(SCRIPTS_DIR)/check_aws_resources.sh
 
 # Ensure required CLI tools (Terraform, AWS CLI) are installed before any actions
 check-tools:
@@ -110,7 +110,7 @@ provision-ami: check-tools
 	\
 	# Step 2: Find the running instance IP and ID based on tags \
 	echo "[$$TIMESTAMP] Finding instance IP and ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_INFO=$$(aws ec2 describe-instances \
+	INSTANCE_INFO=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
 		--filters "Name=tag:Environment,Values=$(ENV)" \
 				  "Name=tag:Application,Values=$(APPLICATION)" \
 				  "Name=tag:Component,Values=$(COMPONENT)" \
@@ -143,7 +143,7 @@ provision-ami: check-tools
 	\
 	# Step 4: Run Ansible playbook for system update and hardening via SSH \
 	echo "[$$TIMESTAMP] Running Ansible prepare-golden-ami.yml..." | tee -a $$LOG_FILE; \
-	ansible-playbook -i $$INVENTORY_FILE ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
+	AWS_PROFILE=terraform-role ansible-playbook -i $$INVENTORY_FILE ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
 	echo "[$$TIMESTAMP] Provisioning done. Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
 
 # --- AMI Test Target --- #
@@ -170,7 +170,7 @@ test-ami: check-tools
 		echo "ERROR: Inventory file not found at $$INVENTORY_FILE"; exit 1; \
 	fi; \
 	echo "[$$TIMESTAMP] Running Ansible smoke-test-ami.yml..." | tee -a $$LOG_FILE; \
-	ansible-playbook -i $$INVENTORY_FILE $$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
+	AWS_PROFILE=terraform-role ansible-playbook -i $$INVENTORY_FILE $$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
 	\
 	echo "[$$TIMESTAMP] Smoke test complete. Review $$LOG_FILE for details."; \
 	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."
@@ -191,7 +191,7 @@ create-ami: check-tools
 	\
 	# Step 2: Find the running instance ID based on tags (reuse logic) \
 	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_ID=$$(aws ec2 describe-instances \
+	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
 		--filters "Name=tag:Environment,Values=$(ENV)" \
 				  "Name=tag:Application,Values=$(APPLICATION)" \
 				  "Name=tag:Component,Values=$(COMPONENT)" \
@@ -205,7 +205,7 @@ create-ami: check-tools
 	# Step 3: Create the Golden AMI (no reboot) \
 	echo "[$$TIMESTAMP] Creating Golden AMI..." | tee -a $$LOG_FILE; \
 	AMI_NAME="golden-ami-$$TIMESTAMP"; \
-	AMI_ID=$$(aws ec2 create-image \
+	AMI_ID=$$(AWS_PROFILE=terraform-role aws ec2 create-image \
 		--instance-id $$INSTANCE_ID \
 		--name "$$AMI_NAME" \
 		--no-reboot \

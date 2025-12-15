@@ -100,17 +100,247 @@ variable "flow_logs_retention_in_days" {
   type        = number
 }
 
-
 # --- SNS Topic ARN for CloudWatch Alarms --- #
+
 variable "sns_topic_arn" {
   description = "ARN of SNS Topic for CloudWatch Alarms notifications."
   type        = string
   default     = null
 }
 
+# --- VPC DNS Configuration --- #
+
+variable "enable_dns_hostnames" {
+  description = "Set to true to ensure that instances launched in the VPC get DNS hostnames."
+  type        = bool
+  default     = true
+}
+
+variable "enable_dns_support" {
+  description = "Set to true to ensure that DNS resolution is supported for the VPC."
+  type        = bool
+  default     = true
+}
+
+# --- VPC Flow Logs Configuration Variables --- #
+
+variable "vpc_flow_log_traffic_type" {
+  description = "The type of traffic to capture in VPC Flow Logs. Valid values: ALL, ACCEPT, REJECT."
+  type        = string
+  default     = "ALL"
+
+  validation {
+    condition     = contains(["ALL", "ACCEPT", "REJECT"], var.vpc_flow_log_traffic_type)
+    error_message = "The traffic_type for VPC Flow Logs must be one of: ALL, ACCEPT, REJECT."
+  }
+}
+
+# --- Network ACL Rules Configuration --- #
+
+variable "public_nacl_rules" {
+  description = "A map of Network ACL rules for the public NACL."
+  type = map(object({
+    rule_number = number
+    egress      = bool
+    protocol    = string
+    from_port   = number
+    to_port     = number
+    cidr_block  = string
+    rule_action = string
+  }))
+
+  default = {
+    "public_inbound_http" = {
+      rule_number = 100
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "public_inbound_https" = {
+      rule_number = 110
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "public_inbound_ephemeral" = {
+      rule_number = 130
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 1024
+      to_port     = 65535
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "public_inbound_nfs" = {
+      rule_number = 140
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 2049
+      to_port     = 2049
+      cidr_block  = "VPC_CIDR" # Placeholder, will be replaced by local.vpc_cidr_block
+      rule_action = "allow"
+    },
+
+    "public_outbound_allow_all" = {
+      rule_number = 100
+      egress      = true
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    }
+  }
+}
+
+variable "private_nacl_rules" {
+  description = "A map of Network ACL rules for the private NACL."
+  type = map(object({
+    rule_number = number
+    egress      = bool
+    protocol    = string
+    from_port   = number
+    to_port     = number
+    cidr_block  = string
+    rule_action = string
+  }))
+
+  default = {
+    "private_inbound_mysql" = {
+      rule_number = 200
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 3306
+      to_port     = 3306
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_inbound_elasticache" = {
+      rule_number = 210
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 6379
+      to_port     = 6379
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_inbound_ephemeral" = {
+      rule_number = 220
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 1024
+      to_port     = 65535
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_outbound_mysql" = {
+      rule_number = 200
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 3306
+      to_port     = 3306
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_outbound_elasticache" = {
+      rule_number = 210
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 6379
+      to_port     = 6379
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_outbound_dns_tcp" = {
+      rule_number = 220
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 53
+      to_port     = 53
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "private_outbound_dns_udp" = {
+      rule_number = 230
+      egress      = true
+      protocol    = "udp"
+      from_port   = 53
+      to_port     = 53
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "private_outbound_ephemeral" = {
+      rule_number = 240
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 1024
+      to_port     = 65535
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_inbound_https_endpoints" = {
+      rule_number = 250
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_outbound_ssm" = {
+      rule_number = 260
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
+
+    "private_outbound_https" = {
+      rule_number = 270
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    },
+
+    "private_outbound_http" = {
+      rule_number = 280
+      egress      = true
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      cidr_block  = "0.0.0.0/0"
+      rule_action = "allow"
+    }
+  }
+}
+
 # --- Notes --- #
+
 # 1. Variables are structured to allow flexible configuration of the VPC, subnets, and associated resources.
-# 2. Ensure default values for variables are set appropriately for each environment (e.g., dev, prod).
+# 2. Ensure default values for variables are set appropriately for each environment (e.g., dev, stage).
 # 3. Use validations where applicable to enforce consistent and expected values.
 # 4. Regularly update variable descriptions to reflect changes in module functionality.
 # 5. Ensure KMS key provided has correct permissions for CloudWatch Logs (logs service principal).

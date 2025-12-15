@@ -121,7 +121,7 @@ graph TD
 
 ## 5. Module Architecture
 
-- **`main.tf`**: Contains the core `aws_ec2_client_vpn_endpoint` resource, network associations, authorization rules, and routes. It also handles the conditional logic for authentication.
+- **`main.tf`**: Contains the core `aws_ec2_client_vpn_endpoint` resource, network associations, and authorization rules. It also handles the conditional logic for authentication.
 - **`certificates.tf`**: Manages the entire PKI lifecycle for certificate-based authentication using the `tls` provider.
 - **`security_group.tf`**: Defines the security group for the Client VPN endpoint, allowing inbound connections and outbound traffic.
 - **`variables.tf`**: Declares all input variables for the module.
@@ -259,7 +259,7 @@ terraform output -raw client_vpn_config > my-vpn-config.ovpn
   - **Solution:** Ensure the `allow_vpn_connections_in` rule in `security_group.tf` allows `0.0.0.0/0` on TCP port 443.
 - **No Access to VPC Resources:**
   - **Cause:** Missing or incorrect authorization rule or route.
-  - **Solution:** Verify that `aws_ec2_client_vpn_authorization_rule.vpc_access` authorizes access to the correct VPC CIDR (`var.vpc_cidr`) and that `aws_ec2_client_vpn_route.to_vpc` creates a route for that CIDR.
+  - **Solution:** Verify that `aws_ec2_client_vpn_authorization_rule.vpc_access` authorizes access to the correct VPC CIDR (`var.vpc_cidr`). The route to the VPC is created automatically by AWS when the endpoint is associated with a subnet.
 - **Private DNS Names Not Resolving:**
   - **Cause:** The VPN is not configured to use the VPC's internal DNS server.
   - **Solution:** Set the `custom_dns_servers` variable to the VPC's DNS resolver IP (usually the second IP in the VPC's CIDR, e.g., `10.0.0.2` for a `10.0.0.0/16` VPC).
