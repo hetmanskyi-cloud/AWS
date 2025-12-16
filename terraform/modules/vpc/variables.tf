@@ -159,7 +159,6 @@ variable "public_nacl_rules" {
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "public_inbound_https" = {
       rule_number = 110
       egress      = false
@@ -169,9 +168,8 @@ variable "public_nacl_rules" {
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "public_inbound_ephemeral" = {
-      rule_number = 130
+      rule_number = 120
       egress      = false
       protocol    = "tcp"
       from_port   = 1024
@@ -179,19 +177,17 @@ variable "public_nacl_rules" {
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "public_inbound_nfs" = {
-      rule_number = 140
+      rule_number = 130
       egress      = false
       protocol    = "tcp"
       from_port   = 2049
       to_port     = 2049
-      cidr_block  = "VPC_CIDR" # Placeholder, will be replaced by local.vpc_cidr_block
+      cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
     "public_outbound_allow_all" = {
-      rule_number = 100
+      rule_number = 200
       egress      = true
       protocol    = "-1"
       from_port   = 0
@@ -215,8 +211,17 @@ variable "private_nacl_rules" {
   }))
 
   default = {
+    "private_inbound_http_from_alb" = {
+      rule_number = 300
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
     "private_inbound_mysql" = {
-      rule_number = 200
+      rule_number = 310
       egress      = false
       protocol    = "tcp"
       from_port   = 3306
@@ -224,9 +229,8 @@ variable "private_nacl_rules" {
       cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
     "private_inbound_elasticache" = {
-      rule_number = 210
+      rule_number = 320
       egress      = false
       protocol    = "tcp"
       from_port   = 6379
@@ -234,19 +238,26 @@ variable "private_nacl_rules" {
       cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
+    "private_inbound_https_endpoints" = {
+      rule_number = 330
+      egress      = false
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_block  = "VPC_CIDR"
+      rule_action = "allow"
+    },
     "private_inbound_ephemeral" = {
-      rule_number = 220
+      rule_number = 340
       egress      = false
       protocol    = "tcp"
       from_port   = 1024
       to_port     = 65535
-      cidr_block  = "VPC_CIDR"
+      cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "private_outbound_mysql" = {
-      rule_number = 200
+      rule_number = 400
       egress      = true
       protocol    = "tcp"
       from_port   = 3306
@@ -254,9 +265,8 @@ variable "private_nacl_rules" {
       cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
     "private_outbound_elasticache" = {
-      rule_number = 210
+      rule_number = 410
       egress      = true
       protocol    = "tcp"
       from_port   = 6379
@@ -264,9 +274,8 @@ variable "private_nacl_rules" {
       cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
     "private_outbound_dns_tcp" = {
-      rule_number = 220
+      rule_number = 420
       egress      = true
       protocol    = "tcp"
       from_port   = 53
@@ -274,9 +283,8 @@ variable "private_nacl_rules" {
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "private_outbound_dns_udp" = {
-      rule_number = 230
+      rule_number = 430
       egress      = true
       protocol    = "udp"
       from_port   = 53
@@ -284,9 +292,8 @@ variable "private_nacl_rules" {
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "private_outbound_ephemeral" = {
-      rule_number = 240
+      rule_number = 440
       egress      = true
       protocol    = "tcp"
       from_port   = 1024
@@ -294,39 +301,17 @@ variable "private_nacl_rules" {
       cidr_block  = "VPC_CIDR"
       rule_action = "allow"
     },
-
-    "private_inbound_https_endpoints" = {
-      rule_number = 250
-      egress      = false
-      protocol    = "tcp"
-      from_port   = 443
-      to_port     = 443
-      cidr_block  = "VPC_CIDR"
-      rule_action = "allow"
-    },
-
-    "private_outbound_ssm" = {
-      rule_number = 260
-      egress      = true
-      protocol    = "tcp"
-      from_port   = 443
-      to_port     = 443
-      cidr_block  = "VPC_CIDR"
-      rule_action = "allow"
-    },
-
     "private_outbound_https" = {
-      rule_number = 270
+      rule_number = 450
       egress      = true
       protocol    = "tcp"
-      from_port   = 443
+      from_port   = 443 # 443 outbound (includes SSM, AWS APIs, package repos)
       to_port     = 443
       cidr_block  = "0.0.0.0/0"
       rule_action = "allow"
     },
-
     "private_outbound_http" = {
-      rule_number = 280
+      rule_number = 460
       egress      = true
       protocol    = "tcp"
       from_port   = 80
