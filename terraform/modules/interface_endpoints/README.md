@@ -32,14 +32,39 @@ Enabling this module and creating interface endpoints routes that traffic throug
 
 The module is **disabled by default** (`enable_interface_endpoints = false`) and can be enabled to create endpoints for a custom list of services.
 
+> ### **Important: Service Selection**
+>
+> Enabling this module is a critical architectural decision. When `enable_interface_endpoints` is set to `true` with private DNS enabled, your VPC's DNS resolver starts resolving AWS service hostnames to **private IP addresses**.
+>
+> **This means the system will NOT fall back to a NAT Gateway for AWS services that have an endpoint available.**
+>
+> The module's `interface_endpoint_services` variable defaults to an empty list (`[]`). This means you **must** provide a complete list of services needed by your environment. Failure to include a required service (e.g., `secretsmanager`, `ssm`) will result in script failures and connection timeouts.
+>
+> #### **Recommended Service List**
+> For a typical environment where EC2 instances require management via SSM and access to secrets and other AWS APIs, the following list is recommended:
+> ```hcl
+> interface_endpoint_services = [
+>   "kms",
+>   "logs",
+>   "secretsmanager",
+>   "ssm",
+>   "ssmmessages",
+>   "ec2messages",
+>   "ec2"
+> ]
+> ```
+>
+> #### **Note on S3**
+> This module creates **Interface Endpoints**. Access to S3 from private subnets is typically provided by a **Gateway Endpoint**, which is configured in the VPC module, not here. The `ec2` endpoint in the list above can be useful for S3 API calls made via the CLI/SDK that do not go through the Gateway Endpoint.
+
 ### How to enable?
 Set the following in `terraform.tfvars`:
 ```hcl
 enable_interface_endpoints = true
 ```
-And optionally customize the services:
+And provide a complete list of services:
 ```hcl
-interface_endpoint_services = ["ssm", "ssmmessages", "ec2messages", "logs", "kms"]
+interface_endpoint_services = ["kms", "logs", "secretsmanager", "ssm", "ssmmessages", "ec2messages", "ec2"]
 ```
 ---
 
@@ -115,7 +140,7 @@ graph LR
 ## 4. Features
 
 - Provisions VPC Interface Endpoints for a **configurable list of AWS services**.
-- Defaults to creating endpoints for `logs` and `kms`.
+- Creates endpoints for a user-defined list of AWS services.
 - Enables **Private DNS** for seamless service resolution within the VPC.
 - Creates a dedicated **Security Group** with strict HTTPS (TCP 443) access control.
 - Supports **conditional resource creation** via a single boolean flag.
@@ -155,7 +180,7 @@ This module provisions the following resources:
 | `vpc_cidr_block`              | `string`       | CIDR block of the VPC.                                                               |
 | `private_subnet_ids`          | `list(string)` | List of private subnet IDs.                                                          |
 | `enable_interface_endpoints`  | `bool`         | Enable or disable all Interface VPC Endpoints.                                       |
-| `interface_endpoint_services` | `list(string)` | A list of AWS services for which to create endpoints. Defaults to `["logs", "kms"]`. |
+| `interface_endpoint_services` | `list(string)` | A list of AWS services for which to create endpoints. Defaults to `[]`. |
 
 ---
 

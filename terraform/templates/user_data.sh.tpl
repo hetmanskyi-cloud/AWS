@@ -12,6 +12,29 @@ log() {
 exec 1> >(tee -a /var/log/user-data.log| tee /dev/tty) 2>&1
 log "Starting user-data script..."
 
+# --- 1. Install Amazon SSM Agent --- #
+# Installing the SSM agent is crucial for secure remote management via AWS Systems Manager.
+# We first try snap, which is recommended for modern Ubuntu versions.
+# If snap fails, we fall back to apt.
+
+log "Installing Amazon SSM Agent..."
+if snap install amazon-ssm-agent; then
+  log "Amazon SSM Agent installed successfully using snap."
+  systemctl enable amazon-ssm-agent
+  systemctl start amazon-ssm-agent
+else
+  log "Snap installation of Amazon SSM Agent failed, falling back to apt."
+  mkdir -p /tmp/ssm
+  cd /tmp/ssm
+  # Download the .deb package
+  wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+  dpkg -i amazon-ssm-agent.deb
+  systemctl enable amazon-ssm-agent
+  systemctl start amazon-ssm-agent
+  log "Amazon SSM Agent installed successfully using apt."
+fi
+cd / # Change back to root directory
+
 # Prepare temporary workspace and ensure the directory exists
 log "Creating temporary directory for setup..."
 export WP_TMP_DIR="/tmp/wordpress-setup"
@@ -24,7 +47,7 @@ export WP_PATH="/var/www/html"
 sudo mkdir -p "$WP_PATH"
 echo "export WP_PATH='${WP_PATH}'" | sudo tee -a /etc/environment > /dev/null
 
-# --- 1. Ensure AWS CLI (v2) is installed, if not already --- #
+# --- 2. Ensure AWS CLI (v2) is installed, if not already --- #
 
 # This step checks if AWS CLI is installed and installs it if necessary.
 if ! command -v aws >/dev/null 2>&1; then
@@ -52,7 +75,7 @@ else
   log "AWS CLI is already installed."
 fi
 
-# --- 2. Export WordPress-related environment variables --- #
+# --- 3. Export WordPress-related environment variables --- #
 
 # This section exports environment variables for WordPress to be used in the deployment script.
 # Note: Only non-sensitive variables are exported here. Secret variables (e.g., database credentials)
@@ -94,7 +117,7 @@ source /etc/environment
 log "Sorted environment variables for debugging:"
 env | sort >> /var/log/user-data.log
 
-# --- 3. Download Amazon RDS root SSL certificate --- #
+# --- 4. Download Amazon RDS root SSL certificate --- #
 
 # This certificate is required to establish SSL connections to RDS when require_secure_transport=ON
 # Reference: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
@@ -113,7 +136,7 @@ else
   log "RDS SSL certificate downloaded successfully."
 fi
 
-# --- 4. Install and start CloudWatch Agent for log forwarding --- #
+# --- 5. Install and start CloudWatch Agent for log forwarding --- #
 
 if [ "${enable_cloudwatch_logs}" = "true" ]; then
   log "Installing CloudWatch Agent..."
@@ -226,7 +249,7 @@ else
 fi
 fi
 
-# --- 5. Mount EFS File System via Access Point --- #
+# --- 6. Mount EFS File System via Access Point --- #
 
 log "Starting EFS setup..."
 # We check for both IDs, as the access point is useless without the file system.
@@ -314,7 +337,7 @@ else
   log "EFS IDs not provided, skipping EFS mount."
 fi
 
-# --- 6. Retrieve the WordPress deployment script --- #
+# --- 7. Retrieve the WordPress deployment script --- #
 
 # Download deployment script file from S3
 log "Downloading deployment script from S3: ${wordpress_script_path}"
@@ -326,7 +349,7 @@ else
   log "deploy_wordpress.sh downloaded successfully."
 fi
 
-# --- 7. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
+# --- 8. Create a temporary simple healthcheck file (placeholder) for WordPress --- #
 
 log "Creating temporary healthcheck file in $WP_PATH..."
 echo "<?php http_response_code(200); ?>" | sudo tee "$WP_PATH/healthcheck.php" > /dev/null
@@ -340,7 +363,7 @@ else
   exit 1
 fi
 
-# --- 8. Execute the deployment script --- #
+# --- 9. Execute the deployment script --- #
 
 chmod +x "$WP_TMP_DIR/deploy_wordpress.sh"
 log "Running $WP_TMP_DIR/deploy_wordpress.sh..."
@@ -351,7 +374,7 @@ log "User-data script completed!"
 
 # --- Notes --- #
 # - This user_data script is rendered from a Terraform template and executed on first boot of the EC2 instance.
-# - Due to AWS EC2's 16 KB user_data size limit, we store the full WordPress deployment script (`deploy_wordpress.sh`) in an S3 bucket and download it at runtime.
+# - Due to AWS EC2's 16 KB user_data size limit, we store larger or more complex scripts (like `deploy_wordpress.sh`) in an S3 bucket and download them at runtime.
 # - The script performs the following:
 #   * Prepares the environment and export directories for WordPress installation.
 #   * Installs AWS CLI and CloudWatch Agent (if not already present).

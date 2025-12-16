@@ -19,7 +19,7 @@ resource "aws_vpc_endpoint" "main" {
 
 # --- Notes --- #
 # 1. This module uses a `for_each` loop to dynamically create endpoints for each service
-#    listed in the `var.endpoint_services` variable. This makes the module flexible and reusable.
+#    listed in the `var.interface_endpoint_services` variable. This makes the module flexible and reusable.
 #
 # 2. Gateway Endpoints for S3 and DynamoDB are managed separately, typically in the VPC module,
 #    as they have a different architecture (they are not ENIs).

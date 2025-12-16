@@ -89,14 +89,19 @@ variable "enable_interface_endpoints" {
 }
 
 variable "interface_endpoint_services" {
-  description = "A list of AWS services for which to create interface endpoints."
-  type        = list(string)
-  default = [
-    "logs",
-    "kms"
-  ]
-}
+  description = <<-EOT
+  A list of AWS services for which to create interface endpoints. The default is an empty list,
+  meaning you MUST provide a list of services for this module to be useful.
 
+  WARNING: Enabling endpoints changes DNS resolution within the VPC to use private IPs for these services.
+  If an instance needs to contact an AWS service (e.g., secretsmanager, ssm, ec2), its corresponding endpoint MUST be included in this list.
+  Failure to do so will result in connection timeouts, as the system will not fall back to using a NAT Gateway for that service.
+
+  See this module's README.md for a recommended list of services for typical EC2-based workloads.
+  EOT
+  type        = list(string)
+  default     = []
+}
 # --- Notes --- #
 # 1. Variables are designed to provide flexibility and ensure compatibility across environments.
 # 2. CIDR blocks and Subnet IDs are required for Security Group and Endpoint configurations.

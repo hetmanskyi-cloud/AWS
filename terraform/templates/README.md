@@ -142,6 +142,7 @@ graph TD
 - **EFS Integration:** Automatically mounts an EFS file system to `wp-content/uploads` for shared storage.
 - **CloudWatch Logs Integration:** Installs and configures the CloudWatch Agent to ship logs for `user-data`, `nginx`, `php-fpm`, and WordPress itself.
 - **Idempotency:** The `user_data_runtime.sh.tpl` script checks if WordPress is already installed before attempting to run the installation process, making it safe to run on subsequent boots.
+- **SSM Agent Installation:** Ensures the AWS Systems Manager (SSM) agent is installed and running, providing secure, remote management capabilities out-of-the-box.
 
 ---
 

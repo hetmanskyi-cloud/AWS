@@ -148,6 +148,9 @@ export DB_PASSWORD=$(echo "$RDS_SECRETS" | jq -r '.DB_PASSWORD')
 # Export Redis AUTH token for WordPress configuration
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
 
+# INFO: Secrets are temporarily written to /etc/environment for use by other processes (e.g., healthcheck).
+# A cleanup step at the end of this script is designed to remove them.
+# NOTE: A minor security risk exists if the script fails or is interrupted before the final cleanup step is reached.
 # Write critical secrets to /etc/environment for use in healthcheck
 echo "DB_NAME=\"$DB_NAME\"" | sudo tee -a /etc/environment
 echo "DB_USER=\"$DB_USER\"" | sudo tee -a /etc/environment

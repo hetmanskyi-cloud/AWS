@@ -10,7 +10,42 @@ log() {
 exec 1> >(tee -a /var/log/user-data.log) 2>&1
 log "Starting Ansible-based WordPress setup..."
 
-# --- 1. Install AWS CLI v2 (Prerequisite for fetching secrets) --- #
+# --- 1. Install Amazon SSM Agent --- #
+# The script ensures the SSM agent is installed and running.
+# This can be disabled by setting the 'enable_ssm_agent' template variable to false.
+ENABLE_SSM_AGENT="$${enable_ssm_agent:-true}"
+
+if [ "$ENABLE_SSM_AGENT" = "true" ]; then
+  log "SSM agent is enabled by config."
+
+  if systemctl list-unit-files | grep -q '^amazon-ssm-agent'; then
+    log "Amazon SSM Agent appears to be installed already."
+  else
+    log "Installing Amazon SSM Agent..."
+    if command -v snap >/dev/null 2>&1; then
+      if snap install amazon-ssm-agent; then
+        log "Amazon SSM Agent installed via snap."
+      else
+        log "Snap install failed, falling back to .deb."
+      fi
+    fi
+
+    if ! systemctl list-unit-files | grep -q '^amazon-ssm-agent'; then
+      mkdir -p /tmp/ssm && cd /tmp/ssm
+      curl -fSL "https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb" -o amazon-ssm-agent.deb
+      dpkg -i amazon-ssm-agent.deb || (apt-get update -y && apt-get -f install -y)
+      cd /
+    fi
+  fi
+
+  systemctl enable amazon-ssm-agent
+  systemctl restart amazon-ssm-agent
+  systemctl --no-pager status amazon-ssm-agent || true
+else
+  log "SSM agent is disabled by config. Skipping."
+fi
+
+# --- 2. Install AWS CLI v2 (Prerequisite for fetching secrets) --- #
 if ! command -v aws >/dev/null 2>&1; then
   log "Installing AWS CLI v2..."
   TMP_DIR="/tmp/awscli-setup"
@@ -25,11 +60,11 @@ else
   log "AWS CLI is already installed."
 fi
 
-# --- 2. Install Ansible and Git --- #
-log "Installing Ansible & Git..."
-apt-get install -y ansible git
+# --- 3. Install Ansible, Git and JQ --- #
+log "Installing Ansible, Git & JQ..."
+apt-get install -y ansible git jq
 
-# --- 3. Clone Ansible Playbooks Repository --- #
+# --- 4. Clone Ansible Playbooks Repository --- #
 log "Cloning Ansible playbooks repository..."
 # This assumes the Ansible playbooks (including the 'terraform/ansible' structure)
 # are part of the 'AWS.git' repository. The playbooks will be located at
@@ -37,7 +72,7 @@ log "Cloning Ansible playbooks repository..."
 git clone https://github.com/hetmanskyi-cloud/AWS.git /opt/ansible
 cd /opt/ansible
 
-# --- 4. Retrieve Secrets from AWS Secrets Manager --- #
+# --- 5. Retrieve Secrets from AWS Secrets Manager --- #
 log "Retrieving all secrets from AWS Secrets Manager..."
 WP_SECRETS=$(aws secretsmanager get-secret-value --region "${aws_region}" --secret-id "${wordpress_secrets_name}" --query 'SecretString' --output text)
 export WP_ADMIN_USER=$(echo "$WP_SECRETS" | jq -r '.ADMIN_USER')
@@ -59,7 +94,7 @@ REDIS_AUTH_SECRETS=$(aws secretsmanager get-secret-value --region "${aws_region}
 export REDIS_AUTH_TOKEN=$(echo "$REDIS_AUTH_SECRETS" | jq -r '.REDIS_AUTH_TOKEN')
 log "Secrets retrieved successfully."
 
-# --- 5. Create Extra-Vars JSON File --- #
+# --- 6. Create Extra-Vars JSON File --- #
 log "Creating temporary JSON file with variables for Ansible..."
 EXTRA_VARS_FILE="/tmp/extra_vars.json"
 
@@ -95,7 +130,7 @@ EOF
 
 log "Extra-vars file created successfully."
 
-# --- 6. Execute Ansible Playbook --- #
+# --- 7. Execute Ansible Playbook --- #
 log "Executing install-wordpress.yml playbook..."
 
 # Temporarily disable command printing (-x) to prevent secrets from being logged.

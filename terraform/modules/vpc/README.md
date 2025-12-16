@@ -339,6 +339,22 @@ This module includes several security-related configurations that should be care
 5.  **Default Security Group**:
     *   The module intentionally locks down the default security group by removing all ingress and egress rules. This forces the explicit definition of all required traffic via custom security groups, adhering to a "deny by default" security posture.
 
+### Networking Egress Strategy
+
+This VPC module implements a clear strategy for outbound network connectivity from private subnets:
+
+1.  **Default Outbound Access via NAT Gateway**:
+    *   The `enable_nat_gateway` variable is designed to be set to `true` across all environments by default. This ensures that instances within private subnets always have outbound internet access. This is essential for tasks such as:
+        *   Downloading package updates (e.g., `apt update`, `yum update`).
+        *   Accessing public AWS service endpoints (e.g., SSM, CloudWatch, S3 for scripts) when VPC Interface Endpoints are not enabled.
+        *   Accessing external APIs or services required by the application.
+    *   This provides a robust baseline for functionality, making it easier to manage instances in private subnets without having to explicitly configure interface endpoints unless private connectivity is strictly required.
+
+2.  **Optional Private Connectivity via VPC Interface Endpoints**:
+    *   While NAT Gateway provides general internet access, VPC Interface Endpoints (managed by the separate `interface_endpoints` module) offer a more secure and private way to connect to specific AWS services without traversing the public internet.
+    *   Interface Endpoints are considered an **optional enhancement**. If `enable_interface_endpoints` is set to `true` for a given environment, traffic to the specified AWS services will be routed privately through the endpoint, bypassing the NAT Gateway.
+    *   This dual approach allows environments to start with the cost-effective and functionally broad NAT Gateway access, with the flexibility to layer on highly secure, private service access as needed.
+
 ---
 
 ## 12. Conditional Resource Creation

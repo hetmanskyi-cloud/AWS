@@ -62,14 +62,17 @@ output "tags_sns" {
   value       = local.tags_sns
 }
 
+output "interface_endpoint_services" {
+  description = "List of AWS services for which Interface Endpoints are enabled in this environment."
+  value       = var.interface_endpoint_services
+}
+
 # --- VPC Module Outputs --- #
 
 output "vpc_id" {
   description = "The ID of the VPC created in the VPC module"
   value       = module.vpc.vpc_id
 }
-
-
 
 # --- KMS Module Outputs --- #
 
@@ -330,6 +333,12 @@ output "cloudfront_to_alb_secret_header_value" {
   description = "Secret value for the custom CloudFront → ALB header"
   value       = random_password.cloudfront_to_alb_header.result
   sensitive   = true
+}
+
+# Output: CloudFront Distribution Domain Name
+output "cloudfront_distribution_domain_name" {
+  description = "The domain name of the CloudFront distribution."
+  value       = length(module.cloudfront) > 0 ? module.cloudfront[0].cloudfront_distribution_domain_name : null
 }
 
 # --- EFS Module Outputs --- #
