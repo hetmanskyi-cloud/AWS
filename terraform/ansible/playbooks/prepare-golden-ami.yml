@@ -46,7 +46,8 @@
         - 'Nginx Full'
       tags: [hardening, firewall]
 
-    # Crucial: Ensure UFW allows SSH access (port 22) for Ansible to reconnect.
+    # Crucial: Ensure UFW allows SSH access (port 22) for potential future SSM-proxied SSH connections or direct access if needed for troubleshooting.
+    # While Ansible itself connects via SSM during AMI provisioning, the underlying SSH daemon still needs to be available and hardened.
     - name: Ensure UFW allows SSH access (port 22)
       ufw:
         rule: allow

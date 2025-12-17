@@ -44,8 +44,21 @@ if (!defined('WP_REDIS_HOST') || !defined('WP_REDIS_PORT')) {
 
 $redis = new Redis();
 try {
-    $redis->connect(WP_REDIS_HOST, WP_REDIS_PORT);
-    echo "Redis OK\n";
+    // Construct the full host path with scheme if available
+    $redis_host = defined('WP_REDIS_SCHEME') ? WP_REDIS_SCHEME . '://' . WP_REDIS_HOST : WP_REDIS_HOST;
+
+    // Connect to Redis
+    if ($redis->connect($redis_host, WP_REDIS_PORT)) {
+        // Authenticate only if a password is defined
+        if (defined('WP_REDIS_PASSWORD') && WP_REDIS_PASSWORD) {
+            if (!$redis->auth(WP_REDIS_PASSWORD)) {
+                throw new RedisException("Authentication failed.");
+            }
+        }
+        echo "Redis OK\n";
+    } else {
+        throw new RedisException("Could not connect to Redis.");
+    }
 } catch (RedisException $e) {
     http_response_code(500);
     echo "Redis ERROR: " . $e->getMessage() . "\n";

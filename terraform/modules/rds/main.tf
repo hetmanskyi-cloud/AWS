@@ -29,6 +29,8 @@ resource "aws_db_instance" "db" {
   # Parameter Group for Enforcing TLS/SSL
   parameter_group_name = aws_db_parameter_group.rds_params.name
 
+  publicly_accessible = false # Ensure RDS is not publicly accessible for security.
+
   # Backup Configuration
   backup_retention_period = var.backup_retention_period # Backup retention period (days).
   backup_window           = var.backup_window           # Preferred backup window.

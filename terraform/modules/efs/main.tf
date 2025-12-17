@@ -21,7 +21,7 @@ resource "aws_efs_file_system" "efs" {
   }
 
   lifecycle {
-    prevent_destroy = false # In prod MUST be true
+    prevent_destroy = false # IMPORTANT: For production environments, this should be set to `true` to prevent accidental data loss.
   }
 
   tags = merge(var.tags, {

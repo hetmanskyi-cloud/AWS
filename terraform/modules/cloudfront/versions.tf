@@ -11,10 +11,6 @@ terraform {
         aws.cloudfront, # Alias for AWS provider configured to us-east-1
       ]
     }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
     http = {
       source  = "hashicorp/http"
       version = "~> 3.5"

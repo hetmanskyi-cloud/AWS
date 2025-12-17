@@ -55,7 +55,7 @@ variable "target_group_port" {
 
 # ARN of the SSL certificate for HTTPS listener (optional).
 variable "certificate_arn" {
-  description = "ARN of the SSL certificate for HTTPS listener. If null, a self-signed certificate will be generated for testing."
+  description = "ARN of the SSL certificate for HTTPS listener. Required if `enable_https_listener` is true."
   type        = string
   default     = null
 }

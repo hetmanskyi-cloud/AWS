@@ -41,8 +41,8 @@ To run these Ansible playbooks, the following are generally required on the cont
 - **Ansible:** Version 2.10 or higher.
 - **Python 3:** With `boto3` and `botocore` libraries for AWS integration.
 - **AWS CLI:** Configured with appropriate credentials and default region.
-- **SSH Client:** For connecting to EC2 instances.
-- **SSH Key Pair:** The private key corresponding to the public key injected into the EC2 instances.
+- **AWS Session Manager Plugin:** Required for Ansible to connect to EC2 instances via SSM.
+- **Ansible Collection `community.aws`:** Install via `ansible-galaxy collection install community.aws`.
 
 ---
 
@@ -100,6 +100,11 @@ graph TD
 
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
+> **Note on Ansible Connection**: While this diagram shows Ansible interacting with the EC2 instance, the actual connection method varies:
+> -   For **Golden AMI provisioning and testing**, the Ansible Control Node connects to the EC2 instance via **AWS Systems Manager (SSM)**.
+> -   For **application deployment** (via `user_data_ansible.sh.tpl`), Ansible is installed and executed **locally on the EC2 instance itself** (connecting to `localhost`).
+
+
 ---
 
 ## 4. Features
@@ -145,20 +150,28 @@ ansible/
 
 ## 7. Configuration (`ansible.cfg`)
 
-The `ansible.cfg` file contains global settings for Ansible, including:
-- **`inventory`**: Specifies the path to inventory files.
-- **`retry_files_enabled`**: Disabled to prevent `.retry` files.
-- **`host_key_checking`**: Set to `False` for dynamic environments (caution advised in production).
-- **`stdout_callback`**: Set to `yaml` for human-readable output.
-- **`log_path`**: Configured to direct Ansible's output to `/var/log/ansible_playbook.log` on the managed node, which is then picked up by the CloudWatch Agent.
-- **`verbosity`**: Sets the detail level for logging.
+The `ansible.cfg` file contains global settings for Ansible.
+
+-   **`ansible.cfg`**: This is the default configuration file for general Ansible operations. It typically uses default connection methods (e.g., SSH) if not overridden.
+-   **`ansible-ami.cfg`**: This specialized configuration file is used specifically for the Golden AMI provisioning and testing processes. It configures Ansible to use the `community.aws.aws_ssm` connection plugin, enabling secure connections to EC2 instances via AWS Session Manager without requiring SSH keys or open SSH ports.
+
+Key settings within these files include:
+-   **`inventory`**: Specifies the path to inventory files (or is set dynamically).
+-   **`remote_user`**: The user to connect as on the remote system (e.g., `ubuntu`).
+-   **`transport`**: Defines the connection plugin to use (e.g., `community.aws.aws_ssm`).
+-   **`retry_files_enabled`**: Disabled to prevent `.retry` files.
+-   **`host_key_checking`**: Set to `False` in some contexts for dynamic environments, though less relevant for SSM.
+-   **`stdout_callback`**: Set to `yaml` for human-readable output.
+-   **`log_path`**: Configured to direct Ansible's output to `/var/log/ansible_playbook.log` on the managed node, which is then picked up by the CloudWatch Agent.
+-   **`verbosity`**: Sets the detail level for logging.
 
 ---
 
 ## 8. Inventory
 
-The `inventory/` directory holds Ansible inventory files. Currently, it contains:
-- **`golden-ami-ssh.yaml`**: A static inventory file example for connecting to a specific EC2 instance (e.g., for initial Golden AMI creation) using SSH keys. For dynamic environments (like Auto Scaling Groups), dynamic inventory scripts are typically used by Terraform.
+The `inventory/` directory previously held static inventory files. With the transition to AWS Systems Manager (SSM) for Golden AMI provisioning and testing, Ansible now uses dynamic inventory directly referencing the EC2 Instance ID.
+
+-   **Dynamic Inventory with `community.aws.aws_ssm`**: For Golden AMI creation and testing, Ansible directly targets the EC2 instance ID. The `community.aws.aws_ssm` connection plugin handles the connection securely without the need for traditional inventory files specifying IP addresses or SSH details.
 
 ---
 
@@ -185,33 +198,44 @@ Ansible playbooks utilize variables, often passed from Terraform or defined with
 
 ## 11. Example Usage
 
-### Running a Playbook on a Local/Development Instance
+### Running a Playbook for Golden AMI Preparation (via SSM)
 
-To run a playbook, you typically specify the inventory file and the playbook itself:
+For preparing and testing Golden AMIs, Ansible connects to the target EC2 instance via AWS Systems Manager (SSM). This is managed by the `Makefile` targets (`make provision-ami`, `make test-ami`). The command format is as follows:
 
 ```bash
-# Example: Prepare a Golden AMI
-ansible-playbook -i inventory/golden-ami-ssh.yaml playbooks/prepare-golden-ami.yml --private-key /path/to/your/ssh_key.pem
+# Example: Provision and harden an instance for Golden AMI creation
+# (This command is typically executed via 'make provision-ami ENV=dev')
+ansible-playbook -i "i-0abcdef1234567890," -c community.aws.aws_ssm \
+  --ansible-cfg ansible/ansible-ami.cfg \
+  playbooks/prepare-golden-ami.yml
 
-# Example: Install WordPress (requires variables to be passed)
-ansible-playbook -i inventory/golden-ami-ssh.yaml playbooks/install-wordpress.yml \
-  --extra-vars "wp_config.DB_HOST=your_db_host wp_config.DB_PORT=3306 db_name=wordpress db_user=admin db_password=your_password site_url=http://example.com ..." \
-  --private-key /path/to/your/ssh_key.pem
+# Example: Run automated smoke tests against the provisioned instance
+# (This command is typically executed via 'make test-ami ENV=dev')
+ansible-playbook -i "i-0abcdef1234567890," -c community.aws.aws_ssm \
+  --ansible-cfg ansible/ansible-ami.cfg \
+  playbooks/smoke-test-ami.yml
 ```
+_Note: Replace `i-0abcdef1234567890` with the actual EC2 Instance ID._
 
-### Integration with User Data (via Terraform)
+### Integration with User Data (for Application Deployment)
 
-In a typical cloud deployment, these playbooks are not run manually against instances in an ASG. Instead, a shell script (e.g., `user_data_ansible.sh.tpl` in the `templates/` directory of the root project) would invoke the Ansible `install-wordpress.yml` playbook on a newly launched EC2 instance as part of its user-data, after bootstrapping Ansible itself.
+For deploying WordPress on newly launched EC2 instances (e.g., in a `dev` environment Auto Scaling Group), a shell script (like `user_data_ansible.sh.tpl` in the root `templates/` directory) directly invokes the `install-wordpress.yml` playbook on the instance itself. In this scenario, Ansible runs locally on the instance, so no remote connection (SSH or SSM) is needed.
+
+```bash
+# Example: Install WordPress on localhost (run by user-data script on the EC2 instance)
+ansible-playbook -i localhost, -c local playbooks/install-wordpress.yml \
+  --extra-vars "@extra_vars.json"
+```
 
 ---
 
 ## 12. Security Considerations / Recommendations
 
-- **SSH Hardening:** The `prepare-golden-ami.yml` playbook implements SSH hardening best practices (disabling root login, password authentication).
-- **Secrets Management:** Sensitive information like database passwords and API keys should *never* be hardcoded in playbooks or templates. This project utilizes AWS Secrets Manager, with instances retrieving secrets at runtime via IAM roles.
-- **Least Privilege:** Ensure the IAM roles assigned to EC2 instances running Ansible have only the minimum necessary permissions.
-- **Host Key Checking:** While `host_key_checking = False` is set in `ansible.cfg` for flexibility in dynamic environments, for stricter security, ensure proper host key management is in place in production.
-- **Regular Updates:** The `prepare-golden-ami.yml` playbook handles regular package updates for the base AMI.
+-   **SSM-based Access**: For Golden AMI provisioning and testing, Ansible connects to EC2 instances via AWS Systems Manager (SSM). This eliminates the need for open SSH ports in security groups and removes the dependency on SSH keys on the control machine for these specific operations.
+-   **SSH Hardening:** The `prepare-golden-ami.yml` playbook implements SSH hardening best practices (disabling root login, password authentication, configuring UFW to allow SSH) *on the instance itself*. This is important because while Ansible connects via SSM, SSM can proxy SSH connections, and the underlying SSH daemon still needs to be secured.
+-   **Secrets Management:** Sensitive information like database passwords and API keys should *never* be hardcoded in playbooks or templates. This project utilizes AWS Secrets Manager, with instances retrieving secrets at runtime via IAM roles.
+-   **Least Privilege:** Ensure the IAM roles assigned to EC2 instances running Ansible have only the minimum necessary permissions.
+-   **Regular Updates:** The `prepare-golden-ami.yml` playbook handles regular package updates for the base AMI.
 
 ---
 
@@ -226,33 +250,44 @@ In a typical cloud deployment, these playbooks are not run manually against inst
 ## 14. Integration with Terraform
 
 These Ansible playbooks are designed to integrate seamlessly with the Terraform project:
-- **Golden AMI Creation:** Terraform might invoke `prepare-golden-ami.yml` to build base AMIs.
-- **Instance Provisioning:** Terraform passes instance-specific configurations and sensitive data (via AWS Secrets Manager) to EC2 instances. The instances then use user-data scripts to bootstrap Ansible and execute `install-wordpress.yml` for application deployment.
-- **EFS & S3 Buckets:** Terraform provisions EFS file systems and S3 buckets (e.g., for scripts like `healthcheck.php`), which are then utilized by the Ansible playbooks.
+
+-   **Golden AMI Creation (via SSM)**: The `Makefile` (invoked by the user or CI/CD) now triggers `prepare-golden-ami.yml` to build base AMIs, connecting to the target instance via AWS Systems Manager (SSM). This eliminates the need for Terraform to manage SSH keys or inventory for this process.
+-   **Instance Provisioning (Local Ansible)**: Terraform passes instance-specific configurations and sensitive data (via AWS Secrets Manager) to EC2 instances. The instances then use user-data scripts to bootstrap Ansible locally and execute `install-wordpress.yml` for application deployment.
+-   **EFS & S3 Buckets**: Terraform provisions EFS file systems and S3 buckets (e.g., for scripts like `healthcheck.php`), which are then utilized by the Ansible playbooks.
 
 ---
 
 ## 15. Troubleshooting and Common Issues
 
-### 1. Playbook Fails to Connect to Host
-- **Cause:** Incorrect SSH key path, wrong `ansible_host`, security group rules blocking SSH (port 22).
-- **Solution:** Verify SSH key permissions (`chmod 400`), correct IP/DNS, and check security group ingress rules for port 22. Ensure `ssh-agent` is running if using it.
+### 1. Playbook Fails to Connect to Host (SSM Connection)
+-   **Cause:**
+    -   EC2 instance is not running or terminated.
+    -   SSM Agent not running on the EC2 instance.
+    -   IAM role attached to the EC2 instance lacks necessary SSM permissions (`AmazonSSMManagedInstanceCore`).
+    -   Network connectivity issues preventing SSM Agent from reaching SSM endpoints (e.g., missing VPC endpoints for SSM, `ssmmessages`, `ec2messages`).
+    -   AWS CLI or Session Manager Plugin not correctly configured/installed on the control machine.
+-   **Solution:**
+    -   Verify the EC2 instance state is `running`.
+    -   Check SSM Agent status on the instance.
+    -   Review the instance's IAM role and attached policies.
+    -   Ensure VPC endpoints for SSM-related services are configured in private subnets, or the instance has access to public SSM endpoints.
+    -   Confirm AWS CLI and Session Manager Plugin are installed and configured correctly on your local machine (`aws ssm start-session --help`).
 
 ### 2. Missing Dependencies on Managed Node
-- **Cause:** A package required by a task is not installed, or the `apt` cache is outdated.
-- **Solution:** Ensure `update_cache: yes` is used in `apt` tasks and all necessary packages are listed.
+-   **Cause:** A package required by a task is not installed, or the `apt` cache is outdated.
+-   **Solution:** Ensure `update_cache: yes` is used in `apt` tasks and all necessary packages are listed.
 
 ### 3. Permission Denied Errors
-- **Cause:** Ansible running as a user without sufficient privileges (`become: yes` might be missing or incorrect `become_user`).
-- **Solution:** Verify `become: yes` is set for tasks requiring root privileges. Ensure file ownership/permissions are correct (e.g., `www-data` for WordPress files).
+-   **Cause:** Ansible running as a user without sufficient privileges (`become: yes` might be missing or incorrect `become_user`).
+-   **Solution:** Verify `become: yes` is set for tasks requiring root privileges. Ensure file ownership/permissions are correct (e.g., `www-data` for WordPress files).
 
 ### 4. Secrets Manager Retrieval Issues
-- **Cause:** IAM role on the EC2 instance lacks permissions to `secretsmanager:GetSecretValue` or incorrect `secret-id`.
-- **Solution:** Check the IAM role policies attached to the instance and the `secret-id` variable.
+-   **Cause:** IAM role on the EC2 instance lacks permissions to `secretsmanager:GetSecretValue` or incorrect `secret-id`.
+-   **Solution:** Check the IAM role policies attached to the instance and the `secret-id` variable.
 
 ### 5. CloudWatch Logs Not Appearing
-- **Cause:** CloudWatch Agent not installed/running, incorrect configuration file (`amazon-cloudwatch-agent.json`), or IAM permissions.
-- **Solution:** Verify agent installation, service status, and IAM role permissions (e.g., `CloudWatchAgentServerPolicy`). Check `log_path` in `ansible.cfg`.
+-   **Cause:** CloudWatch Agent not installed/running, incorrect configuration file (`amazon-cloudwatch-agent.json`), or IAM permissions.
+-   **Solution:** Verify agent installation, service status, and IAM role permissions (e.g., `CloudWatchAgentServerPolicy`). Check `log_path` in `ansible.cfg`.
 
 ---
 

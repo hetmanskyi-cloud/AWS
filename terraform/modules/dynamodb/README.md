@@ -28,10 +28,15 @@
 
 This Terraform module provisions a flexible and secure AWS DynamoDB table. It is designed to be highly generic, supporting simple or complex schemas with dynamic attribute and Global Secondary Index (GSI) creation. The module defaults to a cost-effective `PAY_PER_REQUEST` billing mode, with an optional, easy-to-configure `PROVISIONED` mode that includes full autoscaling capabilities.
 
+### Project-Specific Usage
+
+**Note:** Within the "AWS WordPress Terraform" project, this generic module is specifically instantiated to create a DynamoDB table for the **asynchronous image processing pipeline**. Its creation is controlled by the `enable_image_processor` variable in the root environment's configuration (`terraform.tfvars`).
+
+The table stores metadata about image processing jobs, such as image identifiers and processing status. This allows the corresponding Lambda function to track its work and handle retries or errors.
+
 ---
 
 ## 2. Prerequisites / Requirements
-
 - **AWS Provider:** Must be configured in the root module.
 - **KMS Key ARN:** Optional, for using a customer-managed key for encryption.
 - **SNS Topic ARN:** Optional, for receiving CloudWatch alarm notifications.
@@ -258,6 +263,9 @@ module "my_table_prod" {
 - **IAM Modules:** The `dynamodb_table_arn` output is the primary integration point for IAM modules to grant permissions to the table.
 - **Lambda/Application Modules:** The `dynamodb_table_name` output should be passed as an environment variable to your application code (e.g., a Lambda function) so it knows which table to target.
 - **Monitoring Modules:** The `cloudwatch_alarms_topic_arn` variable allows integration with a central SNS topic for notifications.
+
+### Project-Specific Integration
+In this project, the `dynamodb_table_arn` and `dynamodb_table_name` outputs are consumed by the `lambda_images` module. The Lambda function's IAM role is granted permissions to read/write to this table, and the table name is passed to the function as an environment variable. This tight integration is enabled conditionally when `var.enable_image_processor` is `true`.
 
 ---
 

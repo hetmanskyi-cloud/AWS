@@ -108,42 +108,30 @@ provision-ami: check-tools
 	LOG_FILE=$$LOG_DIR/ami_provision_$$TIMESTAMP.log; \
 	echo "[$$TIMESTAMP] Starting AMI provision (baseline update and hardening)..." | tee $$LOG_FILE; \
 	\
-	# Step 2: Find the running instance IP and ID based on tags \
-	echo "[$$TIMESTAMP] Finding instance IP and ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_INFO=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
+	# Step 2: Install community.aws Ansible collection \
+	echo "[$$TIMESTAMP] Installing community.aws Ansible collection..." | tee -a $$LOG_FILE; \
+	ansible-galaxy collection install -r ansible/requirements.yml | tee -a $$LOG_FILE; \
+	\
+	# Step 3: Find the running instance ID based on tags \
+	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
+	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
 		--filters "Name=tag:Environment,Values=$(ENV)" \
 				  "Name=tag:Application,Values=$(APPLICATION)" \
 				  "Name=tag:Component,Values=$(COMPONENT)" \
 				  "Name=tag:Project,Values=$(PROJECT)" \
 				  "Name=tag:Owner,Values=$(OWNER)" \
 				  "Name=instance-state-name,Values=running" \
-		--query "Reservations[0].Instances[0].[InstanceId,PublicIpAddress]" --output text); \
-	INSTANCE_ID=$$(echo "$$INSTANCE_INFO" | awk '{print $$1}'); \
-	INSTANCE_IP=$$(echo "$$INSTANCE_INFO" | awk '{print $$2}'); \
-	if [ -z "$$INSTANCE_IP" ]; then echo "ERROR: Could not find a running instance with a public IP in $(ENV) environment."; exit 1; fi; \
-	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID, IP: $$INSTANCE_IP" | tee -a $$LOG_FILE; \
+		--query "Reservations[0].Instances[0].InstanceId" --output text); \
+	if [ -z "$$INSTANCE_ID" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
+	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID" | tee -a $$LOG_FILE; \
 	\
-	# Step 3: Generate ansible inventory for SSH \
-	INVENTORY_FILE=ansible/inventory/golden-ami-ssh.yaml; \
-	SSH_KEY_PATH="/home/sky/.ssh/hetmansky-ed25519.pem"; \
-	if [ ! -f "$$SSH_KEY_PATH" ]; then \
-		echo "ERROR: SSH key not found at $$SSH_KEY_PATH!"; \
-		exit 1; \
-	fi; \
-	mkdir -p ansible/inventory; \
-	printf "all:\n" > $$INVENTORY_FILE; \
-	printf "  hosts:\n" >> $$INVENTORY_FILE; \
-	printf "    golden-ami-instance:\n" >> $$INVENTORY_FILE; \
-	printf "      ansible_host: %s\n" "$$INSTANCE_IP" >> $$INVENTORY_FILE; \
-	printf "      ansible_connection: ssh\n" >> $$INVENTORY_FILE; \
-	printf "      ansible_user: ubuntu\n" >> $$INVENTORY_FILE; \
-	printf "      ansible_ssh_private_key_file: %s\n" "$$SSH_KEY_PATH" >> $$INVENTORY_FILE; \
-	printf "      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'\n" >> $$INVENTORY_FILE; \
-	echo "[$$TIMESTAMP] Created ansible inventory: $$INVENTORY_FILE" | tee -a $$LOG_FILE; \
-	\
-	# Step 4: Run Ansible playbook for system update and hardening via SSH \
-	echo "[$$TIMESTAMP] Running Ansible prepare-golden-ami.yml..." | tee -a $$LOG_FILE; \
-	AWS_PROFILE=terraform-role ansible-playbook -i $$INVENTORY_FILE ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
+	# Step 4: Run Ansible playbook for system update and hardening via SSM \
+	echo "[$$TIMESTAMP] Running Ansible prepare-golden-ami.yml via SSM..." | tee -a $$LOG_FILE; \
+	AWS_PROFILE=terraform-role ansible-playbook \
+		-i "$$INSTANCE_ID," \
+		-c community.aws.aws_ssm \
+		--ansible-cfg ansible/ansible-ami.cfg \
+		ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
 	echo "[$$TIMESTAMP] Provisioning done. Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
 
 # --- AMI Test Target --- #
@@ -160,17 +148,31 @@ test-ami: check-tools
 	LOG_FILE=$$LOG_DIR/ami_smoke_test_$$TIMESTAMP.log; \
 	echo "[$$TIMESTAMP] Starting AMI smoke test..." | tee $$LOG_FILE; \
 	\
-	# Step 2: Run Ansible smoke test playbook \
+	# Step 2: Install community.aws Ansible collection \
+	echo "[$$TIMESTAMP] Installing community.aws Ansible collection..." | tee -a $$LOG_FILE; \
+	ansible-galaxy collection install -r ansible/requirements.yml | tee -a $$LOG_FILE; \
+	\
+	# Step 3: Find the running instance ID based on tags \
+	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
+	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
+		--filters "Name=tag:Environment,Values=$(ENV)" \
+				  "Name=tag:Application,Values=$(APPLICATION)" \
+				  "Name=tag:Component,Values=$(COMPONENT)" \
+				  "Name=tag:Project,Values=$(PROJECT)" \
+				  "Name=tag:Owner,Values=$(OWNER)" \
+				  "Name=instance-state-name,Values=running" \
+		--query "Reservations[0].Instances[0].InstanceId" --output text); \
+	if [ -z "$$INSTANCE_ID" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
+	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID" | tee -a $$LOG_FILE; \
+	\
+	# Step 4: Run Ansible smoke test playbook via SSM \
 	PLAYBOOK_PATH=ansible/playbooks/smoke-test-ami.yml; \
-	INVENTORY_FILE=ansible/inventory/golden-ami-ssh.yaml; \
-	if [ ! -f "$$PLAYBOOK_PATH" ]; then \
-		echo "ERROR: Playbook not found at $$PLAYBOOK_PATH"; exit 1; \
-	fi; \
-	if [ ! -f "$$INVENTORY_FILE" ]; then \
-		echo "ERROR: Inventory file not found at $$INVENTORY_FILE"; exit 1; \
-	fi; \
-	echo "[$$TIMESTAMP] Running Ansible smoke-test-ami.yml..." | tee -a $$LOG_FILE; \
-	AWS_PROFILE=terraform-role ansible-playbook -i $$INVENTORY_FILE $$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
+	echo "[$$TIMESTAMP] Running Ansible smoke-test-ami.yml via SSM..." | tee -a $$LOG_FILE; \
+	AWS_PROFILE=terraform-role ansible-playbook \
+		-i "$$INSTANCE_ID," \
+		-c community.aws.aws_ssm \
+		--ansible-cfg ansible/ansible-ami.cfg \
+		$$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
 	\
 	echo "[$$TIMESTAMP] Smoke test complete. Review $$LOG_FILE for details."; \
 	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."

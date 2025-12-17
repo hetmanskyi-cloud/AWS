@@ -5,8 +5,9 @@
   gather_facts: yes
 
   tasks:
-    - name: Check SSH access (basic connectivity)
-      ping:
+    # This `ping` task verifies that Ansible can connect to the instance.
+    # When using the `community.aws.aws_ssm` connection plugin, this tests SSM connectivity.
+    # The SSH daemon on the instance is still hardened, and this check implicitly relies on it.
       register: ssh_check_result
       failed_when: ssh_check_result is failed
       changed_when: false
