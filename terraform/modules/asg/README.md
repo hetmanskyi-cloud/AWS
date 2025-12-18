@@ -197,7 +197,6 @@ This module provisions the following AWS resources:
 
 | Name                           | Type           | Description                                             |
 |--------------------------------|----------------|---------------------------------------------------------|
-| `aws_account_id`               | `string`       | AWS Account ID                                          |
 | `aws_region`                   | `string`       | AWS Region                                              |
 | `environment`                  | `string`       | dev, stage, prod                                        |
 | `tags`                         | `map(string)`  | Tags to apply to all resources.                         |
@@ -212,13 +211,13 @@ This module provisions the following AWS resources:
 | `volume_size`                  | `number`       | EBS volume size (GiB)                                   |
 | `volume_type`                  | `string`       | EBS volume type                                         |
 | `vpc_id`                       | `string`       | VPC ID                                                  |
+| `vpc_cidr_block`               | `string`       | The CIDR block of the VPC, used by user data scripts    |
 | `subnet_ids`                   | `list(string)` | Subnets for ASG instances (typically private subnets)   |
 | `wordpress_tg_arn`             | `string`       | ALB Target Group ARN                                    |
 | `sns_topic_arn`                | `string`       | SNS topic for alarms                                    |
 | `kms_key_arn`                  | `string`       | KMS key ARN                                             |
 | `redis_endpoint`               | `string`       | Redis endpoint                                          |
 | `redis_port`                   | `number`       | Redis port                                              |
-| `wordpress_media_bucket_name`  | `string`       | S3 bucket for WordPress media                           |
 | `scripts_bucket_name`          | `string`       | S3 bucket for deployment scripts                        |
 | `enable_interface_endpoints`   | `bool`         | Use VPC Interface Endpoints                             |
 | `enable_data_source`           | `bool`         | Enable fetching ASG instance data                       |
@@ -247,8 +246,8 @@ _(Full list of variables available in the `variables.tf` file)_
 | instance_private_ips          | Private IPs of ASG instances                         |
 | asg_security_group_id         | Security Group ID for ASG instances                  |
 | instance_role_id              | IAM Role ID for instances                            |
-| instance_profile_arn          | IAM Instance Profile ARN                             |
-| asg_role_arn                  | ARN of the IAM role used by ASG instances            |
+| asg_instance_profile_arn      | IAM Instance Profile ARN                             |
+| asg_instance_role_arn         | ARN of the IAM role used by ASG instances            |
 | scale_out_policy_arn          | Scale-Out Policy ARN                                 |
 | scale_in_policy_arn           | Scale-In Policy ARN                                  |
 | rendered_user_data (sensitive)| Rendered User Data script                            |
