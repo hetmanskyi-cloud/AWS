@@ -152,7 +152,7 @@ graph TD
 |----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
 | `user_data.sh.tpl`         | Template for EC2 User Data script that performs a full WordPress deployment by downloading and executing `deploy_wordpress.sh` from S3. |
 | `user_data_ansible.sh.tpl` | Template for EC2 User Data script that bootstraps an instance to deploy WordPress via Ansible by cloning a public Git repo.             |
-| `user_data_runtime.sh.tpl` | Template for EC2 User Data script for Golden AMIs, configuring runtime settings (secrets, EFS) without a full installation.           |
+| `user_data_runtime.sh.tpl` | Template for EC2 User Data script for Golden AMIs, configuring runtime settings (secrets, EFS) without a full installation.             |
 
 ---
 
@@ -230,7 +230,10 @@ resource "aws_launch_template" "main" {
 - **Never Hardcode Secrets:** All sensitive data (DB passwords, API keys, salts) is retrieved from **AWS Secrets Manager** at runtime. Do not pass secrets directly into the template variables.
 - **IAM Least Privilege:** The IAM role attached to the EC2 instances should have the minimum necessary permissions. This includes `secretsmanager:GetSecretValue` on specific secrets and `s3:GetObject` on specific S3 objects.
 - **Git Repository Security:** `user_data_ansible.sh.tpl` clones a public GitHub repository. For production use, it is strongly recommended to fork this repository into a private account and update the URL in the template to maintain control over the code being executed.
-- **Temporary Secret Exposure:** The `user_data_runtime.sh.tpl` script temporarily writes `DB_PASSWORD` and `REDIS_AUTH_TOKEN` to `/etc/environment` to make them available to other processes. The script includes a cleanup step to remove them, but this is a potential security risk if the script fails before cleanup. This practice should be reviewed and potentially replaced with a more secure mechanism.
+- **Temporary Secret Exposure:** Both deployment scripts temporarily write secrets to disk in plain text, which is a security risk if the instance is compromised or the script fails before cleanup.
+  - `user_data_ansible.sh.tpl` writes secrets to `/tmp/extra_vars.json`.
+  - `user_data_runtime.sh.tpl` writes secrets to `/etc/environment`.
+  This practice should be reviewed and potentially replaced with a more secure mechanism for production.
 - **EFS Security:** Ensure that the EFS security group only allows inbound NFS traffic (port 2049) from the EC2 instances that need to mount it.
 
 ---
