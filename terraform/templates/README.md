@@ -27,9 +27,9 @@
 This directory contains Terraform `templatefile` scripts used to dynamically generate EC2 user data for various WordPress deployment strategies. These templates are not standalone modules but are consumed by other modules (like the ASG module) to bootstrap EC2 instances.
 
 The three primary strategies supported are:
-- **S3-Based Deployment (`user_data.sh.tpl`):** A from-scratch installation where deployment scripts are fetched from an S3 bucket. Ideal for development environments.
-- **Ansible-Based Deployment (`user_data_ansible.sh.tpl`):** An alternative from-scratch installation that uses Ansible for provisioning, cloning playbooks from a Git repository.
-- **Golden AMI Deployment (`user_data_runtime.sh.tpl`):** A configuration-only approach for instances launched from a pre-built "Golden AMI" where WordPress and all dependencies are already installed. Ideal for staging and production environments to ensure faster, more consistent deployments.
+- **Ansible-Based Deployment (`user_data_ansible.sh.tpl`):** The **primary** method for `dev`. A from-scratch installation that uses Ansible for provisioning, cloning playbooks from a Git repository.
+- **S3-Based Deployment (`user_data.sh.tpl`):** The **alternative** method for `dev`. A from-scratch installation where deployment scripts are fetched from an S3 bucket.
+- **Golden AMI Deployment (`user_data_runtime.sh.tpl`):** The standard method for `stage` and `prod`. A configuration-only approach for instances launched from a pre-built "Golden AMI" where WordPress and all dependencies are already installed.
 
 ---
 
@@ -61,88 +61,61 @@ The three primary strategies supported are:
 
 ## 3. Architecture Diagram
 
-This diagram primarily illustrates the flow for **`user_data.sh.tpl`**, which is the most comprehensive from-scratch deployment process.
+This diagram illustrates the three distinct bootstrapping workflows initiated by each of the user-data templates.
 
 ```mermaid
 graph TD
-  %% Main Components
-  EC2["EC2 Instance"]
-  UserData["user_data.sh.tpl"]
-  AWSCLI["AWS CLI v2"]
-  EnvVars["Environment Variables"]
-  SecretsManager["AWS Secrets Manager"]
-  WPScript["WordPress Deployment Script"]
-  WordPress["WordPress Configuration"]
-  Healthcheck["Temporary Healthcheck"]
-  WebServer["Nginx + PHP-FPM"]
-  RDSSSL["RDS SSL Certificate"]
-  RedisAuth["Redis Authentication"]
-  RetryParams["Retry Parameters"]
-  CloudWatchAgent["CloudWatch Agent"]
-  CloudWatchLogs["CloudWatch Logs"]
+    subgraph "Workflow 1: Ansible-Based Deployment (user_data_ansible.sh.tpl)"
+        direction LR
+        A1(EC2 Instance Boot) --> A2(User Data Installs Git, Ansible);
+        A2 --> A3(Clones Ansible Repo);
+        A3 --> A4(Fetches All Secrets);
+        A4 --> A5(Creates extra_vars.json);
+        A5 --> A6(Executes ansible-playbook);
+        A6 --> A7(Ansible configures<br>Nginx, PHP, WordPress, EFS, etc.);
+    end
 
-  %% S3 Components
-  S3Script["S3 Bucket<br>(Deployment Scripts)"]
+    subgraph "Workflow 2: S3 Script-Based Deployment (user_data.sh.tpl)"
+        direction LR
+        B1(EC2 Instance Boot) --> B2(User Data Installs AWS CLI);
+        B2 --> B3(Sets up /etc/environment);
+        B3 --> B4(Downloads deploy_wordpress.sh<br>from S3);
+        B4 --> B5(Creates Temporary Healthcheck);
+        B5 --> B6(Executes deploy_wordpress.sh);
+        B6 --> B7(Script installs Nginx, PHP,<br>fetches secrets, configures WP, etc.);
+    end
 
-  %% Main Flow
-  EC2 -->|"Startup"| UserData
-  UserData -->|"Installs"| AWSCLI
-  UserData -->|"Sets"| EnvVars
-  UserData -->|"Downloads"| RDSSSL
-  UserData -->|"Creates"| Healthcheck
-  UserData -->|"Configures"| RetryParams
-  UserData -->|"Installs & Configures"| CloudWatchAgent
-  CloudWatchAgent -->|"Forwards Logs"| CloudWatchLogs
-  EnvVars -->|"Provides Config"| WPScript
+    subgraph "Workflow 3: Golden AMI Runtime Config (user_data_runtime.sh.tpl)"
+        direction LR
+        C1(EC2 Instance Boot<br><i>from Golden AMI</i>) --> C2(User Data Fetches Secrets);
+        C2 --> C3(Uses wp-cli to update<br>wp-config.php);
+        C3 --> C4(Mounts EFS);
+        C4 --> C5(Checks DB & runs<br>`wp core install` if needed);
+        C5 --> C6(Restarts Nginx/PHP-FPM);
+    end
 
-  %% Script Download Logic
-  UserData -->|"Downloads From"| S3Script
-  S3Script -->|"Provides"| WPScript
+    %% Styling
+    classDef workflow1 fill:#1A73E8,stroke:#232F3E,color:white
+    classDef workflow2 fill:#3F8624,stroke:#232F3E,color:white
+    classDef workflow3 fill:#FF9900,stroke:#232F3E,color:black
 
-  %% Secrets Flow
-  WPScript -->|"Fetches Secrets From"| SecretsManager
-  SecretsManager -->|"WordPress Credentials"| WPScript
-  SecretsManager -->|"Redis Token"| RedisAuth
-  RedisAuth -->|"Secure Connection"| WPScript
+    class A1,A2,A3,A4,A5,A6,A7 workflow1;
+    class B1,B2,B3,B4,B5,B6,B7 workflow2;
+    class C1,C2,C3,C4,C5,C6 workflow3;
 
-  %% WordPress Configuration
-  WPScript -->|"Configures"| WordPress
-  WPScript -->|"Starts"| WebServer
-  WebServer -->|"Serves"| WordPress
-  WebServer -->|"Logs"| CloudWatchLogs
-
-  %% Styling
-  classDef compute fill:#FF9900,stroke:#232F3E,color:white
-  classDef storage fill:#1E8449,stroke:#232F3E,color:white
-  classDef security fill:#DD3522,stroke:#232F3E,color:white
-  classDef decision fill:#0066CC,stroke:#232F3E,color:white
-  classDef service fill:#7D3C98,stroke:#232F3E,color:white
-  classDef network fill:#2E86C1,stroke:#232F3E,color:white
-  classDef monitoring fill:#3F8624,stroke:#232F3E,color:white
-
-  class EC2,UserData,AWSCLI,EnvVars,WPScript,WordPress,Healthcheck,WebServer,RetryParams compute
-  class S3Script storage
-  class SecretsManager,RedisAuth security
-  class RDSSSL network
-  class CloudWatchAgent,CloudWatchLogs monitoring
-```
-
-> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
-
----
 
 ## 4. Features
 
 - **Dynamic User Data:** Generates EC2 user data scripts tailored to different deployment environments.
 - **Multiple Deployment Strategies:**
-  - `user_data.sh.tpl`: Full WordPress installation from scratch using scripts from S3.
   - `user_data_ansible.sh.tpl`: Full installation using Ansible playbooks cloned from Git.
+  - `user_data.sh.tpl`: Full WordPress installation from scratch using scripts from S3.
   - `user_data_runtime.sh.tpl`: Runtime configuration for pre-built Golden AMIs.
 - **Secrets Management:** Securely retrieves database credentials, WordPress salts, and Redis tokens from **AWS Secrets Manager** at runtime.
-- **EFS Integration:** Automatically mounts an EFS file system to `wp-content/uploads` for shared storage.
+- **EFS Integration:** Automatically installs `efs-utils` if needed and mounts an EFS file system to `wp-content/uploads`.
 - **CloudWatch Logs Integration:** Installs and configures the CloudWatch Agent to ship logs for `user-data`, `nginx`, `php-fpm`, and WordPress itself.
-- **Idempotency:** The `user_data_runtime.sh.tpl` script checks if WordPress is already installed before attempting to run the installation process, making it safe to run on subsequent boots.
-- **SSM Agent Installation:** Ensures the AWS Systems Manager (SSM) agent is installed and running, providing secure, remote management capabilities out-of-the-box.
+- **Temporary Health Check:** The `user_data.sh.tpl` script creates a temporary `healthcheck.php` file that returns HTTP 200 immediately. This prevents the ALB from terminating the instance during the long initial deployment process.
+- **Idempotency:** The runtime and deployment scripts include checks to prevent re-running completed tasks (e.g., checking if WordPress is already installed, checking if `efs-utils` exists).
 
 ---
 
@@ -164,8 +137,9 @@ This section details the variables required by the `templatefile` function for e
 |--------------------------|--------------|----------------------------------------------------------------------------------------------------------------------------|
 | `wp_config`              | `map(string)`| Map of WordPress config values (e.g., `DB_HOST`, `REDIS_HOST`, `PHP_VERSION`). Used by `all`.                              |
 | `aws_region`             | `string`     | AWS Region for CLI commands and service interaction. Used by `all`.                                                        |
-| `wordpress_version`      | `string`     | WordPress version to install (e.g., a Git branch/tag). Used by `user_data.sh.tpl`, `user_data_ansible.sh.tpl`.             |
+| `wordpress_version`      | `string`     | WordPress version to install (e.g., a Git branch/tag). Used by `all`.                                                      |
 | `public_site_url`        | `string`     | Public URL for the WordPress site, used to configure `WP_HOME` and `WP_SITEURL`. Used by `all`.                            |
+| `vpc_cidr_block`         | `string`     | The CIDR of the VPC. Passed to the Ansible playbook to configure `set_real_ip_from` in Nginx. Used by `user_data_ansible.sh.tpl`. |
 | `enable_https`           | `bool`       | Flag to enable HTTPS/SSL settings in WordPress. Used by `all`.                                                             |
 | `wordpress_secrets_name` | `string`     | Name of the AWS Secrets Manager secret for WordPress credentials and salts. Used by `all`.                                 |
 | `rds_secrets_name`       | `string`     | Name of the AWS Secrets Manager secret for RDS database credentials. Used by `all`.                                        |
@@ -174,12 +148,12 @@ This section details the variables required by the `templatefile` function for e
 | `cloudwatch_log_groups`  | `map(string)`| Map of log group names for various services (`user_data`, `nginx`, etc.). Used by `all`.                                   |
 | `efs_file_system_id`     | `string`     | ID of the EFS File System to mount. If empty, EFS is not mounted. Used by `all`.                                           |
 | `efs_access_point_id`    | `string`     | ID of the EFS Access Point to use for mounting. Used by `all`.                                                             |
-| `retry_max_retries`      | `number`     | Maximum number of retries for operations like DB connection checks. Used by `user_data.sh.tpl`, `user_data_runtime.sh.tpl`.|
-| `retry_retry_interval`   | `number`     | Interval in seconds between retries. Used by `user_data.sh.tpl`, `user_data_runtime.sh.tpl`.                               |
-| `wordpress_script_path`  | `string`     | S3 URI (`s3://...`) of the `deploy_wordpress.sh` script. Used by `user_data.sh.tpl`.                                       |
-| `healthcheck_s3_path`    | `string`     | S3 URI (`s3://...`) of the `healthcheck.php` file. Used by `user_data.sh.tpl`.                                             |
-| `scripts_bucket_name`    | `string`     | S3 bucket name (used by Ansible playbook, passed for context). Used by `user_data_ansible.sh.tpl`.                         |
-| `WP_PATH`                | `string`     | The absolute path on the instance where WordPress should be installed. Used by `user_data_runtime.sh.tpl`.                 |
+| `retry_max_retries`      | `number`     | Max retries for operations like DB connection checks. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.        |
+| `retry_retry_interval`   | `number`     | Interval in seconds between retries. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                           |
+| `wordpress_script_path`  | `string`     | S3 URI (`s3://...`) of the `deploy_wordpress.sh` script. Used only by `user_data.sh.tpl`.                                  |
+| `healthcheck_s3_path`    | `string`     | S3 URI (`s3://...`) of the `healthcheck.php` file. Used only by `user_data.sh.tpl`.                                        |
+| `scripts_bucket_name`    | `string`     | S3 bucket name (used by Ansible playbook). Used only by `user_data_ansible.sh.tpl`.                                        |
+| `WP_PATH`                | `string`     | The absolute path on the instance for WordPress. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                 |
 
 ---
 
@@ -230,10 +204,10 @@ resource "aws_launch_template" "main" {
 - **Never Hardcode Secrets:** All sensitive data (DB passwords, API keys, salts) is retrieved from **AWS Secrets Manager** at runtime. Do not pass secrets directly into the template variables.
 - **IAM Least Privilege:** The IAM role attached to the EC2 instances should have the minimum necessary permissions. This includes `secretsmanager:GetSecretValue` on specific secrets and `s3:GetObject` on specific S3 objects.
 - **Git Repository Security:** `user_data_ansible.sh.tpl` clones a public GitHub repository. For production use, it is strongly recommended to fork this repository into a private account and update the URL in the template to maintain control over the code being executed.
-- **Temporary Secret Exposure:** Both deployment scripts temporarily write secrets to disk in plain text, which is a security risk if the instance is compromised or the script fails before cleanup.
+- **Temporary Secret Exposure:** The deployment scripts temporarily write secrets to disk to pass them to downstream processes. This is a security risk if the instance is compromised or the script fails before cleanup.
   - `user_data_ansible.sh.tpl` writes secrets to `/tmp/extra_vars.json`.
-  - `user_data_runtime.sh.tpl` writes secrets to `/etc/environment`.
-  This practice should be reviewed and potentially replaced with a more secure mechanism for production.
+  - `user_data.sh.tpl` and `user_data_runtime.sh.tpl` write secrets to `/etc/environment`.
+  All scripts are designed to **delete these files or remove the secret lines** upon successful completion, but the risk during execution remains. For production, this process should be reviewed.
 - **EFS Security:** Ensure that the EFS security group only allows inbound NFS traffic (port 2049) from the EC2 instances that need to mount it.
 
 ---

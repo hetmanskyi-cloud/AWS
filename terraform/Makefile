@@ -21,6 +21,14 @@ COMPONENT       ?= asg
 PROJECT         ?= AWS
 ENV             ?= dev
 
+# Use bash with strict flags for all shell commands
+SHELL := /usr/bin/env bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+# AWS CLI/Terraform credentials context
+AWS_PROFILE ?= terraform-role
+export AWS_PROFILE
+
 # Path to the current environment's Terraform configuration (dev, stage, prod)
 TF_DIR          = environments/$(ENV)
 SCRIPTS_DIR = ./scripts
@@ -35,7 +43,7 @@ $(error Please run make from the terraform/ directory)
 endif
 
 # --- Targets --- #
-.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools provision-ami test-ami create-ami use-ami
+.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools update-wordpress provision-ami test-ami create-ami use-ami
 
 # Run full preparation cycle
 all: check-tools init format validate plan
@@ -54,27 +62,27 @@ validate:
 
 # Preview infrastructure changes without applying (always run before apply)
 plan:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) plan
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) plan
 
 # Apply infrastructure changes (auto-approve, use with caution)
 apply:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) apply -auto-approve
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) apply -auto-approve
 
 # Destroy all managed infrastructure (irreversible, use with caution)
 destroy:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) destroy -auto-approve
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) destroy -auto-approve
 
 # Show current Terraform-managed infrastructure
 show:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) show
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) show
 
 # Display Terraform outputs for the current environment
 output:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) output
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) output
 
 # Refresh the local state with remote infrastructure (makes no changes)
 refresh:
-	AWS_PROFILE=terraform-role TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) refresh
+	TF_VAR_environment=$(ENV) terraform -chdir=$(TF_DIR) refresh
 
 # Generate a resource dependency graph in DOT format (see with Graphviz)
 graph:
@@ -82,11 +90,11 @@ graph:
 
 # Monitor the WordPress installation process on EC2 via SSM
 debug:
-	AWS_PROFILE=terraform-role bash $(SCRIPTS_DIR)/debug_monitor.sh
+	bash $(SCRIPTS_DIR)/debug_monitor.sh $(ENV)
 
 # Check for AWS resources that remain after destroy (avoids cloud resource leaks)
 check:
-	AWS_PROFILE=terraform-role bash $(SCRIPTS_DIR)/check_aws_resources.sh
+	bash $(SCRIPTS_DIR)/check_aws_resources.sh $(ENV)
 
 # Ensure required CLI tools (Terraform, AWS CLI) are installed before any actions
 check-tools:
@@ -94,8 +102,14 @@ check-tools:
 	@command -v aws >/dev/null 2>&1 || { echo "AWS CLI is not installed."; exit 1; }
 	@echo "All required CLI tools are installed."
 
+# --- WordPress Update Target --- #
+# For local developer use. Updates the version-controlled WordPress source code.
+# Downloads specified WP Core + plugin versions, and commits them to the Git repo this project is cloned from.
+update-wordpress: check-tools
+	bash $(SCRIPTS_DIR)/update_wordpress.sh
+
 # --- AMI Provisioning Target --- #
-# Provisions (updates and hardens) the running instance for Golden AMI creation using an Ansible playbook.
+# Provisions (updates and hardens) the running instance for Golden AMI creation using a shell script via AWS SSM.
 # This target only prepares the instance; it does NOT create the AMI.
 # Run only in the 'dev' environment.
 provision-ami: check-tools
@@ -105,37 +119,36 @@ provision-ami: check-tools
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
 	LOG_DIR=environments/$(ENV)/ami_history/logs; \
+	mkdir -p "$$LOG_DIR"; \
 	LOG_FILE=$$LOG_DIR/ami_provision_$$TIMESTAMP.log; \
 	echo "[$$TIMESTAMP] Starting AMI provision (baseline update and hardening)..." | tee $$LOG_FILE; \
 	\
-	# Step 2: Install community.aws Ansible collection \
-	echo "[$$TIMESTAMP] Installing community.aws Ansible collection..." | tee -a $$LOG_FILE; \
-	ansible-galaxy collection install -r ansible/requirements.yml | tee -a $$LOG_FILE; \
+	# Step 2: Find the newest running instance and its ASG \
+	echo "[$$TIMESTAMP] Finding newest running instance ID and its ASG..." | tee -a $$LOG_FILE; \
+	INSTANCE_ID=$$(aws ec2 describe-instances \
+		--filters "Name=tag:Environment,Values=$(ENV)" "Name=tag:Application,Values=$(APPLICATION)" "Name=tag:Component,Values=$(COMPONENT)" "Name=tag:Project,Values=$(PROJECT)" "Name=tag:Owner,Values=$(OWNER)" "Name=instance-state-name,Values=running" \
+		--query "Reservations[].Instances[].[InstanceId,LaunchTime] | sort_by(@, &@[1]) | [-1][0]" --output text); \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "None" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
+	ASG_NAME=$$(aws ec2 describe-instances --instance-ids $$INSTANCE_ID --query "Reservations[0].Instances[0].Tags[?Key=='aws:autoscaling:groupName'].Value" --output text); \
+	if [ -z "$$ASG_NAME" ]; then echo "ERROR: Could not find Auto Scaling Group for instance $$INSTANCE_ID."; exit 1; fi; \
+	echo "[$$TIMESTAMP] Selected newest running Instance ID: $$INSTANCE_ID from ASG: $$ASG_NAME" | tee -a $$LOG_FILE; \
 	\
-	# Step 3: Find the running instance ID based on tags \
-	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
-		--filters "Name=tag:Environment,Values=$(ENV)" \
-				  "Name=tag:Application,Values=$(APPLICATION)" \
-				  "Name=tag:Component,Values=$(COMPONENT)" \
-				  "Name=tag:Project,Values=$(PROJECT)" \
-				  "Name=tag:Owner,Values=$(OWNER)" \
-				  "Name=instance-state-name,Values=running" \
-		--query "Reservations[0].Instances[0].InstanceId" --output text); \
-	if [ -z "$$INSTANCE_ID" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
-	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID" | tee -a $$LOG_FILE; \
+	# Step 3: Suspend ASG health checks to prevent instance termination during provisioning \
+	echo "[$$TIMESTAMP] Suspending ASG HealthCheck and ReplaceUnhealthy processes for $$ASG_NAME..." | tee -a $$LOG_FILE; \
+	aws autoscaling suspend-processes --auto-scaling-group-name $$ASG_NAME --scaling-processes HealthCheck ReplaceUnhealthy; \
 	\
-	# Step 4: Run Ansible playbook for system update and hardening via SSM \
-	echo "[$$TIMESTAMP] Running Ansible prepare-golden-ami.yml via SSM..." | tee -a $$LOG_FILE; \
-	AWS_PROFILE=terraform-role ansible-playbook \
-		-i "$$INSTANCE_ID," \
-		-c community.aws.aws_ssm \
-		--ansible-cfg ansible/ansible-ami.cfg \
-		ansible/playbooks/prepare-golden-ami.yml | tee -a $$LOG_FILE; \
-	echo "[$$TIMESTAMP] Provisioning done. Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
+	# Step 4: Run the hardening script via SSM. Use a trap to guarantee ASG processes are resumed. \
+	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME' EXIT; \
+	echo "[$$TIMESTAMP] Running prepare-golden-ami.sh via SSM on instance $$INSTANCE_ID..." | tee -a $$LOG_FILE; \
+	$(SCRIPTS_DIR)/ssm_run.sh $$INSTANCE_ID "$$(cat $(SCRIPTS_DIR)/prepare-golden-ami.sh)" | tee -a $$LOG_FILE; \
+	\
+	# Step 5: Final status message \
+	# Note: The trap will execute after this, resuming ASG processes. \
+	echo "[$$TIMESTAMP] Provisioning script finished. ASG processes will now be resumed." | tee -a $$LOG_FILE; \
+	echo "[$$TIMESTAMP] Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
 
 # --- AMI Test Target --- #
-# Runs the Ansible smoke test playbook to verify that the provisioned instance meets all requirements for Golden AMI.
+# Runs a shell script smoke test via AWS SSM to verify that the provisioned instance meets all requirements for Golden AMI.
 # Only execute after 'provision-ami' and before 'create-ami'.
 # Run only in the 'dev' environment.
 test-ami: check-tools
@@ -145,35 +158,30 @@ test-ami: check-tools
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
 	LOG_DIR=environments/$(ENV)/ami_history/logs; \
+	mkdir -p "$$LOG_DIR"; \
 	LOG_FILE=$$LOG_DIR/ami_smoke_test_$$TIMESTAMP.log; \
 	echo "[$$TIMESTAMP] Starting AMI smoke test..." | tee $$LOG_FILE; \
 	\
-	# Step 2: Install community.aws Ansible collection \
-	echo "[$$TIMESTAMP] Installing community.aws Ansible collection..." | tee -a $$LOG_FILE; \
-	ansible-galaxy collection install -r ansible/requirements.yml | tee -a $$LOG_FILE; \
+	# Step 2: Find the newest running instance and its ASG \
+	echo "[$$TIMESTAMP] Finding newest running instance ID and its ASG..." | tee -a $$LOG_FILE; \
+	INSTANCE_ID=$$(aws ec2 describe-instances \
+		--filters "Name=tag:Environment,Values=$(ENV)" "Name=tag:Application,Values=$(APPLICATION)" "Name=tag:Component,Values=$(COMPONENT)" "Name=tag:Project,Values=$(PROJECT)" "Name=tag:Owner,Values=$(OWNER)" "Name=instance-state-name,Values=running" \
+		--query "Reservations[].Instances[].[InstanceId,LaunchTime] | sort_by(@, &@[1]) | [-1][0]" --output text); \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "None" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
+	ASG_NAME=$$(aws ec2 describe-instances --instance-ids $$INSTANCE_ID --query "Reservations[0].Instances[0].Tags[?Key=='aws:autoscaling:groupName'].Value" --output text); \
+	if [ -z "$$ASG_NAME" ]; then echo "ERROR: Could not find Auto Scaling Group for instance $$INSTANCE_ID."; exit 1; fi; \
+	echo "[$$TIMESTAMP] Selected newest running Instance ID: $$INSTANCE_ID from ASG: $$ASG_NAME" | tee -a $$LOG_FILE; \
 	\
-	# Step 3: Find the running instance ID based on tags \
-	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
-		--filters "Name=tag:Environment,Values=$(ENV)" \
-				  "Name=tag:Application,Values=$(APPLICATION)" \
-				  "Name=tag:Component,Values=$(COMPONENT)" \
-				  "Name=tag:Project,Values=$(PROJECT)" \
-				  "Name=tag:Owner,Values=$(OWNER)" \
-				  "Name=instance-state-name,Values=running" \
-		--query "Reservations[0].Instances[0].InstanceId" --output text); \
-	if [ -z "$$INSTANCE_ID" ]; then echo "ERROR: Could not find a running instance in $(ENV) environment."; exit 1; fi; \
-	echo "[$$TIMESTAMP] Found Instance ID: $$INSTANCE_ID" | tee -a $$LOG_FILE; \
+	# Step 3: Suspend ASG health checks to prevent instance termination during testing \
+	echo "[$$TIMESTAMP] Suspending ASG HealthCheck and ReplaceUnhealthy processes for $$ASG_NAME..." | tee -a $$LOG_FILE; \
+	aws autoscaling suspend-processes --auto-scaling-group-name $$ASG_NAME --scaling-processes HealthCheck ReplaceUnhealthy; \
 	\
-	# Step 4: Run Ansible smoke test playbook via SSM \
-	PLAYBOOK_PATH=ansible/playbooks/smoke-test-ami.yml; \
-	echo "[$$TIMESTAMP] Running Ansible smoke-test-ami.yml via SSM..." | tee -a $$LOG_FILE; \
-	AWS_PROFILE=terraform-role ansible-playbook \
-		-i "$$INSTANCE_ID," \
-		-c community.aws.aws_ssm \
-		--ansible-cfg ansible/ansible-ami.cfg \
-		$$PLAYBOOK_PATH | tee -a $$LOG_FILE; \
+	# Step 4: Run the smoke test script via SSM. Use a trap to guarantee ASG processes are resumed. \
+	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME' EXIT; \
+	echo "[$$TIMESTAMP] Running smoke-test-ami.sh via SSM on instance $$INSTANCE_ID..." | tee -a $$LOG_FILE; \
+	$(SCRIPTS_DIR)/ssm_run.sh $$INSTANCE_ID "$$(cat $(SCRIPTS_DIR)/smoke-test-ami.sh)" | tee -a $$LOG_FILE; \
 	\
+	# Step 5: Final status message \
 	echo "[$$TIMESTAMP] Smoke test complete. Review $$LOG_FILE for details."; \
 	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."
 
@@ -188,12 +196,13 @@ create-ami: check-tools
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
 	LOG_DIR=environments/$(ENV)/ami_history/logs; \
+	mkdir -p "$$LOG_DIR"; \
 	LOG_FILE=$$LOG_DIR/ami_creation_$$TIMESTAMP.log; \
 	echo "[$$TIMESTAMP] Starting Golden AMI creation..." | tee $$LOG_FILE; \
 	\
 	# Step 2: Find the running instance ID based on tags (reuse logic) \
 	echo "[$$TIMESTAMP] Finding instance ID..." | tee -a $$LOG_FILE; \
-	INSTANCE_ID=$$(AWS_PROFILE=terraform-role aws ec2 describe-instances \
+	INSTANCE_ID=$$(aws ec2 describe-instances \
 		--filters "Name=tag:Environment,Values=$(ENV)" \
 				  "Name=tag:Application,Values=$(APPLICATION)" \
 				  "Name=tag:Component,Values=$(COMPONENT)" \
@@ -207,7 +216,7 @@ create-ami: check-tools
 	# Step 3: Create the Golden AMI (no reboot) \
 	echo "[$$TIMESTAMP] Creating Golden AMI..." | tee -a $$LOG_FILE; \
 	AMI_NAME="golden-ami-$$TIMESTAMP"; \
-	AMI_ID=$$(AWS_PROFILE=terraform-role aws ec2 create-image \
+	AMI_ID=$$(aws ec2 create-image \
 		--instance-id $$INSTANCE_ID \
 		--name "$$AMI_NAME" \
 		--no-reboot \
@@ -238,7 +247,7 @@ use-ami: check-tools
 	# Step 2: Update AMI ID in target terraform.tfvars \
 	TARGET_TFVARS="environments/$(TARGET_ENV)/terraform.tfvars"; \
 	echo "Updating AMI ID in $$TARGET_TFVARS..."; \
-	sed -i 's|^ami_id *= *".*"|ami_id = "'$$AMI_ID'"|' $$TARGET_TFVARS; \
+	sed -i.bak 's|^ami_id *= *".*"|ami_id = "'$$AMI_ID'"|' $$TARGET_TFVARS && rm -f $$TARGET_TFVARS.bak; \
 	echo "AMI ID updated to $$AMI_ID"; \
 	\
 	# Step 3: Commit to Git if changed \
@@ -266,9 +275,10 @@ use-ami: check-tools
 # - The 'debug' target monitors WordPress deployment via SSM after EC2 instance initialization.
 # - The 'check' target lists AWS resources that remain after destroy to prevent cloud resource leaks.
 # - The 'check-tools' target verifies that Terraform and AWS CLI are installed before proceeding.
-# - The 'provision-ami' target prepares (updates and hardens) the running instance using an Ansible playbook, but does not create the AMI.
+# - The 'update-wordpress' target updates WordPress core, themes, and plugins using a script.
+# - The 'provision-ami' target prepares (updates and hardens) the running instance using a shell script, but does not create the AMI.
 #   Should only be run in the 'dev' environment. Logs are written to environments/dev/ami_history/logs/.
-# - The 'test-ami' target runs the smoke-test Ansible playbook to verify the provisioned instance. Only proceed to AMI creation if all tests pass.
+# - The 'test-ami' target runs the smoke-test shell script to verify the provisioned instance. Only proceed to AMI creation if all tests pass.
 #   Should only be run in the 'dev' environment.
 # - The 'create-ami' target creates a Golden AMI from the tested instance, tags it as 'golden', and writes its ID to environments/dev/ami_history/ami_id.txt.
 #   The AMI ID and logs are committed to Git. Should only be run in the 'dev' environment.
@@ -276,7 +286,6 @@ use-ami: check-tools
 #   by updating the ami_id in the target's terraform.tfvars and committing changes to Git.
 #   Usage: make use-ami TARGET_ENV=stage SOURCE_ENV=dev
 # - All helper scripts in SCRIPTS_DIR must be executable (e.g., check_aws_resources.sh, debug_monitor.sh).
-# - Ansible playbooks are expected in terraform/ansible/playbooks/. Inventory files are auto-generated per operation.
-# - Ansible inventory for SSM (terraform/ansible/inventory/golden-ami-ssm.yaml) or SSH (golden-ami-ssh.yaml) may be overwritten by provisioning targets.
+# - The Ansible playbook for application deployment is expected in terraform/ansible/playbooks/.
 # - Review log files in environments/$(ENV)/ami_history/logs/ after each operation for troubleshooting or traceability.
 # - Always test changes in the 'dev' environment before promoting to 'stage' or 'prod'.

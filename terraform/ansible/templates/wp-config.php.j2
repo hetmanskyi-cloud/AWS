@@ -43,7 +43,7 @@ $table_prefix = 'wp_';
 /**
  * For developers: WordPress debugging mode.
  */
-define( 'WP_DEBUG', true );
+define( 'WP_DEBUG', {{ wp_debug | lower }} );
 define( 'WP_DEBUG_LOG', '/var/log/wordpress.log' );
 define( 'WP_DEBUG_DISPLAY', false );
 

@@ -57,6 +57,7 @@ locals {
           redis_auth_secret_name = var.redis_auth_secret_name
           enable_cloudwatch_logs = var.enable_cloudwatch_logs
           cloudwatch_log_groups  = jsonencode(var.cloudwatch_log_groups)
+          vpc_cidr_block         = var.vpc_cidr_block
         }
         ) : templatefile(
         # Use the original user_data script that calls deploy_wordpress.sh.

@@ -1,0 +1,45 @@
+[2025-12-17_22-52-31] Starting AMI provision (baseline update and hardening)...
+[2025-12-17_22-52-31] Installing community.aws Ansible collection...
+Starting galaxy collection install process
+Nothing to do. All requested collections are already installed. If you want to reinstall them, consider using `--force`.
+[2025-12-17_22-52-31] Finding instance ID...
+[2025-12-17_22-52-31] Found Instance ID: i-04cdbd6603b8aa6ef
+[2025-12-17_22-52-31] Running Ansible prepare-golden-ami.yml via SSM...
+ansible-playbook [core 2.18.6]
+  config file = /home/sky/AWS/terraform/ansible/ansible-ami.cfg
+  configured module search path = ['/home/sky/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/sky/ansible-venv/lib/python3.12/site-packages/ansible
+  ansible collection location = /home/sky/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/sky/ansible-venv/bin/ansible-playbook
+  python version = 3.12.3 (main, Nov  6 2025, 13:44:16) [GCC 13.3.0] (/home/sky/ansible-venv/bin/python3)
+  jinja version = 3.1.6
+  libyaml = True
+Using /home/sky/AWS/terraform/ansible/ansible-ami.cfg as config file
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+Skipping callback 'default', as we already have a stdout callback.
+Skipping callback 'minimal', as we already have a stdout callback.
+Skipping callback 'oneline', as we already have a stdout callback.
+
+PLAYBOOK: prepare-golden-ami.yml ***********************************************
+1 plays in ansible/playbooks/prepare-golden-ami.yml
+
+PLAY [Prepare Golden AMI (baseline update and hardening)] **********************
+
+TASK [Gathering Facts] *********************************************************
+task path: /home/sky/AWS/terraform/ansible/playbooks/prepare-golden-ami.yml:2
+<i-04cdbd6603b8aa6ef> ssm_retry: attempt: 0, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 0 seconds
+<i-04cdbd6603b8aa6ef> ssm_retry: attempt: 1, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 1 seconds
+<i-04cdbd6603b8aa6ef> ssm_retry: attempt: 2, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 3 seconds
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: TypeError: expected string or bytes-like object, got 'NoneType'
+fatal: [i-04cdbd6603b8aa6ef]: FAILED! =>
+  msg: 'Unexpected failure during module execution: expected string or bytes-like object, got ''NoneType'''
+  stdout: ''
+
+PLAY RECAP *********************************************************************
+i-04cdbd6603b8aa6ef        : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+
+[2025-12-17_22-52-31] Provisioning done. Now verify instance and run make create-ami ENV=dev

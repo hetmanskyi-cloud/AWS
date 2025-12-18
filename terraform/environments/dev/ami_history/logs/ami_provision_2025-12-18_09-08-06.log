@@ -1,0 +1,11 @@
+[2025-12-18_09-08-06] Starting AMI provision (baseline update and hardening)...
+[2025-12-18_09-08-06] Finding newest running instance ID...
+[2025-12-18_09-08-06] Running instances: i-0bccc86364ef1794c
+[2025-12-18_09-08-06] Selected newest running Instance ID: i-0bccc86364ef1794c
+[2025-12-18_09-08-06] Running prepare-golden-ami.sh via SSM...
+{
+    "Status": "Failed",
+    "ResponseCode": 127,
+    "Stdout": "",
+    "Stderr": "/usr/bin/env: ‘bash\\\\n# This script replicates the logic from the Ansible playbook 'prepare-golden-ami.yml'\\\\n# for baseline server updates and security hardening.\\\\n\\\\n# Exit immediately if a command exits with a non-zero status.\\\\n# Print each command to std’: No such file or directory\n/usr/bin/env: use -[v]S to pass options in shebang lines\nfailed to run commands: exit status 127"
+}

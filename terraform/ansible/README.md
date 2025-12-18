@@ -1,4 +1,4 @@
-# Ansible Playbooks for AWS Infrastructure Provisioning
+# Ansible Playbook for AWS WordPress Deployment
 
 ---
 
@@ -9,7 +9,7 @@
 - [3. Architecture Diagram](#3-architecture-diagram)
 - [4. Features](#4-features)
 - [5. Architecture and Directory Structure](#5-architecture-and-directory-structure)
-- [6. Playbooks Description](#6-playbooks-description)
+- [6. Playbook Description](#6-playbook-description)
 - [7. Configuration (`ansible.cfg`)](#7-configuration-ansiblecfg)
 - [8. Inventory](#8-inventory)
 - [9. Templates](#9-templates)
@@ -25,24 +25,21 @@
 
 ## 1. Overview
 
-This directory contains Ansible playbooks and associated configuration files used for provisioning and managing EC2 instances within the AWS infrastructure. The primary roles of these playbooks include:
-- Preparing hardened Golden AMIs.
-- Deploying and configuring WordPress on EC2 instances.
-- Performing smoke tests to verify instance health and configuration.
+This directory contains the Ansible playbook and associated configuration files used for deploying a complete WordPress stack on an EC2 instance within the AWS infrastructure.
 
-Ansible automates the configuration management process, ensuring consistency and adherence to best practices across instances.
+This playbook serves as the **primary, high-fidelity deployment method** for the `dev` environment. It is designed to be executed on the EC2 instance itself, triggered by a `user-data` script when the `use_ansible_deployment` variable is set to `true` in the Terraform configuration. It automates the entire software stack setup, ensuring a consistent and reliable application environment.
 
 ---
 
 ## 2. Prerequisites / Requirements
 
-To run these Ansible playbooks, the following are generally required on the control machine:
+To apply this Ansible playbook on an EC2 instance, the following are required on the instance:
 
 - **Ansible:** Version 2.10 or higher.
 - **Python 3:** With `boto3` and `botocore` libraries for AWS integration.
-- **AWS CLI:** Configured with appropriate credentials and default region.
-- **AWS Session Manager Plugin:** Required for Ansible to connect to EC2 instances via SSM.
-- **Ansible Collection `community.aws`:** Install via `ansible-galaxy collection install community.aws`.
+- **Ansible Collection `community.aws`:** Should be installed via `requirements.yml`.
+
+These dependencies are typically installed by a bootstrapping script before the playbook is run.
 
 ---
 
@@ -50,19 +47,20 @@ To run these Ansible playbooks, the following are generally required on the cont
 
 ```mermaid
 graph TD
-    subgraph "Control Machine"
-        Ansible[Ansible Control Node]
+    subgraph "Terraform Provisioning"
+        Terraform[Terraform] -- Provisions --> EC2[EC2 Instance]
+        Terraform -- Provisions --> ExternalServices("EFS, ElastiCache, RDS, etc.")
+        Terraform -- "Passes Variables (via user-data)" --> EC2
     end
 
-    subgraph "Deployment Flow on EC2 Instance"
-        EC2[EC2 Instance]
-        EC2 -- Installs --> BaseOS("Base OS & Security")
-        EC2 -- Installs --> Nginx("Web Server: Nginx")
-        EC2 -- Installs --> PHP("PHP-FPM")
-        EC2 -- Installs --> RedisClient("Redis Client")
-        EC2 -- Installs --> WordPress("WordPress Core & Plugins")
-        EC2 -- Installs --> CW_Agent("CloudWatch Agent")
-        EC2 -- Installs --> EFS_Mount("EFS Mount Point")
+    subgraph "On-Instance Ansible Execution"
+        EC2 -- "User-data script runs" --> Ansible[Ansible Playbook<br>(localhost)]
+
+        Ansible -- Installs & Configures --> Nginx("Web Server: Nginx")
+        Ansible -- Installs & Configures --> PHP("PHP-FPM")
+        Ansible -- Installs & Configures --> WordPress("WordPress Core & Plugins")
+        Ansible -- Installs & Configures --> CW_Agent("CloudWatch Agent")
+        Ansible -- Configures --> EFS_Mount("EFS Mount Point")
     end
 
     subgraph "External AWS Services"
@@ -75,46 +73,36 @@ graph TD
         RDS["AWS RDS"]
     end
 
-    subgraph "Orchestration"
-        Terraform -- Triggers Ansible --> Ansible
-        Terraform -- Provides Variables --> Ansible
-        Terraform -- Provisions --> ExternalServices
-    end
-
     %% Connections
-    WordPress -- Clone From --> GitRepo
-    WordPress -- Scripts From --> S3
-    WordPress -- Retrieve Credentials From --> SecretsManager
+    EC2 -- "Retrieves Secrets From<br>(via IAM Role)" --> SecretsManager
+    WordPress -- "Clone Code From" --> GitRepo
+    WordPress -- "Get healthcheck.php From" --> S3
     PHP -- Connects To --> RDS
-    RedisClient -- Connects To --> ElastiCache
-    CW_Agent -- Send Logs To --> CloudWatch
+    PHP -- "Stores Sessions In" --> ElastiCache
+    CW_Agent -- "Sends Logs To" --> CloudWatch
     EFS_Mount -- Mounts --> EFS
 
     %% Styling
     style Terraform fill:#7D3C98,stroke:#232F3E,color:white
     style Ansible fill:#1A73E8,stroke:#232F3E,color:white
     style EC2 fill:#FF9900,stroke:#232F3E,color:white
-    class BaseOS,Nginx,PHP,RedisClient,WordPress,CW_Agent,EFS_Mount fill:#3F8624,stroke:#232F3E,color:white
+    class Nginx,PHP,WordPress,CW_Agent,EFS_Mount fill:#3F8624,stroke:#232F3E,color:white
     class GitRepo,S3,SecretsManager,CloudWatch,EFS,ElastiCache,RDS fill:#0B5345,stroke:#232F3e,color:white
 ```
 
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
-> **Note on Ansible Connection**: While this diagram shows Ansible interacting with the EC2 instance, the actual connection method varies:
-> -   For **Golden AMI provisioning and testing**, the Ansible Control Node connects to the EC2 instance via **AWS Systems Manager (SSM)**.
-> -   For **application deployment** (via `user_data_ansible.sh.tpl`), Ansible is installed and executed **locally on the EC2 instance itself** (connecting to `localhost`).
-
+This diagram illustrates the application deployment model where Terraform provisions the necessary infrastructure and then triggers an on-instance Ansible run via a user-data script to configure the software stack.
 
 ---
 
 ## 4. Features
 
-- **Golden AMI Preparation:** Automates system updates, security hardening (UFW, SSH configuration), and cleanup for creating secure base images.
-- **WordPress Deployment:** Installs and configures Nginx, PHP-FPM, MySQL client, Redis, WordPress core, and necessary plugins.
-- **EFS Integration:** Configures EFS mounts for WordPress content (e.g., `wp-content/uploads`).
-- **CloudWatch Agent Setup:** Installs and configures the CloudWatch Agent for comprehensive log collection.
-- **Secrets Management:** Integrates with AWS Secrets Manager for secure retrieval of database credentials and other sensitive data.
-- **Smoke Testing:** Verifies the correct application of hardening measures and basic service functionality on new instances.
+- **Full Stack WordPress Deployment:** Installs and configures Nginx, PHP-FPM, MySQL client, Redis client, WordPress core, and necessary plugins.
+- **Secure Database & Cache Integration:** Configures WordPress to connect to RDS (MySQL) and ElastiCache (Redis) using SSL/TLS.
+- **EFS Integration:** Configures EFS mounts for shared WordPress content (e.g., `wp-content/uploads`).
+- **CloudWatch Agent Setup:** Installs and configures the CloudWatch Agent for comprehensive log collection from the application and system.
+- **Secrets Management:** Integrates with AWS Secrets Manager for secure retrieval of database credentials and other sensitive data at runtime.
 
 ---
 
@@ -123,106 +111,100 @@ graph TD
 The `ansible/` directory is organized as follows:
 
 ```
-ansible/
-├── ansible.cfg                 # Main Ansible configuration file
-├── inventory/                  # Directory for Ansible inventory files
-│   └── golden-ami-ssh.yaml     # Example static inventory for Golden AMI creation
-├── playbooks/                  # Directory containing Ansible playbooks
-│   ├── install-wordpress.yml   # Playbook for installing and configuring WordPress
-│   ├── prepare-golden-ami.yml  # Playbook for hardening and updating the base AMI
-│   └── smoke-test-ami.yml      # Playbook for verifying AMI configuration
-└── templates/                  # Directory for Jinja2 templates used by playbooks
+`ansible/
+├── ansible.cfg                 # Main Ansible configuration for on-instance execution
+├── requirements.yml            # Ansible Galaxy collection requirements
+├── playbooks/                  # Directory containing the Ansible playbook
+│   └── install-wordpress.yml   # Playbook for installing and configuring WordPress
+└── templates/                  # Directory for Jinja2 templates used by the playbook
     ├── wordpress.conf.j2       # Nginx virtual host configuration template
     └── wp-config.php.j2        # WordPress configuration file template
 ```
 
 ---
 
-## 6. Playbooks Description
+## 6. Playbook Description
 
-| **Playbook**               | **Description**                                                                                                                         |
-|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| `prepare-golden-ami.yml`   | Automates secure Golden AMI preparation: system updates, security hardening (UFW, SSH), and cleanup.                                    |
-| `install-wordpress.yml`    | Installs and configures the full WordPress stack, including Nginx, PHP, Redis, EFS media mounting, and CloudWatch Agent for logging.    |
-| `smoke-test-ami.yml`       | Verifies `prepare-golden-ami.yml` application: checks UFW status, SSH config, security packages, and essential services for AMI health. |
+The core logic is contained in the `install-wordpress.yml` playbook. It is a comprehensive, idempotent playbook that installs and configures the full WordPress stack, including Nginx, PHP, Redis integration, EFS media mounting, and the CloudWatch Agent for logging. It is designed to be run on `localhost` by a bootstrapping script.
 
 ---
 
 ## 7. Configuration (`ansible.cfg`)
 
-The `ansible.cfg` file contains global settings for Ansible.
+The primary configuration for the playbook is `ansible.cfg`.
 
--   **`ansible.cfg`**: This is the default configuration file for general Ansible operations. It typically uses default connection methods (e.g., SSH) if not overridden.
--   **`ansible-ami.cfg`**: This specialized configuration file is used specifically for the Golden AMI provisioning and testing processes. It configures Ansible to use the `community.aws.aws_ssm` connection plugin, enabling secure connections to EC2 instances via AWS Session Manager without requiring SSH keys or open SSH ports.
-
-Key settings within these files include:
--   **`inventory`**: Specifies the path to inventory files (or is set dynamically).
--   **`remote_user`**: The user to connect as on the remote system (e.g., `ubuntu`).
--   **`transport`**: Defines the connection plugin to use (e.g., `community.aws.aws_ssm`).
--   **`retry_files_enabled`**: Disabled to prevent `.retry` files.
--   **`host_key_checking`**: Set to `False` in some contexts for dynamic environments, though less relevant for SSM.
+Key settings:
+-   **`log_path`**: Specifies the absolute path for the Ansible log file (e.g., `/var/log/ansible_playbook.log`). When Ansible runs on the EC2 instance via user-data, the log file is created there and subsequently collected by the CloudWatch Agent.
 -   **`stdout_callback`**: Set to `yaml` for human-readable output.
--   **`log_path`**: Configured to direct Ansible's output to `/var/log/ansible_playbook.log` on the managed node, which is then picked up by the CloudWatch Agent.
--   **`verbosity`**: Sets the detail level for logging.
+-   **`host_key_checking`**: Disabled, as it is not relevant for local execution.
 
 ---
 
 ## 8. Inventory
 
-The `inventory/` directory previously held static inventory files. With the transition to AWS Systems Manager (SSM) for Golden AMI provisioning and testing, Ansible now uses dynamic inventory directly referencing the EC2 Instance ID.
-
--   **Dynamic Inventory with `community.aws.aws_ssm`**: For Golden AMI creation and testing, Ansible directly targets the EC2 instance ID. The `community.aws.aws_ssm` connection plugin handles the connection securely without the need for traditional inventory files specifying IP addresses or SSH details.
+This project does not use a static inventory file. For application deployment, the user-data script runs Ansible against `localhost`, so an inventory file is not required.
 
 ---
 
 ## 9. Templates
 
-The `templates/` directory contains Jinja2 templates used by the playbooks to generate configuration files tailored to each instance:
-- **`wordpress.conf.j2`**: A template for Nginx virtual host configuration, handling WordPress permalinks, proxy headers (ALB/CloudFront), and PHP-FPM integration.
+The `templates/` directory contains Jinja2 templates used by the `install-wordpress.yml` playbook to generate configuration files tailored to each deployment:
+- **`wordpress.conf.j2`**: A template for Nginx virtual host configuration, handling WordPress permalinks, proxy headers (from ALB/CloudFront), and PHP-FPM integration.
 - **`wp-config.php.j2`**: A template for the WordPress `wp-config.php` file, dynamically populating database credentials, security keys, Redis settings, and SSL configurations from Ansible variables.
 
 ---
 
 ## 10. Variable Management
 
-Ansible playbooks utilize variables, often passed from Terraform or defined within the playbooks themselves, to customize deployments. Key variables include:
-- `wp_config`: Contains WordPress-specific configurations like database host, port, PHP version, Redis host.
-- `db_name`, `db_user`, `db_password`: Database credentials (retrieved from Secrets Manager).
-- `site_url`, `wp_admin_user`, `wp_admin_email`, `wp_admin_password`: WordPress installation details.
-- `auth_key`, `secure_auth_key`, etc.: WordPress security keys and salts.
-- `efs_file_system_id`, `efs_access_point_id`: EFS related variables for conditional mounting.
-- `enable_cloudwatch_logs`: Boolean to enable/disable CloudWatch Agent configuration.
-- `scripts_bucket_name`: Name of the S3 bucket where `healthcheck.php` and other scripts are stored.
+The `install-wordpress.yml` playbook is designed to receive all its configuration from variables passed by the `user-data` bootstrapping script (which in turn gets them from Terraform). These variables are passed as "extra vars" from a JSON file.
+
+They are organized into two main structures:
+
+#### 1. `wp_config` (JSON Object)
+
+A JSON object containing general configuration for the stack.
+
+- `wp_config.DB_HOST`: The RDS database endpoint.
+- `wp_config.DB_PORT`: The RDS database port.
+- `wp_config.PHP_VERSION`: The PHP version to install (e.g., "8.3").
+- `wp_config.REDIS_HOST`: The ElastiCache for Redis endpoint.
+- `wp_config.REDIS_PORT`: The ElastiCache for Redis port.
+- `wp_config.WP_TITLE`: The title for the WordPress site.
+
+#### 2. Top-Level Variables
+
+All other variables, including secrets, are passed as individual top-level keys in the JSON file.
+
+**Secrets (from AWS Secrets Manager):**
+- `db_name`, `db_user`, `db_password`
+- `wp_admin_user`, `wp_admin_email`, `wp_admin_password_base64` (must be base64 encoded)
+- `redis_auth_token`
+- `auth_key`, `secure_auth_key`, etc. (all WordPress salts and keys)
+
+**Infrastructure & Configuration:**
+- `site_url`: The full public URL for the WordPress site.
+- `efs_file_system_id`, `efs_access_point_id`: EFS identifiers for conditional mounting.
+- `enable_cloudwatch_logs`: Boolean to enable/disable CloudWatch Agent setup.
+- `cloudwatch_log_groups`: A map of log group names.
+- `scripts_bucket_name`: Name of the S3 bucket where `healthcheck.php` is stored.
+- `vpc_cidr_block`: The VPC CIDR, used to configure trusted IP ranges in Nginx.
 
 ---
 
 ## 11. Example Usage
 
-### Running a Playbook for Golden AMI Preparation (via SSM)
+### Integration with User Data (Application Deployment)
 
-For preparing and testing Golden AMIs, Ansible connects to the target EC2 instance via AWS Systems Manager (SSM). This is managed by the `Makefile` targets (`make provision-ami`, `make test-ami`). The command format is as follows:
+For deploying WordPress on newly launched EC2 instances (e.g., in an Auto Scaling Group), a shell script (like `user_data_ansible.sh.tpl` in the root `templates/` directory) invokes the `install-wordpress.yml` playbook on the instance itself. In this scenario, Ansible runs locally, so no remote connection (SSH or SSM) is needed.
 
-```bash
-# Example: Provision and harden an instance for Golden AMI creation
-# (This command is typically executed via 'make provision-ami ENV=dev')
-ansible-playbook -i "i-0abcdef1234567890," -c community.aws.aws_ssm \
-  --ansible-cfg ansible/ansible-ami.cfg \
-  playbooks/prepare-golden-ami.yml
-
-# Example: Run automated smoke tests against the provisioned instance
-# (This command is typically executed via 'make test-ami ENV=dev')
-ansible-playbook -i "i-0abcdef1234567890," -c community.aws.aws_ssm \
-  --ansible-cfg ansible/ansible-ami.cfg \
-  playbooks/smoke-test-ami.yml
-```
-_Note: Replace `i-0abcdef1234567890` with the actual EC2 Instance ID._
-
-### Integration with User Data (for Application Deployment)
-
-For deploying WordPress on newly launched EC2 instances (e.g., in a `dev` environment Auto Scaling Group), a shell script (like `user_data_ansible.sh.tpl` in the root `templates/` directory) directly invokes the `install-wordpress.yml` playbook on the instance itself. In this scenario, Ansible runs locally on the instance, so no remote connection (SSH or SSM) is needed.
+The user-data script is responsible for:
+1. Installing Ansible and its dependencies.
+2. Installing the `community.aws` collection from `requirements.yml`.
+3. Creating a JSON file (`extra_vars.json`) containing the variables passed by Terraform.
+4. Executing the playbook against `localhost`.
 
 ```bash
-# Example: Install WordPress on localhost (run by user-data script on the EC2 instance)
+# Example command run by the user-data script on the EC2 instance:
 ansible-playbook -i localhost, -c local playbooks/install-wordpress.yml \
   --extra-vars "@extra_vars.json"
 ```
@@ -231,63 +213,56 @@ ansible-playbook -i localhost, -c local playbooks/install-wordpress.yml \
 
 ## 12. Security Considerations / Recommendations
 
--   **SSM-based Access**: For Golden AMI provisioning and testing, Ansible connects to EC2 instances via AWS Systems Manager (SSM). This eliminates the need for open SSH ports in security groups and removes the dependency on SSH keys on the control machine for these specific operations.
--   **SSH Hardening:** The `prepare-golden-ami.yml` playbook implements SSH hardening best practices (disabling root login, password authentication, configuring UFW to allow SSH) *on the instance itself*. This is important because while Ansible connects via SSM, SSM can proxy SSH connections, and the underlying SSH daemon still needs to be secured.
--   **Secrets Management:** Sensitive information like database passwords and API keys should *never* be hardcoded in playbooks or templates. This project utilizes AWS Secrets Manager, with instances retrieving secrets at runtime via IAM roles.
--   **Least Privilege:** Ensure the IAM roles assigned to EC2 instances running Ansible have only the minimum necessary permissions.
--   **Regular Updates:** The `prepare-golden-ami.yml` playbook handles regular package updates for the base AMI.
+- **Secrets Management**: Sensitive information like database passwords and API keys are **never** hardcoded. This project utilizes AWS Secrets Manager, and instances retrieve secrets at runtime via their IAM role. The `install-wordpress.yml` playbook expects these secrets to be passed as variables.
+- **Least Privilege IAM Roles**: Ensure the IAM role assigned to the EC2 instance has only the minimum necessary permissions (e.g., to fetch secrets from Secrets Manager, write logs to CloudWatch, and get objects from S3).
+- **Secure Connections**: The playbook configures WordPress to connect to its database (RDS) and cache (ElastiCache for Redis) over encrypted TLS connections, and verifies the RDS CA certificate.
+- **No Open Inbound Ports**: The security model relies on having no direct public access to the instances (e.g., no open SSH port 22). Access is provided through the load balancer (ports 80/443) and AWS Systems Manager (SSM) for administrative tasks.
 
 ---
 
 ## 13. Logging and Monitoring
 
-- **Ansible Log Path:** Ansible's verbose output is directed to `/var/log/ansible_playbook.log` on the managed node, as configured in `ansible.cfg`.
-- **CloudWatch Integration:** The `install-wordpress.yml` playbook installs and configures the CloudWatch Agent. This agent is set up to collect various logs, including `/var/log/ansible_playbook.log`, `/var/log/wordpress.log`, and system logs, forwarding them to AWS CloudWatch Logs for centralized monitoring and analysis.
-- **WordPress Debug Logs:** WordPress debug output is directed to `/var/log/wordpress.log` and also collected by the CloudWatch Agent.
+- **Ansible Logs:** When run via **user-data on an EC2 instance**, Ansible logs are written to the path specified in `ansible.cfg` (e.g., `/var/log/ansible_playbook.log`).
+- **CloudWatch Integration:** The `install-wordpress.yml` playbook configures the CloudWatch Agent to collect the on-instance Ansible log, along with Nginx, PHP-FPM, WordPress, and system logs. This provides centralized monitoring in AWS CloudWatch.
+- **WordPress Debug Logs:** WordPress debug output is directed to `/var/log/wordpress.log` and is also collected by the CloudWatch Agent.
 
 ---
 
 ## 14. Integration with Terraform
 
-These Ansible playbooks are designed to integrate seamlessly with the Terraform project:
+This Ansible playbook is designed to be triggered by the Terraform project:
 
--   **Golden AMI Creation (via SSM)**: The `Makefile` (invoked by the user or CI/CD) now triggers `prepare-golden-ami.yml` to build base AMIs, connecting to the target instance via AWS Systems Manager (SSM). This eliminates the need for Terraform to manage SSH keys or inventory for this process.
--   **Instance Provisioning (Local Ansible)**: Terraform passes instance-specific configurations and sensitive data (via AWS Secrets Manager) to EC2 instances. The instances then use user-data scripts to bootstrap Ansible locally and execute `install-wordpress.yml` for application deployment.
--   **EFS & S3 Buckets**: Terraform provisions EFS file systems and S3 buckets (e.g., for scripts like `healthcheck.php`), which are then utilized by the Ansible playbooks.
+- **Instance Provisioning**: Terraform provisions EC2 instances and passes instance-specific configurations and sensitive data (retrieved from AWS Secrets Manager) to them.
+- **User-Data Bootstrapping**: The instances use a user-data script (templated by Terraform) to bootstrap Ansible locally and execute the `install-wordpress.yml` playbook for application deployment.
+- **Infrastructure Dependencies**: Terraform provisions the infrastructure that Ansible configures, including EFS file systems, S3 buckets (for scripts), and the necessary IAM roles and security groups.
 
 ---
 
 ## 15. Troubleshooting and Common Issues
 
-### 1. Playbook Fails to Connect to Host (SSM Connection)
--   **Cause:**
-    -   EC2 instance is not running or terminated.
-    -   SSM Agent not running on the EC2 instance.
-    -   IAM role attached to the EC2 instance lacks necessary SSM permissions (`AmazonSSMManagedInstanceCore`).
-    -   Network connectivity issues preventing SSM Agent from reaching SSM endpoints (e.g., missing VPC endpoints for SSM, `ssmmessages`, `ec2messages`).
-    -   AWS CLI or Session Manager Plugin not correctly configured/installed on the control machine.
--   **Solution:**
-    -   Verify the EC2 instance state is `running`.
-    -   Check SSM Agent status on the instance.
-    -   Review the instance's IAM role and attached policies.
-    -   Ensure VPC endpoints for SSM-related services are configured in private subnets, or the instance has access to public SSM endpoints.
-    -   Confirm AWS CLI and Session Manager Plugin are installed and configured correctly on your local machine (`aws ssm start-session --help`).
+### 1. Playbook Fails During User-Data Execution
+- **Cause:**
+    -   An error in the user-data script itself (check `/var/log/cloud-init-output.log`).
+    -   Missing dependencies (e.g., `git`, `python3-pip`, `ansible`).
+    -   Network issues preventing `apt` or `pip` from downloading packages.
+    -   IAM role permissions are insufficient for the instance to fetch secrets or other resources.
+- **Solution:**
+    -   Connect to the instance via SSM and examine the user-data logs.
+    -   Manually run the failing command from the script to get more detailed error output.
+    -   Verify the instance's IAM role has the required permissions.
+    -   Check VPC security groups, NACLs, and route tables for connectivity issues.
 
-### 2. Missing Dependencies on Managed Node
--   **Cause:** A package required by a task is not installed, or the `apt` cache is outdated.
--   **Solution:** Ensure `update_cache: yes` is used in `apt` tasks and all necessary packages are listed.
+### 2. Permission Denied Errors
+- **Cause:** Ansible running a task that requires `sudo` privileges without `become: yes`, or file permission issues.
+- **Solution:** Most tasks in `install-wordpress.yml` use `become: yes`. Check that file/directory ownership is correct (e.g., `www-data` for WordPress web root) and that the correct `become_user` is specified for tasks that should not run as root (like `composer`).
 
-### 3. Permission Denied Errors
--   **Cause:** Ansible running as a user without sufficient privileges (`become: yes` might be missing or incorrect `become_user`).
--   **Solution:** Verify `become: yes` is set for tasks requiring root privileges. Ensure file ownership/permissions are correct (e.g., `www-data` for WordPress files).
+### 3. Secrets Manager Retrieval Issues
+- **Cause:** The IAM role on the EC2 instance lacks permissions to `secretsmanager:GetSecretValue`.
+- **Solution:** Check the IAM role policies attached to the instance. The Terraform templates should grant this permission.
 
-### 4. Secrets Manager Retrieval Issues
--   **Cause:** IAM role on the EC2 instance lacks permissions to `secretsmanager:GetSecretValue` or incorrect `secret-id`.
--   **Solution:** Check the IAM role policies attached to the instance and the `secret-id` variable.
-
-### 5. CloudWatch Logs Not Appearing
--   **Cause:** CloudWatch Agent not installed/running, incorrect configuration file (`amazon-cloudwatch-agent.json`), or IAM permissions.
--   **Solution:** Verify agent installation, service status, and IAM role permissions (e.g., `CloudWatchAgentServerPolicy`). Check `log_path` in `ansible.cfg`.
+### 4. CloudWatch Logs Not Appearing
+- **Cause:** CloudWatch Agent not installed/running, incorrect configuration file (`amazon-cloudwatch-agent.json`), or IAM permissions.
+- **Solution:** Verify the agent installation and service status (`sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status`). Check the agent's own log file at `/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log`. Ensure the instance IAM role has the `CloudWatchAgentServerPolicy`.
 
 ---
 
@@ -295,6 +270,6 @@ These Ansible playbooks are designed to integrate seamlessly with the Terraform 
 
 - [Ansible Documentation](https://docs.ansible.com/)
 - [Jinja2 Templating](https://jinja.palletsprojects.com/en/3.1.x/templates/)
-- [AWS CLI Documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
+- [AWS User Data and Cloud-Init](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 - [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html)
 - [AWS CloudWatch Agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Unified-Agent.html)

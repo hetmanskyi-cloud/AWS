@@ -16,6 +16,12 @@
    - [6.4 fix_php_encoding.sh](#64-fix_php_encodingsh)
    - [6.5 healthcheck.php](#65-healthcheckphp)
    - [6.6 WordPress Source Repository](#66-wordpress-source-repository)
+   - [6.7 prepare-golden-ami.sh](#67-prepare-golden-amish)
+   - [6.8 smoke-test-ami.sh](#68-smoke-test-amish)
+   - [6.9 ssm_run.sh](#69-ssm_runsh)
+   - [6.10 update_wordpress.sh](#610-update_wordpresssh)
+   - [6.11 get_vpn_ips.sh](#611-get_vpn_ipssh)
+   - [6.12 build_layer.sh](#612-build_layersh)
 7. [Example Usage](#7-example-usage)
 8. [Security Considerations / Recommendations](#8-security-considerations--recommendations)
 9. [Conditional Resource Creation](#9-conditional-resource-creation)
@@ -54,81 +60,53 @@ This directory contains scripts used for deploying, configuring, and monitoring 
 ## 3. Architecture Diagram
 
 ```mermaid
-graph LR
-    %% Main Components
-    A["EC2 Instance"] --> B["Scripts"]
-
-    %% Script Components
-    subgraph "Deployment Scripts"
-        Deploy["deploy_wordpress.sh"]
-        HealthCheck["healthcheck.php"]
+graph TD
+    subgraph "EC2 Instance"
+        A("User Data / SSM")
     end
 
-    subgraph "Monitoring Scripts"
-        AWSResources["check_aws_resources.sh"]
-        DebugMonitor["debug_monitor.sh"]
+    subgraph "Scripts"
+        B(deploy_wordpress.sh)
+        C(prepare-golden-ami.sh)
+        D(smoke-test-ami.sh)
+        E(ssm_run.sh)
+        F(healthcheck.php)
+        G(debug_monitor.sh)
     end
 
-    subgraph "Utility Scripts"
-        FixPHPEncoding["fix_php_encoding.sh"]
+    subgraph "External AWS & Other Services"
+        H[RDS MySQL]
+        I[ElastiCache Redis]
+        J[ALB]
+        K[Secrets Manager]
+        L[CloudWatch]
+        M[S3 Buckets]
+        N[GitHub Repo]
     end
 
-    B --> Deploy
-    B --> AWSResources
-    B --> DebugMonitor
-    B --> FixPHPEncoding
+    A -- "executes (dev, if not ansible)" --> B;
+    A -- "or executes Ansible playbook" --> B;
+    B -- "installs/configures" --> H & I & J & L & M;
+    B -- "fetches secrets" --> K;
+    B -- "clones from" --> N;
+    B -- "deploys" --> F
 
-    %% External AWS Services
-    RDS["RDS MySQL"]
-    Redis["ElastiCache Redis"]
-    ALB["Application Load Balancer"]
-    SecretsManager["AWS Secrets Manager"]
-    CloudWatch["CloudWatch Logs"]
-    SSM["AWS SSM (Session Manager)"]
-    GitMirror["GitHub WordPress Mirror"]
+    A -- "via ssm_run.sh" --> C;
+    C -- "hardens instance for" --> GoldenAMI["Golden AMI"];
+    GoldenAMI -- "launches instance for test" --> D;
 
-    %% Deployment Flow
-    Deploy -->|"Installs"| Nginx["Nginx Web Server"]
-    Deploy -->|"Installs"| PHP["PHP-FPM"]
-    Deploy -->|"Installs"| WP["WordPress"]
-    Deploy -->|"Retrieves Secrets"| SecretsManager
-    Deploy -->|"Connects to"| RDS
-    Deploy -->|"Configures Caching"| Redis
-    Deploy -->|"Sets Site URL"| ALB
-    Deploy -->|"Deploys"| HealthCheck
-    Deploy -->|"Sends Logs"| CloudWatch
-    Deploy -->|"Clones WordPress from"| GitMirror
+    A -- "for remote execution" --> E;
+    A -- "for real-time logs" --> G;
 
-    %% Monitoring Flows
-    DebugMonitor -->|"Monitors"| Nginx
-    DebugMonitor -->|"Monitors"| PHP
-    DebugMonitor -->|"Monitors"| WP
-    DebugMonitor -->|"Connects via"| SSM
+    J -- "health checks" --> F;
 
-    AWSResources -->|"Validates"| VPC["VPC Resources"]
-    AWSResources -->|"Validates"| EC2["EC2 Resources"]
-    AWSResources -->|"Validates"| RDS
-    AWSResources -->|"Validates"| ALB
+    classDef core_script fill:#FF9900,stroke:#232F3E,color:black
+    classDef utility_script fill:#2874A6,stroke:#232F3E,color:white
+    classDef service fill:#232F3E,stroke:#7D3C98,color:white
 
-    %% Styling
-    classDef primary fill:#FF9900,stroke:#232F3E,color:white
-    classDef database fill:#3B48CC,stroke:#232F3E,color:white
-    classDef cache fill:#C7622B,stroke:#232F3E,color:white
-    classDef web fill:#1E8449,stroke:#232F3E,color:white
-    classDef security fill:#DD3522,stroke:#232F3E,color:white
-    classDef monitoring fill:#7D3C98,stroke:#232F3E,color:white
-    classDef utility fill:#2874A6,stroke:#232F3E,color:white
-    classDef repository fill:#0B5345,stroke:#232F3E,color:white
-
-    class A,B primary
-    class RDS database
-    class Redis cache
-    class Nginx,PHP,WP,ALB,HealthCheck web
-    class SecretsManager security
-    class AWSResources,DebugMonitor,VPC,EC2,CloudWatch,SSM monitoring
-    class Deploy primary
-    class FixPHPEncoding utility
-    class GitMirror repository
+    class B,C,D,F core_script;
+    class E,G utility_script;
+    class H,I,J,K,L,M,N service;
 ```
 
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_
@@ -150,16 +128,19 @@ graph LR
 
 ## 5. Scripts Structure
 
-| Script                   | Description                                                                     |
-|--------------------------|---------------------------------------------------------------------------------|
-| `build_layer.sh`         | Builds a Lambda Layer for Python with Pillow using Docker for reproducibility.  |
-| `check_aws_resources.sh` | Validates AWS resource cleanup post-Terraform destroy, using tags/prefixes.     |
-| `debug_monitor.sh`       | Monitors EC2 logs via SSM in real-time for deployment debugging.                |
-| `deploy_wordpress.sh`    | Installs and configures WordPress (Nginx, PHP, DB, Redis, CloudWatch Agent).    |
-| `fix_php_encoding.sh`    | Fixes PHP file encoding, removing BOM and ensuring clean UTF-8.                 |
-| `get_vpn_ips.sh`         | Retrieves public IPs for a given VPN endpoint, formatted for Terraform.         |
-| `healthcheck.php`        | WordPress health check endpoint for ALB, verifying DB, Redis, and REST API.     |
-| `update_wordpress.sh`    | Downloads and updates WordPress core/plugins, commits to Git, and creates tags. |
+| Script                     | Category      | Description                                                                                                |
+|----------------------------|---------------|------------------------------------------------------------------------------------------------------------|
+| `deploy_wordpress.sh`      | Deployment    | **(Core)** Installs the full WordPress stack (Nginx, PHP, etc.) on a bare instance. Runs on boot in `dev`. |
+| `prepare-golden-ami.sh`    | Deployment    | **(Core)** Hardens a base instance (updates, firewall, SSH) to prepare it for AMI creation.                |
+| `smoke-test-ami.sh`        | Deployment    | **(Core)** Verifies that a Golden AMI candidate was hardened and configured correctly.                     |
+| `healthcheck.php`          | Deployment    | **(Core)** ALB health check. Verifies PHP, DB, Redis, and WordPress REST API are functional.               |
+| `debug_monitor.sh`         | Debugging     | Connects to an EC2 instance via SSM to stream deployment logs in real-time.                                |
+| `ssm_run.sh`               | Operations    | Synchronously executes a command on an instance via SSM Run Command and returns the result.                |
+| `check_aws_resources.sh`   | Verification  | Scans an AWS account for resources matching a project name to verify cleanup after `terraform destroy`.    |
+| `update_wordpress.sh`      | SCM           | Updates the WordPress core/plugins in the source Git repository, commits, and creates a version tag.       |
+| `get_vpn_ips.sh`           | Data Source   | Terraform `external` data source that fetches the public IPs of a Client VPN endpoint.                     |
+| `build_layer.sh`           | Utility       | Builds an AWS Lambda Layer `.zip` file containing Python dependencies using Docker.                        |
+| `fix_php_encoding.sh`      | Utility       | Scans and fixes PHP files to be UTF-8 without BOM, preventing common "headers already sent" errors.        |
 
 ---
 
@@ -167,44 +148,31 @@ graph LR
 
 ### 6.1 deploy_wordpress.sh
 
-This script automates the installation and configuration of WordPress on an EC2 instance. It handles the installation of required packages, configuration of Nginx and PHP-FPM, WordPress setup, and integration with AWS services.
+This script provides a complete, self-contained installation of the WordPress stack. Within this project, it serves as the **alternative deployment method for the `dev` environment**, invoked by `user-data` only when the primary Ansible-based deployment is disabled (`use_ansible_deployment = false` in the `asg` module). It handles the installation of required packages, configuration of Nginx and PHP-FPM, WordPress setup, and integration with AWS services.
 Key Features:
 - Downloads healthcheck.php from S3 for ALB health check
 - Cleans up sensitive variables from /etc/environment after setup
 - Installs Predis Redis client with Composer for TLS support
 
-#### Required Parameters
+#### Execution Environment & Parameters
 
-| Parameter                | Description                                       | Required | Default             |
-|--------------------------|---------------------------------------------------|----------|---------------------|
-| `DB_HOST`                | Hostname/endpoint of the RDS instance             | Yes      | -                   |
-| `DB_PORT`                | Port of the RDS instance                          | Yes      | 3306                |
-| `SECRET_NAME`            | Name of the secret in AWS Secrets Manager         | Yes      | -                   |
-| `REDIS_HOST`             | Hostname/endpoint of the ElastiCache Redis        | Yes      | -                   |
-| `REDIS_PORT`             | Port of the ElastiCache Redis                     | Yes      | 6379                |
-| `REDIS_AUTH_SECRET_NAME` | Name of Redis AUTH secret in Secrets Manager      | Yes      | -                   |
-| `WP_PATH`                | Path to install WordPress                         | No       | /var/www/html       |
-| `PHP_VERSION`            | PHP version to install                            | No       | 8.3                 |
-| `AWS_LB_DNS`             | DNS name of the ALB for WordPress site URL        | Yes      | -                   |
-| `WP_TITLE`               | Title for the WordPress site                      | Yes      | -                   |
-| `HEALTHCHECK_S3_PATH`    | S3 path to the healthcheck.php file               | No       | -                   |
-| `WP_TMP_DIR`             | Temporary directory for wp-cli and cache          | No       | /tmp/wp             |
+This script is not designed to be run manually with arguments. It is executed by the `user-data` script on the EC2 instance at boot time. All configuration is passed to it via **environment variables**, which are exported from `/etc/environment` before the script runs.
+
+Key environment variables include: `DB_HOST`, `DB_PORT`, `PHP_VERSION`, `REDIS_HOST`, `REDIS_PORT`, `AWS_LB_DNS`, `efs_file_system_id`, `wordpress_secrets_name`, `rds_secrets_name`, and `redis_auth_secret_name`.
 
 #### Secrets Retrieved from AWS Secrets Manager
 
-The script retrieves the following secrets from AWS Secrets Manager:
+The script fetches credentials from **three distinct secrets** using the AWS CLI at runtime:
 
-**From main secret (SECRET_NAME):**
-- `DB_NAME` - Database name
-- `DB_USER` - Database username
-- `DB_PASSWORD` - Database password
-- `ADMIN_USER` - WordPress admin username
-- `ADMIN_EMAIL` - WordPress admin email
-- `ADMIN_PASSWORD` - WordPress admin password
-- WordPress security keys and salts (AUTH_KEY, SECURE_AUTH_KEY, etc.)
+1.  **WordPress Secrets** (from `wordpress_secrets_name`):
+    - `ADMIN_USER`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+    - All WordPress security keys and salts (`AUTH_KEY`, `SECURE_AUTH_KEY`, etc.).
 
-**From Redis AUTH secret (REDIS_AUTH_SECRET_NAME):**
-- `REDIS_AUTH_TOKEN` - Authentication token for Redis
+2.  **RDS Secrets** (from `rds_secrets_name`):
+    - `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
+
+3.  **Redis Secret** (from `redis_auth_secret_name`):
+    - `REDIS_AUTH_TOKEN`
 
 #### Key Features
 
@@ -219,25 +187,41 @@ The script retrieves the following secrets from AWS Secrets Manager:
 
 ### 6.2 check_aws_resources.sh
 
-This script validates AWS resources to ensure proper cleanup after Terraform destroy operations.
+A utility script designed to be run after `terraform destroy` to help identify any lingering AWS resources associated with the project.
 
 #### Key Features
 
-- Checks for remaining AWS resources by tag or name prefix
-- Validates resources across multiple AWS services
-- Provides clear visual indicators (✅/🔴) for resource status
-- Helps identify resources that may not have been properly deleted
+- Scans for common resource types (VPC, EC2, RDS, etc.).
+- Filters resources based on an `Owner` tag or a resource name prefix.
+- Provides a simple ✅ / 🔴 status report in the console.
+
+#### ❗ Limitations and Bugs
+
+This script should be used as a supplementary diagnostic tool only. Its output is **not guaranteed** to be a complete or accurate list of remaining resources due to the following known issues:
+
+- **Inconsistent Filtering:** The script is not consistent in how it finds resources. Some checks use `Owner` tag filtering, while others use name prefixes. This can lead to missed resources.
+- **Noisy/Incorrect Checks:**
+  - **KMS Keys & CloudWatch Metrics:** These checks are **not filtered by project**. They will list *all* keys and metrics in the region, making the output very noisy and not useful for its intended purpose.
+  - **IAM Roles:** The code filters by name prefix only, though a comment incorrectly suggests it also filters by tag.
+- **Placeholder Checks:** Several checks at the end of the script (e.g., for CloudTrail, Lambda Functions, Secrets Manager) are hardcoded to report "✅ No resources" and do not perform any actual check.
+- **Hardcoded Region:** The SNS subscription check is hardcoded to the `eu-west-1` region.
 
 #### Resources Checked
 
-- VPC resources (subnets, route tables, internet gateways)
-- EC2 resources (instances, security groups, EBS volumes)
-- Load balancer resources (ALB, target groups, listeners)
-- Database resources (RDS instances, parameter groups)
-- Cache resources (ElastiCache clusters)
-- Monitoring resources (CloudWatch alarms, logs)
-- IAM resources (roles, policies)
-- S3 buckets and other storage resources
+The script attempts to check the following services (subject to the limitations above):
+- EC2 (VPCs, Subnets, Route Tables, Security Groups, NACLs, VPC Endpoints, Flow Logs, Instances, EBS Volumes, EIPs, Launch Templates)
+- Auto Scaling Groups
+- ELBv2 (ALBs, Target Groups, Listeners)
+- RDS
+- ElastiCache
+- DynamoDB
+- S3
+- Kinesis Firehose
+- WAFv2
+- IAM (Roles, Policies)
+- KMS (Unfiltered)
+- SNS (Hardcoded region)
+- CloudWatch Metrics (Unfiltered)
 
 ### 6.3 debug_monitor.sh
 
@@ -286,6 +270,74 @@ This PHP file provides a health check endpoint for the Application Load Balancer
 
 #### 6.6 WordPress Source Repository
 - To ensure installation consistency and avoid dependency on external downloads, WordPress is cloned from a dedicated GitHub mirror maintained within this project. This mirror repository contains only the official WordPress release (without themes or plugins) and is not modified, allowing seamless updates and version control integration.
+
+### 6.7 prepare-golden-ami.sh
+
+This script automates the hardening of a base EC2 instance to prepare it for use as a "Golden AMI". It should be run with root privileges on a temporary instance that will be captured as an image.
+
+#### Key Features
+
+- Updates all system packages to their latest versions.
+- Installs and enables UFW (Uncomplicated Firewall), allowing only Nginx traffic (HTTP/HTTPS).
+- Installs `fail2ban` for intrusion prevention and `unattended-upgrades` for automatic security patches.
+- Disables SSH root login and password authentication, enforcing key-based access.
+- Validates the `sshd_config` with `sshd -t` before restarting the service to prevent lockouts.
+- Cleans up temporary files, package caches, and sensitive data (like bash history and environment variables) to minimize the AMI footprint and enhance security.
+
+### 6.8 smoke-test-ami.sh
+
+The logical counterpart to `prepare-golden-ami.sh`. It runs a series of tests to validate that a Golden AMI candidate has been hardened and configured correctly. It should be run on an instance launched from the newly created AMI.
+
+#### Key Features
+
+- Verifies that UFW is active and allows the `Nginx Full` profile.
+- Ensures essential security packages (`fail2ban`, `ufw`, `unattended-upgrades`) are installed.
+- Confirms that critical services (`fail2ban`, `ssh`) are running.
+- Verifies that no sensitive environment variables or bash history were left in the AMI.
+- Runs `apt-get update` to confirm that the instance's networking and repository access are functional.
+
+### 6.9 ssm_run.sh
+
+A powerful wrapper script that makes asynchronous `aws ssm send-command` calls behave synchronously, making it ideal for CI/CD pipelines or `make` targets.
+
+#### Key Features
+
+- Executes a shell command on a target instance and **waits** for it to complete.
+- Fetches the full command invocation output, including `stdout` and `stderr`.
+- **Propagates failure:** Exits with a non-zero status code if the remote command fails.
+- Safely handles commands with spaces and special characters by formatting them as a JSON array.
+
+### 6.10 update_wordpress.sh
+
+Automates updating the WordPress source code (core and plugins) in the project's Git repository. This script manages the version-controlled source code, not a live deployment.
+
+#### Key Features
+
+- Downloads specified versions of WordPress core and selected plugins (`redis-cache`, `wordfence`).
+- Replaces the code in a local Git checkout with the newly downloaded files.
+- Commits the changes and pushes them to the `master` branch.
+- **Force-updates the version tag** (e.g., `v6.9`). It deletes any existing local and remote tag for that version before creating and pushing the new one.
+
+### 6.11 get_vpn_ips.sh
+
+A script designed to be used as a Terraform `external` data source. It dynamically fetches the public egress IP addresses of an AWS Client VPN endpoint.
+
+#### Key Features
+
+- **Plan Safe:** Designed to run during `terraform plan` without errors. If the VPN endpoint doesn't exist yet, the script gracefully returns an empty list.
+- **Correct Formatting:** Parses JSON input from Terraform and returns a JSON object containing a stringified list of CIDRs (e.g., `{"public_ips_json": "[\"1.2.3.4/32\"]"}`), which is the required format for consumption in Terraform.
+- **Secure:** Safely parses input using `jq`'s `@sh` formatter to prevent command injection.
+
+### 6.12 build_layer.sh
+
+A standalone build script that creates a `.zip` file for an AWS Lambda Layer, ensuring a consistent and reproducible build environment.
+
+#### Key Features
+
+- **Reproducible Builds:** Uses Docker and official `public.ecr.aws/lambda/python` images to build the layer in a Lambda-like environment.
+- **Handles Dependencies:** Installs system-level packages (like `gcc`, `zip`) inside the container needed to compile Python packages (e.g., Pillow).
+- **Fixes Permissions:** Cleverly uses `chown` as the last step inside the container to ensure the output `.zip` file is owned by the host user, avoiding permissions issues on the host machine.
+
 
 ---
 

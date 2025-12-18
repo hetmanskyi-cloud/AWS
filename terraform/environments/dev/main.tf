@@ -151,6 +151,7 @@ module "asg" {
   alb_security_group_id          = module.alb.alb_security_group_id
   vpc_endpoint_security_group_id = module.interface_endpoints.endpoint_security_group_id
   vpc_id                         = module.vpc.vpc_id
+  vpc_cidr_block                 = module.vpc.vpc_cidr_block
 
   # ALB Target Group ARN for routing traffic to ASG instances
   wordpress_tg_arn = module.alb.wordpress_tg_arn

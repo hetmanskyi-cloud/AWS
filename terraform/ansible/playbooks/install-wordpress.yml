@@ -7,6 +7,8 @@
   vars:
     # Default path, can be overridden if needed
     wp_path: "/var/www/html"
+    # Controls the WP_DEBUG setting in wp-config.php. Defaults to false for security.
+    wp_debug: false
 
   tasks:
 

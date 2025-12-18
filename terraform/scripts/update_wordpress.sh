@@ -8,10 +8,10 @@ log() {
 }
 
 # --- Version Configuration --- #
-DEFAULT_WP_VERSION="6.8.2"
+DEFAULT_WP_VERSION="6.9"
 WP_VERSION="$DEFAULT_WP_VERSION"
-REDIS_CACHE_VERSION="2.6.2"
-WORDFENCE_VERSION="8.0.5"
+REDIS_CACHE_VERSION="2.7.0"
+WORDFENCE_VERSION="8.1.3"
 
 # --- Parse optional --version=X.Y.Z --- #
 for arg in "$@"; do

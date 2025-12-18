@@ -1,0 +1,87 @@
+[2025-12-18_08-27-42] Starting AMI provision (baseline update and hardening)...
+[2025-12-18_08-27-42] Installing community.aws Ansible collection...
+Starting galaxy collection install process
+Nothing to do. All requested collections are already installed. If you want to reinstall them, consider using `--force`.
+[2025-12-18_08-27-42] Finding newest running instance ID...
+[2025-12-18_08-27-42] Running instances: i-00edad5cfa2211548	i-04ebbe63141b069af
+[2025-12-18_08-27-42] Selected newest running Instance ID: i-00edad5cfa2211548
+[2025-12-18_08-27-42] Running Ansible prepare-golden-ami.yml via SSM...
+2025-12-18 08:27:46,628 p=7751 u=sky n=ansible INFO| ansible-playbook [core 2.18.6]
+  config file = /home/sky/AWS/terraform/ansible/ansible-ami.cfg
+  configured module search path = ['/home/sky/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/sky/ansible-venv/lib/python3.12/site-packages/ansible
+  ansible collection location = /home/sky/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/sky/ansible-venv/bin/ansible-playbook
+  python version = 3.12.3 (main, Nov  6 2025, 13:44:16) [GCC 13.3.0] (/home/sky/ansible-venv/bin/python3)
+  jinja version = 3.1.6
+  libyaml = True
+2025-12-18 08:27:46,628 p=7751 u=sky n=ansible INFO| Using /home/sky/AWS/terraform/ansible/ansible-ami.cfg as config file
+2025-12-18 08:27:46,775 p=7751 u=sky n=ansible INFO| redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+2025-12-18 08:27:46,864 p=7751 u=sky n=ansible INFO| redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+2025-12-18 08:27:46,865 p=7751 u=sky n=ansible INFO| redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+2025-12-18 08:27:46,867 p=7751 u=sky n=ansible INFO| redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+2025-12-18 08:27:46,868 p=7751 u=sky n=ansible INFO| [DEPRECATION WARNING]: community.general.yaml has been deprecated. The plugin
+has been superseded by the the option `result_format=yaml` in callback plugin
+ansible.builtin.default from ansible-core 2.13 onwards. This feature will be
+removed from community.general in version 13.0.0. Deprecation warnings can be
+disabled by setting deprecation_warnings=False in ansible.cfg.
+2025-12-18 08:27:46,868 p=7751 u=sky n=ansible INFO| redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+2025-12-18 08:27:46,904 p=7751 u=sky n=ansible INFO| Skipping callback 'default', as we already have a stdout callback.
+2025-12-18 08:27:46,904 p=7751 u=sky n=ansible INFO| Skipping callback 'minimal', as we already have a stdout callback.
+2025-12-18 08:27:46,905 p=7751 u=sky n=ansible INFO| Skipping callback 'oneline', as we already have a stdout callback.
+2025-12-18 08:27:46,905 p=7751 u=sky n=ansible INFO| PLAYBOOK: prepare-golden-ami.yml ***********************************************
+2025-12-18 08:27:46,905 p=7751 u=sky n=ansible INFO| 1 plays in ansible/playbooks/prepare-golden-ami.yml
+2025-12-18 08:27:46,906 p=7751 u=sky n=ansible INFO| PLAY [Prepare Golden AMI (baseline update and hardening)] **********************
+2025-12-18 08:27:46,925 p=7751 u=sky n=ansible INFO| TASK [Gathering Facts] *********************************************************
+2025-12-18 08:27:46,925 p=7751 u=sky n=ansible INFO| task path: /home/sky/AWS/terraform/ansible/playbooks/prepare-golden-ami.yml:2
+ansible-playbook [core 2.18.6]
+  config file = /home/sky/AWS/terraform/ansible/ansible-ami.cfg
+  configured module search path = ['/home/sky/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/sky/ansible-venv/lib/python3.12/site-packages/ansible
+  ansible collection location = /home/sky/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/sky/ansible-venv/bin/ansible-playbook
+  python version = 3.12.3 (main, Nov  6 2025, 13:44:16) [GCC 13.3.0] (/home/sky/ansible-venv/bin/python3)
+  jinja version = 3.1.6
+  libyaml = True
+Using /home/sky/AWS/terraform/ansible/ansible-ami.cfg as config file
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: modules) ansible.builtin.ufw to community.general.ufw
+redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+redirecting (type: callback) ansible.builtin.yaml to community.general.yaml
+Skipping callback 'default', as we already have a stdout callback.
+Skipping callback 'minimal', as we already have a stdout callback.
+Skipping callback 'oneline', as we already have a stdout callback.
+
+PLAYBOOK: prepare-golden-ami.yml ***********************************************
+1 plays in ansible/playbooks/prepare-golden-ami.yml
+
+PLAY [Prepare Golden AMI (baseline update and hardening)] **********************
+
+TASK [Gathering Facts] *********************************************************
+task path: /home/sky/AWS/terraform/ansible/playbooks/prepare-golden-ami.yml:2
+2025-12-18 08:27:47,137 p=7762 u=sky n=botocore.credentials INFO| Found credentials in shared credentials file: ~/.aws/credentials
+2025-12-18 08:27:47,488 p=7751 u=sky n=ansible INFO| <i-00edad5cfa2211548> ssm_retry: attempt: 0, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 0 seconds
+2025-12-18 08:27:47,495 p=7762 u=sky n=botocore.credentials INFO| Found credentials in shared credentials file: ~/.aws/credentials
+2025-12-18 08:27:47,568 p=7751 u=sky n=ansible INFO| <i-00edad5cfa2211548> ssm_retry: attempt: 1, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 1 seconds
+2025-12-18 08:27:48,579 p=7762 u=sky n=botocore.credentials INFO| Found credentials in shared credentials file: ~/.aws/credentials
+2025-12-18 08:27:48,627 p=7751 u=sky n=ansible INFO| <i-00edad5cfa2211548> ssm_retry: attempt: 2, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 3 seconds
+2025-12-18 08:27:51,651 p=7762 u=sky n=botocore.credentials INFO| Found credentials in shared credentials file: ~/.aws/credentials
+2025-12-18 08:27:51,717 p=7751 u=sky n=ansible INFO| An exception occurred during task execution. To see the full traceback, use -vvv. The error was: TypeError: expected string or bytes-like object, got 'NoneType'
+2025-12-18 08:27:51,717 p=7751 u=sky n=ansible INFO| fatal: [i-00edad5cfa2211548]: FAILED! =>
+  msg: 'Unexpected failure during module execution: expected string or bytes-like object, got ''NoneType'''
+  stdout: ''
+2025-12-18 08:27:51,718 p=7751 u=sky n=ansible INFO| PLAY RECAP *********************************************************************
+2025-12-18 08:27:51,718 p=7751 u=sky n=ansible INFO| i-00edad5cfa2211548        : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+<i-00edad5cfa2211548> ssm_retry: attempt: 0, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 0 seconds
+<i-00edad5cfa2211548> ssm_retry: attempt: 1, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 1 seconds
+<i-00edad5cfa2211548> ssm_retry: attempt: 2, caught exception(expected string or bytes-like object, got 'NoneType')from cmd (echo ~ubuntu...),pausing for 3 seconds
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: TypeError: expected string or bytes-like object, got 'NoneType'
+fatal: [i-00edad5cfa2211548]: FAILED! =>
+  msg: 'Unexpected failure during module execution: expected string or bytes-like object, got ''NoneType'''
+  stdout: ''
+
+PLAY RECAP *********************************************************************
+i-00edad5cfa2211548        : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+
+[2025-12-18_08-27-42] Provisioning done. Now verify instance and run make create-ami ENV=dev

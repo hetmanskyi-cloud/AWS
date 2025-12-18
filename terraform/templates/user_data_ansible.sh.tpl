@@ -89,7 +89,8 @@ cat <<EOF > $EXTRA_VARS_FILE
   "auth_salt": "$${AUTH_SALT}",
   "secure_auth_salt": "$${SECURE_AUTH_SALT}",
   "logged_in_salt": "$${LOGGED_IN_SALT}",
-  "nonce_salt": "$${NONCE_SALT}"
+  "nonce_salt": "$${NONCE_SALT}",
+  "vpc_cidr_block": "${vpc_cidr_block}"
 }
 EOF
 

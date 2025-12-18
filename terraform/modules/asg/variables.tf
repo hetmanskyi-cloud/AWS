@@ -52,8 +52,6 @@ variable "ami_id" {
   }
 }
 
-
-
 # --- Auto Scaling Configuration --- #
 # Variables controlling the scaling behavior of the ASG.
 
@@ -196,6 +194,11 @@ variable "enable_ebs_encryption" {
 
 variable "vpc_id" {
   description = "ID of the VPC for Security Group association"
+  type        = string
+}
+
+variable "vpc_cidr_block" {
+  description = "The CIDR block of the VPC. Used to configure trusted IP ranges."
   type        = string
 }
 

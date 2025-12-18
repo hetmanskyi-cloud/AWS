@@ -44,3 +44,21 @@ PUBLIC_IPS_JSON=$(aws ec2 describe-network-interfaces \
 # Output the final result as a single JSON object that Terraform can parse.
 # The keys of this object will be available as attributes in the data source.
 jq -n --arg ips "$PUBLIC_IPS_JSON" '{ "public_ips_json": $ips }'
+
+# --- Notes --- #
+# Purpose:
+#   This script is designed to be used as a Terraform `external` data source. It dynamically fetches
+#   the public egress IP addresses associated with an AWS Client VPN endpoint.
+#
+# How it Works:
+#   1. It receives a JSON object via stdin containing `vpn_endpoint_id` and `region`.
+#   2. It finds the network interfaces (ENIs) tagged by AWS with that VPN endpoint ID.
+#   3. It extracts the public IPs from those ENIs.
+#   4. It formats the list of IPs as a JSON array of CIDR blocks (e.g., ["1.2.3.4/32"]).
+#   5. It outputs a final JSON object `{"public_ips_json": "[\"1.2.3.4/32\"]"}` that Terraform can parse.
+#
+# Terraform Plan Safety:
+#   The script is designed to be safe during the `terraform plan` phase. If the VPN endpoint doesn't
+#   exist yet (and thus has no ID), the script receives a null `vpn_endpoint_id`, detects this,
+#   and exits gracefully with a valid JSON structure containing an empty list. This prevents the
+#   plan from failing.
