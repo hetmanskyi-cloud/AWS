@@ -33,9 +33,8 @@ locals {
 # --- Public Network ACL Configuration --- #
 # Definition of the public NACL for controlling inbound and outbound traffic in public subnets.
 
-# checkov:skip=CKV2_AWS_1 Justification: All required subnet associations are defined below via aws_network_acl_association.*
-# checkov:skip=CKV2_AWS_1: "False positive. This NACL is associated with subnets via aws_network_acl_association resources later in this file."
 resource "aws_network_acl" "public_nacl" {
+  # checkov:skip=CKV2_AWS_1:This NACL is associated with subnets via aws_network_acl_association resources later in this file.
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
   tags = merge(var.tags, {
@@ -61,9 +60,8 @@ resource "aws_network_acl_rule" "public_rules" {
 
 # Definition of the private NACL for controlling traffic in private subnets.
 
-# checkov:skip=CKV2_AWS_1 Justification: All required subnet associations are defined below via aws_network_acl_association.*
-# checkov:skip=CKV2_AWS_1: "False positive. This NACL is associated with subnets via aws_network_acl_association resources later in this file."
 resource "aws_network_acl" "private_nacl" {
+  # checkov:skip=CKV2_AWS_1:This NACL is associated with subnets via aws_network_acl_association resources later in this file.
   vpc_id = aws_vpc.vpc.id # VPC ID to which the NACL is attached
 
   tags = merge(var.tags, {

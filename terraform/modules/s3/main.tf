@@ -1,12 +1,5 @@
-# --- Main Configuration for S3 Buckets --- #
-# Defines S3 buckets and core configurations.
-
-# --- Default Region Buckets --- #
-# Dynamically creates S3 buckets in the default region.
-
-# checkov:skip=CKV_AWS_145:Justification: Encryption is configured via a separate aws_s3_bucket_server_side_encryption_configuration resource for modular flexibility and reuse.
-# checkov:skip=CKV_AWS_145: "This is a false positive. KMS encryption is enforced via a bucket policy in policies.tf."
 resource "aws_s3_bucket" "default_region_buckets" {
+  # checkov:skip=CKV_AWS_145:Encryption is configured via a separate aws_s3_bucket_server_side_encryption_configuration resource, which is a valid approach that checkov does not detect.
   # Dynamic buckets in default region
   # If the Terraform state bucket (${var.s3_terraform_state_bucket_key}) is included, additional precautions are needed.
   for_each = tomap({ for key, value in var.default_region_buckets : key => value if value.enabled })
@@ -45,8 +38,8 @@ resource "aws_s3_bucket" "default_region_buckets" {
 # Dynamically creates S3 buckets in the replication region.
 # Cross-region server access logging is not supported by AWS.
 
-# checkov:skip=CKV_AWS_18 Justification: Access logging is not supported on cross-region replicated buckets
 resource "aws_s3_bucket" "s3_replication_bucket" {
+  # checkov:skip=CKV_AWS_18:Access logging is not configured because AWS does not support cross-region S3 access logging.
   # Dynamic buckets in replication region
   for_each = tomap({ for key, value in var.replication_region_buckets : key => value if value.enabled })
 
@@ -156,9 +149,8 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
 # --- S3 Bucket Ownership Controls for Default Region (ACLs Enabled for Logs) --- #
 # Configures S3 Bucket Ownership Controls for buckets requiring ACLs for logging delivery.
 
-# checkov:skip=CKV2_AWS_65 Justification: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
-# checkov:skip=CKV2_AWS_65: "BucketOwnerPreferred is required for log-receiving buckets where services like ALB and S3 Access Logging need to write using ACLs."
 resource "aws_s3_bucket_ownership_controls" "default_region_logging_ownership" {
+  # checkov:skip=CKV2_AWS_65:BucketOwnerPreferred is required for log-receiving buckets where services like ALB and S3 Access Logging need to write using ACLs.
   # Apply to enabled default region buckets that require ACLs for log delivery
   for_each = tomap({
     for key, value in var.default_region_buckets :

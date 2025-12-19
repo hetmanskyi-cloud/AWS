@@ -153,9 +153,8 @@ locals {
 # --- Create AWS Secrets Manager secret for WordPress --- #
 # Creates the main secret for WordPress, storing admin credentials and security keys.
 
-# checkov:skip=CKV2_AWS_57: Automatic rotation is not required. Secrets are managed manually.
-# checkov:skip=CKV2_AWS_57: "Rotation is handled manually via the IaC 'secrets_version' variable, which is a valid strategy for this project."
 resource "aws_secretsmanager_secret" "wp_secrets" {
+  # checkov:skip=CKV2_AWS_57:Rotation is handled via the IaC 'secrets_version' variable, which is a valid strategy for this project.
   name        = var.wordpress_secret_name
   description = "WordPress application keys, salts, and admin credentials. Rotated via IaC."
 
@@ -186,9 +185,8 @@ resource "aws_secretsmanager_secret_version" "wp_secrets_version" {
 
 # --- Store RDS Database Credentials in Secrets Manager --- #
 # This resource creates a dedicated secret for RDS database credentials, separate from application secrets.
-# checkov:skip=CKV2_AWS_57: Automatic rotation is not required. Secrets are managed manually.
-# checkov:skip=CKV2_AWS_57: "Rotation is handled manually via the IaC 'secrets_version' variable, which is a valid strategy for this project."
 resource "aws_secretsmanager_secret" "rds_secrets" {
+  # checkov:skip=CKV2_AWS_57:Rotation is handled via the IaC 'secrets_version' variable, which is a valid strategy for this project.
   name        = var.rds_secret_name
   description = "RDS database credentials for WordPress. Rotated via IaC."
   kms_key_id  = module.kms.kms_key_arn
@@ -228,9 +226,8 @@ resource "random_password" "redis_auth_token" {
 }
 
 # Store Redis AUTH token in Secrets Manager for ElastiCache
-# checkov:skip=CKV2_AWS_57: Automatic rotation is not required. Secrets are managed manually.
-# checkov:skip=CKV2_AWS_57: "Rotation is handled manually via the IaC 'secrets_version' variable, which is a valid strategy for this project."
 resource "aws_secretsmanager_secret" "redis_auth" {
+  # checkov:skip=CKV2_AWS_57:Rotation is handled via the IaC 'secrets_version' variable, which is a valid strategy for this project.
   name        = var.redis_auth_secret_name
   description = "Redis AUTH token for ElastiCache. Rotated via IaC."
 

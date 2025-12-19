@@ -12,10 +12,10 @@ data "archive_file" "lambda_zip" {
 
 # --- AWS Lambda Function --- #
 # This is the main resource that creates the Lambda function.
-# checkov:skip=CKV_AWS_117: "Lambda does not need VPC access as it only interacts with public AWS service endpoints (S3, SQS, DynamoDB)."
-# checkov:skip=CKV_AWS_173: "No secrets are passed via environment variables; therefore, encryption is not required."
-# checkov:skip=CKV_AWS_272: "Code signing is an advanced security feature not required for this project's security posture."
 resource "aws_lambda_function" "image_processor" {
+  # checkov:skip=CKV_AWS_117:"Lambda does not need VPC access as it only interacts with public AWS service endpoints (S3, SQS, DynamoDB)."
+  # checkov:skip=CKV_AWS_173:"No secrets are passed via environment variables; therefore, encryption is not required."
+  # checkov:skip=CKV_AWS_272:"Code signing is an advanced security feature not required for this project's security posture."
   function_name = "${var.name_prefix}-${var.lambda_function_name}-${var.environment}"
   handler       = var.lambda_handler
   runtime       = var.lambda_runtime

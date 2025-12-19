@@ -22,9 +22,8 @@ resource "aws_elasticache_subnet_group" "redis_subnet_group" {
 
 # --- ElastiCache Replication Group (Redis) --- #
 # Sets up a Redis replication group with automatic failover, encryption, and backup configuration.
-# checkov:skip=CKV2_AWS_50: "Automatic failover is intentionally configurable via the enable_failover variable for flexibility in non-production environments."
 resource "aws_elasticache_replication_group" "redis" {
-
+  # checkov:skip=CKV2_AWS_50:Automatic failover is intentionally configurable via the enable_failover variable for flexibility in non-production environments.
   replication_group_id       = "${var.name_prefix}-redis-${var.environment}"          # Unique ID for the replication group.
   description                = "Redis replication group for ${var.name_prefix}"       # Description for the replication group.
   engine                     = "redis"                                                # Specifies Redis as the engine type.

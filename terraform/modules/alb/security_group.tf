@@ -33,8 +33,6 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 # HTTPS is conditionally enabled based on 'enable_https_listener' variable and SSL certificate configuration.
 
 # Allow HTTP traffic from anywhere if alb_access_cloudfront_mode is false (CloudFront mode disabled).
-# checkov:skip=CKV_AWS_260 Justification: Allowing public HTTP access intentionally for redirect to HTTPS or fallback access
-# checkov:skip=CKV_AWS_260: "ALB must be open to HTTP for redirection or if HTTPS is disabled."
 resource "aws_security_group_rule" "ingress_alb_http_open" {
   count = var.alb_access_cloudfront_mode ? 0 : 1
 
@@ -43,6 +41,7 @@ resource "aws_security_group_rule" "ingress_alb_http_open" {
   to_port           = 80
   protocol          = "tcp"
   security_group_id = aws_security_group.alb_sg.id
+  # checkov:skip=CKV_AWS_260:This rule is intentionally open to allow HTTP traffic for redirection to HTTPS. It is disabled when CloudFront is the only entry point.
   #tfsec:ignore:aws-vpc-no-public-ingress-sgr
   cidr_blocks = ["0.0.0.0/0"]
   description = "Allow HTTP traffic for redirecting to HTTPS or serving plain HTTP if HTTPS is disabled"

@@ -115,12 +115,10 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
 # - Publish WordPress-related logs (e.g., Nginx, PHP-FPM, wp-debug)
 # This policy is required only when using a custom CloudWatch Agent config (as in this project).
 
-# checkov:skip=CKV_AWS_290 Justification: Wildcard resource is required for dynamically created log groups by CloudWatch Agent
-# checkov:skip=CKV_AWS_355 Justification: Wildcard resource is required for dynamically created log groups by CloudWatch Agent
 # tfsec:ignore:aws-iam-no-policy-wildcards CloudWatch logs require wildcard permissions to allow dynamic log group creation for WordPress components
-# checkov:skip=CKV_AWS_355: "logs:CreateLogGroup requires a wildcard resource."
-# checkov:skip=CKV_AWS_290: "This policy is for the CloudWatch agent and follows the standard AWS managed policy which also uses a wildcard."
 resource "aws_iam_policy" "cloudwatch_logs_policy" {
+  # checkov:skip=CKV_AWS_355:The CloudWatch agent needs this permission to create log groups and streams dynamically.
+  # checkov:skip=CKV_AWS_290:The CloudWatch agent needs this permission to create log groups and streams dynamically.
   name        = "${var.name_prefix}-cloudwatch-logs-policy-${var.environment}"
   description = "Allows CloudWatch Agent to publish logs and access log configuration"
 

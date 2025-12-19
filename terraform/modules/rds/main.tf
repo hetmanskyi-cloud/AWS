@@ -145,10 +145,9 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 # Defines RDS read replicas, inheriting configuration from the primary DB instance.
 # These replicas improve read scalability and can be placed across AZs for high availability.
 
-# checkov:skip=CKV_AWS_157 Justification: Read replicas do not support 'multi_az' – AWS handles HA differently for replicas
 # tfsec:ignore:builtin.aws.rds.aws0177
-# checkov:skip=CKV_AWS_157: "A read replica cannot be Multi-AZ itself. High availability is provided by the primary instance."
 resource "aws_db_instance" "read_replica" {
+  # checkov:skip=CKV_AWS_157:A read replica cannot be Multi-AZ itself. High availability is provided by the primary instance and creating replicas in different AZs.
   count = var.read_replicas_count # Creates read replicas based on 'read_replicas_count' variable.
 
   identifier = "${var.name_prefix}-replica${count.index}-${var.environment}"
