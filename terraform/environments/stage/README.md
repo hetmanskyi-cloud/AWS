@@ -11,6 +11,9 @@
 - [3. How to Deploy](#3-how-to-deploy)
 - [4. Local Prerequisites](#4-local-prerequisites)
 - [5. Key Operational Workflows](#5-key-operational-workflows)
+  - [5.1. Golden AMI Workflow](#51-golden-ami-workflow)
+  - [5.2. Secrets Rotation](#52-secrets-rotation)
+  - [5.3. Shutting Down the Environment](#53-shutting-down-the-environment)
 - [6. Accessing the Environment](#6-accessing-the-environment)
 - [7. Primary Outputs](#7-primary-outputs)
 
@@ -132,7 +135,7 @@ graph TD
 
 - **Deployment Strategy (Golden AMI):**
   - The `stage` environment uses a **Golden AMI** deployment strategy for its EC2 instances. This is a fundamental difference from the `dev` environment.
-  - The process involves pre-building an AMI using the Ansible playbooks `ansible/playbooks/install-wordpress.yml` and `ansible/playbooks/prepare-golden-ami.yml`.
+  - Instances are launched from a pre-built, hardened AMI that is created and tested in the `dev` environment (see "Golden AMI Workflow" below).
   - At launch, instances use the `user_data_runtime.sh.tpl` template, which only injects runtime configurations (e.g., fetching secrets) rather than performing a full software installation. This results in much faster and more consistent deployments.
   - The `use_ansible_deployment` variable is set to `false` to reflect this.
 
@@ -149,14 +152,6 @@ graph TD
 - **Networking & Compute:**
   - The VPC and subnet layout is identical to `dev`.
   - ASG and RDS instances may use more powerful instance types than `dev`, and auto-scaling is enabled. These are configured in `terraform.tfvars`.
-
-- **Disabled/Optional Features (by default):**
-  - **EFS:**
-    - **Status:** Currently `Disabled`. Can be enabled by setting `enable_efs = true`.
-  - **Image Processing Pipeline:**
-    - **Status:** Currently `Disabled`. Can be enabled by setting `enable_image_processor = true`.
-  - **Custom Domain:**
-    - **Status:** Currently `Disabled`. Can be enabled by setting `create_dns_and_ssl = true`.
 
 ---
 
@@ -186,25 +181,25 @@ To successfully deploy and manage this environment, the following tools must be 
 
 - **Terraform (`~> 1.12`)**: To manage infrastructure as code.
 - **AWS CLI**: To interact with your AWS account. Ensure it is configured with the necessary credentials.
-- **Ansible**: Although `stage` instances do not run Ansible on boot, it is required for the *creation* of the Golden AMI.
-- **Python & pip**: Required by helper scripts for Lambda layers (if enabled).
-- **zip**: A standard command-line utility required for packaging Lambda source code.
-- **Docker**: Potentially required by build scripts for creating consistent build environments.
+- **Make**: To use the automated AMI promotion workflow.
+- **Ansible**: Although `stage` instances do not run Ansible on boot, it is required for the *creation* of the Golden AMI in the `dev` environment.
 
 ---
 
 ## 5. Key Operational Workflows
 
-### Golden AMI Workflow
-The `stage` environment uses a pre-built "Golden AMI" for faster and more consistent deployments. To update this AMI (e.g., for OS updates or new software):
+### 5.1. Golden AMI Workflow
+The `stage` environment consumes a pre-built "Golden AMI" that is produced by the `dev` environment's "factory" process. Promoting a new AMI to `stage` is an automated, single-command operation.
 
-1.  **Provision a Base Instance**: Deploy a temporary EC2 instance using a configuration similar to the `dev` environment, which runs the full `ansible/playbooks/install-wordpress.yml` playbook on a base OS.
-2.  **Harden and Seal the Image**: Run the `ansible/playbooks/prepare-golden-ami.yml` playbook against the running instance. This playbook performs system updates, hardens security settings (SSH, firewall), and cleans up any sensitive data or temporary files.
-3.  **Create the AMI**: From the AWS EC2 Console, create a new Amazon Machine Image (AMI) from the hardened instance.
-4.  **Update Configuration**: Update the `ami_id` variable in `environments/stage/terraform.tfvars` with the ID of the new Golden AMI.
-5.  **Deploy**: Run `terraform apply`. The Auto Scaling Group will perform a rolling refresh to launch new instances with the updated Golden AMI.
+**To update the AMI used by this environment:**
+- Run the following command from the root `terraform/` directory:
+  ```bash
+  make use-ami TARGET_ENV=stage SOURCE_ENV=dev
+  ```
+- **What it does:** This command reads the latest tested Golden AMI ID from the `dev` environment's history (`environments/dev/ami_history/ami_id.txt`), updates the `ami_id` variable in this environment's (`stage`) `terraform.tfvars` file, and commits the change to Git.
+- **After running `make`:** Run `terraform plan` and `terraform apply` in the `stage` directory to roll out the new AMI. The Auto Scaling Group will perform a rolling refresh to launch new instances with the updated image.
 
-### Secrets Rotation
+### 5.2. Secrets Rotation
 This project uses an IaC-driven approach to rotate secrets (e.g., database password, WordPress salts).
 
 1.  **Update Secret Version**: Change the value of the `secrets_version` variable in `terraform.tfvars`.
@@ -215,7 +210,7 @@ This project uses an IaC-driven approach to rotate secrets (e.g., database passw
     ```
     *(Replace `<asg-name>` with the actual name of the Auto Scaling Group from Terraform outputs.)*
 
-### Shutting Down the Environment
+### 5.3. Shutting Down the Environment
 To avoid incurring costs when the environment is not in use, you can destroy all provisioned resources:
 ```bash
 terraform destroy
@@ -249,7 +244,7 @@ Access to the admin panel is blocked by the WAF and is only permitted from an ac
 ## 7. Primary Outputs
 
 - `alb_dns_name`: The DNS name of the Application Load Balancer to access the site.
-- `client_vpn_config_file`: Command to get the `.ovpn` configuration file for VPN access.
+- `db_host`: The hostname of the RDS database instance.
+- `db_endpoint`: The full endpoint of the RDS instance.
 - `asg_id`: The ID of the Auto Scaling Group.
-- `rds_db_instance_identifier`: The identifier of the RDS instance.
 - `kms_key_arn`: The ARN of the master KMS key.

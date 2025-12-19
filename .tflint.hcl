@@ -9,6 +9,6 @@
 
 plugin "aws" {
   enabled = true
-  version = "0.40.0" # Pinning the latest stable version of the AWS plugin
+  version = "0.44.0" # Pinning the latest stable version of the AWS plugin
   source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }

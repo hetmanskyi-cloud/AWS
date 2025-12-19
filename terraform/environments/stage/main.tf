@@ -425,7 +425,7 @@ module "interface_endpoints" {
   vpc_cidr_block              = module.vpc.vpc_cidr_block
   private_subnet_ids          = module.vpc.private_subnet_ids
   enable_interface_endpoints  = var.enable_interface_endpoints
-  interface_endpoint_services = ["kms", "logs", "secretsmanager", "ssm", "ssmmessages", "ec2messages", "ec2"]
+  interface_endpoint_services = var.interface_endpoint_services
   tags                        = merge(local.common_tags, local.tags_interface_endpoints)
 }
 

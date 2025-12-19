@@ -11,7 +11,7 @@ This repository contains a comprehensive, modular, and production-ready Terrafor
 This project is designed with a clear separation of concerns, leveraging a multi-environment setup (`dev`, `stage`) and a rich set of reusable Terraform modules. It automates the provisioning of everything from the foundational network layer (VPC) to the application stack (ALB, ASG, RDS, ElastiCache) and its supporting services (KMS, S3, CloudFront).
 
 Two distinct deployment strategies are supported:
-1.  **On-the-Fly Provisioning (for `dev`):** Uses Ansible to configure instances from a base OS on boot, ideal for rapid development and testing. An alternative, script-based method is also available.
+1.  **On-the-Fly Provisioning (for `dev`):** Uses Ansible to configure instances from a base OS on boot, ideal for rapid development and testing.
 2.  **Golden AMI (for `stage`):** Uses pre-built, hardened machine images for faster, more consistent, and reliable deployments in a pre-production environment.
 
 ---
@@ -65,16 +65,20 @@ graph TD
 
             subgraph "Application Layer"
                 ASG["Auto Scaling Group<br/>(EC2 Instances)"]
-                EFS["EFS<br/>(for /wp-content/uploads)"]
                 RDS["RDS MySQL<br/>Database"]
                 Redis["ElastiCache<br/>Redis Cache"]
             end
 
-            subgraph "Image Processing Pipeline (Serverless)"
-                S3_Events(S3 Event)
-                SQS[SQS Queue]
-                Lambda[Lambda Function]
-                DynamoDB[DynamoDB Table]
+            subgraph "Optional Services"
+                style OptionalServices fill:#f8f9fa,stroke:#adb5bd,stroke-dasharray: 4 4
+                EFS["EFS<br/>(for /wp-content/uploads)"]
+
+                subgraph "Image Processing Pipeline (Serverless)"
+                    S3_Events(S3 Event)
+                    SQS[SQS Queue]
+                    Lambda[Lambda Function]
+                    DynamoDB[DynamoDB Table]
+                end
             end
         end
     end
@@ -90,7 +94,7 @@ graph TD
     %% Internal Application Dependencies
     ASG -->|"Database"| RDS
     ASG -->|"Object Cache & Sessions"| Redis
-    ASG -->|"Shared Media"| EFS
+    ASG -->|"Shared Media (Optional)"| EFS
     ASG -->|"Outbound Internet"| NAT
 
     %% Image Processing Flow
@@ -126,13 +130,13 @@ The repository is organized into distinct directories, each with a specific resp
 
 ```
 .
-├── Makefile                # Automates common Terraform and script commands.
-├── README.md               # This file.
-├── ansible/                # Ansible playbooks for instance provisioning.
-├── environments/           # Root configurations for each deployment environment.
-│   ├── dev/                # Development: cost-optimized, on-the-fly provisioning.
-│   └── stage/              # Staging: mirrors production, Golden AMI deployment.
-├── modules/                # Reusable Terraform modules for creating AWS resources.
+├── Makefile                   # Automates common Terraform and script commands.
+├── README.md                  # This file.
+├── ansible/                   # Ansible playbooks for instance provisioning.
+├── environments/              # Root configurations for each deployment environment.
+│   ├── dev/                   # Development: cost-optimized, on-the-fly provisioning.
+│   └── stage/                 # Staging: mirrors production, Golden AMI deployment.
+├── modules/                   # Reusable Terraform modules for creating AWS resources.
 │   ├── acm/
 │   ├── alb/
 │   ├── asg/
@@ -150,8 +154,8 @@ The repository is organized into distinct directories, each with a specific resp
 │   ├── s3/
 │   ├── sqs/
 │   └── vpc/
-├── scripts/                # Helper scripts for deployment, debugging, and maintenance.
-└── templates/              # User Data templates for EC2 instances.
+├── scripts/                   # Helper scripts for deployment, debugging, and maintenance.
+└── templates/                 # User Data templates for EC2 instances.
 ```
 
 ---
@@ -163,13 +167,13 @@ The repository is organized into distinct directories, each with a specific resp
 The project uses a multi-environment setup located in the `environments/` directory. Each environment has its own `main.tf`, `variables.tf`, and `terraform.tfvars` files, allowing for isolated and customized deployments.
 
 -   **`dev` Environment:**
-    -   **Purpose:** Development and functional testing.
+    -   **Purpose:** Development, functional testing, and serving as the "Golden AMI Factory".
     -   **Strategy:** Optimized for cost-effectiveness and rapid iteration. It uses an **on-the-fly provisioning** strategy where Ansible installs and configures WordPress on each EC2 instance at boot time.
     -   See `environments/dev/README.md` for full details.
 
 -   **`stage` Environment:**
     -   **Purpose:** Pre-production validation, integration testing, and performance testing.
-    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image. This ensures faster, more reliable, and consistent deployments.
+    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image created by the `dev` environment. This ensures faster, more reliable, and consistent deployments.
     -   See `environments/stage/README.md` for full details.
 
 ### 5.2. Modularity
@@ -184,6 +188,8 @@ To deploy and manage this infrastructure, the following tools must be installed 
 
 -   **Terraform (`~> 1.12`)**: To manage infrastructure as code.
 -   **AWS CLI**: To interact with your AWS account.
+-   **Make**: To use the automated workflows in the `Makefile`.
+-   **Ansible**: Required for the on-the-fly provisioning in the `dev` environment.
 -   **Docker**: Required by the `build_layer.sh` script to create a consistent build environment for Python Lambda layers.
 -   **Python 3**: Required by helper scripts.
 
@@ -191,33 +197,27 @@ To deploy and manage this infrastructure, the following tools must be installed 
 
 ## 7. How to Deploy
 
+All commands should be run from the root `terraform/` directory.
+
 1.  **Clone the Repository:**
     ```bash
     git clone <repository-url>
     cd terraform
     ```
 
-2.  **Set up your AWS credentials** as described in `environments/dev/README.md` (the model uses a limited-privilege IAM user that assumes a powerful role).
+2.  **Set up your AWS credentials** (typically by configuring your `~/.aws/config` and `~/.aws/credentials` files).
 
-3.  **Navigate to an Environment:**
-    ```bash
-    # For example, to deploy the 'dev' environment
-    cd environments/dev
-    ```
+3.  **Configure Variables:**
+    Create or edit the `terraform.tfvars` file for the environment you wish to deploy (e.g., `environments/dev/terraform.tfvars`). At a minimum, you will need to provide values for any variables that do not have default values.
 
-4.  **Configure Variables:**
-    Copy the example variables file and customize it for your deployment.
+4.  **Initialize and Deploy using Makefile:**
+    From the root `terraform/` directory, use the `make` commands to manage your environment.
     ```bash
-    cp terraform.tfvars.example terraform.tfvars
-    # Edit terraform.tfvars with your specific values (e.g., domain name)
-    ```
+    # To run a full check and see a plan for the 'dev' environment
+    make all ENV=dev
 
-5.  **Initialize and Deploy using Makefile:**
-    From the root `terraform/` directory, use the `make` commands.
-    ```bash
-    # From the terraform/ directory
-    make all ENV=dev   # Initializes, formats, validates, and plans the 'dev' environment
-    make apply ENV=dev # Applies the changes for the 'dev' environment
+    # To apply the changes to the 'dev' environment
+    make apply ENV=dev
     ```
 
 ---
@@ -226,7 +226,7 @@ To deploy and manage this infrastructure, the following tools must be installed 
 
 ### 8.1. Golden AMI Workflow
 
-The `stage` environment relies on a "Golden AMI" for deployments. The `Makefile` provides a complete, automated workflow for creating and promoting these AMIs.
+The `stage` environment relies on a "Golden AMI" for deployments. The `Makefile` provides a complete, automated workflow for creating and promoting these AMIs from the `dev` environment.
 
 1.  **Provision & Harden Instance:** In the `dev` environment, select a running instance and prepare it to be an AMI. This script hardens the OS, installs updates, and cleans the instance.
     ```bash
@@ -273,11 +273,11 @@ Direct SSH access to instances is disabled. All access is managed through **AWS 
 
 ### 8.4. Connecting to the Client VPN
 
-Secure access to the VPC is provided via the Client VPN.
+Secure access to the VPC is provided via the Client VPN (if enabled in the environment).
 1.  **Get the `.ovpn` configuration file** from the Terraform output after deployment:
     ```bash
     # In environments/dev directory
-    terraform output -raw client_vpn_config > wordpress-vpn.ovpn
+    terraform output -raw client_vpn_config_file > wordpress-vpn.ovpn
     ```
 2.  **Import** this file into your AWS VPN Client or any other OpenVPN-compatible client and connect.
 

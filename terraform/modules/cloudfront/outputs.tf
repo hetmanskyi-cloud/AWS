@@ -120,15 +120,15 @@ output "cloudfront_distribution_etag" {
 # --- WAF IP Set Outputs for VPN Integration --- #
 output "waf_vpn_ip_set_id" {
   description = "The ID of the IP Set used for whitelisting VPN access."
-  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].id : null
+  value       = var.enable_cloudfront_waf && var.enable_client_vpn ? aws_wafv2_ip_set.vpn_access_ips[0].id : null
 }
 
 output "waf_vpn_ip_set_name" {
   description = "The name of the IP Set used for whitelisting VPN access."
-  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].name : null
+  value       = var.enable_cloudfront_waf && var.enable_client_vpn ? aws_wafv2_ip_set.vpn_access_ips[0].name : null
 }
 
 output "waf_vpn_ip_set_arn" {
   description = "The ARN of the IP Set used for whitelisting VPN access."
-  value       = var.enable_cloudfront_waf ? aws_wafv2_ip_set.vpn_access_ips[0].arn : null
+  value       = var.enable_cloudfront_waf && var.enable_client_vpn ? aws_wafv2_ip_set.vpn_access_ips[0].arn : null
 }

@@ -5,26 +5,36 @@
 ## Table of Contents
 
 - [1. Overview](#1-overview)
+  - [1.1. Development and Testing](#11-development-and-testing)
+  - [1.2. Golden AMI Factory](#12-golden-ami-factory)
 - [2. Architecture](#2-architecture)
   - [2.1. Diagram](#21-diagram)
   - [2.2. Key Configuration Choices](#22-key-configuration-choices)
 - [3. How to Deploy](#3-how-to-deploy)
-- [4. Local Prerequisites](#4-local-prerequisites)
-- [5. Key Operational Workflows](#5-key-operational-workflows)
-- [6. Accessing the Environment](#6-accessing-the-environment)
-- [7. Primary Outputs](#7-primary-outputs)
+- [4. Golden AMI Workflow](#4-golden-ami-workflow)
+- [5. Local Prerequisites](#5-local-prerequisites)
+- [6. Operational Workflows](#6-operational-workflows)
+  - [6.1. Secrets Rotation](#61-secrets-rotation)
+  - [6.2. Shutting Down the Environment](#62-shutting-down-the-environment)
+- [7. Accessing the Environment](#7-accessing-the-environment)
+- [8. Primary Outputs](#8-primary-outputs)
 
 ---
 
 ## 1. Overview
 
-This document describes the configuration of the **development (`dev`) environment** for the WordPress on AWS project.
+This document describes the configuration and dual purpose of the **development (`dev`) environment** for the WordPress on AWS project.
 
-**Key Characteristics:**
+### 1.1. Development and Testing
 - **Purpose:** Intended for the development and functional testing of the WordPress application and its underlying infrastructure.
 - **Region:** `eu-west-1`.
 - **Cost-Optimization:** This environment is configured to minimize costs. Many features related to high availability, extensive logging, and data replication are disabled by default but can be enabled via variables in `terraform.tfvars`.
 - **Dynamic Configuration:** The services enabled in this environment are not fixed. Developers can enable or disable features as needed for testing by modifying the `terraform.tfvars` file.
+
+### 1.2. Golden AMI Factory
+- **Purpose:** This environment also serves as the **factory** for creating, testing, and hardening the **"Golden AMI"**. This hardened machine image is then used to launch instances in other environments (e.g., `stage`) to ensure consistency and faster, more reliable deployments.
+- **Process:** The AMI creation process is automated via the root `Makefile` and is designed to be run exclusively in the `dev` environment.
+- **Traceability:** All created AMI IDs and build logs are stored in the `environments/dev/ami_history/` directory, providing a full audit trail.
 
 ---
 
@@ -49,11 +59,11 @@ graph TD
             KMS(KMS Key)
             SecretsManager(Secrets Manager)
             SNS(SNS Topics)
+            CloudFront(CloudFront + WAF)
         end
 
         subgraph "Optional Services"
             style OptionalServices fill:#f8f9fa,stroke:#adb5bd,stroke-dasharray: 4 4
-            CloudFront(CloudFront + WAF)
             ClientVPN(Client VPN)
             EFS(EFS File System)
             CloudTrail(CloudTrail)
@@ -127,7 +137,7 @@ graph TD
     class Lambda,SQS,SNS integration
     class ClientVPN,CloudTrail access
 
-    class CloudFront,ClientVPN,EFS,CloudTrail,Lambda,SQS,DynamoDB,ACM,Route53 optional
+    class ClientVPN,EFS,CloudTrail,Lambda,SQS,DynamoDB,ACM,Route53 optional
 ```
 
 ### 2.2. Key Configuration Choices
@@ -144,35 +154,21 @@ This environment is highly configurable via `terraform.tfvars`. Below is a descr
 
 - **CDN & WAF (CloudFront):**
   - **Status:** `Enabled`.
-  - **Details:** CloudFront serves as the primary entry point, using the default `*.cloudfront.net` domain. The associated **WAF is active**, using AWS managed rules for WordPress and a custom rule to restrict `/wp-admin/` access to Client VPN IPs.
+  - **Details:** CloudFront serves as the primary entry point, using the default `*.cloudfront.net` domain. The associated **WAF is active**, using AWS managed rules for WordPress.
   - **Toggle:** `wordpress_media_cloudfront_enabled = true`
 
 - **Security & Access:**
   - **Secrets Manager:** **Enabled**. All secrets (DB, WordPress, Redis) are managed by Secrets Manager and rotated via the `secrets_version` variable.
   - **Client VPN:**
-    - **Status:** `Enabled`.
-    - **Details:** Provides secure developer access to the VPC and is required for accessing the WordPress admin panel.
-    - **Toggle:** `enable_client_vpn = true`
+    - **Status:** `Disabled`.
+    - **Details:** Provides secure developer access to the VPC. When enabled, the WAF rule to restrict `/wp-admin/` access to Client VPN IPs becomes active.
+    - **Toggle:** `enable_client_vpn = false`
   - **KMS:** **Enabled**. A central CMK encrypts data at rest for Secrets Manager, RDS, ElastiCache, and CloudWatch Logs.
 
 - **Monitoring & Logging:**
   - **Status:** `Enabled`.
-  - **Details:** Basic CloudWatch Log groups for EC2/Nginx/PHP are enabled with a **1-day retention period**. Most alarms are disabled, except for critical ones like `UnHealthyHostCount` for the ALB.
+  - **Details:** Basic CloudWatch Log groups for EC2/Nginx/PHP are enabled with a **1-day retention period**. Most alarms are disabled by default.
   - **Toggle:** `enable_cloudwatch_logs = true`
-
-- **Optional Features (Current Configuration):**
-  - **EFS:**
-    - **Status:** Currently `Disabled`. EC2 instances use local EBS storage. Can be enabled by setting `enable_efs = true`.
-    - **Toggle Variable:** `enable_efs`
-  - **Image Processing Pipeline:**
-    - **Status:** Currently `Disabled`. The Lambda, SQS, and DynamoDB resources for image processing are not created. Can be enabled by setting `enable_image_processor = true`.
-    - **Toggle Variable:** `enable_image_processor`
-  - **CloudTrail:**
-    - **Status:** Currently `Disabled`. Can be enabled by setting `default_region_buckets["cloudtrail"].enabled = true`.
-    - **Toggle Variable:** `default_region_buckets["cloudtrail"].enabled`
-  - **Custom Domain:**
-    - **Status:** Currently `Disabled`. The ACM and Route53 modules are not used. Can be enabled by setting `create_dns_and_ssl = true`.
-    - **Toggle Variable:** `create_dns_and_ssl`
 
 ---
 
@@ -196,22 +192,51 @@ This environment currently uses a **local backend** to store the Terraform state
    ```
 ---
 
-## 4. Local Prerequisites
+## 4. Golden AMI Workflow
+
+The `dev` environment serves as a factory for producing "Golden AMIs" for other environments. This process is orchestrated by the root `Makefile`.
+
+**Key Concepts:**
+- **`ami_history` Directory:** Located in `environments/dev/ami_history/`, this directory tracks the output of the factory process.
+  - `ami_id.txt`: A log of all created Golden AMI IDs.
+  - `logs/`: Contains detailed logs for each step of the creation process, essential for auditing and debugging.
+- **`Makefile` Targets:** The workflow is executed using `make` commands from the `terraform/` directory.
+
+**The Workflow Steps:**
+1. **`make provision-ami ENV=dev`**
+   - **Action:** Takes the running `dev` instance, suspends its auto-scaling processes, and runs the `scripts/prepare-golden-ami.sh` hardening script on it. This includes updating packages, configuring the firewall, and cleaning secrets.
+   - **Do not run this in `stage` or `prod`.**
+
+2. **`make test-ami ENV=dev`**
+   - **Action:** Runs the `scripts/smoke-test-ami.sh` script on the provisioned instance to verify it is healthy and correctly configured before creating an image.
+
+3. **`make create-ami ENV=dev`**
+   - **Action:** Creates a new AMI from the provisioned and tested instance. It tags the AMI appropriately, then appends the new AMI ID to `ami_history/ami_id.txt` and commits the change to Git.
+
+4. **`make use-ami TARGET_ENV=stage SOURCE_ENV=dev`**
+   - **Action:** Reads the latest AMI ID from the `dev` history file and automatically updates the `ami_id` variable in the `stage` environment's `terraform.tfvars` file, committing the change to Git. This promotes the new AMI to the next environment.
+
+---
+
+## 5. Local Prerequisites
 
 To successfully deploy and manage this environment, the following tools must be installed on your local machine:
 
 - **Terraform (`~> 1.12`)**: To manage infrastructure as code.
 - **AWS CLI**: To interact with your AWS account. Ensure it is configured with the necessary credentials.
+- **Make**: To use the automated workflows in the `Makefile`.
 - **Ansible**: Required for the initial provisioning of the EC2 instances in this `dev` environment.
-- **Python & pip**: Required by the `build_layer.sh` script for building Lambda layers (if the image processing feature is enabled).
+- **Python & pip**: Required by scripts for building Lambda layers or other automation.
 - **zip**: A standard command-line utility required for packaging Lambda source code.
-- **Docker**: Required by the `build_layer.sh` script to create a consistent build environment for Python dependencies.
+- **Docker**: May be required by scripts to create a consistent build environment for dependencies.
 
 ---
 
-## 5. Key Operational Workflows
+## 6. Operational Workflows
 
-### Secrets Rotation
+This section describes common operational tasks for managing the environment.
+
+### 6.1. Secrets Rotation
 This project uses an IaC-driven approach to rotate secrets (e.g., database password, WordPress salts).
 
 1.  **Update Secret Version**: Change the value of the `secrets_version` variable in `terraform.tfvars`.
@@ -222,7 +247,7 @@ This project uses an IaC-driven approach to rotate secrets (e.g., database passw
     ```
     *(Replace `<asg-name>` with the actual name of the Auto Scaling Group from Terraform outputs.)*
 
-### Shutting Down the Environment
+### 6.2. Shutting Down the Environment
 To avoid incurring costs when the environment is not in use, you can destroy all provisioned resources:
 ```bash
 terraform destroy
@@ -230,7 +255,7 @@ terraform destroy
 
 ---
 
-## 6. Accessing the Environment
+## 7. Accessing the Environment
 
 ### Website Access
 The public URL for the WordPress site is available as a Terraform output:
@@ -239,9 +264,10 @@ terraform output -raw alb_dns_name
 ```
 
 ### WordPress Admin Panel (`/wp-admin/`)
-Access to the admin panel is blocked by the WAF and is only permitted from an active Client VPN session.
+By default, access to the admin panel is open. If you enable Client VPN (`enable_client_vpn = true`), access will be automatically restricted by the WAF and will only be permitted from an active Client VPN session.
 
 ### Client VPN Connection
+If you enable Client VPN:
 1.  **Get the `.ovpn` configuration file:**
     ```bash
     terraform output -raw client_vpn_config_file > wordpress-dev.ovpn
@@ -251,10 +277,10 @@ Access to the admin panel is blocked by the WAF and is only permitted from an ac
 
 ---
 
-## 7. Primary Outputs
+## 8. Primary Outputs
 
 - `alb_dns_name`: The DNS name of the Application Load Balancer to access the site.
-- `client_vpn_config_file`: Command to get the `.ovpn` configuration file for VPN access.
+- `db_host`: The hostname of the RDS database instance.
+- `db_endpoint`: The full endpoint of the RDS instance.
 - `asg_id`: The ID of the Auto Scaling Group.
-- `rds_db_instance_identifier`: The identifier of the RDS instance.
 - `kms_key_arn`: The ARN of the master KMS key.

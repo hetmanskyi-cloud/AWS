@@ -367,11 +367,13 @@ output "client_vpn_config_info" {
 }
 
 output "waf_vpn_ip_set_id" {
-  value = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_id : null
+  description = "The ID of the WAFv2 IP set for VPN access (from CloudFront module)."
+  value       = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_id : null
 }
 
 output "waf_vpn_ip_set_name" {
-  value = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_name : null
+  description = "The name of the WAFv2 IP set for VPN access (from CloudFront module)."
+  value       = length(module.cloudfront) > 0 ? module.cloudfront[0].waf_vpn_ip_set_name : null
 }
 
 # --- Notes --- #
