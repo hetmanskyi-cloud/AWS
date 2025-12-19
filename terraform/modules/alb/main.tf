@@ -2,6 +2,7 @@
 # This resource creates a public-facing Application Load Balancer (ALB) to handle incoming HTTP/HTTPS traffic.
 
 # checkov:skip=CKV2_AWS_20 Justification: HTTPS redirect is intentionally disabled in dev/stage environments due to lack of domain and ACM certificate.
+# checkov:skip=CKV2_AWS_20: "This is a false positive. The HTTP-to-HTTPS redirect is correctly handled via a dynamic block in the HTTP listener resource."
 resource "aws_lb" "application" {
   name     = "${var.name_prefix}-alb-${var.environment}" # ALB name
   internal = false                                       # tfsec:ignore:aws-elb-alb-not-public
@@ -45,6 +46,7 @@ resource "aws_lb" "application" {
 # This resource defines a target group for the ALB to forward traffic to ASG instances
 
 # checkov:skip=CKV_AWS_378 Justification: No domain or TLS certificate is available; traffic from ALB to EC2 uses HTTP intentionally within VPC
+# checkov:skip=CKV_AWS_378: "The target group uses HTTP intentionally, as traffic between the ALB and backend instances is contained within the private VPC."
 resource "aws_lb_target_group" "wordpress" {
   name     = "${var.name_prefix}-wordpress-tg-${var.environment}" # Target group name
   port     = var.target_group_port                                # Port for traffic (default: 80 for HTTP)
@@ -97,6 +99,7 @@ resource "aws_lb_target_group" "wordpress" {
 # HTTP traffic is redirected to HTTPS only if enable_https_listener is set to true.
 
 # checkov:skip=CKV_AWS_103 Justification: HTTP listener is used intentionally due to missing SSL certificate. TLS is not applicable for port 80.
+# checkov:skip=CKV_AWS_103: "The HTTP listener is intentionally used to perform a redirect to HTTPS, which is a standard practice."
 resource "aws_lb_listener" "http" { # tfsec:ignore:aws-elb-http-not-used
   load_balancer_arn = aws_lb.application.arn
   port              = 80

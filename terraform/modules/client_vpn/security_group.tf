@@ -25,6 +25,7 @@ resource "aws_security_group_rule" "allow_vpn_connections_in" {
 
 # --- Egress Rule: Allow All Outbound --- #
 # Allows the VPN endpoint to forward traffic to any resource within the VPC and to the internet for return traffic to clients.
+# checkov:skip=CKV_AWS_382: "Client VPN endpoint requires broad egress to allow clients to access VPC resources and the internet."
 resource "aws_security_group_rule" "allow_all_outbound" {
   type              = "egress"
   from_port         = 0

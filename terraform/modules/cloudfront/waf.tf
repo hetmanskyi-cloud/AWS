@@ -11,6 +11,7 @@ data "http" "my_ip" {
 # origin (forwarded to ALB) and the media origin (S3) from common web threats.
 # All WAF resources for CloudFront must be deployed in the us-east-1 region.
 
+# checkov:skip=CKV2_AWS_47: "False positive. The AWSManagedRulesKnownBadInputsRuleSet is already explicitly included in the WAF configuration."
 resource "aws_wafv2_web_acl" "cloudfront_waf" {
   provider = aws.cloudfront
   # Create WAF Web ACL only if CloudFront WAF is enabled in variables.

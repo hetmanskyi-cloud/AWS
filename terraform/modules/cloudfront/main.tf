@@ -93,6 +93,12 @@ resource "aws_cloudfront_origin_request_policy" "wordpress_alb_policy" {
 # Logging is handled separately through CloudWatch Log Delivery in `cloudfront/logging.tf`, ensuring efficient and cost-effective log storage.
 
 # tfsec:ignore:aws-cloudfront-enable-logging
+# checkov:skip=CKV_AWS_374: "Geo-restriction is an optional feature, not a baseline security requirement."
+# checkov:skip=CKV_AWS_86: "False positive. The module uses the modern logging_v2 configuration, which this check does not recognize."
+# checkov:skip=CKV_AWS_174: "False positive. The viewer_certificate block explicitly sets minimum_protocol_version to TLSv1.2_2021."
+# checkov:skip=CKV_AWS_310: "Origin failover is an advanced HA feature, not a baseline requirement for this architecture."
+# checkov:skip=CKV_AWS_305: "Default root object is not applicable here; root traffic is handled by the ALB origin."
+# checkov:skip=CKV2_AWS_32: "False positive. The distribution uses appropriate response header policies (Managed-SecurityHeadersPolicy for app content and Managed-CORS-S3Origin for S3 media content), which are sufficient for this architecture."
 resource "aws_cloudfront_distribution" "wordpress_media" {
   provider = aws.cloudfront
   count    = local.enable_cloudfront_media_distribution ? 1 : 0

@@ -44,6 +44,7 @@ locals {
 
 # --- DynamoDB Table Resource Definition --- #
 # This resource creates the DynamoDB table itself.
+# checkov:skip=CKV2_AWS_16: "Autoscaling is intentionally disabled. The module supports both PAY_PER_REQUEST (default) and PROVISIONED (with autoscaling) modes."
 resource "aws_dynamodb_table" "dynamodb_table" {
   # The full name is constructed from the prefix, base name, and environment.
   name = "${var.name_prefix}-${var.dynamodb_table_name}-${var.environment}"

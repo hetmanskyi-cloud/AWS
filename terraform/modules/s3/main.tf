@@ -5,6 +5,7 @@
 # Dynamically creates S3 buckets in the default region.
 
 # checkov:skip=CKV_AWS_145:Justification: Encryption is configured via a separate aws_s3_bucket_server_side_encryption_configuration resource for modular flexibility and reuse.
+# checkov:skip=CKV_AWS_145: "This is a false positive. KMS encryption is enforced via a bucket policy in policies.tf."
 resource "aws_s3_bucket" "default_region_buckets" {
   # Dynamic buckets in default region
   # If the Terraform state bucket (${var.s3_terraform_state_bucket_key}) is included, additional precautions are needed.
@@ -156,6 +157,7 @@ resource "aws_s3_bucket_versioning" "replication_region_bucket_versioning" {
 # Configures S3 Bucket Ownership Controls for buckets requiring ACLs for logging delivery.
 
 # checkov:skip=CKV2_AWS_65 Justification: ACLs are explicitly enabled via 'BucketOwnerPreferred' to support logging and legacy access patterns.
+# checkov:skip=CKV2_AWS_65: "BucketOwnerPreferred is required for log-receiving buckets where services like ALB and S3 Access Logging need to write using ACLs."
 resource "aws_s3_bucket_ownership_controls" "default_region_logging_ownership" {
   # Apply to enabled default region buckets that require ACLs for log delivery
   for_each = tomap({

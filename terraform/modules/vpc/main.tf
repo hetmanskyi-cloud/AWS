@@ -15,6 +15,7 @@ resource "aws_vpc" "vpc" {
 # Dynamically create public subnets based on the public_subnets variable.
 # Public subnets must have public IP assignment enabled for instances that require direct internet access.
 # checkov:skip=CKV_AWS_130 Justification: Public subnet requires public IPs to allow EC2 internet access for WordPress installation and updates
+# checkov:skip=CKV_AWS_130: "This resource defines public subnets, where mapping a public IP on launch is intentional."
 resource "aws_subnet" "public" {
   for_each = var.public_subnets
 

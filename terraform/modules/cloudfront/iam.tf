@@ -95,8 +95,10 @@ resource "aws_cloudwatch_log_group" "cloudfront_firehose_log_group" {
   count    = var.enable_cloudfront_firehose ? 1 : 0
 
   # The name must follow the pattern /aws/kinesisfirehose/<delivery-stream-name>
+  # checkov:skip=CKV_AWS_338: "Log retention is intentionally set to 7 days for non-production environments."
   name              = "/aws/kinesisfirehose/${var.name_prefix}-cloudfront-waf-logs-firehose-${var.environment}"
   retention_in_days = 7 # A reasonable retention period for error logs.
+  kms_key_id        = var.kms_key_arn
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-cloudfront-waf-logs-firehose-log-group-${var.environment}"

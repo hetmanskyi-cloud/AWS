@@ -12,6 +12,8 @@ locals {
 
 # --- Step 1: Create the Public Hosted Zone --- #
 # This resource creates the DNS zone for your custom domain in Route 53.
+# checkov:skip=CKV2_AWS_39: "DNS query logging is an optional feature, not a baseline security requirement."
+# checkov:skip=CKV2_AWS_38: "DNSSEC is an optional, advanced security feature not required for this project's baseline."
 resource "aws_route53_zone" "custom_zone" {
   name = var.custom_domain_name
 

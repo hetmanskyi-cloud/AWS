@@ -181,6 +181,12 @@ variable "alarms_enabled" {
   default     = true
 }
 
+variable "reserved_concurrent_executions" {
+  description = "The amount of reserved concurrent executions for the Lambda function. Set to -1 to remove concurrency limits."
+  type        = number
+  default     = -1
+}
+
 variable "sns_topic_arn" {
   description = "ARN of the SNS Topic for sending CloudWatch alarm notifications"
   type        = string

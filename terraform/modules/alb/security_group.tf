@@ -34,6 +34,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 
 # Allow HTTP traffic from anywhere if alb_access_cloudfront_mode is false (CloudFront mode disabled).
 # checkov:skip=CKV_AWS_260 Justification: Allowing public HTTP access intentionally for redirect to HTTPS or fallback access
+# checkov:skip=CKV_AWS_260: "ALB must be open to HTTP for redirection or if HTTPS is disabled."
 resource "aws_security_group_rule" "ingress_alb_http_open" {
   count = var.alb_access_cloudfront_mode ? 0 : 1
 

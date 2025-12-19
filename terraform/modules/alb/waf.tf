@@ -66,7 +66,31 @@ resource "aws_wafv2_web_acl" "alb_waf" {
     }
   }
 
-  # Rule 2: Stricter Rate Limiting Rule
+  # Rule 2: AWS Managed Rules (Known Bad Inputs)
+  # This rule set is important for catching known attack patterns, including those related to Log4j.
+  rule {
+    name     = "AWSManagedRulesKnownBadInputsRuleSet"
+    priority = 20
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "AWSManagedRulesKnownBadInputsRuleSetMetrics"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Rule 3: Stricter Rate Limiting Rule
   # This rule applies a tighter rate limit than the CloudFront WAF. It acts as a second
   # filter for traffic that has already passed the edge, catching suspicious application-level
   # activity that is not aggressive enough to be caught by the primary WAF.
