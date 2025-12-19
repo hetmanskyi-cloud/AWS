@@ -1,6 +1,8 @@
 # This script replicates the logic from the Ansible playbook 'smoke-test-ami.yml'
 # to verify the baseline configuration and hardening of a Golden AMI candidate.
 
+# shellcheck shell=bash
+
 set -euxo pipefail
 
 echo ">>> Running Golden AMI Smoke Tests..."

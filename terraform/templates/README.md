@@ -75,6 +75,7 @@ graph TD
         A6 --> A7(Ansible configures<br>Nginx, PHP, WordPress, EFS, etc.);
     end
 
+
     subgraph "Workflow 2: S3 Script-Based Deployment (user_data.sh.tpl)"
         direction LR
         B1(EC2 Instance Boot) --> B2(User Data Installs AWS CLI);
@@ -84,6 +85,7 @@ graph TD
         B5 --> B6(Executes deploy_wordpress.sh);
         B6 --> B7(Script installs Nginx, PHP,<br>fetches secrets, configures WP, etc.);
     end
+
 
     subgraph "Workflow 3: Golden AMI Runtime Config (user_data_runtime.sh.tpl)"
         direction LR

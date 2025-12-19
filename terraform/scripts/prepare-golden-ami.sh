@@ -1,6 +1,8 @@
 # This script replicates the logic from the Ansible playbook 'prepare-golden-ami.yml'
 # for baseline server updates and security hardening.
 
+# shellcheck shell=bash
+
 # Exit immediately if a command exits with a non-zero status.
 # Print each command to stdout before executing it.
 # Fail on unset variables.

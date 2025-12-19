@@ -54,7 +54,7 @@ graph TD
     end
 
     subgraph "On-Instance Ansible Execution"
-        EC2 -- "User-data script runs" --> Ansible[Ansible Playbook\n(localhost)]
+        EC2 -- "User-data script runs" --> Ansible["Ansible Playbook<br/>(localhost)"]
 
         Ansible -- Installs & Configures --> Nginx("Web Server: Nginx")
         Ansible -- Installs & Configures --> PHP("PHP-FPM")
@@ -64,8 +64,8 @@ graph TD
     end
 
     subgraph "External AWS Services"
-        GitRepo["Git Repository\n<i>(WordPress Fork)</i>"]
-        S3["S3 Bucket\n<i>(Deployment Scripts)</i>"]
+        GitRepo["Git Repository<br/><i>(WordPress Fork)</i>"]
+        S3["S3 Bucket<br/><i>(Deployment Scripts)</i>"]
         SecretsManager["AWS Secrets Manager"]
         CloudWatch["AWS CloudWatch Logs"]
         EFS["AWS EFS"]
@@ -74,7 +74,7 @@ graph TD
     end
 
     %% Connections
-    EC2 -- "Retrieves Secrets From\n(via IAM Role)" --> SecretsManager
+    EC2 -- "Retrieves Secrets From<br/>(via IAM Role)" --> SecretsManager
     WordPress -- "Clone Code From" --> GitRepo
     WordPress -- "Get healthcheck.php From" --> S3
     PHP -- Connects To --> RDS
