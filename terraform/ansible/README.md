@@ -90,6 +90,8 @@ graph TD
     class GitRepo,S3,SecretsManager,CloudWatch,EFS,ElastiCache,RDS fill:#0B5345,stroke:#232F3e,color:white
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_```
+
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
 This diagram illustrates the application deployment model where Terraform provisions the necessary infrastructure and then triggers an on-instance Ansible run via a user-data script to configure the software stack.
