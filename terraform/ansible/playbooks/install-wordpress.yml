@@ -147,6 +147,11 @@
             state: present
           tags: [efs, config]
 
+      rescue:
+        - name: EFS client installation failed
+          debug:
+            msg: "The block to install the EFS client failed. This is expected if the instance does not use EFS, but could indicate a problem if EFS is enabled."
+
       when: efs_file_system_id is defined and efs_file_system_id != ""
       tags: [efs]
 
