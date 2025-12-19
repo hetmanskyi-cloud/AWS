@@ -23,8 +23,10 @@
 
 This directory contains the GitHub Actions workflow (`terraform.yml`) responsible for the Continuous Integration (CI) of the Terraform code in this repository.
 
-The workflow automatically triggers on `push` events and `pull_request` events targeting the `main` branch. Its primary purpose is to validate the Terraform code by performing a series of checks:
-- **Initialization**: Ensures Terraform can initialize correctly.
+The workflow automatically triggers on `push` and `pull_request` events targeting the `main` branch but is optimized to run only when relevant files are changed (e.g., in `terraform/`, `scripts/`, or `.github/workflows/`). It also includes a `concurrency` configuration to automatically cancel in-progress runs on the same branch when new commits are pushed, saving time and resources.
+
+Its primary purpose is to validate the Terraform code by performing a series of checks:
+- **Initialization**: Ensures Terraform can initialize correctly without a backend.
 - **Formatting**: Verifies code adheres to standard Terraform formatting (`terraform fmt`).
 - **Validation**: Checks for syntactical correctness (`terraform validate`).
 - **Linting**: Uses `TFLint` to check for potential errors, best practice violations, and style issues.
@@ -44,7 +46,7 @@ This automated process helps maintain code quality, consistency, and security by
     - TFLint: Uses the `latest` version available via `terraform-linters/setup-tflint`.
     - tfsec: Installed dynamically using the official install script.
     - Checkov: Installed dynamically using `pip`.
-    - Python: Requires Python `3.13` to be available for Checkov installation.
+    - Python: Requires Python `3.12` to be available for Checkov installation.
 
 ---
 
@@ -53,7 +55,8 @@ This automated process helps maintain code quality, consistency, and security by
 ```mermaid
 graph TD
     %% Workflow Trigger
-    Trigger["Push/Pull Request<br>(main branch)"]
+    Trigger["Push/Pull Request<br>(main branch, path filtered)"]
+    Concurrency["Concurrency Control<br>(Cancel In-Progress)"]
 
     %% Job
     JobTerr["Job: Terraform<br>(ubuntu-latest)"]
@@ -62,20 +65,22 @@ graph TD
     Checkout["Step: Checkout Code"]
     SetupTF["Step: Setup Terraform (latest)"]
     Cache["Step: Cache Modules"]
-    Init["Step: Terraform Init<br>(./terraform)"]
-    Format["Step: Terraform Format Check<br>(./terraform)"]
-    Validate["Step: Terraform Validate<br>(./terraform)"]
+    Init["Step: Terraform Init<br>(-backend=false)"]
+    Format["Step: Terraform Format Check"]
+    Validate["Step: Terraform Validate"]
     ShellChk["Step: ShellCheck"]
     SetupTFLint["Step: Setup TFLint (latest)"]
-    TFLint["Step: Run TFLint<br>(./terraform)"]
+    TFLintInit["Step: TFLint Init"]
+    TFLint["Step: Run TFLint"]
     InstallTfsec["Step: Install tfsec"]
-    Tfsec["Step: Run tfsec (Soft Fail)<br>(./terraform)"]
-    SetupPy["Step: Setup Python 3.13"]
+    Tfsec["Step: Run tfsec (Soft Fail)"]
+    SetupPy["Step: Setup Python 3.12"]
     InstallCheckov["Step: Install Checkov"]
-    Checkov["Step: Run Checkov (Soft Fail)<br>(./terraform)"]
+    Checkov["Step: Run Checkov (Soft Fail)"]
 
     %% Flow
-    Trigger --> JobTerr
+    Trigger --> Concurrency
+    Concurrency --> JobTerr
     JobTerr --> Checkout
     Checkout --> SetupTF
     SetupTF --> Cache
@@ -84,7 +89,8 @@ graph TD
     Format --> Validate
     Validate --> ShellChk
     ShellChk --> SetupTFLint
-    SetupTFLint --> TFLint
+    SetupTFLint --> TFLintInit
+    TFLintInit --> TFLint
     TFLint --> InstallTfsec
     InstallTfsec --> Tfsec
     Tfsec --> SetupPy
@@ -98,9 +104,9 @@ graph TD
     classDef check fill:#7D3C98,stroke:#232F3E,color:white
     classDef security fill:#DD3522,stroke:#232F3E,color:white
 
-    class Trigger trigger
+    class Trigger,Concurrency trigger
     class JobTerr job
-    class Checkout,SetupTF,Cache,Init,SetupTFLint,InstallTfsec,SetupPy,InstallCheckov setup
+    class Checkout,SetupTF,Cache,Init,SetupTFLint,InstallTfsec,SetupPy,InstallCheckov,TFLintInit setup
     class Format,Validate,ShellChk,TFLint check
     class Tfsec,Checkov security
 ```
@@ -115,18 +121,19 @@ The `terraform.yml` workflow executes the following steps sequentially:
 
 1.  **Checkout code**: Checks out the repository's code using `actions/checkout@v4`.
 2.  **Setup Terraform**: Installs the `latest` version of Terraform using `hashicorp/setup-terraform@v3`.
-3.  **Cache Terraform modules**: Caches downloaded provider plugins to speed up subsequent runs using `actions/cache@v4`. The cache key depends on the OS and hashes of provider/version files.
-4.  **Terraform Init**: Initializes the Terraform working directory (`./terraform`) and downloads required providers (`terraform init -upgrade`).
+3.  **Cache Terraform modules**: Caches downloaded provider plugins to speed up subsequent runs using `actions/cache@v4`. The cache key depends on the OS and hashes of provider lock files.
+4.  **Terraform Init**: Initializes the Terraform working directory (`./terraform`) without configuring a backend (`-backend=false`) and with a read-only lockfile (`-lockfile=readonly`). This is faster and safer for CI validation.
 5.  **Terraform Format**: Checks if the Terraform code in `./terraform` is correctly formatted (`terraform fmt -check -diff -recursive`). Fails if formatting issues are found.
-6.  **Terraform Validate**: Validates the syntax of the Terraform configuration in `./terraform` (`terraform validate`). Fails on syntax errors.
-7.  **ShellCheck**: Runs `ShellCheck` using `ludeeus/action-shellcheck@master`. The `severity: error` parameter ensures that the workflow fails on any findings.
+6.  **Terraform Validate**: Validates the syntax of the Terraform configuration in `./terraform` (`terraform validate`).
+7.  **ShellCheck**: Runs `ShellCheck` using the version-pinned `ludeeus/action-shellcheck@2.0.0`. The `severity: error` parameter ensures that the workflow fails on any findings.
 8.  **Setup TFLint**: Installs the `latest` version of TFLint using `terraform-linters/setup-tflint@v4`.
-9.  **TFLint**: Runs `TFLint` against the code in `./terraform` to perform static analysis and linting (`tflint`). Fails if linting errors are found.
-10. **Install tfsec**: Downloads and installs the `tfsec` security scanner using its official install script.
-11. **Run tfsec (soft-fail)**: Runs `tfsec` against the `./terraform` directory. The `|| true` ensures the workflow continues even if `tfsec` finds issues (soft-fail). Findings are printed to the console.
-12. **Set up Python**: Sets up Python `3.13` environment using `actions/setup-python@v5`, required for Checkov.
-13. **Install Checkov**: Installs the `Checkov` security scanner using `pip`.
-14. **Run Checkov (console output, soft-fail)**: Runs `Checkov` against the `./terraform` directory, skipping check `CKV_AWS_192`. The `|| true` ensures the workflow continues even if `Checkov` finds issues (soft-fail). Findings are printed to the console.
+9.  **TFLint Init**: Initializes TFLint to download necessary provider plugins (`tflint --init`).
+10. **TFLint**: Runs `TFLint` against the code in `./terraform` to perform static analysis and linting (`tflint`). Fails if linting errors are found.
+11. **Install tfsec**: Downloads and installs the `tfsec` security scanner using its official install script.
+12. **Run tfsec (soft-fail)**: Runs `tfsec` against the `./terraform` directory. The `|| true` ensures the workflow continues even if `tfsec` finds issues (soft-fail). Findings are printed to the console.
+13. **Set up Python**: Sets up Python `3.12` environment using `actions/setup-python@v5`, required for Checkov.
+14. **Install Checkov**: Installs the `Checkov` security scanner using `pip`.
+15. **Run Checkov (console output, soft-fail)**: Runs `Checkov` against the `./terraform` directory, skipping check `CKV_AWS_192`. The `|| true` ensures the workflow continues even if `Checkov` finds issues (soft-fail). Findings are printed to the console.
 
 ---
 
@@ -152,8 +159,8 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 7. Security Considerations / Recommendations
 
--   **Permissions**: The workflow requests `contents: read` (to checkout code), `id-token: write` (for potential OIDC authentication), and `pull-requests: write`. These permissions should be reviewed periodically to ensure they adhere to the principle of least privilege.
--   **Unpinned Tool Versions**: The workflow currently uses `latest` for tools like Terraform/TFLint, dynamically installs `tfsec` and `Checkov`, and references action versions like `@v4` or `@master`. This can introduce instability or breaking changes without warning. For production-grade stability, all actions and tools should be pinned to specific versions.
+-   **Permissions**: The workflow requests `contents: read` (to checkout code) and `pull-requests: write`. These permissions are minimal and adhere to the principle of least privilege for a static analysis job. The unnecessary `id-token: write` permission has been removed.
+-   **Unpinned Tool Versions**: The workflow currently uses `latest` for tools like Terraform/TFLint and dynamically installs `tfsec` and `Checkov`. For production-grade stability, all actions and tools should be pinned to specific versions (e.g., `uses: actions/checkout@v4.1.7`). Note that `shellcheck` has been pinned to a specific version as a best practice.
 -   **Security Scan Soft-Fails**: Both `tfsec` and `Checkov` are configured with `|| true`, meaning the workflow will pass even if security issues are detected. This prevents blocking PRs but requires **manual review** of the tool output in the workflow logs to identify and address findings. For stricter security enforcement, remove the `|| true`.
 -   **Skipped Checks**: `Checkov` is configured to skip `CKV_AWS_192`. Ensure this skip is intentional and documented, and review periodically if it's still necessary.
 
@@ -161,7 +168,7 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 8. Best Practices
 
--   **Pin Dependencies**: For stability and security, it is critical to pin versions for all GitHub Actions and setup tools (e.g., `uses: actions/checkout@v4.1.7`, `with: terraform_version: 1.8.0`). Avoid using `latest`, `@vX` major versions, or `master` in production workflows, as they can pull in breaking changes unexpectedly.
+-   **Pin Dependencies**: For stability and security, it is critical to pin versions for all GitHub Actions and setup tools (e.g., `uses: ludeeus/action-shellcheck@2.0.0`, `with: terraform_version: 1.8.0`). The workflow has started this by pinning `action-shellcheck`, but other actions using major versions (`@vX`) or `latest` should also be pinned.
 -   **Configuration Files**: Consider adding configuration files for linters and scanners (e.g., `.tflint.hcl`, `.tfsec/config.yml`, `.checkov.yml`) to customize rules, exclude paths, and manage findings more effectively.
 -   **Review Soft Fails**: Regularly check the logs of passed workflows for any security issues reported by `tfsec` or `Checkov` due to the soft-fail configuration.
 -   **Workflow Monitoring**: Keep an eye on workflow execution times. The caching step helps, but initialization time can grow with more providers.
@@ -181,7 +188,7 @@ This CI workflow integrates several tools to ensure code quality and security:
 
 ## 10. Future Improvements
 
--   **Pin Versions**: Replace all floating versions (`latest`, `@v4`, `@master`, etc.) with specific, pinned versions for all actions and tools to ensure reproducible builds.
+-   **Pin All Versions**: Replace all remaining floating versions (`latest`, `@v4`, etc.) with specific, pinned versions for all actions and tools to ensure reproducible builds.
 -   **Strict Security Checks**: Remove `|| true` from `tfsec` and `Checkov` steps for stricter security enforcement (workflow fails if issues are found).
 -   **PR Comments**: Integrate tools like `tfsec-pr-commenter-action` or configure Checkov/TFLint actions to post findings directly as comments on Pull Requests.
 -   **`terraform plan`**: Add a `terraform plan` step (likely requiring AWS credentials via OIDC or secrets) to preview changes, especially on Pull Requests.

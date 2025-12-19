@@ -16,18 +16,24 @@ Refer to the "Getting Started" section in the [Terraform Documentation](./terraf
 
 To update the WordPress application version or any related code, follow these steps:
 
-1.  **Update `terraform/environments/<env>/variables.tf`**:
-    *   Change the `wordpress_version` variable to the desired version.
+1.  **Update `terraform/environments/<env>/terraform.tfvars`**:
+    *   Change the `wordpress_version` variable to the desired version (primarily for documentation or if building a new Golden AMI).
     *   If using Golden AMI strategy, update the `ami_id` variable with the ID of the new Golden AMI.
+
 2.  **Generate/Update Golden AMI (if applicable)**:
-    *   If `use_ansible_deployment` is `false` (e.g., in `stage` or `prod`), a new Golden AMI needs to be prepared using the Ansible playbook `ansible/playbooks/prepare-golden-ami.yml`.
-    *   Ensure the latest WordPress version and configurations are baked into the new AMI.
+    *   If `use_ansible_deployment` is `false` (e.g., in `stage` or `prod`), a new Golden AMI needs to be prepared.
+    *   This process involves executing commands from the `terraform/` directory:
+        1.  Provisioning and hardening an instance in the `dev` environment: `make provision-ami ENV=dev`
+        2.  Running smoke tests on the prepared instance: `make test-ami ENV=dev`
+        3.  Creating the new AMI: `make create-ami ENV=dev`
+        4.  Promoting the AMI to the target environment (e.g., `stage`): `make use-ami TARGET_ENV=stage SOURCE_ENV=dev`
+    *   For a complete, detailed walkthrough of the Golden AMI workflow, refer to the "Golden AMI Workflow" section in the [Terraform Documentation](./terraform/README.md).
+
 3.  **Run Terraform Apply**:
     ```bash
     cd terraform/environments/<env>
     terraform init
-    terraform plan -var-file="terraform.tfvars" -out="tfplan"
-    terraform apply "tfplan"
+    terraform apply -var-file="terraform.tfvars" "tfplan"
     ```
     This will trigger an Auto Scaling Group instance refresh, replacing old instances with new ones running the updated application code or AMI.
 
@@ -56,13 +62,16 @@ For any changes to the Terraform infrastructure code (e.g., changing instance ty
     *   Go to EC2 Console -> Load Balancers -> Target Groups.
     *   Check the health status of instances registered with the WordPress target group.
     *   If instances are unhealthy, investigate the cause.
-2.  **SSH into EC2 Instances**:
+2.  **Connect to EC2 Instances via AWS Systems Manager (SSM) Session Manager**:
     *   Connect to one of the EC2 instances in the Auto Scaling Group.
-    *   Check web server (Nginx/Apache) logs: `/var/log/nginx/error.log`, `/var/log/apache2/error.log`.
-    *   Check PHP-FPM logs: `/var/log/php-fpm/www-error.log` (path may vary).
-    *   Check WordPress debug logs (if enabled): `wp-content/debug.log`.
+    *   Check web server (Nginx) logs: `/var/log/nginx/error.log`.
+    *   Check PHP-FPM logs: `/var/log/php-fpm/www-error.log`, `/var/log/php-fpm/access.log`.
+    *   Check WordPress debug logs (if enabled): `/var/log/wordpress.log`.
+    *   Check bootstrap logs: `/var/log/user-data.log`, `/var/log/wordpress_install.log` (for `dev` environments).
     *   Verify MySQL connectivity from the EC2 instance to the RDS endpoint.
     *   Verify ElastiCache (Redis) connectivity.
+    *   **Check SSM Agent Status**: If you cannot connect via Session Manager, ensure the SSM Agent is running on the instance (`sudo systemctl status amazon-ssm-agent`).
+    *   **Use `debug_monitor.sh`**: For real-time log streaming during deployment, use the `debug_monitor.sh` script from the `terraform/scripts/` directory.
 3.  **Review CloudWatch Metrics & Logs**:
     *   Check ALB metrics for 5XX errors, latency.
     *   Check EC2 metrics for CPU utilization, memory, network I/O.
@@ -96,15 +105,15 @@ The infrastructure is configured with various CloudWatch alarms. If an alarm tri
 
 1.  **Identify the Alarm**: Check the SNS notification for the alarm name and description.
 2.  **Consult Troubleshooting Section**: Use the relevant section in this runbook based on the alarm type (e.g., EC2 CPU utilization, ALB 5XX errors, RDS FreeStorageSpace).
-3.  **Investigate**: Use CloudWatch metrics, logs, and SSH access to diagnose the root cause.
+3.  **Investigate**: Use CloudWatch metrics, logs, and SSM Session Manager to diagnose the root cause.
 4.  **Resolve & Document**: Address the issue and, if a new pattern, update this runbook.
 
 ### 4.2 Logging
 
 *   **ALB Access Logs**: Stored in S3 (configured in `terraform/modules/alb/`).
-*   **CloudFront Access Logs**: Stored in S3 (configured in `terraform/modules/cloudfront/`).
-*   **EC2 System Logs**: Accessible via SSH (`/var/log/syslog`, `dmesg`).
-*   **WordPress/PHP Logs**: Located on EC2 instances (`/var/log/nginx/error.log`, `wp-content/debug.log`).
+*   **CloudFront Access Logs**: Delivered via CloudWatch Log Delivery (Logging v2) to S3 (configured in `terraform/modules/cloudfront/`).
+*   **EC2 System Logs**: Accessible via SSM Session Manager (`/var/log/syslog`, `dmesg`, `/var/log/ansible_playbook.log` for Ansible deployments, `/var/log/user-data.log`, `/var/log/wordpress_install.log`).
+*   **WordPress/PHP Logs**: Located on EC2 instances (`/var/log/nginx/error.log`, `/var/log/php-fpm/www-error.log`, `/var/log/php-fpm/access.log`, `/var/log/wordpress.log`).
 
 ## 5. Backup & Restore
 
@@ -123,7 +132,42 @@ The infrastructure is configured with various CloudWatch alarms. If an alarm tri
 *   Object lifecycle policies manage older versions.
 *   To restore specific media files, retrieve them from S3 version history.
 
-## 6. Security Procedures
+## 6. Access Procedures
+
+### 6.1 Accessing the WordPress Admin Panel (`/wp-admin`)
+
+Access to the WordPress admin panel is restricted by the Web Application Firewall (WAF) for security. To gain access, you must connect to the environment's Client VPN.
+
+1.  **Connect to Client VPN**: Use the `.ovpn` configuration file generated by Terraform to establish a VPN connection.
+2.  **Access Admin URL**: Once connected, you can navigate to `https://<your-site-url>/wp-admin` in your browser.
+
+### 6.2 Connecting to the Database for Debugging
+
+Direct access to the RDS database from the internet is blocked. In a critical troubleshooting scenario where you need to connect directly to the database, you must use an EC2 instance within the VPC as a bastion host.
+
+1.  **Connect to an EC2 Instance**: Start an SSM Session Manager session to one of the running WordPress EC2 instances.
+    ```bash
+    aws ssm start-session --target <instance-id>
+    ```
+2.  **Install MySQL Client**: If not already present, install the MySQL client on the instance:
+    ```bash
+    sudo apt-get update && sudo apt-get install mysql-client
+    ```
+3.  **Retrieve Credentials**: Fetch the database credentials from AWS Secrets Manager.
+    ```bash
+    # Get the secret name from terraform.tfvars or AWS Console
+    aws secretsmanager get-secret-value --secret-id <rds-secret-name> --query SecretString --output text
+    ```
+4.  **Connect to RDS**: Use the retrieved credentials and the RDS endpoint (available from Terraform outputs or the AWS RDS Console) to connect.
+    ```bash
+    mysql -h <rds-endpoint> -u <username> -p
+    ```
+
+## 7. Makefile for Automation
+
+Many common operational tasks such as running a full test plan (`plan`), deploying (`apply`), debugging (`debug`), and managing the Golden AMI lifecycle are automated via the `Makefile` located in the root `terraform/` directory. For a full list and description of available commands, please refer to the [Makefile Commands section in the Terraform README](./terraform/README.md#9-makefile-commands).
+
+## 8. Security Procedures
 
 ### 6.1 Regular Security Audits
 
@@ -133,8 +177,22 @@ The infrastructure is configured with various CloudWatch alarms. If an alarm tri
 
 ### 6.2 Secret Rotation
 
-*   **Secrets Manager**: Utilize AWS Secrets Manager for database credentials and other sensitive information.
-*   Implement a regular rotation schedule for secrets managed by Secrets Manager. This can often be automated using AWS Lambda functions.
+This project utilizes an Infrastructure-as-Code (IaC) driven approach for secret rotation, primarily managed via AWS Secrets Manager and Terraform.
+
+1.  **Update Secret Version**: In the `terraform/environments/<env>/terraform.tfvars` file, increment the `secrets_version` variable (e.g., `"v1.0.0"` -> `"v1.0.1"`). This change will signal Terraform to generate new random values for secrets tied to this version.
+2.  **Apply Changes**: Run `terraform apply` for the respective environment:
+    ```bash
+    cd terraform/environments/<env>
+    terraform init
+    terraform apply -var-file="terraform.tfvars"
+    ```
+    Terraform will detect the version change, generate new random passwords/keys, and update the values in AWS Secrets Manager.
+3.  **Roll Out to Application**: The running EC2 instances will not automatically pick up the new secrets. You must force the Auto Scaling Group to launch new instances, which will fetch the new secrets on boot. This can be done via the AWS Console or by running:
+    ```bash
+    aws autoscaling start-instance-refresh --auto-scaling-group-name <name_prefix>-asg-<environment>
+    ```
+    *(Replace `<name_prefix>` and `<environment>` with the actual prefix and environment name from your Terraform outputs.)*
+    This will initiate a rolling refresh, ensuring new instances use the updated secrets.
 
 ### 6.3 Incident Response
 
