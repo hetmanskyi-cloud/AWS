@@ -59,9 +59,11 @@ The three primary strategies supported are:
 
 ---
 
-## 3. Architecture Diagram
+## 3. Architecture Diagrams
 
-This diagram illustrates the three distinct bootstrapping workflows initiated by each of the user-data templates.
+This section illustrates the three distinct bootstrapping workflows initiated by each of the user-data templates.
+
+### 3.1 Workflow 1: Ansible-Based Deployment
 
 ```mermaid
 graph TD
@@ -75,7 +77,20 @@ graph TD
         A6 --> A7(Ansible configures<br>Nginx, PHP, WordPress, EFS, etc.);
     end
 
+    %% Styling
+    classDef workflow1 fill:#1A73E8,stroke:#232F3E,color:white
+    classDef workflow2 fill:#3F8624,stroke:#232F3E,color:white
+    classDef workflow3 fill:#FF9900,stroke:#232F3E,color:black
 
+    class A1,A2,A3,A4,A5,A6,A7 workflow1;
+    class B1,B2,B3,B4,B5,B6,B7 workflow2;
+        class C1,C2,C3,C4,C5,C6 workflow3;
+```
+
+### 3.2 Workflow 2: S3 Script-Based Deployment
+
+```mermaid
+graph TD
     subgraph "Workflow 2: S3 Script-Based Deployment (user_data.sh.tpl)"
         direction LR
         B1(EC2 Instance Boot) --> B2(User Data Installs AWS CLI);
@@ -86,7 +101,20 @@ graph TD
         B6 --> B7(Script installs Nginx, PHP,<br>fetches secrets, configures WP, etc.);
     end
 
+    %% Styling
+    classDef workflow1 fill:#1A73E8,stroke:#232F3E,color:white
+    classDef workflow2 fill:#3F8624,stroke:#232F3E,color:white
+    classDef workflow3 fill:#FF9900,stroke:#232F3E,color:black
 
+    class A1,A2,A3,A4,A5,A6,A7 workflow1;
+    class B1,B2,B3,B4,B5,B6,B7 workflow2;
+        class C1,C2,C3,C4,C5,C6 workflow3;
+```
+
+### 3.3 Workflow 3: Golden AMI Runtime Config
+
+```mermaid
+graph TD
     subgraph "Workflow 3: Golden AMI Runtime Config (user_data_runtime.sh.tpl)"
         direction LR
         C1(EC2 Instance Boot<br><i>from Golden AMI</i>) --> C2(User Data Fetches Secrets);
