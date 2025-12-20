@@ -18,6 +18,9 @@ repos:
       - id: trailing-whitespace  # Fixes trailing whitespace
       - id: end-of-file-fixer  # Ensures files end in a newline
       - id: check-merge-conflict  # Prevents committing merge conflict markers
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
 
   # --- Fundamental Terraform Hooks (Format and Lint) --- #
 

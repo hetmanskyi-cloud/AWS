@@ -4,7 +4,7 @@
 
 This runbook serves as a guide for day-to-day operations, maintenance, and troubleshooting of the AWS WordPress infrastructure deployed via Terraform. It is intended for operations teams, system administrators, and anyone responsible for the uptime and health of the WordPress application.
 
-For detailed information on the infrastructure's architecture and deployment, refer to the main [README.md](../README.md) and the [Terraform Documentation](./terraform/README.md).
+For detailed information on the infrastructure's architecture and deployment, refer to the main [README.md](./README.md) and the [Terraform Documentation](./terraform/README.md).
 
 ## 2. Deployment & Updates
 
@@ -155,7 +155,7 @@ Direct access to the RDS database from the internet is blocked. In a critical tr
     ```
 3.  **Retrieve Credentials**: Fetch the database credentials from AWS Secrets Manager.
     ```bash
-    # Get the secret name from terraform.tfvars or AWS Console
+    # You can find the secret name in the Terraform output 'rds_secret_name' or the AWS Console.
     aws secretsmanager get-secret-value --secret-id <rds-secret-name> --query SecretString --output text
     ```
 4.  **Connect to RDS**: Use the retrieved credentials and the RDS endpoint (available from Terraform outputs or the AWS RDS Console) to connect.
@@ -169,13 +169,13 @@ Many common operational tasks such as running a full test plan (`plan`), deployi
 
 ## 8. Security Procedures
 
-### 6.1 Regular Security Audits
+### 8.1 Regular Security Audits
 
 *   Periodically review AWS security group rules, NACLs, and IAM policies.
 *   Keep WordPress core, themes, and plugins updated to the latest secure versions.
 *   Monitor WAF logs for suspicious activity.
 
-### 6.2 Secret Rotation
+### 8.2 Secret Rotation
 
 This project utilizes an Infrastructure-as-Code (IaC) driven approach for secret rotation, primarily managed via AWS Secrets Manager and Terraform.
 
@@ -194,7 +194,7 @@ This project utilizes an Infrastructure-as-Code (IaC) driven approach for secret
     *(Replace `<name_prefix>` and `<environment>` with the actual prefix and environment name from your Terraform outputs.)*
     This will initiate a rolling refresh, ensuring new instances use the updated secrets.
 
-### 6.3 Incident Response
+### 8.3 Incident Response
 
 *   **Isolate**: If a security incident is detected, immediately isolate affected instances from the network (e.g., modify security group to deny all inbound traffic).
 *   **Investigate**: Collect logs, forensic data, and identify the attack vector.

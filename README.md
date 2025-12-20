@@ -2,6 +2,7 @@
 
 <div align="center">
 
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
 ![Terraform](https://img.shields.io/badge/Terraform-%237B42BC.svg?style=for-the-badge&logo=terraform&logoColor=white)
 ![Ansible](https://img.shields.io/badge/Ansible-000000?style=for-the-badge&logo=ansible&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
@@ -56,6 +57,7 @@ This project focuses on automating the deployment and management of a WordPress 
 *   **CI/CD**: GitHub Actions
 *   **Monitoring & Logging**: Amazon CloudWatch, AWS CloudTrail
 *   **Security Scanning**: tfsec, Checkov, TFLint, ShellCheck
+*   **Instance Management**: AWS Systems Manager (SSM)
 
 ## Getting Started
 

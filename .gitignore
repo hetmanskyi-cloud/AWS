@@ -38,6 +38,9 @@ crash.log
 # Python virtual environment
 .venv/
 
+# Ansible artifacts
+.ansible/
+
 # Lambda build artifacts and deployment packages
 /terraform/modules/lambda_layer/build/
 /terraform/modules/lambda_layer/layer.zip
