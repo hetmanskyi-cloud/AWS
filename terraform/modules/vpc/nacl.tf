@@ -57,7 +57,6 @@ resource "aws_network_acl_rule" "public_rules" {
 }
 
 # --- Private Network ACL Configuration --- #
-
 # Definition of the private NACL for controlling traffic in private subnets.
 
 resource "aws_network_acl" "private_nacl" {
