@@ -87,6 +87,10 @@ graph TD
         class C1,C2,C3,C4,C5,C6 workflow3;
 ```
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
+---
+
 ### 3.2 Workflow 2: S3 Script-Based Deployment
 
 ```mermaid
@@ -170,7 +174,7 @@ This section details the variables required by the `templatefile` function for e
 | `aws_region`             | `string`     | AWS Region for CLI commands and service interaction. Used by `all`.                                                        |
 | `wordpress_version`      | `string`     | WordPress version to install (e.g., a Git branch/tag). Used by `all`.                                                      |
 | `public_site_url`        | `string`     | Public URL for the WordPress site, used to configure `WP_HOME` and `WP_SITEURL`. Used by `all`.                            |
-| `vpc_cidr_block`         | `string`     | The CIDR of the VPC. Passed to the Ansible playbook to configure `set_real_ip_from` in Nginx. Used by `user_data_ansible.sh.tpl`. |
+| `vpc_cidr_block`         | `string`     | The CIDR of the VPC. Passed to the Ansible playbook to configure `set_real_ip_from` in Nginx. Used by `user_data_ansible.sh.tpl`.|
 | `enable_https`           | `bool`       | Flag to enable HTTPS/SSL settings in WordPress. Used by `all`.                                                             |
 | `wordpress_secrets_name` | `string`     | Name of the AWS Secrets Manager secret for WordPress credentials and salts. Used by `all`.                                 |
 | `rds_secrets_name`       | `string`     | Name of the AWS Secrets Manager secret for RDS database credentials. Used by `all`.                                        |
@@ -179,12 +183,12 @@ This section details the variables required by the `templatefile` function for e
 | `cloudwatch_log_groups`  | `map(string)`| Map of log group names for various services (`user_data`, `nginx`, etc.). Used by `all`.                                   |
 | `efs_file_system_id`     | `string`     | ID of the EFS File System to mount. If empty, EFS is not mounted. Used by `all`.                                           |
 | `efs_access_point_id`    | `string`     | ID of the EFS Access Point to use for mounting. Used by `all`.                                                             |
-| `retry_max_retries`      | `number`     | Max retries for operations like DB connection checks. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.        |
-| `retry_retry_interval`   | `number`     | Interval in seconds between retries. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                           |
+| `retry_max_retries`      | `number`     | Max retries for operations like DB connection checks. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.           |
+| `retry_retry_interval`   | `number`     | Interval in seconds between retries. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                            |
 | `wordpress_script_path`  | `string`     | S3 URI (`s3://...`) of the `deploy_wordpress.sh` script. Used only by `user_data.sh.tpl`.                                  |
 | `healthcheck_s3_path`    | `string`     | S3 URI (`s3://...`) of the `healthcheck.php` file. Used only by `user_data.sh.tpl`.                                        |
 | `scripts_bucket_name`    | `string`     | S3 bucket name (used by Ansible playbook). Used only by `user_data_ansible.sh.tpl`.                                        |
-| `WP_PATH`                | `string`     | The absolute path on the instance for WordPress. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                 |
+| `WP_PATH`                | `string`     | The absolute path on the instance for WordPress. Used by `user_data.sh.tpl` and `user_data_runtime.sh.tpl`.                |
 
 ---
 

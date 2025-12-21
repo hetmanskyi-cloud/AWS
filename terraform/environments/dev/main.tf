@@ -63,14 +63,9 @@ module "kms" {
   sns_topic_arn = aws_sns_topic.cloudwatch_alarms_topic.arn # ARN of the SNS topic to send alarm notifications
 
   # Feature-specific flags for permissions
-  enable_dynamodb            = var.enable_dynamodb            # Enable KMS permissions for DynamoDB
-  enable_alb_firehose        = var.enable_alb_firehose        # Enable KMS permissions for Kinesis ALB Firehose
-  enable_alb_waf_logging     = var.enable_alb_waf_logging     # Enable KMS permissions for ALB WAF logging
-  enable_cloudfront_firehose = var.enable_cloudfront_firehose # Enable KMS permissions for CloudFront Firehose
-  enable_cloudfront_waf      = var.enable_cloudfront_waf      # Enable KMS permissions for CloudFront WAF
-
-  # CloudFront Logging Settings
-  enable_cloudfront_standard_logging_v2 = var.enable_cloudfront_standard_logging_v2 # Enable CloudFront standard logging v2
+  enable_dynamodb        = var.enable_dynamodb        # Enable KMS permissions for DynamoDB
+  enable_alb_firehose    = var.enable_alb_firehose    # Enable KMS permissions for Kinesis ALB Firehose
+  enable_alb_waf_logging = var.enable_alb_waf_logging # Enable KMS permissions for ALB WAF logging
 
   # Pass the master switch to the KMS module to conditionally add SQS permissions
   enable_image_processor = var.enable_image_processor
@@ -468,7 +463,7 @@ module "cloudfront" {
 
   logging_bucket_arn  = module.s3.logging_bucket_arn  # Assuming your S3 module outputs a general logging bucket ARN
   logging_bucket_name = module.s3.logging_bucket_name # Name of the logging bucket
-  kms_key_arn         = module.kms.kms_key_arn        # Pass the KMS key for logging encryption
+  kms_key_arn         = null                          # Default encryption to avoid AccessDenied issues in us-east-1
 
   # WAF Integration Settings
   enable_cloudfront_waf = var.enable_cloudfront_waf

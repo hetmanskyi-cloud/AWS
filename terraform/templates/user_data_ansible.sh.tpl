@@ -115,3 +115,20 @@ log "Cleaning up temporary extra-vars file..."
 rm -f $EXTRA_VARS_FILE
 
 log "Instance bootstrap complete!"
+
+# --- Notes --- #
+# - This user-data script is rendered from a Terraform template and executed on the first boot of the EC2 instance.
+# - It is used when 'use_ansible_deployment' is enabled, typically for development environments.
+# - The script performs the following:
+#   * Installs system prerequisites: AWS CLI v2, Ansible, Git, and JQ.
+#   * Clones the project repository from GitHub to /opt/ansible to access the Ansible playbooks.
+#   * Retrieves WordPress, RDS, and Redis secrets from AWS Secrets Manager.
+#   * Prepares a temporary 'extra-vars' JSON file containing all necessary configuration for Ansible.
+#   * Executes the 'install-wordpress.yml' Ansible playbook locally to provision the entire WordPress stack.
+# - Ansible is responsible for:
+#   * Installing and configuring Nginx, PHP, and WP-CLI.
+#   * Configuring the database connection and Redis object cache.
+#   * Setting up the WordPress filesystem and permissions.
+#   * Downloading and installing WordPress (if not already installed in the DB).
+# - All output is logged to /var/log/user-data.log.
+# - Temporary files containing sensitive secrets are securely deleted after the playbook execution completes.

@@ -224,10 +224,7 @@ This module provisions:
 | `replication_region_buckets`            | `map(object)` | Configuration for replication region S3 buckets (see details below) |
 | `enable_dynamodb`                       | `bool`        | Allow DynamoDB service usage                                        |
 | `enable_alb_firehose`                   | `bool`        | Allow Kinesis Firehose usage for ALB logs                           |
-| `enable_cloudfront_firehose`            | `bool`        | Allow Kinesis Firehose usage for CloudFront logs                    |
 | `enable_alb_waf_logging`                | `bool`        | Allow WAF logging usage for ALB                                     |
-| `enable_cloudfront_waf`                 | `bool`        | Allow WAF logging usage for CloudFront                              |
-| `enable_cloudfront_standard_logging_v2` | `bool`        | Enable CloudFront standard logging to S3                            |
 | `enable_image_processor`                | `bool`        | Grant SQS service permissions for DLQ encryption                    |
 
 ---
@@ -268,9 +265,7 @@ module "kms" {
 
   enable_dynamodb                   = true
   enable_alb_firehose               = false
-  enable_cloudfront_firehose        = false
   enable_alb_waf_logging            = true
-  enable_cloudfront_waf             = true
   enable_image_processor            = true
 
   # S3 bucket configuration with CloudTrail enabled

@@ -17,8 +17,6 @@ resource "aws_kms_key" "general_encryption_key" {
   })
 }
 
-
-
 # Replica KMS key in the replication region for cross-region S3 replication (conditional).
 resource "aws_kms_replica_key" "replica_key" {
   for_each = length({ for k, v in var.replication_region_buckets : k => v if v.enabled }) > 0 ? { "replica_key" : true } : {}
@@ -88,9 +86,9 @@ locals {
     # Conditional services (enabled via variables):
     contains(keys(var.default_region_buckets), "cloudtrail") && try(var.default_region_buckets["cloudtrail"].enabled, false) ? ["cloudtrail.amazonaws.com"] : [], # CloudTrail Logging
     var.enable_dynamodb ? ["dynamodb.amazonaws.com"] : [],                                                                                                        # DynamoDB
-    (var.enable_alb_firehose || var.enable_cloudfront_firehose) ? ["firehose.amazonaws.com"] : [],                                                                # ALB & CloudFront Firehose
-    (var.enable_alb_waf_logging || var.enable_cloudfront_waf) ? ["waf.amazonaws.com"] : [],                                                                       # ALB & Cloudfront WAF
-    var.enable_cloudfront_standard_logging_v2 ? ["delivery.logs.amazonaws.com"] : [],                                                                             # CloudFront Realtime S3 Logging
+    var.enable_alb_firehose ? ["firehose.amazonaws.com"] : [],                                                                                                    # ALB Firehose only (CloudFront uses default encryption)
+    var.enable_alb_waf_logging ? ["waf.amazonaws.com"] : [],                                                                                                      # ALB WAF only (CloudFront uses default encryption)
+    # delivery.logs.amazonaws.com is not needed for ALB logs (SSE-S3) or CloudFront logs (default encryption)
     # Grant SQS service permissions to use the key if the image processor feature is enabled
     var.enable_image_processor ? ["sqs.amazonaws.com"] : [],
     # Grant DynamoDB service permissions to use the key if the DynamoDB feature is enabled
@@ -104,7 +102,6 @@ locals {
 data "aws_iam_role" "autoscaling_service_role" {
   name = "AWSServiceRoleForAutoScaling"
 }
-
 
 # --- Policy for the Primary KMS Key --- #
 # Policy for the primary KMS key granting optional root access (temporary, for setup),

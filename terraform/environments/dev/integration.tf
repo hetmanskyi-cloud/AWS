@@ -76,3 +76,9 @@ data "external" "vpn_egress_ips" {
 
   depends_on = [module.client_vpn]
 }
+
+# --- Notes --- #
+# - This file manages cross-module integrations and external data sources for the environment.
+# - S3 Notifications: Configures a unified notification for the 'wordpress_media' bucket, sending events to SQS (for image processing) and SNS (for monitoring).
+# - Dependency Management: Uses explicit `depends_on` to ensure SQS policies are in place before S3 attempts to configure notifications.
+# - External Data: Employs a 'get_vpn_ips.sh' script to dynamically retrieve Client VPN egress IPs for WAF whitelisting.

@@ -180,3 +180,10 @@ variable "vpn_egress_cidrs" {
   type        = list(string)
   default     = []
 }
+
+# --- Notes --- #
+# - This file defines the input variables for the CloudFront module, covering distribution settings, WAF integration, and logging.
+# - Price Class: Defaults to 'PriceClass_100' (Edge locations in USA, Canada, and Europe) for cost optimization.
+# - Security: Uses a custom secret header (`cloudfront_to_alb_secret_header_value`) to ensure that only traffic originating from CloudFront can reach the ALB.
+# - Logging: Supports both legacy WAF logging via Firehose and the modern CloudFront Standard Logging v2 (Parquet format via CloudWatch Log Delivery).
+# - VPN Integration: Allows whitelisting Client VPN egress IPs in the WAF Web ACL via an IP Set.

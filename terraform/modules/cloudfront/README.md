@@ -252,6 +252,11 @@ module "cloudfront" {
 
 ## 10. Security Considerations / Recommendations
 
+### Encryption Design Decisions
+- **CloudWatch Logs in us-east-1:** The module uses default AWS encryption (SSE) for the Firehose error logs in CloudWatch.
+  - **Reason:** Using a custom KMS key (even a replica) for CloudWatch Logs in `us-east-1` when the primary stack is in another region introduces significant complexity and deployment fragility (often referred to as the "Circle of Death" involving Key Policies and region constraints).
+  - **Impact:** Technical logs are securely encrypted by AWS managed keys, ensuring stability without compromising the security of sensitive application data (which is handled by the primary KMS key).
+
 - **Region Requirement:** All resources in this module **must** be deployed in `us-east-1`. Ensure the `aws.cloudfront` provider alias is correctly configured.
 - **ALB Protection:** The ALB security group should be configured to only allow ingress from CloudFront IP ranges and on the port matching the origin's HTTP port. The `x-custom-origin-verify` header provides an additional layer of defense that should be enforced by a WAF rule on the ALB itself.
 - **S3 Bucket Policy:** The S3 media bucket policy must be configured to grant access to the CloudFront OAC. This module does not manage that policy; it must be applied separately in the S3 module.

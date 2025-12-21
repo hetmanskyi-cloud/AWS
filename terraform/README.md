@@ -121,6 +121,7 @@ graph TD
     class RDS,Redis,EFS,DynamoDB,S3_Events data
     class SQS,Lambda serverless
 ```
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 
 ---
 
@@ -136,25 +137,25 @@ The repository is organized into distinct directories, each with a specific resp
 ├── environments/              # Root configurations for each deployment environment.
 │   ├── dev/                   # Development: cost-optimized, on-the-fly provisioning.
 │   └── stage/                 # Staging: mirrors production, Golden AMI deployment.
-├── modules/                   # Reusable Terraform modules for creating AWS resources.
-│   ├── acm/
-│   ├── alb/
-│   ├── asg/
-│   ├── client_vpn/
-│   ├── cloudfront/
-│   ├── dynamodb/
-│   ├── efs/
-│   ├── elasticache/
-│   ├── interface_endpoints/
-│   ├── kms/
-│   ├── lambda_images/
-│   ├── lambda_layer/
-│   ├── rds/
-│   ├── route53/
-│   ├── s3/
-│   ├── sqs/
-│   └── vpc/
-├── scripts/                   # Helper scripts for deployment, debugging, and maintenance.
+├── modules/                   # Reusable Terraform modules
+│   ├── acm/                   # SSL/TLS certificates management
+│   ├── alb/                   # Application Load Balancer with WAF and Firehose
+│   ├── asg/                   # Auto Scaling Group and Launch Templates
+│   ├── client_vpn/            # Secure Client VPN access configuration
+│   ├── cloudfront/            # CDN distribution with WAF and logging
+│   ├── dynamodb/              # NoSQL database for session locking/metadata
+│   ├── efs/                   # Shared file system for WordPress content
+│   ├── elasticache/           # Redis cluster for application caching
+│   ├── interface_endpoints/   # Private AWS service connectivity
+│   ├── kms/                   # Encryption keys for data security
+│   ├── lambda_images/         # Image processing functions
+│   ├── lambda_layer/          # Shared Lambda dependencies
+│   ├── rds/                   # Managed Aurora/MySQL database
+│   ├── route53/               # DNS records and zone management
+│   ├── s3/                    # Object storage for assets and backups
+│   ├── sqs/                   # Message queues for async tasks
+│   └── vpc/                   # Core networking infrastructure
+├── scripts/                   # Utility scripts for deployment, testing, and maintenance
 └── templates/                 # User Data templates for EC2 instances.
 ```
 

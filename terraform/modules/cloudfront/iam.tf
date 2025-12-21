@@ -96,9 +96,14 @@ resource "aws_cloudwatch_log_group" "cloudfront_firehose_log_group" {
 
   # The name must follow the pattern /aws/kinesisfirehose/<delivery-stream-name>
   # checkov:skip=CKV_AWS_338: "Log retention is intentionally set to 7 days for non-production environments."
+  # checkov:skip=CKV_AWS_158: "Default AWS encryption is sufficient for CloudFront WAF logs to avoid cross-region KMS complexity."
+  # Design Decision: We deliberately use default AWS encryption (kms_key_id = null) here.
+  # Using a custom KMS key (even a replica) for CloudWatch Logs in us-east-1 while the main stack is in another region
+  # creates significant deployment fragility ("Circle of Death" with Key Policies) and complexity.
+  # Since these are technical error logs, default SSE is the secure and stable choice.
   name              = "/aws/kinesisfirehose/${var.name_prefix}-cloudfront-waf-logs-firehose-${var.environment}"
-  retention_in_days = 7 # A reasonable retention period for error logs.
-  kms_key_id        = var.kms_key_arn
+  retention_in_days = 7    # A reasonable retention period for error logs.
+  kms_key_id        = null # Using default AWS encryption for logs in us-east-1 to simplify cross-region access.
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-cloudfront-waf-logs-firehose-log-group-${var.environment}"

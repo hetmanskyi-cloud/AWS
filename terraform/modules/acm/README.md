@@ -76,6 +76,8 @@ graph LR
 
 > _This diagram illustrates the decoupled architecture. This `acm` module only creates the `aws_acm_certificate`. The validation records and the `aws_acm_certificate_validation` resource must be handled in a separate DNS module to avoid circular dependencies._
 
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
 ---
 
 ## 4. Features

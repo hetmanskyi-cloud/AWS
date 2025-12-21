@@ -132,3 +132,9 @@ output "waf_vpn_ip_set_arn" {
   description = "The ARN of the IP Set used for whitelisting VPN access."
   value       = var.enable_cloudfront_waf && var.enable_client_vpn ? aws_wafv2_ip_set.vpn_access_ips[0].arn : null
 }
+
+# --- Notes --- #
+# - This file defines the outputs for the CloudFront module, including the distribution ID, ARN, domain name, and WAF details.
+# - Conditional Outputs: Most outputs are wrapped in `local.enable_cloudfront_media_distribution` to avoid errors when the distribution is disabled.
+# - Log Paths: The `cloudfront_standard_logging_v2_log_prefix` provides a convenient S3 URI for accessing logs delivered by CloudWatch Log Delivery.
+# - Integration: Outputs like `cloudfront_distribution_hosted_zone_id` are essential for creating Alias records in Route53.

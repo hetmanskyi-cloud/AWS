@@ -191,29 +191,15 @@ variable "enable_alb_waf_logging" {
   default     = false
 }
 
-# Enable CloudFront Firehose
-variable "enable_cloudfront_firehose" {
-  description = "Controls whether CloudFront Firehose logging is enabled, influencing KMS permissions."
-  type        = bool
-  default     = false
-}
-
-# Enable CloudFront WAF
-variable "enable_cloudfront_waf" {
-  description = "Controls whether CloudFront WAF is enabled, influencing KMS permissions for WAF logs."
-  type        = bool
-  default     = false
-}
-
-variable "enable_cloudfront_standard_logging_v2" {
-  description = "Enable CloudFront standard logging (v2) to CloudWatch Logs and S3"
-  type        = bool
-  default     = true
-}
-
 # Feature-specific flags for SQS service permissions
 variable "enable_image_processor" {
   description = "If true, grants SQS service permissions to use the KMS key for DLQ encryption."
   type        = bool
   default     = false # Default to false to not grant permissions unless explicitly enabled
 }
+
+# --- Notes --- #
+# - This file defines input variables for the KMS module, managing key rotation, monitoring, and service-specific permissions.
+# - Least Privilege: Use `kms_root_access = false` to remove the default root account permission from the key policy for enhanced security.
+# - Monitoring: Alarms for 'AccessDenied' and high decrypt operation counts can be enabled via `enable_key_monitoring`.
+# - Service Integration: Multiple `enable_*` flags (DynamoDB, Firehose, SQS) dynamically adjust the KMS key policy to grant necessary permissions to AWS services.
