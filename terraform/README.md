@@ -155,6 +155,7 @@ The repository is organized into distinct directories, each with a specific resp
 │   ├── s3/                    # Object storage for assets and backups
 │   ├── sqs/                   # Message queues for async tasks
 │   └── vpc/                   # Core networking infrastructure
+├── packer/                    # HashiCorp Packer configuration for Golden AMI builds
 ├── scripts/                   # Utility scripts for deployment, testing, and maintenance
 └── templates/                 # User Data templates for EC2 instances.
 ```
@@ -174,7 +175,7 @@ The project uses a multi-environment setup located in the `environments/` direct
 
 -   **`stage` Environment:**
     -   **Purpose:** Pre-production validation, integration testing, and performance testing.
-    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image created by the `dev` environment. This ensures faster, more reliable, and consistent deployments.
+    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image created by **Packer** (or the manual Makefile workflow). This ensures faster, more reliable, and consistent deployments.
     -   See `environments/stage/README.md` for full details.
 
 ### 5.2. Modularity
@@ -188,9 +189,10 @@ The infrastructure is broken down into reusable **modules**, each responsible fo
 To deploy and manage this infrastructure, the following tools must be installed on your local machine:
 
 -   **Terraform (`~> 1.12`)**: To manage infrastructure as code.
+-   **Packer**: To build automated Golden AMIs.
 -   **AWS CLI**: To interact with your AWS account.
 -   **Make**: To use the automated workflows in the `Makefile`.
--   **Ansible**: Required for the on-the-fly provisioning in the `dev` environment.
+-   **Ansible**: Required for the on-the-fly provisioning in the `dev` environment and Packer builds.
 -   **Docker**: Required by the `build_layer.sh` script to create a consistent build environment for Python Lambda layers.
 -   **Python 3**: Required by helper scripts.
 
@@ -227,21 +229,46 @@ All commands should be run from the root `terraform/` directory.
 
 ### 8.1. Golden AMI Workflow
 
-The `stage` environment relies on a "Golden AMI" for deployments. The `Makefile` provides a complete, automated workflow for creating and promoting these AMIs from the `dev` environment.
+The `stage` environment relies on a "Golden AMI" for deployments. There are two supported methods for creating this AMI:
 
-1.  **Provision & Harden Instance:** In the `dev` environment, select a running instance and prepare it to be an AMI. This script hardens the OS, installs updates, and cleans the instance.
+#### Method A: Packer (Recommended)
+This approach fully automates the creation of an **Immutable Infrastructure** artifact. It reuses the Ansible playbooks from the project.
+
+1.  **Build the AMI:** Run Packer from the `packer/` directory.
+    ```bash
+    cd packer
+    packer init .
+    packer build .
+    ```
+    *This process automatically provisions a temporary instance, runs Ansible playbooks, executes hardening scripts, verifies the image with smoke tests, and creates the AMI.*
+
+2.  **Update Staging:** Take the AMI ID output by Packer and update `environments/stage/terraform.tfvars`.
+    ```bash
+    # Example
+    ami_id = "ami-0123456789abcdef0"
+    ```
+
+3.  **Deploy:**
+    ```bash
+    make apply ENV=stage
+    ```
+
+#### Method B: Makefile (Legacy / Manual)
+This workflow allows you to snapshot a running `dev` instance after manual verification.
+
+1.  **Provision & Harden Instance:** In the `dev` environment, select a running instance and prepare it to be an AMI.
     ```bash
     make provision-ami ENV=dev
     ```
-2.  **Run Smoke Tests:** Execute a suite of tests against the hardened instance to verify its configuration (firewall, services, cleanup).
+2.  **Run Smoke Tests:** Execute a suite of tests against the hardened instance.
     ```bash
     make test-ami ENV=dev
     ```
-3.  **Create the AMI:** If tests pass, create a new AMI from the hardened EC2 instance. This command also tags the AMI and commits its new ID to a history file in Git.
+3.  **Create the AMI:** If tests pass, create a new AMI from the hardened EC2 instance.
     ```bash
     make create-ami ENV=dev
     ```
-4.  **Promote the AMI:** Update the `stage` environment to use the new Golden AMI. This command automatically edits `environments/stage/terraform.tfvars` with the new AMI ID and commits the change.
+4.  **Promote the AMI:** Update the `stage` environment to use the new Golden AMI.
     ```bash
     make use-ami TARGET_ENV=stage SOURCE_ENV=dev
     ```

@@ -4,6 +4,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
 ![Terraform](https://img.shields.io/badge/Terraform-%237B42BC.svg?style=for-the-badge&logo=terraform&logoColor=white)
+![Packer](https://img.shields.io/badge/Packer-02A8EF?style=for-the-badge&logo=packer&logoColor=white)
 ![Ansible](https://img.shields.io/badge/Ansible-000000?style=for-the-badge&logo=ansible&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
 ![WordPress](https://img.shields.io/badge/WordPress-%23117AC9.svg?style=for-the-badge&logo=wordpress&logoColor=white)
@@ -38,21 +39,66 @@
 
 ## Status
 
-This repository provides a production-ready, modular, and secure Infrastructure as Code (IaC) implementation for deploying a scalable WordPress application on AWS using Terraform. It adheres to AWS and DevOps best practices, emphasizing automation, monitoring, and security.
+This repository provides a production-ready, modular, and secure Infrastructure as Code (IaC) implementation for deploying a scalable WordPress application on AWS. It adheres to AWS and DevOps best practices, emphasizing automation, monitoring, and security.
 
 ## Project Overview
 
-This project focuses on automating the deployment and management of a WordPress environment on AWS. Key aspects include:
+This project focuses on automating the deployment and management of a WordPress environment on AWS, supporting both **Immutable Infrastructure** (Golden AMI) and **On-the-Fly Provisioning** strategies. Key aspects include:
 
 *   **Scalability**: Designed to handle varying loads through Auto Scaling Groups.
-*   **Security**: Implements best practices for network, application, and data security, including WAF, KMS encryption, and IAM least privilege.
-*   **Modularity**: Built with reusable Terraform modules for clear organization and easy maintenance.
-*   **Automation**: Leverages Terraform for infrastructure provisioning and Ansible for application deployment.
+*   **Security**: Implements best practices for network, application, and data security (WAF, KMS encryption, IAM least privilege).
+*   **Modularity**: Built with reusable Terraform modules for clear organization.
+*   **Automation**: Leverages Terraform for infrastructure, Ansible for configuration, and Packer for building artifacts.
+
+## Architecture
+
+```mermaid
+graph TD
+    subgraph "External Access"
+        User[User/Client]
+    end
+
+    subgraph "AWS Cloud"
+        subgraph "Global Services"
+            Route53[Route 53]
+            CloudFront[CloudFront CDN]
+            WAF_Global[Global WAF]
+        end
+
+        subgraph "Regional Services (eu-west-1)"
+            ALB[Application Load Balancer]
+            WAF_Regional[Regional WAF]
+
+            subgraph "Private Network"
+                ASG["Auto Scaling Group<br/>(WordPress Instances)"]
+                RDS["RDS Aurora/MySQL"]
+                Redis["ElastiCache Redis"]
+                EFS["EFS (Shared Media)"]
+            end
+        end
+    end
+
+    User --> Route53
+    Route53 --> CloudFront
+    CloudFront --> WAF_Global
+    WAF_Global --> ALB
+    ALB --> WAF_Regional
+    WAF_Regional --> ASG
+    ASG --> RDS
+    ASG --> Redis
+    ASG --> EFS
+```
+> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
+
+> *Simplified architecture view. For a detailed diagram, see the [Terraform Documentation](./terraform/README.md).*
+
+---
 
 ## Technologies Used
 
 *   **Infrastructure as Code**: Terraform
 *   **Configuration Management**: Ansible
+*   **Artifact Building**: Packer
 *   **Cloud Provider**: AWS
 *   **CI/CD**: GitHub Actions
 *   **Monitoring & Logging**: Amazon CloudWatch, AWS CloudTrail

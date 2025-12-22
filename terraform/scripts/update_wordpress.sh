@@ -12,6 +12,8 @@ DEFAULT_WP_VERSION="6.9"
 WP_VERSION="$DEFAULT_WP_VERSION"
 REDIS_CACHE_VERSION="2.7.0"
 WORDFENCE_VERSION="8.1.3"
+# LudicrousDB provides advanced database scaling (read/write splitting) for RDS Read Replicas.
+LUDICROUSDB_VERSION="5.2.0"
 
 # --- Parse optional --version=X.Y.Z --- #
 for arg in "$@"; do
@@ -38,6 +40,8 @@ declare -A PLUGINS
 PLUGINS=(
   [redis-cache]="https://downloads.wordpress.org/plugin/redis-cache.${REDIS_CACHE_VERSION}.zip"
   [wordfence]="https://downloads.wordpress.org/plugin/wordfence.${WORDFENCE_VERSION}.zip"
+  # LudicrousDB is essential for horizontal database scaling with RDS Read Replicas.
+  [ludicrousdb]="https://github.com/stuartduffy/ludicrousdb/archive/refs/tags/v${LUDICROUSDB_VERSION}.zip"
 )
 
 # --- Prepare Temporary Workspace --- #

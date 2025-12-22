@@ -22,12 +22,16 @@ To update the WordPress application version or any related code, follow these st
 
 2.  **Generate/Update Golden AMI (if applicable)**:
     *   If `use_ansible_deployment` is `false` (e.g., in `stage` or `prod`), a new Golden AMI needs to be prepared.
-    *   This process involves executing commands from the `terraform/` directory:
+    *   **Recommended Workflow (Packer):**
+        *   Navigate to `terraform/packer/` and run `packer build .`.
+        *   Update `ami_id` in `terraform.tfvars`.
+        *   Refer to [Packer Documentation](./terraform/packer/README.md) for details.
+    *   **Legacy Workflow (Make):** This process involves executing commands from the `terraform/` directory:
         1.  Provisioning and hardening an instance in the `dev` environment: `make provision-ami ENV=dev`
         2.  Running smoke tests on the prepared instance: `make test-ami ENV=dev`
         3.  Creating the new AMI: `make create-ami ENV=dev`
         4.  Promoting the AMI to the target environment (e.g., `stage`): `make use-ami TARGET_ENV=stage SOURCE_ENV=dev`
-    *   For a complete, detailed walkthrough of the Golden AMI workflow, refer to the "Golden AMI Workflow" section in the [Terraform Documentation](./terraform/README.md).
+        *   For a complete, detailed walkthrough of the Golden AMI workflow, refer to the "Golden AMI Workflow" section in the [Terraform Documentation](./terraform/README.md).
 
 3.  **Run Terraform Apply**:
     ```bash
