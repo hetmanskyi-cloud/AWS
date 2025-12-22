@@ -50,6 +50,17 @@ This project focuses on automating the deployment and management of a WordPress 
 *   **Modularity**: Built with reusable Terraform modules for clear organization.
 *   **Automation**: Leverages Terraform for infrastructure, Ansible for configuration, and Packer for building artifacts.
 
+## Key Features
+
+*   **Zero-Downtime Deployments**: Utilizes Auto Scaling Groups with rolling updates to ensure high availability during code changes.
+*   **Bank-Grade Security**:
+    *   **Multi-Layer WAF**: Protects against common web exploits (SQLi, XSS) at both the Edge (CloudFront) and Regional (ALB) levels.
+    *   **Private Isolation**: Compute and database resources are completely isolated in private subnets, accessible only via secure channels (SSM/VPN).
+    *   **Encryption Everywhere**: Data is encrypted at rest (KMS) and in transit (TLS).
+*   **Full Observability**: Integrated centralized logging (CloudWatch Logs), real-time metrics, and custom dashboards.
+*   **Self-Healing**: Automatically replaces unhealthy instances to maintain desired capacity.
+*   **Cost Optimization**: Features automated start/stop capabilities and cost-effective instance sizing for development environments.
+
 ## Architecture
 
 ```mermaid
@@ -87,6 +98,18 @@ graph TD
     ASG --> RDS
     ASG --> Redis
     ASG --> EFS
+
+    %% Style Definitions
+    classDef security fill:#f8d7da,stroke:#f58fa0,color:#721c24
+    classDef network fill:#cce5ff,stroke:#66a3ff,color:#004085
+    classDef compute fill:#d4edda,stroke:#77c289,color:#155724
+    classDef data fill:#e0cce6,stroke:#a673b2,color:#381640
+
+    %% Apply Styles
+    class WAF_Global,WAF_Regional security
+    class Route53,CloudFront,ALB,User network
+    class ASG compute
+    class RDS,Redis,EFS data
 ```
 > _Diagram generated with [Mermaid](https://mermaid.js.org/)_
 

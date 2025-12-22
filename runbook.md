@@ -101,6 +101,20 @@ For any changes to the Terraform infrastructure code (e.g., changing instance ty
     *   Ensure the EC2 security group allows outbound traffic to the ElastiCache security group on port 6379.
     *   Ensure the ElastiCache security group allows inbound traffic from the EC2 security group on port 6379.
 
+### 3.4 WAF Blocking Legitimate Traffic
+
+If users report 403 Forbidden errors:
+
+1.  **Check WAF Logs**:
+    *   **Regional WAF (ALB)**: Logs are sent to the S3 bucket named `waf-alb-logs-...`.
+    *   **Global WAF (CloudFront)**: Logs are sent to the S3 bucket named `waf-cloudfront-logs-...`.
+    *   Use Athena or S3 Select to query logs for the blocked IP or Request ID.
+2.  **Analyze Blocked Requests**:
+    *   Identify the triggering rule (e.g., `AWSManagedRulesSQLiRuleSet`).
+    *   Determine if it's a false positive.
+3.  **Allowlist**:
+    *   If the traffic is legitimate, consider adding the IP to an IP Set allowlist or tuning the specific rule action to "Count" instead of "Block" in the Terraform configuration (`terraform/modules/alb/waf.tf` or `terraform/modules/cloudfront/waf.tf`).
+
 ## 4. Monitoring & Alerts
 
 ### 4.1 CloudWatch Alarms
@@ -204,3 +218,17 @@ This project utilizes an Infrastructure-as-Code (IaC) driven approach for secret
 *   **Investigate**: Collect logs, forensic data, and identify the attack vector.
 *   **Remediate**: Patch vulnerabilities, remove malicious code, and restore from a known good backup if necessary.
 *   **Document**: Record all steps taken during the incident response.
+
+## 9. Cost Management
+
+To maintain cost efficiency, especially in the `dev` environment:
+
+1.  **Stop Dev Environment**: When not actively developing, destroy the development environment resources.
+    ```bash
+    make destroy ENV=dev
+    ```
+2.  **Review Idle Resources**: Periodically check for:
+    *   Unattached EBS volumes.
+    *   Old EBS snapshots or AMI backups (clean up `ami_history` artifacts if no longer needed).
+    *   Elastic IPs not associated with running instances (though this project primarily uses dynamic IPs).
+3.  **Rightsizing**: Use CloudWatch metrics to identify if instances (EC2, RDS, Redis) are over-provisioned and adjust the instance types in `terraform.tfvars`.
