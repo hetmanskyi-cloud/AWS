@@ -32,6 +32,7 @@ check_resource "Network ACLs" "aws ec2 describe-network-acls --query 'NetworkAcl
 check_resource "VPC Endpoints" "aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].VpcEndpointId' --output text"
 check_resource "VPC Flow Logs" "aws ec2 describe-flow-logs --query 'FlowLogs[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].FlowLogId' --output text"
 check_resource "EC2 Instances" "aws ec2 describe-instances --query 'Reservations[].Instances[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].InstanceId' --output text"
+check_resource "EC2 Instances (Packer Leaks)" "aws ec2 describe-instances --query 'Reservations[].Instances[?Tags[?Key==\`ManagedBy\` && Value==\`Packer\`]].InstanceId' --output text"
 check_resource "EBS Volumes" "aws ec2 describe-volumes --query 'Volumes[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].VolumeId' --output text"
 check_resource "Elastic IPs" "aws ec2 describe-addresses --query 'Addresses[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].AllocationId' --output text"
 check_resource "EC2 Launch Templates" "aws ec2 describe-launch-templates --query 'LaunchTemplates[?Tags[?Key==\`Owner\` && Value==\`$PROJECT_NAME\`]].LaunchTemplateId' --output text"

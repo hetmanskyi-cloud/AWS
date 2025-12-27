@@ -3,3 +3,5 @@
 [2025-12-23_13-07-41] Found Instance ID: i-03afc16d42c2276ad
 [2025-12-23_13-07-41] Creating Golden AMI...
 [2025-12-23_13-07-41] Golden AMI created with ID: ami-022ad9442f834ede9
+[2025-12-23_13-07-41] Committed AMI ID and log to Git.
+[2025-12-23_13-07-41] Task completed successfully.

@@ -1,0 +1,68 @@
+[20251223203634] Packer build successful. AMI ID: ami-05051321daf93e306
+==> amazon-ebs.wordpress (shell-local): Extracted AMI ID: ami-05051321daf93e306
+==> amazon-ebs.wordpress (shell-local): Successfully added AMI ami-05051321daf93e306 to ../environments/dev/ami_history/ami_id.txt
+==> amazon-ebs.wordpress (shell-local): Updating Terraform variables in dev and stage...
+==> amazon-ebs.wordpress (shell-local): make[1]: Entering directory '/home/sky/AWS/terraform'
+==> amazon-ebs.wordpress (shell-local): All required CLI tools are installed.
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 1: Read latest AMI ID from source environment history \
+==> amazon-ebs.wordpress (shell-local): SOURCE_AMI_FILE="environments/dev/ami_history/ami_id.txt"; \
+==> amazon-ebs.wordpress (shell-local): AMI_ID=$(tail -n 1 $SOURCE_AMI_FILE | awk '{print $NF}'); \
+==> amazon-ebs.wordpress (shell-local): echo "Using AMI ID: $AMI_ID from environment 'dev'"; \
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 2: Update AMI ID in target terraform.tfvars \
+==> amazon-ebs.wordpress (shell-local): TARGET_TFVARS="environments/dev/terraform.tfvars"; \
+==> amazon-ebs.wordpress (shell-local): echo "Updating AMI ID in $TARGET_TFVARS..."; \
+==> amazon-ebs.wordpress (shell-local): sed -i.bak 's|^ami_id *= *".*"|ami_id = "'$AMI_ID'"|' $TARGET_TFVARS && rm -f $TARGET_TFVARS.bak; \
+==> amazon-ebs.wordpress (shell-local): echo "AMI ID updated to $AMI_ID"; \
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 3: Commit to Git if changed \
+==> amazon-ebs.wordpress (shell-local): git diff --quiet $TARGET_TFVARS || { \
+==> amazon-ebs.wordpress (shell-local): 	git add $TARGET_TFVARS && \
+==> amazon-ebs.wordpress (shell-local): 	git commit -m "chore(dev): update AMI ID to $AMI_ID from dev"; \
+==> amazon-ebs.wordpress (shell-local): 	echo "AMI update committed to Git."; \
+==> amazon-ebs.wordpress (shell-local): }
+==> amazon-ebs.wordpress (shell-local): Using AMI ID: ami-05051321daf93e306 from environment 'dev'
+==> amazon-ebs.wordpress (shell-local): Updating AMI ID in environments/dev/terraform.tfvars...
+==> amazon-ebs.wordpress (shell-local): AMI ID updated to ami-05051321daf93e306
+==> amazon-ebs.wordpress (shell-local): make[1]: Leaving directory '/home/sky/AWS/terraform'
+==> amazon-ebs.wordpress (shell-local): make[1]: Entering directory '/home/sky/AWS/terraform'
+==> amazon-ebs.wordpress (shell-local): All required CLI tools are installed.
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 1: Read latest AMI ID from source environment history \
+==> amazon-ebs.wordpress (shell-local): SOURCE_AMI_FILE="environments/dev/ami_history/ami_id.txt"; \
+==> amazon-ebs.wordpress (shell-local): AMI_ID=$(tail -n 1 $SOURCE_AMI_FILE | awk '{print $NF}'); \
+==> amazon-ebs.wordpress (shell-local): echo "Using AMI ID: $AMI_ID from environment 'dev'"; \
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 2: Update AMI ID in target terraform.tfvars \
+==> amazon-ebs.wordpress (shell-local): TARGET_TFVARS="environments/stage/terraform.tfvars"; \
+==> amazon-ebs.wordpress (shell-local): echo "Updating AMI ID in $TARGET_TFVARS..."; \
+==> amazon-ebs.wordpress (shell-local): sed -i.bak 's|^ami_id *= *".*"|ami_id = "'$AMI_ID'"|' $TARGET_TFVARS && rm -f $TARGET_TFVARS.bak; \
+==> amazon-ebs.wordpress (shell-local): echo "AMI ID updated to $AMI_ID"; \
+==> amazon-ebs.wordpress (shell-local): \
+==> amazon-ebs.wordpress (shell-local): # Step 3: Commit to Git if changed \
+==> amazon-ebs.wordpress (shell-local): git diff --quiet $TARGET_TFVARS || { \
+==> amazon-ebs.wordpress (shell-local): 	git add $TARGET_TFVARS && \
+==> amazon-ebs.wordpress (shell-local): 	git commit -m "chore(stage): update AMI ID to $AMI_ID from dev"; \
+==> amazon-ebs.wordpress (shell-local): 	echo "AMI update committed to Git."; \
+==> amazon-ebs.wordpress (shell-local): }
+==> amazon-ebs.wordpress (shell-local): Using AMI ID: ami-05051321daf93e306 from environment 'dev'
+==> amazon-ebs.wordpress (shell-local): Updating AMI ID in environments/stage/terraform.tfvars...
+==> amazon-ebs.wordpress (shell-local): AMI ID updated to ami-05051321daf93e306
+==> amazon-ebs.wordpress (shell-local): make[1]: Leaving directory '/home/sky/AWS/terraform'
+Build 'amazon-ebs.wordpress' finished after 18 minutes 58 seconds.
+
+==> Wait completed after 18 minutes 58 seconds
+
+==> Builds finished. The artifacts of successful builds are:
+--> amazon-ebs.wordpress: AMIs were created:
+eu-west-1: ami-05051321daf93e306
+
+--> amazon-ebs.wordpress: AMIs were created:
+eu-west-1: ami-05051321daf93e306
+
+--> amazon-ebs.wordpress: AMIs were created:
+eu-west-1: ami-05051321daf93e306
+
+[20251223203634] Packer build finished. Log saved to environments/dev/ami_history/logs/packer_build_20251223203634.log.
+[20251223203634] Task completed successfully.

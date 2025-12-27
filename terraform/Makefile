@@ -43,7 +43,27 @@ $(error Please run make from the terraform/ directory)
 endif
 
 # --- Targets --- #
-.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools update-wordpress provision-ami test-ami create-ami use-ami
+.PHONY: all init format validate plan apply destroy show output refresh graph debug check check-tools update-wordpress provision-ami test-ami create-ami use-ami all_packer build_packer
+
+# --- Packer Targets --- #
+
+# Initialize and validate Packer configuration
+all_packer: check-tools
+	@command -v packer >/dev/null 2>&1 || { echo "Packer is not installed."; exit 1; }
+	cd packer && packer init . && packer validate .
+
+# Build Golden AMI using Packer with full logging (matches Makefile workflow)
+build_packer: all_packer
+	set -e; \
+	TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
+	LOG_DIR=environments/dev/ami_history/logs; \
+	mkdir -p "$$LOG_DIR"; \
+	LOG_FILE=$$LOG_DIR/packer_build_$$TIMESTAMP.log; \
+	echo "[$$TIMESTAMP] Starting Packer build..." | tee $$LOG_FILE; \
+	cd packer && \
+	packer build -color=false -var "build_timestamp=$$TIMESTAMP" . 2>&1 | tee -a ../$$LOG_FILE; \
+	echo "[$$TIMESTAMP] Packer build finished. Log saved to $$LOG_FILE." | tee -a ../$$LOG_FILE; \
+	echo "[$$TIMESTAMP] Task completed successfully." | tee -a ../$$LOG_FILE
 
 # Run full preparation cycle
 all: check-tools init format validate plan
@@ -115,6 +135,7 @@ update-wordpress: check-tools
 provision-ami: check-tools
 	@if [ "$(ENV)" != "dev" ]; then echo "This target can only be run in the 'dev' environment."; exit 1; fi; \
 	set -e; \
+	COMPLETED=false; \
 	\
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
@@ -138,14 +159,15 @@ provision-ami: check-tools
 	aws autoscaling suspend-processes --auto-scaling-group-name $$ASG_NAME --scaling-processes HealthCheck ReplaceUnhealthy; \
 	\
 	# Step 4: Run the hardening script via SSM. Use a trap to guarantee ASG processes are resumed. \
-	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME' EXIT; \
+	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME; if [ "$$COMPLETED" = "true" ]; then echo "[$$TIMESTAMP] Task completed successfully." | tee -a $$LOG_FILE; fi' EXIT; \
 	echo "[$$TIMESTAMP] Running prepare-golden-ami.sh via SSM on instance $$INSTANCE_ID..." | tee -a $$LOG_FILE; \
 	$(SCRIPTS_DIR)/ssm_run.sh $$INSTANCE_ID "$$(cat $(SCRIPTS_DIR)/prepare-golden-ami.sh)" | tee -a $$LOG_FILE; \
 	\
 	# Step 5: Final status message \
 	# Note: The trap will execute after this, resuming ASG processes. \
 	echo "[$$TIMESTAMP] Provisioning script finished. ASG processes will now be resumed." | tee -a $$LOG_FILE; \
-	echo "[$$TIMESTAMP] Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE;
+	echo "[$$TIMESTAMP] Now verify instance and run make create-ami ENV=dev" | tee -a $$LOG_FILE; \
+	COMPLETED=true;
 
 # --- AMI Test Target --- #
 # Runs a shell script smoke test via AWS SSM to verify that the provisioned instance meets all requirements for Golden AMI.
@@ -154,6 +176,7 @@ provision-ami: check-tools
 test-ami: check-tools
 	@if [ "$(ENV)" != "dev" ]; then echo "This target can only be run in the 'dev' environment."; exit 1; fi; \
 	set -e; \
+	COMPLETED=false; \
 	\
 	# Step 1: Setup timestamp and log file \
 	TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
@@ -177,13 +200,14 @@ test-ami: check-tools
 	aws autoscaling suspend-processes --auto-scaling-group-name $$ASG_NAME --scaling-processes HealthCheck ReplaceUnhealthy; \
 	\
 	# Step 4: Run the smoke test script via SSM. Use a trap to guarantee ASG processes are resumed. \
-	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME' EXIT; \
+	trap 'echo "[$$TIMESTAMP] Resuming ASG processes for $$ASG_NAME..." | tee -a $$LOG_FILE; aws autoscaling resume-processes --auto-scaling-group-name $$ASG_NAME; if [ "$$COMPLETED" = "true" ]; then echo "[$$TIMESTAMP] Task completed successfully." | tee -a $$LOG_FILE; fi' EXIT; \
 	echo "[$$TIMESTAMP] Running smoke-test-ami.sh via SSM on instance $$INSTANCE_ID..." | tee -a $$LOG_FILE; \
 	$(SCRIPTS_DIR)/ssm_run.sh $$INSTANCE_ID "$$(cat $(SCRIPTS_DIR)/smoke-test-ami.sh)" | tee -a $$LOG_FILE; \
 	\
 	# Step 5: Final status message \
 	echo "[$$TIMESTAMP] Smoke test complete. Review $$LOG_FILE for details."; \
-	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."
+	echo "If all checks passed, proceed to 'make create-ami ENV=dev'."; \
+	COMPLETED=true;
 
 # --- AMI Creation Target --- #
 # Creates the Golden AMI after provisioning and testing are successful.
@@ -231,7 +255,8 @@ create-ami: check-tools
 	# Step 5: Commit AMI ID and log to Git \
 	git add environments/$(ENV)/ami_history/ami_id.txt $$LOG_FILE && \
 	git commit -m "chore($(ENV)): appended Golden AMI $$AMI_ID to history" && \
-	echo "[$$TIMESTAMP] Committed AMI ID and log to Git." | tee -a $$LOG_FILE
+	echo "[$$TIMESTAMP] Committed AMI ID and log to Git." | tee -a $$LOG_FILE; \
+	echo "[$$TIMESTAMP] Task completed successfully." | tee -a $$LOG_FILE
 
 # --- AMI Copy Target --- #
 # Copies the latest Golden AMI ID from a source environment (dev) to a target environment (stage/prod).

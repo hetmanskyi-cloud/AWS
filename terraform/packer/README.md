@@ -30,9 +30,10 @@ This directory contains the [HashiCorp Packer](https://www.packer.io/) configura
 
 ## 2. Prerequisites / Requirements
 
-- **Packer** (v1.9.0 or later) installed locally.
-- **AWS CLI** configured with appropriate permissions to create EC2 instances, security groups, and AMIs.
+- **Packer** (v1.10.0 or later) installed locally.
+- **AWS CLI** configured with appropriate permissions to create EC2 instances and AMIs.
 - Existing **Ansible Playbooks** located in `../ansible/playbooks/`.
+- **Make** utility for automated workflows.
 
 ---
 
@@ -42,6 +43,7 @@ This directory contains the [HashiCorp Packer](https://www.packer.io/) configura
 graph TD
     subgraph Build_Host ["Build Host (Local/CI)"]
         Packer["Packer CLI"]
+        Makefile["Makefile (build_packer)"]
     end
 
     subgraph AWS_Cloud ["AWS Cloud"]
@@ -51,62 +53,57 @@ graph TD
             AnsibleLocal["Ansible Local"]
         end
 
-        BaseAMI["Base AMI<br>(Ubuntu 24.04 LTS)"]
-        GoldenAMI["Golden AMI<br>(Resulting Artifact)"]
+        BaseAMI["Base AMI<br/>(Ubuntu 24.04 LTS)"]
+        GoldenAMI["Golden AMI<br/>(Resulting Artifact)"]
     end
 
-    Packer -->|"1. Request Instance"| EC2
-    BaseAMI -->|"2. Boot from"| EC2
-    Packer -->|"3. Install Ansible"| EC2
-    Packer -->|"4. Upload Playbooks"| EC2
+    Makefile -->|"1. Trigger Build"| Packer
+    Packer -->|"2. Request Instance"| EC2
+    BaseAMI -->|"3. Boot from"| EC2
+    Packer -->|"4. Install Ansible"| EC2
+    Packer -->|"5. Upload Playbooks"| EC2
     EC2 -- "Run Locally" --> AnsibleLocal
-    AnsibleLocal -->|"5. Provision Software"| EC2
-    Packer -->|"6. Run Hardening Script"| EC2
-    Packer -->|"7. Run Smoke Tests"| EC2
-    EC2 -->|"8. Create Snapshot/AMI"| GoldenAMI
-    Packer -->|"9. Terminate & Cleanup"| Build_Environment
+    AnsibleLocal -->|"6. Provision Software Stack<br/>(Skip DB interaction)"| EC2
+    Packer -->|"7. Install WP-CLI Manually"| EC2
+    Packer -->|"8. Run Hardening Script (bash)"| EC2
+    Packer -->|"9. Run Smoke Tests (bash)"| EC2
+    EC2 -->|"10. Create Snapshot/AMI"| GoldenAMI
+    GoldenAMI -->|"11. Post-Process<br/>(Promote AMI to Environments)"| Makefile
+    Packer -->|"12. Terminate & Cleanup"| Build_Environment
 
     %% Styling
     classDef build fill:#f9f,stroke:#333,stroke-width:2px;
     classDef aws fill:#FF9900,stroke:#232F3E,color:white;
     classDef artifact fill:#1A73E8,stroke:#232F3E,color:white;
 
-    class Packer build;
+    class Packer,Makefile build;
     class EC2,SecurityGroup,BaseAMI,AnsibleLocal aws;
     class GoldenAMI artifact;
 ```
 
-> _Diagram generated with [Mermaid](https://mermaid.js.org/)_
-
 ---
 
 ## 4. Features
-- **Automated AMI Creation:** Eliminates manual configuration errors.
-- **Ansible Local Integration:** Installs Ansible on the builder to run the exact same playbooks used in development.
-- **Ubuntu 24.04 LTS:** Uses the latest Long Term Support release for stability and security.
-- **Security Hardening:** Includes a dedicated script (`prepare-golden-ami.sh`) to secure SSH, firewall (UFW), and remove logs.
-- **Automated Verification:** Runs `smoke-test-ami.sh` to verify firewall status, service health, and cleanup before finalizing the image.
-- **Immutable Artifact:** Ensures that what you test is exactly what you deploy.
+- **Automated Promotion:** Automatically updates `terraform.tfvars` in `dev` and `stage` environments via `make use-ami`.
+- **Full Build Logging:** Integrates with `Makefile` to save full console output to `ami_history/logs/`.
+- **Ansible Decoupling:** Reuses production playbooks while skipping database-dependent tasks during the baking phase.
+- **Enhanced Security:** Explicitly uses `bash` for hardening and smoke-test scripts to ensure `pipefail` and other safety features work correctly.
+- **WP-CLI Inclusion:** Ensures the `wp` command is available in the AMI by installing it manually after the PHP stack is ready.
 
 ---
 
 ## 5. Build Process Architecture
 
 The build process follows these logical steps:
-1.  **Initialize:** Downloads required plugins (Amazon EBS, Ansible).
-2.  **Source:** Launches a temporary `t3.micro` instance (Ubuntu 24.04) in the specified region.
-3.  **Bootstrap:**
-    *   Waits for `cloud-init`.
-    *   Installs Ansible and required dependencies on the instance.
-4.  **Provision:**
-    *   Uploads the `install-wordpress.yml` playbook.
-    *   Runs the playbook locally (`ansible-local`) with mocked variables and skipped tags (skips DB/S3 connections).
-5.  **Harden:**
-    *   Runs `scripts/prepare-golden-ami.sh` to configure UFW, disable SSH root login, and clean up logs.
-6.  **Verify:**
-    *   Runs `scripts/smoke-test-ami.sh` to validate the instance state (ports, services, security).
-7.  **Artifact:** Stops the instance, creates an AMI, and tags it with versioning information.
-8.  **Cleanup:** Terminates the temporary EC2 instance and deletes the temporary security group.
+1.  **Initialize:** Packer downloads plugins and validates the `wordpress.pkr.hcl` template.
+2.  **Bootstrap:** Launches an EC2 instance and installs Ansible, Python, and required AWS collections.
+3.  **Software Provisioning:**
+    *   Runs Ansible `install-wordpress.yml` skipping `wp-cli` and `plugins` tags to avoid DB errors.
+    *   Manually installs `wp-cli` binary after Ansible ensures PHP is present.
+4.  **Hardening:** Executes `prepare-golden-ami.sh` using `sudo bash` to secure the OS and cleanup temporary data.
+5.  **Verification:** Runs `smoke-test-ami.sh` to validate the image before finalization.
+6.  **Imaging:** Stops the instance, creates an AMI with standardized tags, and logs the ID.
+7.  **Promotion:** Triggers `make use-ami` to update environment configurations automatically.
 
 ---
 
@@ -127,10 +124,7 @@ The build process follows these logical steps:
 | `instance_type`     | `string` | EC2 instance type for the build process    | `t3.micro`      |
 | `wordpress_version` | `string` | Version of WordPress to install            | `v6.8.2`        |
 | `php_version`       | `string` | PHP version to install                     | `8.3`           |
-| `project`           | `string` | Project tag value                          | `AWS`           |
-| `owner`             | `string` | Owner tag value                            | `Hetmanskyi`    |
-| `application`       | `string` | Application tag value                      | `wordpress`     |
-| `component`         | `string` | Component tag value                        | `asg`           |
+| `build_timestamp`   | `string` | Optional timestamp passed from Makefile    | `""`            |
 | `ami_golden_tag`    | `string` | Environment tag value for the Golden AMI   | `golden`        |
 
 ---
@@ -139,84 +133,78 @@ The build process follows these logical steps:
 
 | **Artifact**    | **Description**                                                   |
 |-----------------|-------------------------------------------------------------------|
-| `AMI ID`        | The unique ID of the created Golden AMI (e.g., `ami-0xyz...`).    |
-| `AMI Name`      | Name following the pattern `wordpress-golden-ami-YYYYMMDDHHMMSS`. |
+| `AMI ID`        | The unique ID of the created Golden AMI.                          |
+| `History Log`   | Full build output saved in `environments/dev/ami_history/logs/`.  |
+| `tfvars`        | Updated `ami_id` variable in `dev` and `stage` environments.      |
 
 ---
 
 ## 9. Example Usage (Commands)
 
-### Initialize and Build
+The preferred way to run Packer is through the project's root `Makefile`:
 
 ```bash
-# Initialize Packer plugins
-packer init .
+# Initialize and Validate
+make all_packer
 
-# Validate the configuration
-packer validate .
-
-# Build the Golden AMI
-packer build .
+# Full Build, Test, and Auto-Promotion
+make build_packer
 ```
 
-### Passing Custom Variables
-
+Manual execution:
 ```bash
-packer build -var="wordpress_version=v6.8.3" -var="owner=MyTeam" .
+packer init .
+packer build -var "build_timestamp=$(date +%Y%m%d%H%M%S)" .
 ```
 
 ---
 
 ## 10. Security Considerations / Recommendations
-- **Least Privilege:** Ensure the IAM user running Packer has only the necessary permissions (EC2, AMI, Tagging).
-- **SSH Access:** Packer creates a temporary key pair. Ensure your local machine can connect to the temporary instance via port 22.
-- **Cleanup:** The hardening script removes keys and bash history.
-- **SSM Alternative:** For higher security, consider switching `ssh_interface` to `session_manager` to avoid opening port 22 entirely.
+- **IAM Permissions:** Ensure the builder has `ec2:CreateImage`, `ec2:TerminateInstances`, and `ec2:CreateTags` permissions.
+- **Script Execution:** Scripts are run with `sudo bash` to ensure consistent behavior across different shell environments.
+- **Cleanup:** All build-time secrets and history are purged by the hardening script before imaging.
 
 ---
 
 ## 11. Best Practices
-- **Reuse Playbooks:** We use `ansible/playbooks/install-wordpress.yml` with `skip-tags` to reuse the same logic as the Dev environment.
-- **Versioning:** Use the timestamp in the AMI name to track build history.
-- **Base Image:** Always use the `most_recent = true` filter for the base AMI to include latest security patches.
+- **Idempotency:** The Ansible tasks are designed to be idempotent, allowing for reliable AMI rebuilds.
+- **Logging:** Always check `ami_history/logs/` if a build fails to understand where it stopped.
+- **Version Parity:** Ensure `php_version` in Packer matches the version expected by the Terraform environment.
 
 ---
 
 ## 12. Integration with Terraform
 
-Once the build is complete, Packer will display the new AMI ID. Update your environment configuration:
+The Packer template is integrated with the Terraform workflow via the `post-processor`. Upon completion, it automatically:
+1. Appends the new AMI ID to `ami_id.txt`.
+2. Updates `environments/dev/terraform.tfvars`.
+3. Updates `environments/stage/terraform.tfvars`.
 
-**File:** `terraform/environments/stage/terraform.tfvars`
-
-```hcl
-ami_id = "ami-0123456789abcdef0" # Replace with your new AMI ID
-```
-
-Run `terraform apply` to update the Launch Template and trigger an Instance Refresh.
+This allows for a seamless `make build_packer && make apply ENV=stage` workflow.
 
 ---
 
 ## 13. Troubleshooting and Common Issues
 
-### 1. Failed to connect via SSH
-- **Cause:** Security group rules or network routing (missing Public IP).
-- **Solution:** Ensure your subnet has `map_public_ip_on_launch = true` or use a VPC with an Internet Gateway. Default user is `ubuntu`.
+### 1. Illegal option -o pipefail
+- **Cause:** The shell provisioner attempted to run a script using `/bin/sh` (dash).
+- **Solution:** Always use `execute_command = "... sudo bash {{ .Path }}"` in the Packer template.
 
-### 2. Ansible Playbook fails
-- **Cause:** Missing dependencies on the instance or incorrect variable mocking.
-- **Solution:** Check the Packer logs. Ensure `php_version` matches the Ubuntu repository availability.
+### 2. WP-CLI: php command not found
+- **Cause:** WP-CLI was installed before the PHP stack.
+- **Solution:** WP-CLI installation is placed after the Ansible provisioner in the build sequence.
 
-### 3. Build instance stays running on failure
-- **Cause:** Packer process interrupted.
-- **Solution:** Manually terminate the instance in the AWS Console to avoid costs.
+### 3. Post-processor failed
+- **Cause:** The build process was interrupted before finalization.
+- **Solution:** Check if the AMI was created in AWS and manually run `make use-ami` to update the configuration.
 
 ---
 
 ## 14. Notes
 
-- The build process reuses `../ansible/playbooks/install-wordpress.yml`.
-- Placeholders like `db_host=localhost` are used during the build phase because the database is not required during the "baking" process.
-- The resulting AMI is optimized for the `eu-west-1` region by default.
+- **Shebangs:** Scripts in `terraform/scripts/` intentionally lack shebangs to maintain compatibility with legacy SSM execution methods (though SSM supports shebangs, this ensures broader compatibility). They MUST be called with an explicit interpreter (e.g., `bash`).
+- **DB Mocking:** Mock database credentials (`build/build`) are used during AMI creation. WordPress is fully initialized only when the final instance boots using User Data.
+- **Post-Processor:** If the build is interrupted, the post-processor might not run. In this case, manually update `ami_id.txt` and `terraform.tfvars`.
 
 ---
 

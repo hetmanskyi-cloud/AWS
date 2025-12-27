@@ -41,7 +41,7 @@ PLUGINS=(
   [redis-cache]="https://downloads.wordpress.org/plugin/redis-cache.${REDIS_CACHE_VERSION}.zip"
   [wordfence]="https://downloads.wordpress.org/plugin/wordfence.${WORDFENCE_VERSION}.zip"
   # LudicrousDB is essential for horizontal database scaling with RDS Read Replicas.
-  [ludicrousdb]="https://github.com/stuartduffy/ludicrousdb/archive/refs/tags/v${LUDICROUSDB_VERSION}.zip"
+  [ludicrousdb]="https://github.com/stuttter/ludicrousdb/archive/refs/heads/master.zip"
 )
 
 # --- Prepare Temporary Workspace --- #

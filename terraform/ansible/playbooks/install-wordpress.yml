@@ -21,6 +21,7 @@
         timeout: 60
         delay: 5
         state: started
+      when: enable_db_wait | default(true)
       tags: [db-wait]
 
     - name: Wait for Redis to become available
@@ -30,6 +31,7 @@
         timeout: 60
         delay: 5
         state: started
+      when: enable_redis_wait | default(true)
       tags: [redis-wait]
 
     - name: Install all system and build packages

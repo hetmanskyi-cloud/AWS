@@ -175,7 +175,7 @@ The project uses a multi-environment setup located in the `environments/` direct
 
 -   **`stage` Environment:**
     -   **Purpose:** Pre-production validation, integration testing, and performance testing.
-    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image created by **Packer** (or the manual Makefile workflow). This ensures faster, more reliable, and consistent deployments.
+    -   **Strategy:** Designed to be a near-perfect mirror of production. It uses a **Golden AMI** deployment strategy, where instances are launched from a pre-built machine image created by **Packer** (or manually via Makefile). This ensures faster, more reliable, and consistent deployments.
     -   See `environments/stage/README.md` for full details.
 
 ### 5.2. Modularity
@@ -231,29 +231,21 @@ All commands should be run from the root `terraform/` directory.
 
 The `stage` environment relies on a "Golden AMI" for deployments. There are two supported methods for creating this AMI:
 
-#### Method A: Packer (Recommended)
-This approach fully automates the creation of an **Immutable Infrastructure** artifact. It reuses the Ansible playbooks from the project.
+#### Method A: Packer (Recommended & Automated)
+This approach fully automates the creation of an **Immutable Infrastructure** artifact and its promotion to environments.
 
-1.  **Build the AMI:** Run Packer from the `packer/` directory.
+1.  **Build and Promote:** Run the automated build target from the root `terraform/` directory.
     ```bash
-    cd packer
-    packer init .
-    packer build .
+    make build_packer
     ```
-    *This process automatically provisions a temporary instance, runs Ansible playbooks, executes hardening scripts, verifies the image with smoke tests, and creates the AMI.*
+    *This process automatically provisions a temporary instance, runs Ansible, hardens the OS, verifies the image, creates the AMI, logs the result in `ami_history/`, and **automatically updates `ami_id` in `dev` and `stage` `terraform.tfvars` files**.*
 
-2.  **Update Staging:** Take the AMI ID output by Packer and update `environments/stage/terraform.tfvars`.
-    ```bash
-    # Example
-    ami_id = "ami-0123456789abcdef0"
-    ```
-
-3.  **Deploy:**
+2.  **Deploy:** Apply the changes to the desired environment.
     ```bash
     make apply ENV=stage
     ```
 
-#### Method B: Makefile (Legacy / Manual)
+#### Method B: Makefile (Manual Workflow)
 This workflow allows you to snapshot a running `dev` instance after manual verification.
 
 1.  **Provision & Harden Instance:** In the `dev` environment, select a running instance and prepare it to be an AMI.
@@ -272,10 +264,7 @@ This workflow allows you to snapshot a running `dev` instance after manual verif
     ```bash
     make use-ami TARGET_ENV=stage SOURCE_ENV=dev
     ```
-5.  **Deploy Staging:** Apply the changes to the `stage` environment. The ASG will perform a zero-downtime rolling update.
-    ```bash
-    make apply ENV=stage
-    ```
+5.  **Deploy Staging:** Apply the changes to the `stage` environment.
 
 ### 8.2. Secrets Rotation
 
@@ -322,9 +311,11 @@ The root `Makefile` provides a convenient interface for common tasks. All comman
 | `make destroy ENV=<env>`                   | Destroys all resources in the specified environment. **Use with extreme caution.**                |
 | `make debug ENV=<env>`                     | Starts a real-time log monitoring session for a deploying instance in the environment.            |
 | `make check ENV=<env>`                     | Runs a script to check for any leftover AWS resources after a destroy operation.                  |
-| `make provision-ami`                       | **(Golden AMI)** Prepares a `dev` instance for imaging (updates, hardens, cleans).                |
-| `make test-ami`                            | **(Golden AMI)** Runs smoke tests on the prepared `dev` instance.                                 |
-| `make create-ami`                          | **(Golden AMI)** Creates the AMI from the tested `dev` instance and logs its ID.                  |
-| `make use-ami TARGET_ENV=<env>`            | **(Golden AMI)** Promotes the latest `dev` AMI to another environment (e.g., `stage`).            |
+| `make build_packer`                        | **(Packer)** Automated Golden AMI build, test, and promotion to all environments.                 |
+| `make all_packer`                          | **(Packer)** Initializes and validates the Packer configuration.                                  |
+| `make provision-ami`                       | **(Manual Workflow)** Prepares a `dev` instance for imaging (updates, hardens, cleans).           |
+| `make test-ami`                            | **(Manual Workflow)** Runs smoke tests on the prepared `dev` instance.                            |
+| `make create-ami`                          | **(Manual Workflow)** Creates the AMI from the tested `dev` instance and logs its ID.             |
+| `make use-ami TARGET_ENV=<env>`            | **(Manual Workflow)** Promotes the latest `dev` AMI to another environment (e.g., `stage`).       |
 | `make update-wordpress`                    | For local use. Updates the WordPress core/plugins in the source Git repository.                   |
 | `make build-layer`                         | For local use. Builds the Lambda Layer `.zip` file using Docker.                                  |
